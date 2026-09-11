@@ -60,14 +60,14 @@
 
 	let type = $state<OverviewCard['type']>(initial?.type ?? 'entities');
 	// a new card opens on the gallery; an existing one on its fields
+	// svelte-ignore state_referenced_locally
 	let typeOpen = $state(id === null);
 	// blank means the type's own default: media and sensor cards fill, the rest
 	// size to their content
 	let fill = $state<string>(
 		initial && typeof initial.fill === 'number' ? String(initial.fill) : ''
 	);
-	// blank means "size to content" for a fusion embed, or "fill the column" for
-	// the two cards that stretch
+	// A blank height uses the card descriptor’s default sizing.
 	let height = $state<string>(
 		initial && 'height' in initial && initial.height ? String(initial.height) : ''
 	);

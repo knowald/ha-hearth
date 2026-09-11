@@ -1,13 +1,14 @@
 services:
-  ha-fusion:
-    container_name: ha-fusion
-    image: ghcr.io/knowald/ha-fusion
+  ha-hearth:
+    build: .
+    container_name: ha-hearth
+    image: ghcr.io/knowald/ha-hearth
     volumes:
       # Mount data directory for persistent dashboard configurations
       # Update this path to your desired data directory
       - ${DATA_PATH:-./data}:/app/data
     networks:
-      - ha-fusion-network
+      - ha-hearth-network
     ports:
       - '${EXPOSED_PORT:-5050}:5050'
     environment:
@@ -24,5 +25,5 @@ services:
       start_period: 40s
 
 networks:
-  ha-fusion-network:
+  ha-hearth-network:
     driver: bridge

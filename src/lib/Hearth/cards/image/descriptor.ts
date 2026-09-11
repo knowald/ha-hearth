@@ -1,25 +1,10 @@
-import * as v from 'valibot';
-import type { OverviewCard } from '../../types';
-import { trimmedOrUndefined } from '../../normalizers';
 import type { CardDescriptor } from '../types';
 import Card from './Card.svelte';
-import { OptionalText, OptionalEntityId } from '../../schema';
-
-export type ImageCard = Extract<OverviewCard, { type: 'image' }>;
+import { imageCard as definition, type ImageCard } from '../../model/cards/image';
+export type { ImageCard } from '../../model/cards/image';
 
 export const imageCard: CardDescriptor<ImageCard> = {
-	type: 'image',
-	label: 'hearth_card_image_label',
-	name: 'hearth_card_image_name',
-	sub: 'hearth_card_image_sub',
-	icon: 'image',
-	normalize: (card) => ({
-		entity: trimmedOrUndefined(card.entity),
-		title: trimmedOrUndefined(card.title)
-	}),
-	schema: v.looseObject({ entity: OptionalEntityId, title: OptionalText }),
-	needsConfiguration: (card) => !card.entity,
-	entityIds: (card) => (card.entity ? [card.entity] : []),
+	...definition,
 	component: Card,
 	editor: () => import('./Editor.svelte')
 };

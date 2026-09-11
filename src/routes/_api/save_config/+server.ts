@@ -1,23 +1,29 @@
 import { json } from '@sveltejs/kit';
 import { saveYamlDocument } from '$lib/server/persistence';
+import { ConfigurationSchema } from '$lib/core/app/configuration';
+import * as v from 'valibot';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
-	const body = await request.json();
+	const body = await request.json().catch(() => null);
 	if (!body || typeof body !== 'object' || Array.isArray(body)) {
 		return new Response(JSON.stringify({ error: 'Configuration must be a mapping' }), {
 			status: 400
 		});
 	}
 
-	// the loaded document carries the revision it was read at; a client that
-	// echoes it gets conflict detection, an older client keeps last-writer-wins
-	const { revision, ...document } = body;
+	const revision = body.revision;
+	if (!Number.isInteger(revision) || revision < 0)
+		return json({ error: 'invalid revision' }, { status: 400 });
+	const parsed = v.safeParse(ConfigurationSchema, body);
+	if (!parsed.success) return json({ error: 'invalid application settings' }, { status: 400 });
+	const document: Record<string, unknown> = { ...parsed.output };
+	delete document.revision;
 	try {
 		const result = await saveYamlDocument({
 			file: 'data/configuration.yaml',
 			body: document,
-			revision: Number.isInteger(revision) && revision >= 0 ? revision : undefined
+			revision
 		});
 		if (result.conflict) {
 			return new Response(JSON.stringify({ error: 'conflict', revision: result.revision }), {

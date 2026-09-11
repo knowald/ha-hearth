@@ -9,7 +9,7 @@ COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
 
 # install pnpm and dependencies
 RUN npm install -g pnpm && \
-  pnpm install
+  pnpm install --frozen-lockfile
 
 # copy source files
 COPY . .
@@ -30,8 +30,7 @@ COPY --from=builder /app/package.json .
 
 # set environment
 ENV PORT=5050 \
-  NODE_ENV=production \
-  ADDON=false
+  NODE_ENV=production
 
 EXPOSE 5050
 CMD ["node", "server.js"]

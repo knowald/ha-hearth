@@ -1,17 +1,12 @@
-import * as v from 'valibot';
-import type { RailWidget } from '../../types';
 import type { WidgetDescriptor } from '../types';
 import Widget from './Widget.svelte';
-
-export type NotificationsWidget = Extract<RailWidget, { type: 'notifications' }>;
+import {
+	notificationsWidget as definition,
+	type NotificationsWidget
+} from '../../model/widgets/notifications';
+export type { NotificationsWidget } from '../../model/widgets/notifications';
 
 export const notificationsWidget: WidgetDescriptor<NotificationsWidget> = {
-	type: 'notifications',
-	label: 'hearth_widget_notifications_label',
-	name: 'hearth_widget_notifications_name',
-	sub: 'hearth_widget_notifications_sub',
-	icon: 'notifications',
-	schema: v.looseObject({}),
-	entityIds: () => [],
+	...definition,
 	component: Widget
 };

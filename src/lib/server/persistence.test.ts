@@ -48,7 +48,7 @@ describe('saveYamlDocument', () => {
 		await saveYamlDocument({ file, body: { name: 'base' }, revision: 0 });
 		const results = await Promise.all(
 			[1, 2, 3].map((step) =>
-				saveYamlDocument({ file, body: { name: `step ${step}` }, force: true })
+				saveYamlDocument({ file, body: { name: `step ${step}` }, revision: 0, force: true })
 			)
 		);
 		expect(results.map(({ revision }) => revision).sort()).toEqual([2, 3, 4]);
@@ -71,7 +71,7 @@ describe('saveYamlDocument', () => {
 
 	it('keeps the ten newest backups', async () => {
 		for (let step = 0; step <= 12; step += 1) {
-			await saveYamlDocument({ file, body: { step }, force: true });
+			await saveYamlDocument({ file, body: { step }, revision: 0, force: true });
 		}
 		const names = await backups();
 		expect(names).toHaveLength(10);
@@ -99,7 +99,7 @@ describe('saveYamlDocument', () => {
 
 	it('refuses to replace a document it cannot read', async () => {
 		await writeFile(file, 'rooms: [unterminated');
-		await expect(saveYamlDocument({ file, body: { name: 'two' } })).rejects.toThrow();
+		await expect(saveYamlDocument({ file, body: { name: 'two' }, revision: 0 })).rejects.toThrow();
 		expect(await readFile(file, 'utf8')).toBe('rooms: [unterminated');
 		expect(await readdir(directory)).toEqual(['hearth.yaml']);
 	});

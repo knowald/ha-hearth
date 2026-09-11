@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { lang } from '$lib/core/i18n';
-	import { mirrorLegacyEditMode } from '$lib/legacy/bridge/editMode';
 	import { THEME_PRESETS, type HearthTheme } from '$lib/core/theme';
 	import {
 		currentRoom,
@@ -26,8 +25,6 @@
 
 	let showSetupWizard = $state(false);
 	let showSearch = $state(false);
-
-	$effect(() => mirrorLegacyEditMode($hearthEditMode));
 
 	// the selected page, or the first one when it was renamed away or deleted
 	let activeRoomId = $derived(

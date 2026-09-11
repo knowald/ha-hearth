@@ -37,12 +37,7 @@ export default tseslint.config(
 		ignores: ['build/', '.svelte-kit/', 'dist/', 'test-results/', 'playwright-report/']
 	},
 	{
-		// the original dashboard renders raw HTML in many places; it goes with legacy
-		files: ['src/lib/legacy/**'],
-		rules: { 'svelte/no-at-html-tags': 'off' }
-	},
-	{
-		// user-facing copy in the rework layers goes through $lang()
+		// user-facing copy in the application layers goes through $lang()
 		files: [
 			'src/lib/Hearth/**/*.svelte',
 			'src/lib/Hearth/**/*.ts',
@@ -68,8 +63,8 @@ export default tseslint.config(
 		}
 	},
 	{
-		// the rework layers are typed; the count is capped by --max-warnings in the
-		// lint script and only goes down. legacy/ stays exempt until it is deleted.
+		// the application layers are typed; the count is capped by --max-warnings in the
+		// lint script and only goes down.
 		files: ['src/lib/Hearth/**', 'src/routes/+page.svelte', 'src/routes/+page.server.ts'],
 		rules: {
 			'@typescript-eslint/no-explicit-any': 'warn'

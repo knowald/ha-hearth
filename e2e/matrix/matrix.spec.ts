@@ -157,15 +157,7 @@ const SCENES: Scene[] = [
 		name: name as string,
 		setup: (page: Page) => tapDevice(page, pattern as RegExp)
 	})),
-	...[
-		'Lights',
-		'Header card',
-		'Inside',
-		'Side by side',
-		'Scenes',
-		'Picture card',
-		'Fusion button'
-	].map((title) => ({
+	...['Lights', 'Header card', 'Inside', 'Side by side', 'Scenes'].map((title) => ({
 		family: 'edit-sheets',
 		name: `card-${title.toLowerCase().replace(/\W+/g, '-')}`,
 		setup: (page: Page) => openCardEditor(page, title)

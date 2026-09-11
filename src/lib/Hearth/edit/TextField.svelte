@@ -1,14 +1,24 @@
 <script lang="ts">
+	import type { FullAutoFill } from 'svelte/elements';
+
 	let {
 		label,
 		value = $bindable(''),
-		placeholder = ''
-	}: { label: string; value?: string; placeholder?: string } = $props();
+		placeholder = '',
+		type = 'text',
+		autocomplete = undefined
+	}: {
+		label: string;
+		value?: string;
+		placeholder?: string;
+		type?: 'text' | 'password';
+		autocomplete?: FullAutoFill;
+	} = $props();
 </script>
 
 <label class="field">
 	<span class="field-label">{label}</span>
-	<input type="text" bind:value {placeholder} spellcheck="false" />
+	<input {type} {autocomplete} bind:value {placeholder} spellcheck="false" />
 </label>
 
 <style>

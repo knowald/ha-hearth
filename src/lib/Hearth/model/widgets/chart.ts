@@ -1,0 +1,36 @@
+import * as v from 'valibot';
+import type { RailWidget } from '../../types';
+import { normalizeWholeNumber, trimmedOrUndefined } from '../../normalizers';
+import type { WidgetDefinition } from '../types';
+import { OptionalText, OptionalEntityId, optionalNumberAtLeast } from '../../schema';
+
+export type ChartWidget = Extract<RailWidget, { type: 'chart' }>;
+
+export const CHART_STYLES = ['line', 'history', 'bar', 'radial'] as const;
+export const CHART_PERIODS = ['hour', 'day', 'week', 'month'] as const;
+
+export const chartWidget: WidgetDefinition<ChartWidget> = {
+	type: 'chart',
+	label: 'hearth_widget_chart_label',
+	name: 'hearth_widget_chart_name',
+	sub: 'hearth_widget_chart_sub',
+	icon: 'show_chart',
+	normalize: (widget) => ({
+		entity: trimmedOrUndefined(widget.entity),
+		name: trimmedOrUndefined(widget.name),
+		style: CHART_STYLES.includes(widget.style) ? widget.style : undefined,
+		period: CHART_PERIODS.includes(widget.period) ? widget.period : undefined,
+		math: trimmedOrUndefined(widget.math),
+		stroke: normalizeWholeNumber(widget.stroke, 1)
+	}),
+	schema: v.looseObject({
+		entity: OptionalEntityId,
+		name: OptionalText,
+		style: v.optional(v.picklist(CHART_STYLES, 'must be line, history, bar or radial')),
+		period: v.optional(v.picklist(CHART_PERIODS, 'must be hour, day, week or month')),
+		math: OptionalText,
+		stroke: optionalNumberAtLeast(1)
+	}),
+	needsConfiguration: (widget) => !widget.entity,
+	entityIds: (widget) => (widget.entity ? [widget.entity] : [])
+};

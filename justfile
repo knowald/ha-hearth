@@ -4,7 +4,7 @@ default:
 up *args:
     docker compose -f docker-compose.dev.yml up {{args}}
 
-backup-dashboard:
+backup-hearth:
     @mkdir -p data/backups
-    @cp data/dashboard.yaml "data/backups/dashboard-$(date +%Y%m%d-%H%M%S).yaml"
-    @echo "Backed up to data/backups/dashboard-$(date +%Y%m%d-%H%M%S).yaml"
+    @cp data/hearth.yaml "data/backups/hearth-$(date +%Y%m%d-%H%M%S).yaml"
+    @echo "Backed up Hearth configuration to data/backups/"

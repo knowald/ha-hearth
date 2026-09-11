@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
  * from the production build. The eager set is the app entry, the root layout
  * node and the route node, plus everything they statically import. Chunks
  * behind dynamic import() (embeds, editors, modals) do not count, which is the
- * point: heavy legacy code must stay behind a dynamic boundary. Run after
+ * point: heavy optional code must stay behind a dynamic boundary. Run after
  * `pnpm build`.
  */
 
@@ -19,8 +19,7 @@ const APP_ENTRY = '.svelte-kit/generated/client-optimized/app.js';
 
 // gzipped kilobytes; raise deliberately, never to make a red build green
 const BUDGETS = {
-	'routes/+page.svelte': { js: 150, css: 20 },
-	'routes/classic/+page.svelte': { js: 80, css: 8 }
+	'routes/+page.svelte': { js: 150, css: 20 }
 };
 
 const manifest = JSON.parse(await readFile(MANIFEST, 'utf8'));

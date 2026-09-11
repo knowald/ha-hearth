@@ -11,7 +11,6 @@ import { timerWidget } from './timer/descriptor';
 import { clockWidget } from './clock/descriptor';
 import { energyWidget } from './energy/descriptor';
 import { entityWidget } from './entity/descriptor';
-import { fusionWidget } from './fusion/descriptor';
 import { labelWidget } from './label/descriptor';
 import { navWidget } from './nav/descriptor';
 import { progressWidget } from './progress/descriptor';
@@ -38,8 +37,7 @@ const REGISTERED = [
 	templateWidget,
 	timerWidget,
 	notificationsWidget,
-	iframeWidget,
-	fusionWidget
+	iframeWidget
 ] as const;
 
 // a widget shape in types.ts without a descriptor (or the reverse) fails here

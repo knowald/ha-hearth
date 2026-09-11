@@ -8,11 +8,9 @@ import { climateCard } from './climate/descriptor';
 import { conditionalMediaCard } from './conditional_media/descriptor';
 import { daysSinceCard } from './days_since/descriptor';
 import { entitiesCard } from './entities/descriptor';
-import { fusionCard } from './fusion/descriptor';
 import { headerCard } from './header/descriptor';
 import { imageCard } from './image/descriptor';
 import { mediaCard } from './media/descriptor';
-import { pictureCard } from './picture/descriptor';
 import { scenesCard } from './scenes/descriptor';
 import { temperatureCard } from './temperature/descriptor';
 import { vacuumCard } from './vacuum/descriptor';
@@ -29,10 +27,8 @@ const REGISTERED = [
 	imageCard,
 	climateCard,
 	scenesCard,
-	pictureCard,
 	daysSinceCard,
-	conditionalMediaCard,
-	fusionCard
+	conditionalMediaCard
 ] as const;
 
 // a card shape in types.ts without a descriptor (or the reverse) fails here

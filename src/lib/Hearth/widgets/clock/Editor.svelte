@@ -12,7 +12,7 @@
 	// svelte-ignore state_referenced_locally
 	const initial = initialProp;
 
-	let timezone = $state(initial?.timezone ?? validTimeZone(initial?.city) ?? '');
+	let timezone = $state(initial?.timezone ?? '');
 	let hourFormat = $state<ClockHourFormat>(initial?.hour_format ?? 'auto');
 	let showSeconds = $state(initial?.show_seconds ?? false);
 	let timezoneValid = $derived(!timezone.trim() || !!validTimeZone(timezone));

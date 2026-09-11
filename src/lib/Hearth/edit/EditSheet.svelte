@@ -129,7 +129,7 @@
 
 <style>
 	.overlay {
-		position: absolute;
+		position: fixed;
 		inset: 0;
 		z-index: var(--h-layer-sheet);
 		background: var(--h-overlay);
@@ -149,6 +149,8 @@
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
 		border-radius: var(--h-radius-xl);
 		box-shadow: 0 30px 80px var(--h-scrim);
+		color: var(--h-text-1);
+		font-family: var(--h-font-ui);
 		overflow: hidden;
 	}
 

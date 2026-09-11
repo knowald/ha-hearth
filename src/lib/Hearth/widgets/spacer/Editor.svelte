@@ -2,7 +2,7 @@
 	import { integerFromInput } from '../../edit/numbers';
 	import { lang } from '$lib/core/i18n';
 	import type { WidgetEditorProps } from '../types';
-	import { SPACER_MIN_HEIGHT, type SpacerWidget } from './descriptor';
+	import { SPACER_MIN_HEIGHT, type SpacerWidget } from '../../model/widgets/spacer';
 	import TextField from '../../edit/TextField.svelte';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<SpacerWidget> = $props();

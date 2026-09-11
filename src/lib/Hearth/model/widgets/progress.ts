@@ -1,0 +1,51 @@
+import * as v from 'valibot';
+import type { RailWidget } from '../../types';
+import type { WidgetDefinition } from '../types';
+import {
+	OptionalText,
+	OptionalEntityId,
+	OptionalTextList,
+	optionalNumberAtLeast
+} from '../../schema';
+
+export type ProgressWidget = Extract<RailWidget, { type: 'progress' }>;
+
+export const progressWidget: WidgetDefinition<ProgressWidget> = {
+	type: 'progress',
+	label: 'hearth_widget_progress_label',
+	name: 'hearth_widget_progress_name',
+	sub: 'hearth_widget_progress_sub',
+	icon: 'progress_activity',
+	normalize: (widget) => ({
+		active_states: Array.isArray(widget.active_states)
+			? widget.active_states.filter((entry: unknown): entry is string => typeof entry === 'string')
+			: undefined,
+		completed_states: Array.isArray(widget.completed_states)
+			? widget.completed_states.filter(
+					(entry: unknown): entry is string => typeof entry === 'string'
+				)
+			: undefined,
+		completion_delay_minutes:
+			typeof widget.completion_delay_minutes === 'number' &&
+			Number.isFinite(widget.completion_delay_minutes) &&
+			widget.completion_delay_minutes >= -1
+				? widget.completion_delay_minutes
+				: undefined
+	}),
+	schema: v.looseObject({
+		name: OptionalText,
+		icon: OptionalText,
+		status_entity: OptionalEntityId,
+		progress_entity: OptionalEntityId,
+		unit: OptionalText,
+		remaining_entity: OptionalEntityId,
+		active_states: OptionalTextList,
+		completed_states: OptionalTextList,
+		completion_delay_minutes: optionalNumberAtLeast(-1)
+	}),
+	needsConfiguration: (widget) => !widget.status_entity,
+	entityIds: (widget) =>
+		[widget.status_entity, widget.progress_entity, widget.remaining_entity].filter(
+			(id): id is string => !!id
+		)
+};

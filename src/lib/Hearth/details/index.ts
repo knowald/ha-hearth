@@ -47,29 +47,14 @@ const DETAILS: Record<string, Loader> = {
 	image: () => import('./Image.svelte')
 };
 
-/**
- * Domains still served by the original dashboard's modal: a calendar, a todo
- * list and a map need more than a control sheet. Each one is a bridge entry
- * to delete once a native surface exists.
- */
-const LEGACY_DETAIL_DOMAINS = new Set(['calendar', 'todo']);
-
 export function detailLoader(entityId: string): Loader | undefined {
 	return DETAILS[getDomain(entityId) ?? ''];
 }
 
-/** Opens the detail surface for any entity: native where one exists, the original modal otherwise. */
+/** Opens the Hearth detail surface for any entity. */
 export function openEntityDetail(entityId: string, name?: string) {
 	const domain = getDomain(entityId);
 	const entity = get(states)?.[entityId];
-	const gpsTracker = domain === 'device_tracker' && entity?.attributes?.source_type === 'gps';
-	if ((domain && LEGACY_DETAIL_DOMAINS.has(domain)) || gpsTracker) {
-		// the bridge drags the original stores along; load it only for these
-		void import('$lib/legacy/bridge/entityModals').then((bridge) =>
-			bridge.openEntityModal(entityId, name)
-		);
-		return;
-	}
 	const label = name || entity?.attributes?.friendly_name || entityId;
 	// these have full popups of their own; the generic sheet has no controls for them
 	if (domain === 'light') return popup.set({ kind: 'light', entity: entityId, name: label });

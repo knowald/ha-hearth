@@ -315,11 +315,4 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-
-	.hint {
-		padding: 12px 10px;
-		font-size: var(--h-type-small);
-		color: var(--h-text-6);
-		text-align: center;
-	}
 </style>

@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { saveYamlDocument } from '$lib/server/persistence';
-import { CONFIG_VERSION } from '$lib/Hearth/migrate';
+import { CONFIG_VERSION, currentHearthConfig } from '$lib/Hearth/format';
+import { hearthConfigIssues } from '$lib/Hearth/normalize';
 import type { RequestHandler } from './$types';
 
 const CONFIG_PATH = './data/hearth.yaml';
@@ -13,13 +14,17 @@ export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => null);
 	if (!isMapping(body)) error(400, 'invalid body');
 
-	// new shape is { revision, config }; legacy clients post the config object
-	// directly, which skips the conflict check
-	const isRevisionedShape = 'config' in body;
-	const config = isRevisionedShape ? body.config : body;
+	const config = body.config;
 	if (!isMapping(config)) error(400, 'invalid config');
-	const revision = isRevisionedShape ? body.revision : undefined;
-	if (revision !== undefined && !(Number.isInteger(revision) && (revision as number) >= 0)) {
+	try {
+		currentHearthConfig(config);
+	} catch (err) {
+		error(400, err instanceof Error ? err.message : 'unsupported config');
+	}
+	const issues = hearthConfigIssues(config);
+	if (issues.length) error(400, issues.join('; '));
+	const revision = body.revision;
+	if (!(Number.isInteger(revision) && (revision as number) >= 0)) {
 		error(400, 'invalid revision');
 	}
 
@@ -28,7 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		result = await saveYamlDocument({
 			file: CONFIG_PATH,
 			body: config,
-			revision: revision as number | undefined,
+			revision: revision as number,
 			force: body.force === true,
 			head: { version: CONFIG_VERSION }
 		});

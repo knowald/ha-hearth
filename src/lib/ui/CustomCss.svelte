@@ -11,7 +11,7 @@
 
 			if (response.ok && data.trim()) {
 				style = document.createElement('style');
-				style.id = 'ha-fusion-custom-css';
+				style.id = 'ha-hearth-custom-css';
 				style.textContent = data;
 				document.head.appendChild(style);
 			} else if (!response.ok) {

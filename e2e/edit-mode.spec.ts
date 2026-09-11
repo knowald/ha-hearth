@@ -16,10 +16,8 @@ const CARD_NAMES = [
 	'Image',
 	'Climate',
 	'Scenes',
-	'Picture',
 	'Days since',
-	'Now playing',
-	'Fusion'
+	'Now playing'
 ];
 const WIDGET_NAMES = [
 	'Clock',
@@ -37,8 +35,7 @@ const WIDGET_NAMES = [
 	'Template',
 	'Timer',
 	'Notifications',
-	'Web page',
-	'Fusion widget'
+	'Web page'
 ];
 
 function collectPageErrors(page: Page): string[] {

@@ -10,12 +10,9 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vscode
-src/routes/playground
-src/lib/Playground
 /data/*
 !/data/.gitkeep
 logs
-.pnpm-store/v10
 
 # playwright
 /test-results
@@ -27,3 +24,4 @@ logs
 !/e2e/fixture-matrix/data/configuration.yaml
 !/e2e/fixture-matrix/data/hearth.yaml
 /matrix-output
+/.pnpm-store/

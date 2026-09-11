@@ -27,7 +27,7 @@ import { states } from './entities';
  * connection or subscriptions.
  */
 
-export const connection = writable<Connection>();
+export const connection = writable<Connection | undefined>();
 export const config = writable<HassConfig>();
 export const services = writable<HassServices>();
 
@@ -43,7 +43,7 @@ export const health = writable<ConnectionHealth>('booting');
 /** True only while the socket is open; the guard for sending commands. */
 export const connected = derived(health, ($health) => $health === 'connected');
 
-/** Latest HA_FUSION trigger event name, for surfaces that react to remote commands. */
+/** Latest HEARTH trigger event name, for surfaces that react to remote commands. */
 export const event = writable<string | undefined>();
 
 export const persistentNotifications = writable<Record<string, PersistentNotification>>({});
@@ -51,7 +51,7 @@ export const persistentNotifications = writable<Record<string, PersistentNotific
 type TriggerListener = (trigger: string) => void;
 const triggerListeners = new Set<TriggerListener>();
 
-/** Runs `listener` for every HA_FUSION trigger event, including repeats of the same name. */
+/** Runs `listener` for every HEARTH trigger event, including repeats of the same name. */
 export function subscribeHassTriggers(listener: TriggerListener): () => void {
 	triggerListeners.add(listener);
 	return () => triggerListeners.delete(listener);
@@ -60,7 +60,7 @@ export function subscribeHassTriggers(listener: TriggerListener): () => void {
 const tokenStorage = {
 	async loadTokens() {
 		try {
-			const raw = localStorage.hassTokens;
+			const raw = localStorage.hearthTokens;
 			// guard against a missing key or the literal "null"/"undefined" string
 			if (!raw || raw === 'null' || raw === 'undefined') return undefined;
 			const tokens = JSON.parse(raw);
@@ -73,10 +73,10 @@ const tokenStorage = {
 		}
 	},
 	saveTokens(tokens: AuthData | null) {
-		localStorage.hassTokens = JSON.stringify(tokens);
+		localStorage.hearthTokens = JSON.stringify(tokens);
 	},
 	clearTokens() {
-		localStorage.removeItem('hassTokens');
+		localStorage.removeItem('hearthTokens');
 	}
 };
 
@@ -115,7 +115,7 @@ export async function authentication(
 		if (configuration?.token) {
 			auth = createLongLivedTokenAuth(configuration.hassUrl, configuration.token);
 		} else if (navigator.userAgent.includes('Home Assistant')) {
-			// companion app and ingress break the auth redirect
+			// the companion app requires token authentication
 			if (!tokenPromptShown) {
 				tokenPromptShown = true;
 				hooks.onTokenRequired?.();
@@ -125,20 +125,9 @@ export async function authentication(
 			// the configuration supplies a long-lived token
 			throw new Error('A long-lived access token is required in the companion app');
 		} else {
-			// ingress serves the app from a per-installation path; pass an
-			// explicit redirect that keeps that path (origin alone would land
-			// the callback on the HA frontend, not this app) and strips the
-			// query string so callback state matching stays clean - the lib
-			// appends its own auth_callback flag
-			const isIngress = window.location.pathname.includes('/api/hassio_ingress/');
-			const redirectUrl = isIngress
-				? `${window.location.origin}${window.location.pathname}`
-				: undefined;
-
 			auth = await getAuth({
 				...tokenStorage,
-				hassUrl: configuration.hassUrl,
-				...(redirectUrl && { redirectUrl })
+				hassUrl: configuration.hassUrl
 			});
 			if (auth.expired) await auth.refreshAccessToken();
 		}
@@ -157,21 +146,27 @@ export async function authentication(
 		health.set('connected');
 
 		// these three keep themselves alive across reconnects inside the library
-		subscribeEntities(conn, (hassEntities) => states.set(hassEntities));
-		subscribeConfig(conn, (hassConfig) => config.set(hassConfig));
-		subscribeServices(conn, (hassServices) => services.set(hassServices));
+		subscribeEntities(conn, (hassEntities) => {
+			if (get(connection) === conn) states.set(hassEntities);
+		});
+		subscribeConfig(conn, (hassConfig) => {
+			if (get(connection) === conn) config.set(hassConfig);
+		});
+		subscribeServices(conn, (hassServices) => {
+			if (get(connection) === conn) services.set(hassServices);
+		});
 
 		conn.addEventListener('ready', () => {
 			console.debug('connected.');
-			health.set('connected');
+			if (get(connection) === conn) health.set('connected');
 		});
 		conn.addEventListener('disconnected', () => {
 			console.debug('connecting...');
-			health.set('lost');
+			if (get(connection) === conn) health.set('lost');
 		});
 		conn.addEventListener('reconnect-error', () => {
 			console.error('ERR_INVALID_AUTH.');
-			health.set('lost');
+			if (get(connection) === conn) health.set('lost');
 		});
 
 		// clear auth query string
@@ -182,6 +177,7 @@ export async function authentication(
 		trackSubscription(
 			conn.subscribeMessage(
 				(message: { variables?: { trigger?: { event?: { data?: { event?: unknown } } } } }) => {
+					if (get(connection) !== conn) return;
 					const trigger = message?.variables?.trigger?.event?.data?.event;
 					if (typeof trigger !== 'string') return;
 					event.set(trigger);
@@ -193,10 +189,10 @@ export async function authentication(
 				},
 				{
 					type: 'subscribe_trigger',
-					trigger: { platform: 'event', event_type: 'HA_FUSION' }
+					trigger: { platform: 'event', event_type: 'HEARTH' }
 				}
 			),
-			'HA_FUSION events'
+			'HEARTH events'
 		);
 
 		trackSubscription(
@@ -205,6 +201,7 @@ export async function authentication(
 					type: 'added' | 'removed' | 'current' | 'updated';
 					notifications: Record<string, PersistentNotification>;
 				}) => {
+					if (get(connection) !== conn) return;
 					if (data?.type === 'current') {
 						persistentNotifications.set(data?.notifications);
 					} else if (data?.type === 'added' || data?.type === 'updated') {
@@ -224,6 +221,7 @@ export async function authentication(
 			'persistent notifications'
 		);
 	} catch (error) {
+		if (!isCurrent()) return;
 		handleError(error);
 	}
 }
@@ -282,7 +280,10 @@ export function startConnection(configuration: Configuration, hooks: ConnectionH
 		connecting = true;
 		try {
 			await authentication(configuration, hooks, () => run === currentRun);
-			if (run === currentRun) stopConnection();
+			if (run === currentRun) {
+				clearInterval(retryTimer);
+				retryTimer = undefined;
+			}
 		} catch {
 			// retried on the interval
 		} finally {
@@ -299,6 +300,10 @@ export function stopConnection() {
 	retryTimer = undefined;
 	// an attempt still awaiting createConnection sees a stale run and discards its socket
 	currentRun += 1;
+	const previous = get(connection);
+	connection.set(undefined);
+	previous?.close();
+	health.set('booting');
 }
 
 /** The live connection, or undefined while booting. */

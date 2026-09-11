@@ -13,7 +13,8 @@
 	import { startConnection, stopConnection } from '$lib/core/ha/connection';
 	import { setCommandGate } from '$lib/core/ha/commands';
 	import { get } from 'svelte/store';
-	import { openTokenPrompt } from '$lib/legacy/bridge/tokenPrompt';
+	import TokenPrompt from '$lib/Hearth/TokenPrompt.svelte';
+	import ThemeStyle from '$lib/Hearth/shell/ThemeStyle.svelte';
 	import { normalizeHearthConfig } from '$lib/Hearth/normalize';
 	import {
 		hearthConfig,
@@ -27,7 +28,8 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const connectionHooks = { onTokenRequired: openTokenPrompt };
+	let tokenRequired = $state(false);
+	const connectionHooks = { onTokenRequired: () => (tokenRequired = true) };
 
 	// one-time store seeding; `data` only changes on a full page load
 	// svelte-ignore state_referenced_locally
@@ -82,14 +84,27 @@
 {#if $states}
 	<HearthDashboard />
 {:else}
-	<section class="boot" aria-live="polite" aria-busy="true">
-		<div class="boot-mark" aria-hidden="true"></div>
-		<strong>
-			{$lang($connected ? 'hearth_loading_home_assistant' : 'hearth_connecting_to_home_assistant')}
-		</strong>
-		<span>{$lang('hearth_appears_after_first_snapshot')}</span>
-	</section>
+	<ThemeStyle />
+	{#if $configuration?.hassUrl}
+		<section class="boot" aria-live="polite" aria-busy="true">
+			<div class="boot-mark" aria-hidden="true"></div>
+			<strong>
+				{$lang(
+					$connected ? 'hearth_loading_home_assistant' : 'hearth_connecting_to_home_assistant'
+				)}
+			</strong>
+			<span>{$lang('hearth_appears_after_first_snapshot')}</span>
+			<button type="button" onclick={() => (tokenRequired = true)}>{$lang('login')}</button>
+		</section>
+	{:else}
+		<section class="boot" role="alert">
+			<strong>{$lang('hearth_hass_url_missing')}</strong>
+			<span>{$lang('hearth_hass_url_missing_hint')}</span>
+		</section>
+	{/if}
 {/if}
+
+{#if tokenRequired}<TokenPrompt onclose={() => (tokenRequired = false)} />{/if}
 
 <!-- modules -->
 {#if $configuration?.custom_js}
@@ -135,6 +150,18 @@
 	.boot span {
 		font-size: 14px; /* literal ok: pre-theme boot splash */
 		color: #a99b8b; /* literal ok: pre-theme boot splash */
+	}
+
+	.boot button {
+		margin-top: 4px; /* literal ok: pre-theme boot splash */
+		border: 1px solid rgba(240, 166, 61, 0.35); /* literal ok: pre-theme boot splash */
+		border-radius: 12px; /* literal ok: pre-theme boot splash */
+		padding: 10px 18px; /* literal ok: pre-theme boot splash */
+		background: transparent;
+		color: #f0a63d; /* literal ok: pre-theme boot splash */
+		font: inherit;
+		font-weight: 600;
+		cursor: pointer;
 	}
 
 	@keyframes spin {

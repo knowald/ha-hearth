@@ -1,9 +1,11 @@
 import { readFile } from 'fs/promises';
 import { dev } from '$app/environment';
 import * as yaml from 'js-yaml';
-import type { Configuration } from '$lib/core/app/configuration';
+import { ConfigurationSchema, type Configuration } from '$lib/core/app/configuration';
+import * as v from 'valibot';
 import type { Translations } from '$lib/core/i18n';
-import { CONFIG_VERSION, configVersion } from '$lib/Hearth/migrate';
+import { CONFIG_VERSION, configVersion } from '$lib/Hearth/format';
+import { hearthConfigIssues } from '$lib/Hearth/normalize';
 import dotenv from 'dotenv';
 
 dotenv.config({ quiet: true });
@@ -26,7 +28,7 @@ async function loadJson(file: string) {
 	}
 }
 
-export async function load({ request }): Promise<{
+export async function load(): Promise<{
 	configuration: Configuration;
 	hearth: unknown;
 	hearthError: string | null;
@@ -34,13 +36,14 @@ export async function load({ request }): Promise<{
 	hearthRevision: number;
 	translations: Translations;
 }> {
-	let configuration: Configuration = {};
+	let configuration: Configuration = { revision: 0 };
 	try {
 		const loaded = await loadYaml('./data/configuration.yaml');
 		if (loaded !== undefined && (!loaded || typeof loaded !== 'object' || Array.isArray(loaded))) {
 			throw new Error('configuration.yaml must contain a YAML mapping');
 		}
-		configuration = (loaded as Configuration | undefined) ?? {};
+		configuration = v.parse(ConfigurationSchema, loaded ?? {});
+		configuration.revision ??= 0;
 	} catch (error) {
 		console.error('configuration.yaml could not be read, using defaults:', error);
 	}
@@ -50,14 +53,22 @@ export async function load({ request }): Promise<{
 		hearth = await loadYaml('./data/hearth.yaml');
 		if (hearth !== undefined && (!hearth || typeof hearth !== 'object' || Array.isArray(hearth))) {
 			hearthError = 'Hearth configuration must contain a YAML mapping';
-		} else if (configVersion(hearth) > CONFIG_VERSION) {
-			hearthError = `Hearth configuration version ${configVersion(hearth)} is newer than this build supports (${CONFIG_VERSION}); update ha-fusion`;
+		} else if (
+			hearth !== undefined &&
+			Object.keys(hearth as object).length > 0 &&
+			configVersion(hearth) !== CONFIG_VERSION
+		) {
+			hearthError = `Hearth configuration version ${configVersion(hearth)} is unsupported; expected ${CONFIG_VERSION}`;
 		}
 	} catch (error) {
 		hearthError =
 			error instanceof Error
 				? `Hearth configuration could not be loaded: ${error.message}`
 				: 'Hearth configuration could not be loaded';
+	}
+	if (!hearthError && hearth && Object.keys(hearth as object).length > 0) {
+		const issues = hearthConfigIssues(hearth);
+		if (issues.length) hearthError = issues.join('; ');
 	}
 
 	// the client normalizes whatever it gets; a file that failed above would
@@ -72,10 +83,9 @@ export async function load({ request }): Promise<{
 			);
 	const hearthNeedsSetup = !hearthError && (hearth === undefined || hearthKeys.length === 0);
 
-	configuration.hassUrl =
-		process.env.HASS_URL || request.headers.get('X-Proxy-Target') || undefined;
+	configuration.hassUrl = process.env.HASS_URL || undefined;
 
-	// translations for reused fusion components (domain modals, widgets)
+	// Load the selected language with English fallback.
 	const dir = dev ? './static' : './build/client';
 	const [en, locale] = await Promise.all([
 		loadJson(`${dir}/translations/en.json`),

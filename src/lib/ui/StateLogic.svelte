@@ -3,28 +3,9 @@
 	import { states } from '$lib/core/ha/entities';
 	import { isTimestamp, relativeTime } from '$lib/core/i18n/time';
 	import { getDomain } from '$lib/core/ha/entities';
-	import type { HassEntity } from 'home-assistant-js-websocket';
 
-	let {
-		selected,
-		contentWidth = undefined,
-		editing = false,
-		entity_id
-	}: {
-		// the original dashboard's item config; only attribute and marquee are read
-		selected: ({ attribute?: string; marquee?: boolean } & Record<string, unknown>) | undefined;
-		contentWidth?: number;
-		/** Marquee pauses while the host dashboard is being edited. */
-		editing?: boolean;
-		entity_id: string | undefined;
-	} = $props();
-
-	let entity = $state<HassEntity | undefined>(undefined);
-
-	$effect(() => {
-		if (entity_id && $states?.[entity_id]?.last_updated !== entity?.last_updated)
-			entity = $states?.[entity_id];
-	});
+	let { entity_id }: { entity_id: string | undefined } = $props();
+	let entity = $derived(entity_id ? $states?.[entity_id] : undefined);
 
 	let attributes = $derived(entity?.attributes);
 	let entityState = $derived(entity?.state);
@@ -32,15 +13,11 @@
 	let percentage = $derived(attributes?.percentage);
 	let media_title = $derived(attributes?.media_title);
 
-	// non-breaking spaces keep the marquee's copies apart; text, not markup
-	const GAP = '\u00a0'.repeat(4);
 	const BLANK = '\u00a0';
 </script>
 
 <!-- Light -->
-{#if selected?.attribute}
-	{entity?.attributes[selected?.attribute]}
-{:else if entityState === 'on' && brightness}
+{#if entityState === 'on' && brightness}
 	{@const percentage = brightness / 255}
 	<!-- should never be 0% if on -->
 	{@const floor = percentage < 0.01 && percentage > 0 ? 0.01 : percentage}
@@ -48,18 +25,7 @@
 
 	<!-- Media -->
 {:else if media_title && entityState === 'playing'}
-	{#if selected?.marquee === true && contentWidth && contentWidth > 153 && !editing}
-		{#await import('$lib/ui/Marquee.svelte')}
-			<span title={media_title}>{media_title}</span>
-		{:then Marquee}
-			<Marquee.default>
-				{media_title}
-				{GAP}
-			</Marquee.default>
-		{/await}
-	{:else}
-		<span title={media_title}>{media_title}</span>
-	{/if}
+	<span title={media_title}>{media_title}</span>
 
 	<!-- Climate -->
 {:else if getDomain(entity_id) === 'climate' && attributes?.hvac_action}
@@ -95,7 +61,7 @@
 
 	<!-- Input Number / Number -->
 {:else if entity_id && (getDomain(entity_id) === 'input_number' || getDomain(entity_id) === 'number')}
-	{Number(entityState) || $lang('unknown')}
+	{Number.isFinite(Number(entityState)) ? Number(entityState) : $lang('unknown')}
 	{#if attributes?.unit_of_measurement}{attributes.unit_of_measurement}{/if}
 
 	<!-- Weather -->
@@ -122,25 +88,11 @@
 
 	<!-- State  -->
 {:else if entityState}
-	{#if selected?.marquee && contentWidth && contentWidth > 153 && !editing}
-		{#await import('$lib/ui/Marquee.svelte') then Marquee}
-			<Marquee.default>
-				{$lang(entityState)}
+	{$lang(entityState)}
 
-				<!-- Unit -->
-				{#if attributes?.unit_of_measurement}
-					{attributes.unit_of_measurement}
-				{/if}
-				{GAP}
-			</Marquee.default>
-		{/await}
-	{:else}
-		{$lang(entityState)}
-
-		<!-- Unit -->
-		{#if attributes?.unit_of_measurement}
-			{attributes.unit_of_measurement}
-		{/if}
+	<!-- Unit -->
+	{#if attributes?.unit_of_measurement}
+		{attributes.unit_of_measurement}
 	{/if}
 {:else}
 	{$lang('unknown')}

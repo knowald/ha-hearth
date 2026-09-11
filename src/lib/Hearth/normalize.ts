@@ -16,8 +16,13 @@ import {
 	trimmedOrUndefined,
 	normalizeWholeNumber
 } from './normalizers';
-import { CARD_TYPES, cardDescriptor } from './cards';
-import { migrateHearthConfig } from './migrate';
+import {
+	CARD_DEFINITIONS,
+	cardDefinition,
+	WIDGET_DEFINITIONS,
+	widgetDefinition
+} from './model/registry';
+import { currentHearthConfig } from './format';
 import * as v from 'valibot';
 import {
 	CardSharedSchema,
@@ -27,16 +32,14 @@ import {
 	StackSchema,
 	WidgetSharedSchema
 } from './schema';
-import { RAIL_WIDGET_TYPES, widgetDescriptor } from './widgets';
 
 /*
- * Turns whatever is in hearth.yaml into a HearthConfig: current files, the
- * older shapes, and garbage. Per-type field rules come from the card and
+ * Turns whatever is in hearth.yaml into a HearthConfig: current files and incomplete drafts. Per-type field rules come from the card and
  * widget descriptors, so a new type never needs a branch here.
  */
 
-const VALID_CARD_TYPES = new Set<string>(CARD_TYPES.map(({ type }) => type));
-const VALID_RAIL_WIDGET_TYPES = new Set<string>(RAIL_WIDGET_TYPES.map(({ type }) => type));
+const VALID_CARD_DEFINITIONS = new Set<string>(CARD_DEFINITIONS.map(({ type }) => type));
+const VALID_WIDGET_DEFINITIONS = new Set<string>(WIDGET_DEFINITIONS.map(({ type }) => type));
 
 /**
  * Reports structural problems that normalization would otherwise have to
@@ -84,12 +87,12 @@ export function hearthConfigIssues(raw: unknown): string[] {
 			else value.cards.forEach((card, index) => checkCard(card, `${path}.cards[${index}]`, false));
 			return;
 		}
-		if (typeof value.type !== 'string' || !VALID_CARD_TYPES.has(value.type)) {
+		if (typeof value.type !== 'string' || !VALID_CARD_DEFINITIONS.has(value.type)) {
 			issues.push(`${path}.type is not a supported card type`);
 			return;
 		}
 		report(CardSharedSchema, value, path);
-		report(cardDescriptor(value.type)!.schema, value, path);
+		report(cardDefinition(value.type)!.schema, value, path);
 	};
 
 	if (!Array.isArray(raw.rail)) issues.push('rail must be a list');
@@ -101,12 +104,12 @@ export function hearthConfigIssues(raw: unknown): string[] {
 				return;
 			}
 			checkId(widget.id, path, widgetIds);
-			if (typeof widget.type !== 'string' || !VALID_RAIL_WIDGET_TYPES.has(widget.type)) {
+			if (typeof widget.type !== 'string' || !VALID_WIDGET_DEFINITIONS.has(widget.type)) {
 				issues.push(`${path}.type is not a supported widget type`);
 				return;
 			}
 			report(WidgetSharedSchema, widget, path);
-			report(widgetDescriptor(widget.type)!.schema, widget, path);
+			report(widgetDefinition(widget.type)!.schema, widget, path);
 		});
 	}
 
@@ -141,7 +144,7 @@ export function hearthConfigIssues(raw: unknown): string[] {
 
 function normalizeCard(raw: any, fallbackId: string, taken: string[]): OverviewCard {
 	const id = reserveId(raw.id, fallbackId, taken);
-	const descriptor = cardDescriptor(raw.type);
+	const descriptor = cardDefinition(raw.type);
 	return {
 		...raw,
 		id,
@@ -161,7 +164,9 @@ function normalizeStack(raw: any, fallbackId: string, taken: string[]): Overview
 		// children may be any non-stack card - nesting stops here
 		.filter(
 			(child: any) =>
-				isRecord(child) && child.kind !== 'stack' && VALID_CARD_TYPES.has(child.type as string)
+				isRecord(child) &&
+				child.kind !== 'stack' &&
+				VALID_CARD_DEFINITIONS.has(child.type as string)
 		)
 		.map((child: any, index: number) => normalizeCard(child, `${id}-card-${index}`, taken));
 	return {
@@ -197,7 +202,8 @@ function normalizeRoomCards(
 		(Array.isArray(column) ? column : [])
 			.filter(
 				(item: any) =>
-					isRecord(item) && (item.kind === 'stack' || VALID_CARD_TYPES.has(item.type as string))
+					isRecord(item) &&
+					(item.kind === 'stack' || VALID_CARD_DEFINITIONS.has(item.type as string))
 			)
 			.map((item: any, index: number) =>
 				normalizeOverviewItem(item, `card-${roomId}-${columnIndex}-${index}`, taken)
@@ -236,16 +242,14 @@ function normalizeRoom(raw: any, index: number, taken: string[], takenItems: str
 }
 
 /**
- * Accepts any hearth.yaml ever written (older shapes are lifted by
- * migrateHearthConfig first) and garbage. Anything unusable falls back to
- * defaults. Throws ConfigTooNewError for a file from a newer build.
+ * Normalizes a current Hearth configuration or an incomplete editor draft.
  */
 export function normalizeHearthConfig(raw: unknown): HearthConfig {
-	const migrated = migrateHearthConfig(raw);
-	if (!isRecord(migrated) || !Object.keys(migrated).filter((key) => key !== 'version').length) {
+	const current = currentHearthConfig(raw);
+	if (!isRecord(current) || !Object.keys(current).filter((key) => key !== 'version').length) {
 		return structuredClone(DEFAULT_HEARTH_CONFIG);
 	}
-	const config = migrated as Record<string, any>;
+	const config = current as Record<string, any>;
 	const defaults = structuredClone(DEFAULT_HEARTH_CONFIG);
 
 	const takenRoomIds: string[] = [];
@@ -269,11 +273,13 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 
 	const takenWidgetIds: string[] = [];
 	const rail = (Array.isArray(config.rail) ? config.rail : defaults.rail)
-		.filter((widget: any) => isRecord(widget) && VALID_RAIL_WIDGET_TYPES.has(widget.type as string))
+		.filter(
+			(widget: any) => isRecord(widget) && VALID_WIDGET_DEFINITIONS.has(widget.type as string)
+		)
 		.map((widget: any, index: number) => ({
 			...widget,
 			id: reserveId(widget.id, `widget-${index}`, takenWidgetIds),
-			...(widgetDescriptor(widget.type)?.normalize?.(widget) ?? {}),
+			...(widgetDefinition(widget.type)?.normalize?.(widget) ?? {}),
 			hide_mobile: widget.hide_mobile === true ? true : undefined,
 			visibility: normalizeVisibility(widget.visibility)
 		})) as RailWidget[];

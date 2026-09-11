@@ -5,9 +5,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: ha-fusion version
-      description: Shown in the add-on info tab, or the image tag for Docker installs.
-      placeholder: 2026.7.0
+      label: Hearth version
+      description: Shown in application settings, or the image tag for Docker installs.
+      placeholder: 0.1.0
     validations:
       required: true
 
@@ -16,7 +16,6 @@ body:
     attributes:
       label: Install method
       options:
-        - Home Assistant add-on
         - Docker
         - Local development (Node.js)
     validations:
@@ -50,12 +49,12 @@ body:
     id: logs
     attributes:
       label: Logs and console output
-      description: Add-on log tab or `docker logs ha-fusion`, plus browser console errors (F12 > Console). Screenshots help too.
+      description: Server logs or `docker logs ha-hearth`, plus browser console errors (F12 > Console). Screenshots help too.
       render: text
 
   - type: textarea
     id: config
     attributes:
-      label: Relevant dashboard.yaml section
-      description: The item or view involved, if the bug relates to a specific widget. Remove anything private.
+      label: Relevant hearth.yaml section
+      description: The card, widget or page involved. Remove anything private.
       render: yaml

@@ -39,7 +39,6 @@ export default defineConfig({
 			env: {
 				PORT: String(APP_PORT),
 				HASS_URL: `http://127.0.0.1:${FAKE_HASS_PORT}`,
-				ADDON: 'false',
 				NODE_ENV: 'production'
 			},
 			reuseExistingServer: false

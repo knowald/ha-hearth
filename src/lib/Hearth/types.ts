@@ -49,8 +49,6 @@ type RailWidgetVariant =
 	| {
 			id: string;
 			type: 'clock';
-			/** @deprecated Legacy display-only field. Use timezone. */
-			city?: string;
 			timezone?: string;
 			hour_format?: 'auto' | '12' | '24';
 			show_seconds?: boolean;
@@ -121,10 +119,9 @@ type RailWidgetVariant =
 	| { id: string; type: 'template'; template?: string }
 	| { id: string; type: 'timer'; entity?: string; name?: string }
 	| { id: string; type: 'notifications' }
-	| { id: string; type: 'iframe'; url?: string; height?: number }
-	| { id: string; type: 'fusion'; config?: Record<string, any>; height?: number };
+	| { id: string; type: 'iframe'; url?: string; height?: number };
 
-// hidden below Hearth's mobile breakpoint, mirroring the original sidebar's hide_mobile
+// Hidden below Hearth’s mobile breakpoint.
 export type RailWidget = RailWidgetVariant & {
 	hide_mobile?: boolean;
 	visibility?: VisibilityCondition[];
@@ -220,8 +217,6 @@ type OverviewCardVariant =
 	| { id: string; type: 'climate'; entity?: string; title?: string }
 	// `bar` renders the persistent scene row: equal-width tiles, active one lit
 	| { id: string; type: 'scenes'; title?: string; style?: 'chips' | 'bar'; scenes: SceneRef[] }
-	// a Konva canvas of images, icons and state badges (floor plans)
-	| { id: string; type: 'picture'; title?: string; elements: unknown[]; height?: number }
 	// days since an input_datetime was last reset, with a one-tap reset
 	| { id: string; type: 'days_since'; entity?: string; title?: string; icon?: string }
 	// the media card for whichever listed player is active; a paused player
@@ -232,8 +227,7 @@ type OverviewCardVariant =
 			media_players: string[];
 			timeout?: number;
 			height?: number;
-	  }
-	| { id: string; type: 'fusion'; config?: Record<string, any>; height?: number };
+	  };
 
 /**
  * `fill` is a share of the leftover height in the card's column: 0 (or unset,

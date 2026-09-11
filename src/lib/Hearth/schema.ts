@@ -95,7 +95,7 @@ export const VacuumModeRefSchema = v.object({
 });
 
 /**
- * Per-item visibility condition, mirroring the original's section conditions:
+ * Per-item visibility condition:
  * an entity state match, a numeric window on an entity, a media query, or an
  * `or` group of conditions. All conditions on an item AND together.
  */

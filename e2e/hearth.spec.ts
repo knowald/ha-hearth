@@ -44,10 +44,15 @@ test('the edit toggle sits inside the viewport', async ({ page }) => {
 	await expect(page.getByRole('button', { name: 'Edit Hearth configuration' })).toBeInViewport();
 });
 
-test('redirects the old /hearth path to the dashboard', async ({ page }) => {
-	await page.goto('/hearth');
-	await expect(page).toHaveURL(/\/$/);
-	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+test('serves Hearth branding at the root and has no alternate dashboard route', async ({
+	page,
+	request
+}) => {
+	await expect(page).toHaveTitle('Hearth');
+	expect((await request.get('/hearth')).status()).toBe(404);
+	const manifest = await (await request.get('/hearth.webmanifest')).json();
+	expect(manifest.name).toBe('Hearth');
+	for (const icon of manifest.icons) expect((await request.get(icon.src)).status()).toBe(200);
 });
 
 test('boots against the entity snapshot and shows live state', async ({ page }) => {
@@ -158,6 +163,14 @@ test('adds a card and a widget from the galleries', async ({ page }) => {
 test.describe('saving', () => {
 	// saves land in the fixture directory; put the file back after each test
 	test.afterEach(() => writeFileSync(HEARTH_FILE, HEARTH_FIXTURE));
+
+	test('rejects unsupported documents visibly and prevents editing them', async ({ page }) => {
+		writeFileSync(HEARTH_FILE, HEARTH_FIXTURE.replace('version: 5', 'version: 4'));
+		await page.reload();
+		await expect(page.getByText(/configuration version 4 is unsupported/)).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Edit Hearth configuration' })).toHaveCount(0);
+		expect(readFileSync(HEARTH_FILE, 'utf8')).toContain('version: 4');
+	});
 
 	test('a saved edit survives a reload', async ({ page }) => {
 		const sheet = await openCardEditor(page, 'Lights');

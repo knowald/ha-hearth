@@ -50,13 +50,10 @@ for (const id of displayedEntityIds(config)) {
 	entities[id] = hassEntity(id, state, { friendly_name: id, ...attributes });
 }
 
-// fusion embeds and the camera player pull the original dashboard in lazily,
-// which outlives a unit test; the e2e suite covers them
-const BRIDGE_BACKED = new Set(['fusion', 'camera']);
-const cards: OverviewCard[] = config.rooms
-	.flatMap((room) => room.cards.flat().flatMap((item) => (isStack(item) ? item.cards : [item])))
-	.filter((card) => !BRIDGE_BACKED.has(card.type));
-const widgets = config.rail.filter((widget) => !BRIDGE_BACKED.has(widget.type));
+const cards: OverviewCard[] = config.rooms.flatMap((room) =>
+	room.cards.flat().flatMap((item) => (isStack(item) ? item.cards : [item]))
+);
+const widgets = config.rail;
 
 describe('every configured type renders', () => {
 	states.set(entities);

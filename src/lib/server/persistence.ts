@@ -124,8 +124,8 @@ export interface SaveRequest {
 	file: string;
 	/** The document body; keys it shares with `head` or `revision` never win. */
 	body: Record<string, unknown>;
-	/** The revision the client loaded; undefined skips the conflict check. */
-	revision?: number;
+	/** The revision the client loaded. Every write participates in conflict detection. */
+	revision: number;
 	force?: boolean;
 	/** Extra server-managed keys written before the body, e.g. a schema version. */
 	head?: Record<string, unknown>;
@@ -141,7 +141,7 @@ export type SaveResult =
 export async function saveYamlDocument(request: SaveRequest): Promise<SaveResult> {
 	return withFileLock(request.file, async () => {
 		const revision = await currentRevision(request.file);
-		if (request.revision !== undefined && request.force !== true && request.revision !== revision) {
+		if (request.force !== true && request.revision !== revision) {
 			return { conflict: true as const, revision };
 		}
 		const head: Record<string, unknown> = { revision: revision + 1, ...(request.head ?? {}) };

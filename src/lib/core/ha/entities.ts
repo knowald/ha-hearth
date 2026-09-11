@@ -39,7 +39,7 @@ export function entityControllable(entity: HassEntity | undefined): boolean {
 
 export const UNAVAILABLE_STATES = ['unavailable', 'unknown'];
 
-/** States the original dashboard's button treats as active, across domains. */
+/** States that indicate activity across Home Assistant domains. */
 export const ACTIVE_STATES = [
 	'active',
 	'auto',

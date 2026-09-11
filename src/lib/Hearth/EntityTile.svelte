@@ -99,7 +99,7 @@
 	function openControls() {
 		if ($hearthEditMode || readonly || !available) return;
 		if (domain === 'fan') {
-			// hearth's own fan sheet has the speed slider the fusion modal lacks
+			// the fan sheet exposes speed controls
 			popup.set({ kind: 'fan', entity, name: label });
 		} else if (tapSurface === 'history') {
 			popup.set({ kind: 'sensor', entity, name: label });
@@ -138,11 +138,7 @@
 				<div class="name">{label}</div>
 				<div class="state" class:on={on && available}>
 					{#if available}
-						<StateLogic
-							editing={$hearthEditMode}
-							entity_id={entity}
-							selected={{ entity_id: entity }}
-						/>
+						<StateLogic entity_id={entity} />
 					{:else if availability === 'missing'}
 						{$lang('hearth_missing_entity')}
 					{:else}

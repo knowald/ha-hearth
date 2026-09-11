@@ -1,89 +1,25 @@
 <script lang="ts">
-	import { motion } from '$lib/Stores';
-	import { fade } from 'svelte/transition';
-	import { Modals, closeModal } from '$lib/Modals';
-	import Loader from '$lib/ui/Loader.svelte';
-	import '@fontsource-variable/inter';
-	import { expoOut } from 'svelte/easing';
 	import type { Snippet } from 'svelte';
-	import { onMount } from 'svelte';
-	import { subscribeHassTriggers } from '$lib/core/ha/connection';
-
 	let { children }: { children: Snippet } = $props();
-
-	// the HA_FUSION close_popup event dismisses whatever modal is open
-	onMount(() => subscribeHassTriggers((trigger) => trigger === 'close_popup' && closeModal()));
 </script>
 
 <svelte:head>
-	<title>FUSION</title>
-	<meta name="description" content="fusion" />
-	<meta charset="utf-8" />
+	<meta name="description" content="Hearth — a dashboard for Home Assistant" />
 </svelte:head>
-
-<Modals>
-	<div
-		slot="backdrop"
-		class="backdrop"
-		onclick={() => {
-			closeModal();
-		}}
-		in:fade={{
-			duration: $motion,
-			easing: expoOut
-		}}
-		out:fade={{ duration: $motion / 2 }}
-		onkeydown={() => {}}
-		role="button"
-		tabindex="0"
-	></div>
-
-	<div slot="loading">
-		<Loader />
-	</div>
-</Modals>
 
 {@render children()}
 
 <style>
-	:global(body, html) {
-		margin: 0;
-		padding: 0;
-		-webkit-tap-highlight-color: transparent;
-		box-sizing: border-box;
-	}
-
 	:global(html) {
-		background-color: var(--theme-colors-background, initial);
-		color: var(--theme-colors-text, initial);
+		box-sizing: border-box;
 		font-size: 100%;
 	}
-
 	:global(body) {
-		background: black;
-		font-family: var(--theme-font-family);
-		user-select: none;
-		-webkit-user-select: none;
-		background-size: cover;
-		background-repeat: no-repeat;
-		background-attachment: fixed;
-		transition: background-image 100ms ease;
+		margin: 0;
+		background: var(--h-bg-1, #16110c);
+		font-family: var(--h-font-ui, sans-serif);
 	}
-
-	:global(*, *::before, *::after, *:focus) {
+	:global(*, *::before, *::after) {
 		box-sizing: inherit;
-	}
-
-	.backdrop {
-		position: fixed;
-		top: 0;
-		bottom: 0;
-		right: 0;
-		left: 0;
-		z-index: 2;
-		background-size: cover;
-		background-repeat: no-repeat;
-		background-attachment: fixed;
-		transition: opacity 100ms ease-out;
 	}
 </style>

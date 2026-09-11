@@ -40,7 +40,7 @@ export function findOverviewCard(
 	return item && !isStack(item) ? item : undefined;
 }
 
-/** Expands the same simple `*` glob used by Fusion's legacy entities object. */
+/** Expands a simple `*` glob against entity ids. */
 export function wildcardEntityIds(pattern: string | undefined, entityIds: string[]): string[] {
 	if (!pattern?.trim()) return [];
 	const source = pattern

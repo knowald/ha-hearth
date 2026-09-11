@@ -25,12 +25,8 @@
 	}
 
 	function parseEvent(event: CalendarEvent): NextEvent | null {
-		// calendar.get_events returns ISO strings, with all-day events using a
-		// date-only value. Retain support for the object form used by some older
-		// calendar clients as well.
-		const rawStart = event?.start;
-		const startValue =
-			typeof rawStart === 'string' ? rawStart : (rawStart?.dateTime ?? rawStart?.date);
+		// calendar.get_events returns ISO strings, with date-only values for all-day events.
+		const startValue = event?.start;
 		const start = startValue ? parseLocalDate(startValue) : new Date(NaN);
 		if (Number.isNaN(start.getTime())) return null;
 		const allDay = startValue !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(startValue);

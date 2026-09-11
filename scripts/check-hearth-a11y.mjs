@@ -3,15 +3,8 @@ import { join } from 'node:path';
 import { compile, preprocess } from 'svelte/compiler';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
-/*
- * Compiles every component in the rework layers without the project-wide
- * a11y warning suppression, so a new inaccessible control fails CI. The
- * original dashboard under src/lib/legacy keeps its suppression until it is
- * deleted.
- */
-
-// the dashboard's real entry is the root page; /hearth only redirects there
-const ROOTS = ['src/lib/Hearth', 'src/lib/ui', 'src/routes/hearth', 'src/routes/+page.svelte'];
+/* All application components must pass accessibility compilation. */
+const ROOTS = ['src/lib/Hearth', 'src/lib/ui', 'src/routes'];
 
 async function* svelteFiles(path) {
 	if ((await stat(path)).isFile()) {

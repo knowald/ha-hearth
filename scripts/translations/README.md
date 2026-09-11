@@ -34,4 +34,4 @@ In `fetch.py` add your translation key using the following format;
 ("hello", ["ui.example.hello"]),
 ```
 
-Where `hello` is the key that will be used in fusion e.g. `$lang('hello')` and `"ui.example.hello"` is the Home Assistant translation key. It is important to put it under the correct path as well, for example under "Lovelace" for translations that exist in `/translations/lovelace` folder.
+Where `hello` is the key that will be used in Hearth e.g. `$lang('hello')` and `"ui.example.hello"` is the Home Assistant translation key. It is important to put it under the correct path as well, for example under "Lovelace" for translations that exist in `/translations/lovelace` folder.

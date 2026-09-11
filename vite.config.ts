@@ -6,15 +6,9 @@ dotenv.config({ quiet: true });
 
 export default defineConfig({
 	plugins: [sveltekit()],
-	build: {
-		// increase chunk size because of maplibre-gl
-		chunkSizeWarningLimit: 1000
-	},
 	optimizeDeps: {
 		include: [
 			// include all because of dynamic imports, prevents: ✨ optimized dependencies changed. reloading
-			'@event-calendar/core',
-			'@jaames/iro',
 			'd3-array',
 			'd3-scale',
 			'd3-shape',
@@ -25,23 +19,11 @@ export default defineConfig({
 			'home-assistant-js-websocket',
 			'http-proxy-middleware',
 			'js-yaml',
-			'konva',
-			'maplibre-gl',
 			'marked',
-			'svelte-confetti',
-			'sortablejs',
-			'svelte-modals',
-			'weekstart',
-			// dev deps
-			'@iconify/svelte',
-			'konva/lib/Shape'
+			'sortablejs'
 		],
 		exclude: [
-			// legacy Svelte 4 library; prebundling compiles it in runes mode
-			// (dynamicCompileOptions in svelte.config.js is ignored there) and fails
-			'svelte-tiny-virtual-list',
 			// exclude codemirror to avoid state duplication
-			// pnpm ls -P | grep codemirror | awk '{print "\047" $1 "\047,"}'
 			'@codemirror/autocomplete',
 			'@codemirror/commands',
 			'@codemirror/language',

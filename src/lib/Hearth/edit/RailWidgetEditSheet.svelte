@@ -25,6 +25,7 @@
 	let visibility = $state<VisibilityCondition[]>(
 		(initial?.visibility ?? []).map((condition) => ({ ...condition }))
 	);
+	// svelte-ignore state_referenced_locally
 	let typeOpen = $state(index === null);
 	// svelte-ignore state_referenced_locally
 	let conditionsOpen = $state(visibility.length > 0);

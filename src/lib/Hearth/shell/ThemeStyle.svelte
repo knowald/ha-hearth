@@ -8,7 +8,6 @@
 		themeStyle,
 		type HearthTheme
 	} from '$lib/core/theme';
-	import { THEME_BRIDGE_CSS } from '$lib/legacy/bridge/themeBridge';
 	import { editedThemeSlot, editor, hearthConfig, hearthEditMode } from '../store';
 
 	/** A display-only preset from ?theme=, replacing the stored theme without touching the config. */
@@ -51,7 +50,7 @@
 	// tokens live on :root (not .frame) so modals portaled outside the frame
 	// resolve them too; base first, user theme overrides second
 	let rootCss = $derived(
-		`:root { ${STRUCTURE_CSS} ${themeStyle(THEME_DEFAULTS)} ${themeStyle(activeTheme)} ${THEME_BRIDGE_CSS} ` +
+		`:root { ${STRUCTURE_CSS} ${themeStyle(THEME_DEFAULTS)} ${themeStyle(activeTheme)}  ` +
 			`--h-pad-x: ${Math.max(0, $hearthConfig.padding_x ?? 0)}px; ` +
 			`--h-pad-y: ${Math.max(0, $hearthConfig.padding_y ?? 0)}px; }`
 	);

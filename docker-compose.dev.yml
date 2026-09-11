@@ -1,6 +1,6 @@
 services:
-  ha-fusion-dev:
-    container_name: ha-fusion-dev
+  ha-hearth-dev:
+    container_name: ha-hearth-dev
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -12,7 +12,7 @@ services:
       # Keep generated SvelteKit files aligned with the container's dependencies
       - /app/.svelte-kit
     networks:
-      - ha-fusion-network
+      - ha-hearth-network
     ports:
       - '${DEV_PORT:-5173}:5173'
     environment:
@@ -23,5 +23,5 @@ services:
     # Development doesn't need health checks as it's monitored interactively
 
 networks:
-  ha-fusion-network:
+  ha-hearth-network:
     driver: bridge

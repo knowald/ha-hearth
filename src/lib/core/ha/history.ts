@@ -108,8 +108,8 @@ export async function fetchStateHistory(
 export interface CalendarEvent {
 	summary?: string;
 	/** ISO string; date-only for all-day events. Older clients send an object. */
-	start?: string | { dateTime?: string; date?: string };
-	end?: string | { dateTime?: string; date?: string };
+	start?: string;
+	end?: string;
 }
 
 /** Upcoming events across the given calendars, unsorted. */

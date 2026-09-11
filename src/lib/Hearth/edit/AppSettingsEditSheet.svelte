@@ -14,7 +14,6 @@
 	let languages = $state<{ value: string; label: string }[]>([]);
 	let locale = $state($selectedLanguage || 'en');
 	let reduceMotion = $state($motion === 0);
-	let maptilerKey = $state($configuration?.addons?.maptiler?.apikey ?? '');
 	let token = $state($configuration?.token ?? '');
 	let customJs = $state($configuration?.custom_js ?? false);
 	let installedVersion = $state<string>();
@@ -55,11 +54,7 @@
 
 		const next = {
 			...($configuration ?? {}),
-			locale,
-			addons: {
-				...($configuration?.addons ?? {}),
-				maptiler: { ...($configuration?.addons?.maptiler ?? {}), apikey: maptilerKey }
-			}
+			locale
 		};
 		if (reduceMotion) next.motion = false;
 		else delete next.motion;
@@ -81,7 +76,7 @@
 				return;
 			}
 
-			$configuration = next;
+			$configuration = { ...next, revision: (await response.json()).revision };
 			$selectedLanguage = locale;
 			$motion = reduceMotion ? 0 : 190;
 			document.documentElement.lang = locale || 'en';
@@ -106,13 +101,9 @@
 		target.type = event.type === 'focus' ? 'text' : 'password';
 	}
 
-	function openClassicDashboard() {
-		location.assign(`${base}/classic`);
-	}
-
 	function handleLogout() {
 		if (!confirm($lang('hearth_logout_confirm'))) return;
-		localStorage.removeItem('hassTokens');
+		localStorage.removeItem('hearthTokens');
 		location.reload();
 	}
 </script>
@@ -153,19 +144,6 @@
 				>
 					<span class="knob"></span>
 				</button>
-			</div>
-			<div class="row">
-				<div class="row-main"><div class="row-label">{$lang('hearth_maptiler_api_key')}</div></div>
-				<input
-					class="inline-text"
-					type="password"
-					bind:value={maptilerKey}
-					placeholder="API key"
-					autocomplete="new-password"
-					spellcheck="false"
-					onfocus={handleKeyFocus}
-					onblur={handleKeyFocus}
-				/>
 			</div>
 			<div class="row">
 				<div class="row-main">
@@ -217,14 +195,6 @@
 				<div class="row-main">
 					<div class="row-label">{$lang('hearth_custom_css')}</div>
 					<div class="row-sub">{$lang('hearth_custom_css_sub')}</div>
-				</div>
-				<Icon name="chevron_right" size={ICON.control} />
-			</button>
-			<button type="button" class="row action pressable" onclick={openClassicDashboard}>
-				<Icon name="grid_view" size={ICON.control} />
-				<div class="row-main">
-					<div class="row-label">{$lang('hearth_classic_dashboard')}</div>
-					<div class="row-sub">{$lang('hearth_back_to_the_original_ha_fusion')}</div>
 				</div>
 				<Icon name="chevron_right" size={ICON.control} />
 			</button>

@@ -1,4 +1,4 @@
-version: 4
+version: 5
 revision: 1
 day_night:
   entity: sun.sun
@@ -91,11 +91,6 @@ rail:
     type: iframe
     url: about:blank
     height: 120
-  - id: fusion
-    type: fusion
-    config:
-      type: sensor
-      entity_id: sensor.power
   - id: spacer
     type: spacer
 rooms:
@@ -206,24 +201,6 @@ rooms:
           type: image
           entity: image.floorplan
           title: Floor plan
-        - id: picture
-          type: picture
-          title: Picture card
-          height: 160
-          elements:
-            - className: Text
-              attrs:
-                text: Floor plan
-                x: 24
-                y: 24
-                fontSize: 20
-                fill: '#f4c879'
-        - id: fusion
-          type: fusion
-          config:
-            type: button
-            entity_id: light.desk
-            name: Fusion button
   - id: devices
     name: Devices
     icon: devices

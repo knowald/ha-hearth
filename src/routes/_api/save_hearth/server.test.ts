@@ -25,6 +25,7 @@ vi.mock('fs/promises', () => ({
 }));
 
 import { POST } from './+server';
+import { CONFIG_VERSION } from '$lib/Hearth/format';
 
 function post(body: string) {
 	return POST({
@@ -67,7 +68,7 @@ describe('Hearth save endpoint', () => {
 	});
 
 	it('keeps the server-owned version and revision over values in the body', async () => {
-		const config = { rail: [], rooms: [], version: 99, revision: 41 };
+		const config = { rail: [], rooms: [], version: CONFIG_VERSION, revision: 41 };
 		expect((await post(JSON.stringify({ revision: 0, config }))).status).toBe(200);
 		expect(disk.data).toMatch(/^revision: 1\n/);
 		expect(disk.data).not.toContain('version: 99');
@@ -75,6 +76,12 @@ describe('Hearth save endpoint', () => {
 	});
 
 	it('rejects malformed JSON, arrays and invalid revisions', async () => {
+		await expect(post(JSON.stringify({ rail: [], rooms: [] }))).rejects.toMatchObject({
+			status: 400
+		});
+		await expect(post(JSON.stringify({ config: { rail: [], rooms: [] } }))).rejects.toMatchObject({
+			status: 400
+		});
 		await expect(post('{not json')).rejects.toMatchObject({ status: 400 });
 		await expect(post('[]')).rejects.toMatchObject({ status: 400 });
 		await expect(post(JSON.stringify({ revision: 0, config: [] }))).rejects.toMatchObject({
@@ -86,6 +93,24 @@ describe('Hearth save endpoint', () => {
 		await expect(post(JSON.stringify({ revision: 'x', config: {} }))).rejects.toMatchObject({
 			status: 400
 		});
+		expect(disk.data).toBeNull();
+	});
+
+	it('rejects unknown card types and unsupported versions without changing the file', async () => {
+		await expect(
+			post(
+				JSON.stringify({
+					revision: 0,
+					config: {
+						rail: [],
+						rooms: [{ id: 'home', cards: [[{ id: 'card', type: 'unsupported' }]] }]
+					}
+				})
+			)
+		).rejects.toMatchObject({ status: 400 });
+		await expect(
+			post(JSON.stringify({ revision: 0, config: { version: 4, rail: [], rooms: [] } }))
+		).rejects.toMatchObject({ status: 400 });
 		expect(disk.data).toBeNull();
 	});
 });

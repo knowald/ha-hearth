@@ -42,7 +42,7 @@
 <div class="detail">
 	<div class="state-line">
 		{#if stateObj}
-			<StateLogic entity_id={entity} selected={{ entity_id: entity }} />
+			<StateLogic entity_id={entity} />
 		{:else}
 			{$lang('hearth_missing_entity')}
 		{/if}

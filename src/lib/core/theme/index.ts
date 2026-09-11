@@ -339,11 +339,11 @@ export const THEME_PRESETS: { id: string; name: string; theme: HearthTheme | nul
 		})
 	},
 	{
-		// approximates the original ha-fusion "muted" theme: cool grey-blue
+		// Cool grey-blue palette.
 		// background, white active buttons, Inter, small radii (no background
 		// photo - set the background_image knob for one)
 		id: 'muted',
-		name: 'Muted (fusion)',
+		name: 'Muted',
 		theme: {
 			...buildTheme({
 				accent: '#e6e8e9',
