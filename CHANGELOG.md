@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a Void (OLED) color theme preset with a true-black background.
 - Establish Hearth as an independent dashboard with its own package, assets and Docker publishing target.
 - Remove the retired dashboard, embedded objects, picture-elements tooling, alternate routes and cross-repository release automation.
 - Replace camera playback and token login with Hearth components.

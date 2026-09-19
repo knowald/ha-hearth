@@ -302,6 +302,28 @@ export const WARM_PAPER_THEME: HearthTheme = {
 	media_art_bottom: '#b08f74'
 };
 
+export const VOID_THEME: HearthTheme = {
+	...buildTheme({
+		accent: '#ffb04a',
+		cool: '#62b4ea',
+		backgroundInner: '#0a0a0a',
+		backgroundOuter: '#000000',
+		ink: '#f3f5f7'
+	}),
+	// black wells vanish on a true-black canvas
+	sheet_top: '#141414',
+	sheet_bottom: '#0c0c0c',
+	fill_scale: '1.5',
+	line_scale: '1.3',
+	track: 'rgba(255, 255, 255, 0.09)',
+	inset: 'rgba(255, 255, 255, 0.05)',
+	overlay: 'rgba(0, 0, 0, 0.78)',
+	good: '#4ee89a',
+	good_text: '#7af0b2',
+	bad: '#ff7468',
+	bad_text: '#ffb0a8'
+};
+
 export const THEME_PRESETS: { id: string; name: string; theme: HearthTheme | null }[] = [
 	{ id: 'hearth', name: 'Calm Hearth', theme: null },
 	{ id: 'paper', name: 'Warm Paper (day)', theme: WARM_PAPER_THEME },
@@ -316,6 +338,7 @@ export const THEME_PRESETS: { id: string; name: string; theme: HearthTheme | nul
 			ink: '#eef5f9'
 		})
 	},
+	{ id: 'void', name: 'Void (OLED)', theme: VOID_THEME },
 	{
 		id: 'forest',
 		name: 'Forest',
