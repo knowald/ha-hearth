@@ -1,40 +1,12 @@
-# Release process
+# Releasing Hearth
 
-## Versioning
+Hearth uses semantic versions, starting at `0.1.0`. Package versions and release tags match and have no `v` prefix. During `0.x`, a minor release may change configuration or product behavior; describe any breaking changes in its release notes. The document format version is independent of the package version.
 
-Releases use calendar versioning in the Home Assistant style: `YYYY.M.PATCH`.
-`YYYY.M` is the year and month of the release, `PATCH` starts at 0 and counts
-releases within that month. Tags have no `v` prefix (for example `2026.7.0`).
+1. Run all checks listed in the README, including the production build and browser suite. Review the screenshot matrix and complete the relevant real-device checks.
+2. Update `package.json` and the changelog with the final release version and user-facing changes.
+3. Prepare a commit using the `hearth` scope. Obtain confirmation before pushing or publishing.
+4. Once authorized, push the commit and create a GitHub release with the matching tag and changelog notes.
 
-## Steps
+The Docker workflow builds `linux/amd64` and `linux/arm64` images and publishes them to `ghcr.io/knowald/ha-hearth` using the repository's `GITHUB_TOKEN`. Release tags produce a version tag and `latest`; manual branch builds produce the branch tag. There is no cross-repository synchronization or external add-on release.
 
-1. Update `version` in `package.json`.
-2. Add a new entry at the top of `CHANGELOG.md` following
-   [Common Changelog](https://common-changelog.org/): a
-   `## [VERSION](release-url) - YYYY-MM-DD` heading with changes grouped under
-   `### Changed`, `### Added`, `### Removed`, `### Fixed`. Entries use
-   imperative mood with a commit reference in parentheses.
-3. Commit with the message `chore: bump version to VERSION` and push.
-4. Create the release:
-
-   ```bash
-   gh release create VERSION --title VERSION --notes-file <notes>
-   ```
-
-   The release body is the changelog entry with two changes: no version
-   heading and no commit hashes. It is copied verbatim into the add-on
-   repository's `CHANGELOG.md`, where hashes have nothing to link to.
-
-## What automation does on release publish
-
-- `docker-publish.yml` builds and pushes `ghcr.io/knowald/ha-fusion` for
-  amd64, arm64 and armv7, tagged `VERSION` and `latest`.
-- `sync-addon.yml` updates `config.yaml` and `CHANGELOG.md` in
-  [knowald/addon-ha-fusion](https://github.com/knowald/addon-ha-fusion) and
-  pushes. That push triggers the add-on publish workflow, which builds the
-  release tag (via the `BUILD_VERSION` build argument in its Dockerfile) and
-  pushes the add-on images to Docker Hub.
-
-`sync-addon.yml` needs the `ADDON_REPO_TOKEN` repository secret: a
-fine-grained personal access token with contents read/write access to
-`knowald/addon-ha-fusion`.
+A release is not complete until its image starts successfully with a fresh data directory and the supported document format. Keep the previous image tag and data backups available for recovery.
