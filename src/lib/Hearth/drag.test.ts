@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { haptics } from '$lib/core/app/haptics';
 import { horizontalDrag, onDndReceive } from './drag';
 
 class TestNode extends EventTarget {
@@ -17,6 +18,65 @@ function pointer(type: string, clientX: number) {
 	});
 	return event;
 }
+
+describe('horizontalDrag touch feedback', () => {
+	const vibrateSpy = vi.fn<(timings: VibratePattern) => boolean>(() => true);
+
+	afterEach(() => {
+		haptics.set(false);
+		vi.unstubAllGlobals();
+		Reflect.deleteProperty(navigator, 'vibrate');
+	});
+
+	function asPhone() {
+		// jsdom serves an insecure origin, which the haptics layer refuses
+		Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true });
+		Object.defineProperty(navigator, 'vibrate', { value: vibrateSpy, configurable: true });
+		vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(pointer: coarse)' }));
+		vibrateSpy.mockClear();
+		haptics.set(true);
+	}
+
+	it('ticks once per step crossed and once on the commit', () => {
+		asPhone();
+		const node = new TestNode();
+		horizontalDrag(node as unknown as HTMLElement, { set: vi.fn(), step: 25 });
+
+		node.dispatchEvent(pointer('pointerdown', 10));
+		// drift below the threshold is not a drag yet, so it is silent
+		node.dispatchEvent(pointer('pointermove', 15));
+		// 25% and 50% cross two step boundaries
+		node.dispatchEvent(pointer('pointermove', 60));
+		node.dispatchEvent(pointer('pointermove', 110));
+		// the same step again is silent
+		node.dispatchEvent(pointer('pointermove', 112));
+		expect(vibrateSpy).toHaveBeenCalledTimes(2);
+
+		node.dispatchEvent(pointer('pointerup', 210));
+		expect(vibrateSpy).toHaveBeenCalledTimes(3);
+	});
+
+	it('stays silent while the drag stays inside the step it started in', () => {
+		asPhone();
+		const node = new TestNode();
+		horizontalDrag(node as unknown as HTMLElement, { set: vi.fn(), step: 25 });
+
+		// down at 0%, dragged to 12%: past the movement threshold, same step
+		node.dispatchEvent(pointer('pointerdown', 10));
+		node.dispatchEvent(pointer('pointermove', 34));
+		expect(vibrateSpy).not.toHaveBeenCalled();
+	});
+
+	it('stays silent for a tap, which sets no value', () => {
+		asPhone();
+		const node = new TestNode();
+		horizontalDrag(node as unknown as HTMLElement, { set: vi.fn(), tap: vi.fn() });
+
+		node.dispatchEvent(pointer('pointerdown', 20));
+		node.dispatchEvent(pointer('pointerup', 24));
+		expect(vibrateSpy).not.toHaveBeenCalled();
+	});
+});
 
 describe('horizontalDrag', () => {
 	it('previews continuously, commits the endpoint and removes listeners', () => {

@@ -1,5 +1,6 @@
 import type { Action } from 'svelte/action';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
+import { vibrate } from '$lib/core/app/haptics';
 
 interface DragOptions {
 	/** Updates the preview. `commit` says whether device state should also be sent. */
@@ -9,6 +10,8 @@ interface DragOptions {
 	hold?: () => void;
 	end?: (value: number) => void;
 	updateMode?: SliderUpdateMode;
+	/** Percentage points between touch-feedback ticks while dragging. */
+	step?: number;
 	/** Skip gesture handling entirely (used in edit mode so SortableJS gets the pointer) */
 	disabled?: boolean;
 	/**
@@ -28,8 +31,32 @@ interface DragOptions {
  */
 export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) => {
 	let current = options;
-	let tracking: { moved: boolean; held: boolean; pointerId: number; startX: number } | null = null;
+	let tracking: {
+		moved: boolean;
+		held: boolean;
+		pointerId: number;
+		startX: number;
+		lastStep: number;
+	} | null = null;
 	let holdTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function stepIndex(value: number) {
+		return Math.floor(value / Math.max(1, current.step ?? 5));
+	}
+
+	/**
+	 * One tick per move that lands on a different step than the last, so a sweep
+	 * feels notched. A fast sweep skipping several steps still ticks once: each
+	 * vibration cancels the one before it, so a tick per crossed step would only
+	 * shorten the buzz.
+	 */
+	function feedStep(value: number) {
+		if (!tracking) return;
+		const index = stepIndex(value);
+		if (index === tracking.lastStep) return;
+		tracking.lastStep = index;
+		vibrate('step');
+	}
 
 	function fraction(event: PointerEvent) {
 		const rect = node.getBoundingClientRect();
@@ -44,11 +71,19 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 		} catch {
 			// pointer capture is best-effort
 		}
-		tracking = { moved: false, held: false, pointerId: event.pointerId, startX: event.clientX };
+		tracking = {
+			moved: false,
+			held: false,
+			pointerId: event.pointerId,
+			startX: event.clientX,
+			// the step under the finger, so staying inside it stays silent
+			lastStep: stepIndex(Math.round(fraction(event) * 100))
+		};
 		if (current.hold) {
 			holdTimer = setTimeout(() => {
 				if (!tracking || tracking.moved) return;
 				tracking.held = true;
+				vibrate('hold');
 				current.hold?.();
 			}, 500);
 		}
@@ -61,7 +96,9 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 			clearTimeout(holdTimer);
 		}
 		if (tracking.moved) {
-			current.set(Math.round(fraction(event) * 100), current.updateMode !== 'release');
+			const value = Math.round(fraction(event) * 100);
+			feedStep(value);
+			current.set(value, current.updateMode !== 'release');
 		}
 	}
 
@@ -75,6 +112,7 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 			const value = Math.round(fraction(event) * 100);
 			// Always commit the final value. In release mode this is the gesture's
 			// only service call; in continuous mode it guarantees the exact endpoint.
+			vibrate('commit');
 			current.set(value, true);
 			current.end?.(value);
 		}

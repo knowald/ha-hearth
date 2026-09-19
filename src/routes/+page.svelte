@@ -6,6 +6,7 @@
 	import '@material-symbols/font-400/rounded.css';
 	import { onDestroy } from 'svelte';
 	import { configuration } from '$lib/core/app/configuration';
+	import { disposeHaptics, haptics, startPressFeedback } from '$lib/core/app/haptics';
 	import { motion } from '$lib/core/app/motion';
 	import { connected } from '$lib/core/ha/connection';
 	import { lang, selectedLanguage, translation } from '$lib/core/i18n';
@@ -59,6 +60,10 @@
 		motion.set(0);
 	}
 
+	// svelte-ignore state_referenced_locally
+	haptics.set(data?.configuration?.haptics === true);
+	const stopPressFeedback = browser ? startPressFeedback() : undefined;
+
 	if (browser) startConnection($configuration, connectionHooks);
 
 	// reconnect when a long-lived access token is entered
@@ -70,6 +75,8 @@
 	setCommandGate(() => !get(hearthEditMode));
 	onDestroy(() => {
 		stopConnection();
+		stopPressFeedback?.();
+		disposeHaptics();
 		setCommandGate(() => true);
 	});
 </script>

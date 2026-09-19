@@ -44,7 +44,7 @@ The publishing workflow targets `ghcr.io/knowald/ha-hearth` when a release is pu
 ## Configuration
 
 - `data/hearth.yaml`: pages, cards, rail widgets, themes and tablet settings.
-- `data/configuration.yaml`: language, motion, optional access token and custom JavaScript setting.
+- `data/configuration.yaml`: language, motion, touch feedback, optional access token and custom JavaScript setting.
 - `data/hearth-themes/`: saved Hearth theme presets.
 - `data/backups/`: the ten most recent revisions of each saved configuration document.
 
@@ -59,6 +59,8 @@ Hearth is served at `/`. `?room=<id>` opens a page, `?theme=<preset>` previews a
 Cards cover entities, headers, sensors, media, vacuums, cameras, images, climate, scenes, elapsed days and conditional media. Rail widgets include clocks, weather, navigation, search, energy, progress, calendars, status, entities, charts, templates, timers, notifications and web pages.
 
 Camera playback supports HLS and WebRTC with a still-image fallback. Calendar widgets show upcoming events. Entity domains without specialized controls use a generic state, attributes and history sheet. Picture-elements editing, calendar editing, todo editing and GPS maps are outside the current feature set.
+
+Touch feedback is off by default and vibrates on presses, long presses, slider steps, saves and failed commands. It needs both a browser that implements the Vibration API and a secure origin: Chrome on Android over https or localhost works, and the same page over plain http does not vibrate at all even though the call reports success. Firefox for Android does not provide the API. iOS Safari 18 has no Vibration API either and is driven through a switch toggle instead, which the browser only honors during the gesture that triggered it.
 
 ## Development
 

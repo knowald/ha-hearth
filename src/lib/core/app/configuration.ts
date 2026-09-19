@@ -9,6 +9,7 @@ export const ConfigurationSchema = v.object({
 	locale: v.optional(v.pipe(v.string(), v.regex(/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i))),
 	custom_js: v.optional(v.boolean()),
 	motion: v.optional(v.boolean()),
+	haptics: v.optional(v.boolean()),
 	token: v.optional(v.string()),
 	revision: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)))
 });

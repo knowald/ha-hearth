@@ -2,6 +2,7 @@ import { derived, get, writable } from 'svelte/store';
 import { base } from '$app/paths';
 import { validTimeZone } from './clock';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
+import { vibrate } from '$lib/core/app/haptics';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from './config';
 
 /* configuration */
@@ -104,6 +105,10 @@ export function cancelEdit() {
 }
 
 export const saveState = writable<'idle' | 'saved' | 'conflict' | 'error'>('idle');
+saveState.subscribe((state) => {
+	if (state === 'saved') vibrate('success');
+	else if (state === 'conflict' || state === 'error') vibrate('error');
+});
 /** Why the last save failed, from the server when it said. */
 export const saveFailure = writable<string | null>(null);
 let savedToastTimer: ReturnType<typeof setTimeout>;

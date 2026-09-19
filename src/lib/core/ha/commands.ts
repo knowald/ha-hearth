@@ -1,5 +1,6 @@
 import { get, writable } from 'svelte/store';
 import { callService, type HassEntity } from 'home-assistant-js-websocket';
+import { vibrate } from '../app/haptics';
 import { connection, health } from './connection';
 import { entityControllable, states } from './entities';
 
@@ -161,6 +162,7 @@ function reportCommandFailure(entityId: string | null, error: unknown) {
 		clearControlOverridesForEntity(entityId);
 	}
 	const detail = error instanceof Error ? error.message : String(error);
+	vibrate('error');
 	commandFailure.set({ entityId, detail });
 	clearTimeout(commandFailureTimer);
 	commandFailureTimer = setTimeout(() => commandFailure.set(null), 8000);

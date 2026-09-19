@@ -4,6 +4,13 @@
 	import { base } from '$app/paths';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { configuration } from '$lib/core/app/configuration';
+	import {
+		hapticCapabilities,
+		haptics,
+		hapticsSupported,
+		sampleVibration,
+		vibrate
+	} from '$lib/core/app/haptics';
 	import { motion } from '$lib/core/app/motion';
 	import { lang, selectedLanguage, translation } from '$lib/core/i18n';
 	import { PRESS_RIPPLE } from '../config';
@@ -14,6 +21,9 @@
 	let languages = $state<{ value: string; label: string }[]>([]);
 	let locale = $state($selectedLanguage || 'en');
 	let reduceMotion = $state($motion === 0);
+	let touchFeedback = $state($haptics);
+	let feedbackSupported = $state(true);
+	let feedbackNeedsHttps = $state(false);
 	let token = $state($configuration?.token ?? '');
 	let customJs = $state($configuration?.custom_js ?? false);
 	let installedVersion = $state<string>();
@@ -21,6 +31,8 @@
 	let saving = $state(false);
 
 	onMount(async () => {
+		feedbackSupported = hapticsSupported();
+		feedbackNeedsHttps = !feedbackSupported && !hapticCapabilities().secureContext;
 		try {
 			const [languageResponse, versionResponse] = await Promise.all([
 				fetch(`${base}/_api/list_languages`),
@@ -58,6 +70,8 @@
 		};
 		if (reduceMotion) next.motion = false;
 		else delete next.motion;
+		if (touchFeedback) next.haptics = true;
+		else delete next.haptics;
 		if (token.trim()) next.token = token.trim();
 		else delete next.token;
 		if (customJs) next.custom_js = true;
@@ -73,12 +87,15 @@
 			});
 			if (!response.ok) {
 				saveError = `${$lang('hearth_save_failed')} [${response.status}]`;
+				vibrate('error');
 				return;
 			}
 
 			$configuration = { ...next, revision: (await response.json()).revision };
 			$selectedLanguage = locale;
 			$motion = reduceMotion ? 0 : 190;
+			$haptics = touchFeedback;
+			vibrate('success');
 			document.documentElement.lang = locale || 'en';
 
 			const translationResponse = await fetch(`${base}/_api/get_translation`, {
@@ -91,6 +108,7 @@
 		} catch (error) {
 			console.error(error);
 			saveError = $lang('hearth_save_failed');
+			vibrate('error');
 		} finally {
 			saving = false;
 		}
@@ -141,6 +159,35 @@
 					aria-pressed={reduceMotion}
 					use:Ripple={PRESS_RIPPLE}
 					onclick={() => (reduceMotion = !reduceMotion)}
+				>
+					<span class="knob"></span>
+				</button>
+			</div>
+			<div class="row">
+				<div class="row-main">
+					<div class="row-label">{$lang('hearth_touch_feedback')}</div>
+					<div class="row-sub">
+						{#if feedbackSupported}
+							{$lang('hearth_touch_feedback_sub')}
+						{:else if feedbackNeedsHttps}
+							{$lang('hearth_touch_feedback_needs_https')}
+						{:else}
+							{$lang('hearth_touch_feedback_unsupported')}
+						{/if}
+					</div>
+				</div>
+				<button
+					type="button"
+					class="switch pressable"
+					class:on={touchFeedback}
+					aria-label={$lang('hearth_touch_feedback')}
+					aria-pressed={touchFeedback}
+					use:Ripple={PRESS_RIPPLE}
+					onclick={() => {
+						touchFeedback = !touchFeedback;
+						// the choice is staged, so the sample bypasses the store
+						if (touchFeedback) sampleVibration('press');
+					}}
 				>
 					<span class="knob"></span>
 				</button>

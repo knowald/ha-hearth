@@ -1,5 +1,6 @@
 import { getContext, setContext } from 'svelte';
 import type { Action } from 'svelte/action';
+import { vibrate } from '$lib/core/app/haptics';
 
 export type HearthInteractionMode = 'runtime' | 'layout-edit' | 'preview';
 type HearthInteractionSource = HearthInteractionMode | (() => HearthInteractionMode);
@@ -45,6 +46,7 @@ export const longPress: Action<HTMLElement, LongPressOptions> = (node, options) 
 		start = { x: event.clientX, y: event.clientY };
 		timer = setTimeout(() => {
 			held = true;
+			vibrate('hold');
 			current.hold();
 		}, 500);
 	}
