@@ -131,3 +131,36 @@ test('pages, stacks and the settings sheets open and close', async ({ page }) =>
 	await expect(page.getByRole('button', { name: 'Edit Hearth configuration' })).toBeVisible();
 	expect(errors).toEqual([]);
 });
+
+test('the theme editor floats over the dashboard and drags by its header', async ({ page }) => {
+	const errors = collectPageErrors(page);
+
+	await page.getByRole('button', { name: 'Theme' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Theme' });
+	await expect(sheet).toBeVisible();
+	// not modal: the dashboard behind it stays live for the preview
+	await expect(sheet).toHaveAttribute('aria-modal', 'false');
+	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+
+	const before = await sheet.boundingBox();
+	const handle = await sheet.locator('.header').boundingBox();
+	if (!before || !handle) throw new Error('theme window has no box');
+
+	await page.mouse.move(handle.x + 40, handle.y + handle.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(handle.x + 40 - 400, handle.y + handle.height / 2 + 200, { steps: 10 });
+	await page.mouse.up();
+
+	const after = await sheet.boundingBox();
+	if (!after) throw new Error('theme window has no box after the drag');
+	expect(before.x - after.x).toBeGreaterThan(300);
+	expect(after.y - before.y).toBeGreaterThan(150);
+
+	// a preset repaints the dashboard behind the window rather than a preview pane
+	await sheet.getByRole('button', { name: 'Void (OLED)' }).click();
+	await expect(page.locator('.frame')).toHaveCSS('--h-bg-1', '#000000');
+
+	await page.keyboard.press('Escape');
+	await expect(sheet).toBeHidden();
+	expect(errors).toEqual([]);
+});

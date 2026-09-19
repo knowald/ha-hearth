@@ -219,7 +219,7 @@
 	}
 </script>
 
-<EditSheet title={$lang('theme')} onclose={close} ondone={done}>
+<EditSheet title={$lang('theme')} onclose={close} ondone={done} floating>
 	<div class="slots">
 		<div
 			class="slot pressable"

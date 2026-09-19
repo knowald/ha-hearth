@@ -1,3 +1,11 @@
+<script module lang="ts">
+	/*
+	 * Remembered for the session so reopening a floating editor puts it back
+	 * where the user left it. One window is open at a time, so one slot.
+	 */
+	let rememberedPosition: WindowPosition | null = null;
+</script>
+
 <script lang="ts">
 	import { ICON } from '../iconSizes';
 	import type { Snippet } from 'svelte';
@@ -6,6 +14,7 @@
 	import { PRESS_RIPPLE } from '../config';
 	import Icon from '../Icon.svelte';
 	import { layer } from '$lib/ui/layers';
+	import { clampToViewport, windowDrag, type WindowPosition } from '$lib/ui/actions/windowDrag';
 	import './editor-fields.css';
 
 	let {
@@ -20,7 +29,8 @@
 		onmoveup,
 		onmovedown,
 		wide = false,
-		split = false
+		split = false,
+		floating = false
 	}: {
 		title: string;
 		children: Snippet;
@@ -34,10 +44,64 @@
 		onmovedown?: () => void;
 		wide?: boolean;
 		split?: boolean;
+		/** Drop the modal backdrop and let the sheet be dragged over the page. */
+		floating?: boolean;
 	} = $props();
 
 	let confirmRemove = $state(false);
 	let confirmTimer: ReturnType<typeof setTimeout>;
+
+	let sheet = $state<HTMLElement | null>(null);
+	let position = $state<WindowPosition>(rememberedPosition ?? { x: 0, y: 0 });
+
+	// a phone has no room beside the window; there the sheet stays a modal
+	let wideViewport = $state(false);
+	let floats = $derived(floating && wideViewport);
+
+	$effect(() => {
+		if (!floating || typeof window.matchMedia !== 'function') return;
+		const query = window.matchMedia('(min-width: 821px)');
+		const sync = () => (wideViewport = query.matches);
+		sync();
+		query.addEventListener('change', sync);
+		return () => query.removeEventListener('change', sync);
+	});
+
+	function place(next: WindowPosition) {
+		position = next;
+		rememberedPosition = next;
+	}
+
+	let settleFrame: number | undefined;
+
+	/*
+	 * Floating changes the sheet's size, so the measurement waits a frame for
+	 * the class to land - measuring in the same tick reads the modal's width
+	 * and parks the window in the middle of the page.
+	 */
+	function settle() {
+		if (settleFrame !== undefined) cancelAnimationFrame(settleFrame);
+		settleFrame = requestAnimationFrame(() => {
+			if (!floats || !sheet) return;
+			const size = sheet.getBoundingClientRect();
+			const viewport = { width: window.innerWidth, height: window.innerHeight };
+			// first open parks it against the right edge, clear of the rail
+			place(
+				clampToViewport(
+					rememberedPosition ?? { x: viewport.width - size.width - 32, y: 32 },
+					size,
+					viewport
+				)
+			);
+		});
+	}
+
+	$effect(() => {
+		if (floats && sheet) settle();
+		return () => {
+			if (settleFrame !== undefined) cancelAnimationFrame(settleFrame);
+		};
+	});
 
 	function handleRemove() {
 		clearTimeout(confirmTimer);
@@ -50,14 +114,39 @@
 	}
 </script>
 
+<svelte:window onresize={settle} />
+
 <div
 	class="overlay"
+	class:floating={floats}
 	role="presentation"
-	onpointerdown={(event) => event.target === event.currentTarget && onclose()}
+	onpointerdown={(event) => !floats && event.target === event.currentTarget && onclose()}
 	use:layer={onclose}
 >
-	<div class="sheet" class:wide role="dialog" aria-modal="true" aria-label={title}>
-		<div class="header">
+	<div
+		class="sheet"
+		class:wide
+		class:floating={floats}
+		bind:this={sheet}
+		style={floats ? `transform: translate(${position.x}px, ${position.y}px)` : undefined}
+		role="dialog"
+		aria-modal={floats ? 'false' : 'true'}
+		aria-label={title}
+	>
+		<div
+			class="header"
+			class:handle={floats}
+			use:windowDrag={{
+				position: () => position,
+				size: () => ({ width: sheet?.offsetWidth ?? 0, height: sheet?.offsetHeight ?? 0 }),
+				move: place,
+				disabled: !floats,
+				ignore: 'button'
+			}}
+		>
+			{#if floats}
+				<Icon name="drag_indicator" size={ICON.control} />
+			{/if}
 			{#if onback}
 				<button type="button" class="icon-button" aria-label={$lang('back')} onclick={onback}>
 					<Icon name="arrow_back" size={ICON.tile} />
@@ -134,7 +223,6 @@
 		z-index: var(--h-layer-sheet);
 		background: var(--h-overlay);
 		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -289,6 +377,51 @@
 
 	.button.danger.confirm {
 		border-color: var(--h-bad-text);
+	}
+
+	/* the page keeps the pointer; only the window itself takes it back */
+	.overlay.floating {
+		background: none;
+		backdrop-filter: none;
+		pointer-events: none;
+		align-items: flex-start;
+		justify-content: flex-start;
+	}
+
+	.sheet.floating,
+	.sheet.floating.wide {
+		pointer-events: auto;
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: min(420px, calc(100vw - 32px));
+		height: min(680px, calc(100dvh - 64px));
+		box-shadow: var(--h-shadow-layer);
+	}
+
+	.sheet.floating .header {
+		padding: 16px 18px 14px 14px;
+	}
+
+	.sheet.floating .title {
+		font-size: var(--h-type-title);
+	}
+
+	.sheet.floating .body {
+		grid-template-columns: 1fr;
+		padding: 18px 20px 24px;
+	}
+
+	.header.handle {
+		cursor: grab;
+		color: var(--h-icon-dim);
+		touch-action: none;
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	.header.handle:active {
+		cursor: grabbing;
 	}
 
 	@media (max-width: 820px) {
