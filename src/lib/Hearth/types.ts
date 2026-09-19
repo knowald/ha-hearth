@@ -272,6 +272,9 @@ export interface HearthConfig {
 	/** Clock brightness from 10 to 100 percent. */
 	screensaver_brightness?: number;
 	keep_screen_on?: boolean;
+	// progressive blur where a scroll container cuts content off; costs a
+	// backdrop pass per layer, so weak tablets can turn it off
+	scroll_edge_blur?: boolean;
 	// extra edge padding in px, for kiosks whose frame covers screen edges
 	padding_x?: number;
 	padding_y?: number;

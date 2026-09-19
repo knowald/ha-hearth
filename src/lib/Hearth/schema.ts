@@ -201,6 +201,7 @@ export const RootSettingsSchema = v.looseObject({
 		v.pipe(FiniteNumber, v.minValue(10, 'must be 10 to 100'), v.maxValue(100, 'must be 10 to 100'))
 	),
 	keep_screen_on: OptionalFlag,
+	scroll_edge_blur: OptionalFlag,
 	padding_x: optionalNumberAtLeast(0),
 	padding_y: optionalNumberAtLeast(0)
 });

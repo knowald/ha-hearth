@@ -22,9 +22,19 @@
 	import ThemeStyle from './shell/ThemeStyle.svelte';
 	import Toasts from './shell/Toasts.svelte';
 	import { wakeLock } from './wakeLock';
+	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
+	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
 
 	let showSetupWizard = $state(false);
 	let showSearch = $state(false);
+
+	// the columns hide their scrollbars, so a blurred edge is the only sign
+	// that the list keeps going. Which column scrolls depends on the fold:
+	// wide screens scroll the page column, narrow ones scroll the whole layout.
+	const NOTHING_CUT: ScrollEdges = { top: false, bottom: false, left: false, right: false };
+	let mainCut = $state<ScrollEdges>(NOTHING_CUT);
+	let layoutCut = $state<ScrollEdges>(NOTHING_CUT);
+	let edgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
 
 	// the selected page, or the first one when it was renamed away or deleted
 	let activeRoomId = $derived(
@@ -111,15 +121,34 @@
 <ThemeStyle {presetOverride} />
 
 <section class="frame" use:wakeLock={$hearthConfig.keep_screen_on ?? true}>
-	<div class="layout" class:editing={$hearthEditMode}>
+	<div
+		class="layout"
+		class:editing={$hearthEditMode}
+		use:scrollEdges={{ report: (edges) => (layoutCut = edges) }}
+	>
 		<PhoneNav onsearch={() => (showSearch = true)} />
 		<div class="rail-scroll">
 			<Rail onsearch={() => (showSearch = true)} />
 		</div>
-		<main class="main" class:fill={activeRoom?.fill_screen} bind:this={mainElement}>
-			<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
-		</main>
+		<div class="main-wrap">
+			<main
+				class="main"
+				class:fill={activeRoom?.fill_screen}
+				bind:this={mainElement}
+				use:scrollEdges={{ report: (edges) => (mainCut = edges) }}
+			>
+				<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+			</main>
+			{#if edgeBlur}
+				<ScrollEdge edge="top" size={96} active={mainCut.top} />
+				<ScrollEdge edge="bottom" size={96} active={mainCut.bottom} />
+			{/if}
+		</div>
 	</div>
+	{#if edgeBlur}
+		<ScrollEdge edge="top" size={96} active={layoutCut.top} />
+		<ScrollEdge edge="bottom" size={96} active={layoutCut.bottom} />
+	{/if}
 	<ControlPopup />
 	{#if $hearthEditMode}
 		<!-- the edit sheets and their editors load with edit mode, not the dashboard -->
@@ -238,13 +267,20 @@
 		display: none;
 	}
 
-	.main {
+	/* the bleed moves to the wrapper so the edge band can pin to the same box
+	   the scroll container clips at; border-box makes the two coincide */
+	.main-wrap {
+		position: relative;
 		min-width: 0;
 		min-height: 0;
+		margin: -32px;
+	}
+
+	.main {
+		height: 100%;
 		overflow-y: auto;
 		scrollbar-width: none;
 		padding: 32px;
-		margin: -32px;
 	}
 
 	.main::-webkit-scrollbar {
@@ -278,9 +314,11 @@
 		/* the glow bleed shrinks to the layout's own padding so the columns end
 		   at the viewport edge instead of 8px past it */
 		.rail-scroll,
+		.main-wrap,
 		.main {
 			overflow-y: visible;
 			min-height: auto;
+			height: auto;
 			padding: 0;
 			margin: 0;
 		}

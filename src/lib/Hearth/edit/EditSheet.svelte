@@ -15,6 +15,9 @@
 	import Icon from '../Icon.svelte';
 	import { layer } from '$lib/ui/layers';
 	import { clampToViewport, windowDrag, type WindowPosition } from '$lib/ui/actions/windowDrag';
+	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
+	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
+	import { hearthConfig } from '../store';
 	import './editor-fields.css';
 
 	let {
@@ -50,6 +53,10 @@
 
 	let confirmRemove = $state(false);
 	let confirmTimer: ReturnType<typeof setTimeout>;
+
+	// long editor forms run off the sheet with no scrollbar to say so
+	let bodyCut = $state<ScrollEdges>({ top: false, bottom: false, left: false, right: false });
+	let edgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
 
 	let sheet = $state<HTMLElement | null>(null);
 	let position = $state<WindowPosition>(rememberedPosition ?? { x: 0, y: 0 });
@@ -195,8 +202,14 @@
 				<Icon name="close" size={ICON.tile} />
 			</button>
 		</div>
-		<div class="body" class:split>
-			{@render children()}
+		<div class="body-wrap">
+			<div class="body" class:split use:scrollEdges={{ report: (edges) => (bodyCut = edges) }}>
+				{@render children()}
+			</div>
+			{#if edgeBlur}
+				<ScrollEdge edge="top" size={72} active={bodyCut.top} />
+				<ScrollEdge edge="bottom" size={72} active={bodyCut.bottom} />
+			{/if}
 		</div>
 		{#if onremove}
 			<div class="footer">
@@ -291,9 +304,16 @@
 		color: var(--h-text-3);
 	}
 
-	.body {
+	.body-wrap {
+		position: relative;
 		flex: 1;
 		min-height: 0;
+		display: flex;
+	}
+
+	.body {
+		flex: 1;
+		min-width: 0;
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		align-content: start;

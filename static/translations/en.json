@@ -548,6 +548,8 @@
 	"hearth_muted_text": "Muted text",
 	"hearth_text_contrast": "Text contrast",
 	"hearth_text_shadow": "Text shadow",
+	"hearth_scroll_edge_blur": "Scroll edge blur",
+	"hearth_blurs_content_where_a_list_runs_off": "Blurs content where a list runs off the edge; turn off on slower screens",
 	"hearth_side_padding": "Side padding",
 	"hearth_for_screens_whose_frame_covers_the": "For screens whose frame covers the edges",
 	"hearth_top_bottom_padding": "Top/bottom padding",

@@ -14,6 +14,7 @@
 	let screensaverDrift = $derived($hearthConfig.screensaver_drift ?? false);
 	let screensaverBrightness = $derived(String($hearthConfig.screensaver_brightness ?? 32));
 	let keepScreenOn = $derived($hearthConfig.keep_screen_on ?? true);
+	let scrollEdgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
 	let paddingX = $derived($hearthConfig.padding_x ?? 0);
 	let paddingY = $derived($hearthConfig.padding_y ?? 0);
 
@@ -56,6 +57,12 @@
 	function setKeepScreenOn(enabled: boolean) {
 		updateConfig((config) => {
 			config.keep_screen_on = enabled ? undefined : false;
+		});
+	}
+
+	function setScrollEdgeBlur(enabled: boolean) {
+		updateConfig((config) => {
+			config.scroll_edge_blur = enabled ? undefined : false;
 		});
 	}
 
@@ -153,6 +160,23 @@
 						</span>
 					</div>
 				{/if}
+				<div class="row">
+					<div class="row-main">
+						<div class="row-label">{$lang('hearth_scroll_edge_blur')}</div>
+						<div class="row-sub">{$lang('hearth_blurs_content_where_a_list_runs_off')}</div>
+					</div>
+					<button
+						type="button"
+						class="switch pressable"
+						class:on={scrollEdgeBlur}
+						aria-label={$lang('hearth_scroll_edge_blur')}
+						aria-pressed={scrollEdgeBlur}
+						use:Ripple={PRESS_RIPPLE}
+						onclick={() => setScrollEdgeBlur(!scrollEdgeBlur)}
+					>
+						<span class="knob"></span>
+					</button>
+				</div>
 				<div class="row">
 					<div class="row-main">
 						<div class="row-label">{$lang('hearth_side_padding')}</div>
