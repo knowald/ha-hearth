@@ -6,19 +6,29 @@
 		value = $bindable(''),
 		placeholder = '',
 		type = 'text',
-		autocomplete = undefined
+		autocomplete = undefined,
+		onchange = undefined
 	}: {
 		label: string;
 		value?: string;
 		placeholder?: string;
 		type?: 'text' | 'password';
 		autocomplete?: FullAutoFill;
+		/** Fires on the input's own change event - blur or Enter, not per keystroke. */
+		onchange?: (value: string) => void;
 	} = $props();
 </script>
 
 <label class="field">
 	<span class="field-label">{label}</span>
-	<input {type} {autocomplete} bind:value {placeholder} spellcheck="false" />
+	<input
+		{type}
+		{autocomplete}
+		bind:value
+		{placeholder}
+		spellcheck="false"
+		onchange={() => onchange?.(value)}
+	/>
 </label>
 
 <style>

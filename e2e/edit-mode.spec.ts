@@ -164,3 +164,41 @@ test('the theme editor floats over the dashboard and drags by its header', async
 	await expect(sheet).toBeHidden();
 	expect(errors).toEqual([]);
 });
+
+test('the colour picker edits a knob in place and previews it live', async ({ page }) => {
+	const errors = collectPageErrors(page);
+
+	await page.getByRole('button', { name: 'Theme' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Theme' });
+	await expect(sheet).toBeVisible();
+
+	const accent = sheet.getByRole('button', { name: /^Accent/ });
+	await accent.scrollIntoViewIfNeeded();
+	await accent.click();
+
+	// the native OS colour panel is gone; the picker lives in the sheet
+	await expect(sheet.locator('input[type="color"]')).toHaveCount(0);
+	const area = sheet.locator('.area');
+	await expect(area).toBeVisible();
+
+	// dragging the saturation square repaints the dashboard behind the window
+	const box = await area.boundingBox();
+	if (!box) throw new Error('the saturation square has no box');
+	await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.2);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width * 0.85, box.y + box.height * 0.35, { steps: 8 });
+	await page.mouse.up();
+	await expect(sheet.locator('.hex input')).not.toHaveValue('f0b860');
+
+	// a typed hex commits on change and lands on the token
+	await sheet.locator('.hex input').fill('3366ff');
+	await sheet.locator('.hex input').blur();
+	await expect(page.locator('.frame')).toHaveCSS('--h-accent-rgb', '51 102 255');
+
+	// and the square is reachable without a pointer
+	await area.focus();
+	await area.press('ArrowLeft');
+	await expect(sheet.locator('.hex input')).not.toHaveValue('3366ff');
+
+	expect(errors).toEqual([]);
+});

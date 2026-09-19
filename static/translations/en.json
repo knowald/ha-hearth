@@ -542,6 +542,7 @@
 	"hearth_screensaver_brightness": "Screensaver brightness",
 	"hearth_keep_screen_awake": "Keep screen awake",
 	"hearth_while_the_dashboard_is_open": "While the dashboard is open",
+	"hearth_hue": "Hue",
 	"hearth_side_padding": "Side padding",
 	"hearth_for_screens_whose_frame_covers_the": "For screens whose frame covers the edges",
 	"hearth_top_bottom_padding": "Top/bottom padding",
