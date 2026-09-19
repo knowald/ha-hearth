@@ -654,7 +654,6 @@
 		background: var(--h-art-scrim-1);
 		border: 1px solid var(--h-on-art-line);
 		backdrop-filter: blur(10px);
-		-webkit-backdrop-filter: blur(10px);
 		padding: 16px 14px;
 		display: flex;
 		flex-direction: column;

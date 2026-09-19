@@ -99,6 +99,15 @@ function check(file, source, block) {
 		) {
 			fail('transition duration literal; use var(--h-motion-*)');
 		}
+		/*
+		 * Writing the prefix by hand makes lightningcss collapse the pair down to
+		 * the prefixed declaration alone, and Chrome dropped that alias - the
+		 * blur then silently does nothing. Declare the standard property only;
+		 * the build adds the prefix for the browsers that still need it.
+		 */
+		if (property === '-webkit-backdrop-filter') {
+			fail('the build adds this prefix; writing it drops the standard property');
+		}
 		if (SPACING_PROPERTY.test(property)) {
 			for (const px of value.matchAll(/(?<![\d.])(-?\d+(?:\.\d+)?)px/g)) {
 				const number = Math.abs(Number(px[1]));

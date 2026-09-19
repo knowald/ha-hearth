@@ -141,7 +141,6 @@
 		z-index: var(--h-layer-picker);
 		background: var(--h-overlay);
 		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
 		display: flex;
 		align-items: center;
 		justify-content: center;
