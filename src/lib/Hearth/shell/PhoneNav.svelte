@@ -82,6 +82,7 @@
 			border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
 			border-radius: var(--h-radius-pill);
 			background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));
+			backdrop-filter: var(--h-surface-blur);
 			color: var(--h-text-3);
 			font: inherit;
 			font-size: var(--h-type-body);

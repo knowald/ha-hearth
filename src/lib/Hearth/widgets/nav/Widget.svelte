@@ -79,6 +79,7 @@
 
 	.nav-item.active {
 		background: rgb(var(--h-accent-rgb) / calc(0.14 * var(--h-accent-scale)));
+		backdrop-filter: var(--h-surface-blur);
 		border-color: rgb(var(--h-accent-rgb) / calc(0.22 * var(--h-accent-scale)));
 		color: var(--h-accent-text);
 	}

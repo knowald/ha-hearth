@@ -202,3 +202,37 @@ test('the colour picker edits a knob in place and previews it live', async ({ pa
 
 	expect(errors).toEqual([]);
 });
+
+test('text contrast and shadow are adjustable from the theme editor', async ({ page }) => {
+	const errors = collectPageErrors(page);
+	const frame = page.locator('.frame');
+
+	await page.getByRole('button', { name: 'Theme' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Theme' });
+	await expect(sheet).toBeVisible();
+
+	// text sits flat until a theme asks for a shadow
+	await expect(frame).toHaveCSS('--h-text-shadow', 'none');
+	const faint = await frame.evaluate((node) =>
+		getComputedStyle(node).getPropertyValue('--h-text-5').trim()
+	);
+
+	await sheet.getByLabel('Text contrast').selectOption('max');
+	const raised = await frame.evaluate((node) =>
+		getComputedStyle(node).getPropertyValue('--h-text-5').trim()
+	);
+	expect(raised).not.toBe(faint);
+
+	await sheet.getByLabel('Text shadow').selectOption('strong');
+	await expect(frame).not.toHaveCSS('--h-text-shadow', 'none');
+
+	// and the muted step is editable on its own, not only through the ink
+	const muted = sheet.getByRole('button', { name: /^Muted text/ });
+	await muted.scrollIntoViewIfNeeded();
+	await muted.click();
+	await sheet.locator('.hex input').fill('c8d2dc');
+	await sheet.locator('.hex input').blur();
+	await expect(frame).toHaveCSS('--h-text-4', '#c8d2dc');
+
+	expect(errors).toEqual([]);
+});

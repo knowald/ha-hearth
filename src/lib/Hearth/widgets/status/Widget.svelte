@@ -53,6 +53,7 @@
 		padding: 14px 16px;
 		border-radius: var(--h-radius-sm);
 		background: rgb(var(--h-surface-rgb) / calc(0.04 * var(--h-fill-scale)));
+		backdrop-filter: var(--h-surface-blur);
 		box-shadow: var(--h-card-shadow);
 	}
 

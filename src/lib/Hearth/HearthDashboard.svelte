@@ -216,11 +216,14 @@
 		position: relative;
 		overflow: hidden;
 		background:
-			var(--h-bg-image), radial-gradient(1000px 700px at 14% -5%, var(--h-bg-0), var(--h-bg-1) 62%);
+			var(--h-bg-scrim), var(--h-bg-image),
+			radial-gradient(1000px 700px at 14% -5%, var(--h-bg-0), var(--h-bg-1) 62%);
 		background-size: cover;
 		background-position: center;
 		color: var(--h-text-1);
 		font-family: var(--h-font-ui);
+		/* inherited, so one declaration covers every string under the frame */
+		text-shadow: var(--h-text-shadow);
 	}
 
 	.layout {

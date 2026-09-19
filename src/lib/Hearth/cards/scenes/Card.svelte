@@ -90,6 +90,7 @@
 		padding: 12px 16px;
 		border-radius: var(--h-radius-xs);
 		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+		backdrop-filter: var(--h-surface-blur);
 		box-shadow: var(--h-card-shadow);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
 		color: var(--h-icon);

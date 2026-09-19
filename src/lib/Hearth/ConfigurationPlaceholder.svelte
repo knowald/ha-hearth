@@ -33,6 +33,7 @@
 		border-radius: var(--h-radius-md);
 		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.18 * var(--h-line-scale)));
 		background: rgb(var(--h-surface-rgb) / calc(0.025 * var(--h-fill-scale)));
+		backdrop-filter: var(--h-surface-blur);
 		color: var(--h-text-5);
 		text-align: left;
 	}

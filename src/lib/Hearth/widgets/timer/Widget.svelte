@@ -86,6 +86,7 @@
 		border: 0;
 		border-radius: 50%;
 		background: rgb(var(--h-surface-rgb) / calc(0.08 * var(--h-fill-scale)));
+		backdrop-filter: var(--h-surface-blur);
 		color: var(--h-text-2);
 		cursor: pointer;
 	}

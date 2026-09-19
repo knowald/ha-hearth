@@ -154,6 +154,7 @@
 		padding: 10px 14px;
 		border-radius: var(--h-radius-sm);
 		background: rgb(var(--h-surface-rgb) / calc(0.045 * var(--h-fill-scale)));
+		backdrop-filter: var(--h-surface-blur);
 		box-shadow: var(--h-card-shadow);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.07 * var(--h-line-scale)));
 		margin-bottom: 8px;

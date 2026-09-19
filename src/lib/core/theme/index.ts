@@ -23,6 +23,9 @@ export const THEME_VARS: Record<string, { cssVar: string; rgb?: boolean; raw?: b
 	background_outer: { cssVar: '--h-bg-1' },
 	// CSS image value ('none' or 'url(...)') layered over the background gradient
 	background_image: { cssVar: '--h-bg-image' },
+	// gradient drawn over the background image so panels and text stay legible
+	// on a bright photo
+	background_scrim: { cssVar: '--h-bg-scrim' },
 	sheet_top: { cssVar: '--h-sheet-0' },
 	sheet_bottom: { cssVar: '--h-sheet-1' },
 	overlay: { cssVar: '--h-overlay' },
@@ -32,6 +35,9 @@ export const THEME_VARS: Record<string, { cssVar: string; rgb?: boolean; raw?: b
 	line_scale: { cssVar: '--h-line-scale', raw: true },
 	accent_scale: { cssVar: '--h-accent-scale', raw: true },
 	card_shadow: { cssVar: '--h-card-shadow' },
+	// backdrop-filter applied to every card, tile and widget surface; 'none'
+	// keeps them flat, a blur() value turns them into glass over the background
+	surface_blur: { cssVar: '--h-surface-blur', raw: true },
 	inset: { cssVar: '--h-inset' },
 	track: { cssVar: '--h-track' },
 	accent: { cssVar: '--h-accent-rgb', rgb: true },
@@ -42,6 +48,9 @@ export const THEME_VARS: Record<string, { cssVar: string; rgb?: boolean; raw?: b
 	accent_dim_text: { cssVar: '--h-accent-dim-text' },
 	on_accent: { cssVar: '--h-on-accent' },
 	label: { cssVar: '--h-label' },
+	// inherited from .frame, so one value covers every string on the dashboard;
+	// earns its keep over a background photo, where flat text loses its edges
+	text_shadow: { cssVar: '--h-text-shadow' },
 	cool: { cssVar: '--h-cool-rgb', rgb: true },
 	cool_light: { cssVar: '--h-cool-light' },
 	cool_icon: { cssVar: '--h-cool-icon' },
@@ -81,6 +90,7 @@ export const THEME_DEFAULTS: Record<string, string> = {
 	background_inner: '#2a2017',
 	background_outer: '#16110c',
 	background_image: 'none',
+	background_scrim: 'none',
 	sheet_top: '#2c2118',
 	sheet_bottom: '#1d160f',
 	overlay: 'rgba(10, 7, 4, 0.62)',
@@ -100,6 +110,7 @@ export const THEME_DEFAULTS: Record<string, string> = {
 	line_scale: '1',
 	accent_scale: '1',
 	card_shadow: 'none',
+	surface_blur: 'none',
 	accent: '#f0b860',
 	accent_deep: '#e8a04a',
 	accent_bright: '#f4c879',
@@ -108,6 +119,7 @@ export const THEME_DEFAULTS: Record<string, string> = {
 	accent_dim_text: '#d3b889',
 	on_accent: '#1a0f05',
 	label: '#a08c6e',
+	text_shadow: 'none',
 	cool: '#5f9cc0',
 	cool_light: '#9fc7d8',
 	cool_icon: '#7fb6d9',
@@ -211,21 +223,64 @@ export function isLightTheme(theme?: HearthTheme): boolean {
 	return luminance(background) > 0.5;
 }
 
-export function deriveText(ink: string, background: string, light = false): HearthTheme {
+/**
+ * The text ladder, from the ink down to the faintest caption. `fade` scales how
+ * far each step falls toward the background: below 1 the whole ladder stays
+ * closer to the ink, which is what text over a background photo needs, at the
+ * cost of some separation between the steps.
+ */
+export function deriveText(ink: string, background: string, light = false, fade = 1): HearthTheme {
+	const step = (factor: number) => mixHex(ink, background, Math.min(1, Math.max(0, factor * fade)));
 	return {
 		...(light ? { surface: '#ffffff', line: ink } : {}),
 		text_1: ink,
-		text_2: mixHex(ink, background, 0.07),
-		text_3: mixHex(ink, background, 0.19),
-		text_4: mixHex(ink, background, 0.35),
-		text_5: mixHex(ink, background, 0.48),
-		text_6: mixHex(ink, background, 0.54),
-		label: mixHex(ink, background, 0.42),
-		icon: mixHex(ink, background, 0.41),
-		icon_dim: mixHex(ink, background, 0.55),
+		text_2: step(0.07),
+		text_3: step(0.19),
+		text_4: step(0.35),
+		text_5: step(0.48),
+		text_6: step(0.54),
+		label: step(0.42),
+		icon: step(0.41),
+		icon_dim: step(0.55),
 		...(light ? {} : { surface: mixHex(ink, '#ffffff', 0.35), line: mixHex(ink, '#ffffff', 0.35) })
 	};
 }
+
+export const TEXT_CONTRAST_SCALES: { value: string; label: string; fade: number }[] = [
+	{ value: 'soft', label: 'Soft', fade: 1.3 },
+	{ value: 'normal', label: 'Normal (default)', fade: 1 },
+	{ value: 'high', label: 'High', fade: 0.6 },
+	{ value: 'max', label: 'Maximum', fade: 0.3 }
+];
+
+export const TEXT_SHADOW_SCALES: { value: string; label: string; shadow: string }[] = [
+	{ value: 'none', label: 'Off (default)', shadow: 'none' },
+	{ value: 'soft', label: 'Soft', shadow: '0 1px 3px rgba(0, 0, 0, 0.35)' },
+	{ value: 'strong', label: 'Strong', shadow: '0 2px 12px rgba(0, 0, 0, 0.6)' }
+];
+
+/**
+ * Nearest named contrast step for a theme's stored ladder, so the picker shows
+ * where a theme sits even when its knobs were written by hand.
+ */
+export function textContrastOf(theme: HearthTheme): string {
+	const ink = theme.text_1 ?? THEME_DEFAULTS.text_1;
+	const background = theme.background_outer ?? THEME_DEFAULTS.background_outer;
+	const current = luminance(theme.text_5 ?? THEME_DEFAULTS.text_5);
+	const light = isLightTheme(theme);
+	const distance = (fade: number) =>
+		Math.abs(luminance(deriveText(ink, background, light, fade).text_5) - current);
+	return TEXT_CONTRAST_SCALES.reduce((nearest, scale) =>
+		distance(scale.fade) < distance(nearest.fade) ? scale : nearest
+	).value;
+}
+
+export const SURFACE_BLUR_SCALES: { value: string; label: string; blur: string }[] = [
+	{ value: 'none', label: 'Off (default)', blur: 'none' },
+	{ value: 'light', label: 'Light', blur: 'blur(10px) saturate(120%)' },
+	{ value: 'medium', label: 'Medium', blur: 'blur(20px) saturate(140%)' },
+	{ value: 'heavy', label: 'Heavy', blur: 'blur(32px) saturate(160%)' }
+];
 
 export const RADIUS_SCALES: { value: string; label: string; factor: number }[] = [
 	{ value: 'sharp', label: 'Sharp', factor: 0.45 },
@@ -255,6 +310,8 @@ interface ThemeSeed {
 	backgroundOuter: string;
 	ink: string;
 	light?: boolean;
+	/** Passed to deriveText; below 1 keeps the whole ladder closer to the ink. */
+	textFade?: number;
 }
 
 export function buildTheme(seed: ThemeSeed): HearthTheme {
@@ -262,7 +319,7 @@ export function buildTheme(seed: ThemeSeed): HearthTheme {
 	const mediaArtTop = mixHex(seed.accent, seed.backgroundOuter, 0.72);
 	return {
 		...deriveBackground(seed.backgroundInner, seed.backgroundOuter),
-		...deriveText(seed.ink, seed.backgroundOuter, light),
+		...deriveText(seed.ink, seed.backgroundOuter, light, seed.textFade),
 		...deriveAccent(seed.accent, light),
 		...(seed.cool ? deriveCool(seed.cool, light) : {}),
 		...(light
@@ -324,6 +381,36 @@ export const VOID_THEME: HearthTheme = {
 	bad_text: '#ffb0a8'
 };
 
+/*
+ * Translucent panels floating over the background image. The photo is the
+ * user's own - set background_image to a room shot; the scrim keeps text
+ * legible when that photo is bright. Without an image the blur has nothing to
+ * pick up and the panels read as a plain dark theme.
+ */
+export const GLASS_THEME: HearthTheme = {
+	...buildTheme({
+		accent: '#f0b860',
+		cool: '#9fc7d8',
+		backgroundInner: '#2a2520',
+		backgroundOuter: '#14110e',
+		ink: '#ffffff',
+		// the ladder cannot fade toward a background it does not know: behind
+		// glass there is a photo, not the flat colour the other presets assume
+		textFade: 0.35
+	}),
+	text_shadow: '0 2px 12px rgba(0, 0, 0, 0.6)',
+	background_scrim: 'linear-gradient(180deg, rgba(10, 8, 6, 0.3), rgba(10, 8, 6, 0.6))',
+	surface_blur: 'blur(20px) saturate(140%)',
+	// panels carry their weight in the tint and the hairline, not a shadow
+	fill_scale: '2.2',
+	line_scale: '2',
+	accent_scale: '3',
+	card_shadow: 'none',
+	inset: 'rgba(255, 255, 255, 0.06)',
+	track: 'rgba(255, 255, 255, 0.2)',
+	overlay: 'rgba(10, 7, 4, 0.55)'
+};
+
 export const THEME_PRESETS: { id: string; name: string; theme: HearthTheme | null }[] = [
 	{ id: 'hearth', name: 'Calm Hearth', theme: null },
 	{ id: 'paper', name: 'Warm Paper (day)', theme: WARM_PAPER_THEME },
@@ -339,6 +426,7 @@ export const THEME_PRESETS: { id: string; name: string; theme: HearthTheme | nul
 		})
 	},
 	{ id: 'void', name: 'Void (OLED)', theme: VOID_THEME },
+	{ id: 'glass', name: 'Frosted Glass', theme: GLASS_THEME },
 	{
 		id: 'forest',
 		name: 'Forest',

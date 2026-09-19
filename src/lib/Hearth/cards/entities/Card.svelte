@@ -312,6 +312,7 @@
 		border-radius: var(--h-radius-pill);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.09 * var(--h-line-scale)));
 		background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));
+		backdrop-filter: var(--h-surface-blur);
 		color: var(--h-text-3);
 		font: inherit;
 		font-size: var(--h-type-secondary);
@@ -329,6 +330,7 @@
 		padding: 16px 18px;
 		border-radius: var(--h-radius-md);
 		background: rgb(var(--h-surface-rgb) / calc(0.045 * var(--h-fill-scale)));
+		backdrop-filter: var(--h-surface-blur);
 		box-shadow: var(--h-card-shadow);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
 		cursor: pointer;

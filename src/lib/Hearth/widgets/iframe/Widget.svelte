@@ -24,5 +24,6 @@
 		border: 0;
 		border-radius: var(--h-radius-sm);
 		background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));
+		backdrop-filter: var(--h-surface-blur);
 	}
 </style>

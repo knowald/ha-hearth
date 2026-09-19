@@ -13,6 +13,10 @@
 		deriveText,
 		isLightTheme,
 		RADIUS_SCALES,
+		SURFACE_BLUR_SCALES,
+		TEXT_CONTRAST_SCALES,
+		TEXT_SHADOW_SCALES,
+		textContrastOf,
 		THEME_DEFAULTS,
 		THEME_PRESETS,
 		type HearthTheme
@@ -63,7 +67,9 @@
 		});
 	}
 
-	// applied on Done rather than per keystroke to keep the undo stack sane
+	// applied when the field is left rather than per keystroke: the dashboard
+	// behind the window previews the new wallpaper without the undo stack
+	// collecting a step for every character
 	function applyBackgroundImage() {
 		const url = backgroundImageUrl.trim();
 		if (url === unwrapUrl(theme.background_image)) return;
@@ -205,6 +211,25 @@
 				? scale
 				: nearest
 		).value;
+	});
+
+	// a theme may carry any backdrop-filter value; anything off the preset list
+	// shows as the nearest named step rather than blanking the select
+	let surfaceBlur = $derived.by(() => {
+		const current = theme.surface_blur ?? THEME_DEFAULTS.surface_blur;
+		const match = SURFACE_BLUR_SCALES.find((scale) => scale.blur === current);
+		return (match ?? SURFACE_BLUR_SCALES[current === 'none' ? 0 : 2]).value;
+	});
+
+	let textContrast = $derived(textContrastOf(theme));
+	let textFade = $derived(
+		TEXT_CONTRAST_SCALES.find((scale) => scale.value === textContrast)?.fade ?? 1
+	);
+
+	let textShadow = $derived.by(() => {
+		const current = theme.text_shadow ?? THEME_DEFAULTS.text_shadow;
+		return (TEXT_SHADOW_SCALES.find((scale) => scale.shadow === current) ?? TEXT_SHADOW_SCALES[0])
+			.value;
 	});
 
 	function close() {
@@ -385,7 +410,17 @@
 		<ColorField
 			label={$lang('text')}
 			value={knob('text_1')}
-			onchange={(value) => patchTheme(deriveText(value, knob('background_outer'), light))}
+			onchange={(value) => patchTheme(deriveText(value, knob('background_outer'), light, textFade))}
+		/>
+		<ColorField
+			label={$lang('hearth_muted_text')}
+			value={knob('text_4')}
+			onchange={(value) => patchTheme({ text_4: value, text_5: value, label: value })}
+		/>
+		<ColorField
+			label={$lang('hearth_icons')}
+			value={knob('icon')}
+			onchange={(value) => patchTheme({ icon: value, icon_dim: value })}
 		/>
 		<ColorField
 			label={$lang('hearth_good')}
@@ -408,6 +443,39 @@
 		label={$lang('hearth_background_image_url')}
 		bind:value={backgroundImageUrl}
 		placeholder="/local/wallpaper.jpg or https://..."
+		onchange={applyBackgroundImage}
+	/>
+
+	<SelectField
+		label={$lang('hearth_text_contrast')}
+		value={textContrast}
+		options={TEXT_CONTRAST_SCALES.map(({ value, label }) => ({ value, label }))}
+		onchange={(value) => {
+			const scale = TEXT_CONTRAST_SCALES.find((entry) => entry.value === value);
+			if (scale) {
+				patchTheme(deriveText(knob('text_1'), knob('background_outer'), light, scale.fade));
+			}
+		}}
+	/>
+
+	<SelectField
+		label={$lang('hearth_text_shadow')}
+		value={textShadow}
+		options={TEXT_SHADOW_SCALES.map(({ value, label }) => ({ value, label }))}
+		onchange={(value) => {
+			const scale = TEXT_SHADOW_SCALES.find((entry) => entry.value === value);
+			if (scale) patchTheme({ text_shadow: scale.shadow });
+		}}
+	/>
+
+	<SelectField
+		label={$lang('hearth_glass')}
+		value={surfaceBlur}
+		options={SURFACE_BLUR_SCALES.map(({ value, label }) => ({ value, label }))}
+		onchange={(value) => {
+			const scale = SURFACE_BLUR_SCALES.find((entry) => entry.value === value);
+			if (scale) patchTheme({ surface_blur: scale.blur });
+		}}
 	/>
 
 	<SelectField
