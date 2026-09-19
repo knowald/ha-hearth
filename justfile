@@ -2,7 +2,7 @@ default:
     @just --list
 
 up *args:
-    docker compose -f docker-compose.dev.yml up {{args}}
+    docker compose --env-file .env.docker -f docker-compose.dev.yml up {{args}}
 
 backup-hearth:
     @mkdir -p data/backups
