@@ -1,8 +1,10 @@
 # Hearth
 
-Hearth is an independent Home Assistant dashboard for wall tablets, phones and desktops. It brings your rooms, devices and daily information into a configurable interface with a visual editor, responsive layouts and day/night themes.
+Hearth is a Home Assistant dashboard for wall tablets, phones and desktops. It brings your rooms, devices and daily information into a configurable interface with a visual editor, responsive layouts and day/night themes.
 
-Hearth is an early-stage project. Its scope and design are driven by its own user experience; feature additions should fit the architecture described in [docs/architecture.md](docs/architecture.md).
+Hearth is an early-stage project and is actively evolving.
+
+![Hearth dashboard preview](preview.jpg)
 
 ## Run locally
 
@@ -79,4 +81,8 @@ pnpm matrix
 
 Browser tests use a fake Home Assistant and fixture data. `pnpm matrix` generates screenshots and a review sheet. Actual device and live camera behavior also need testing against your installation.
 
-See [architecture](docs/architecture.md), [component conventions](src/lib/Hearth/README.md) and [releasing](docs/release.md). Changes use the `hearth` commit scope. Contributions are covered by the [MIT license](LICENSE); retained copyright notices apply to included code.
+See [component conventions](src/lib/Hearth/README.md) and [releasing](docs/release.md). Changes use the `hearth` commit scope. Contributions are covered by the [MIT license](LICENSE); retained copyright notices apply to included code.
+
+## Shoutout
+
+Hearth is a rework of [ha-fusion](https://github.com/matt8707/ha-fusion), originally created by matt8707. A big thank you to matt8707 for the project that made Hearth possible. You can also find a maintained continuation of the original project at [knowald/ha-fusion](https://github.com/knowald/ha-fusion).
