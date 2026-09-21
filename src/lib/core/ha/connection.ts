@@ -126,10 +126,17 @@ export async function authentication(
 			// the configuration supplies a long-lived token
 			throw new Error('A long-lived access token is required in the companion app');
 		} else {
+			// Ingress serves this app under /api/hassio_ingress/<token>/.
+			// Pass that path as redirect_uri so the callback returns to this
+			// app. Strip the query string; the library appends auth_callback
+			// itself, and Ingress does not reliably round-trip extra search params.
+			const isIngress = location.pathname.includes('/api/hassio_ingress/');
+			const redirectUrl = isIngress ? `${location.origin}${location.pathname}` : undefined;
 			auth = await getAuth({
 				...tokenStorage,
 				hassUrl,
-				limitHassInstance: true
+				limitHassInstance: true,
+				...(redirectUrl && { redirectUrl })
 			});
 			clearAuthCallback();
 			if (auth.expired) await auth.refreshAccessToken();

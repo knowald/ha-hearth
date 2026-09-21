@@ -93,7 +93,7 @@ describe('Ingress authentication', () => {
 			'https://example.ui.nabu.casa/auth/authorize'
 		);
 		expect(authorize.searchParams.get('redirect_uri')).toBe(
-			'https://example.ui.nabu.casa/api/hassio_ingress/session/?room=living&theme=amber&menu=false&auth_callback=1'
+			'https://example.ui.nabu.casa/api/hassio_ingress/session/?auth_callback=1'
 		);
 		expect(JSON.parse(atob(authorize.searchParams.get('state')!)).hassUrl).toBe(
 			'https://example.ui.nabu.casa'
@@ -187,7 +187,7 @@ describe('Ingress authentication', () => {
 		expect(location.search + location.hash).toBe('?room=living&theme=amber&menu=false#panel');
 	});
 
-	it('removes an invalid code and restarts authorization on retry without losing kiosk parameters', async () => {
+	it('removes an invalid code and restarts authorization on retry with a clean Ingress callback path', async () => {
 		vi.useFakeTimers();
 		const callback = new URL(location.href);
 		callback.searchParams.set('auth_callback', '1');
@@ -213,8 +213,8 @@ describe('Ingress authentication', () => {
 		await vi.advanceTimersByTimeAsync(3001);
 		expect(fetch).toHaveBeenCalledOnce();
 		const redirect = new URL(new URL(navigation.href).searchParams.get('redirect_uri')!);
-		expect(redirect.searchParams.get('menu')).toBe('false');
-		expect(redirect.searchParams.get('room')).toBe('living');
+		expect(redirect.pathname).toBe('/api/hassio_ingress/session/');
+		expect([...redirect.searchParams.keys()]).toEqual(['auth_callback']);
 		expect(redirect.searchParams.has('code')).toBe(false);
 		expect(createConnection).not.toHaveBeenCalled();
 	});
