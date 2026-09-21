@@ -9,6 +9,7 @@
 	import ThemeEditSheet from './ThemeEditSheet.svelte';
 	import AppSettingsEditSheet from './AppSettingsEditSheet.svelte';
 	import CustomCssEditSheet from './CustomCssEditSheet.svelte';
+	import VersionsEditSheet from './VersionsEditSheet.svelte';
 </script>
 
 {#if $editor}
@@ -35,6 +36,8 @@
 			<CustomCssEditSheet />
 		{:else if $editor.kind === 'code'}
 			<CodeEditSheet />
+		{:else if $editor.kind === 'versions'}
+			<VersionsEditSheet from={$editor.from} />
 		{:else}
 			<ThemeEditSheet />
 		{/if}

@@ -173,7 +173,7 @@
 
 <div class="field">
 	<span class="field-label">{label}</span>
-	<div class="input-row">
+	<div class="input-row field-frame">
 		<span class="preview" class:empty={!value.trim()}>
 			<Icon name={value.trim() || 'category'} size={ICON.control} />
 		</span>

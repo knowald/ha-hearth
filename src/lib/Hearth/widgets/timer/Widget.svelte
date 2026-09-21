@@ -81,6 +81,7 @@
 	.cancel {
 		display: grid;
 		place-items: center;
+		position: relative;
 		width: 36px;
 		height: 36px;
 		border: 0;
@@ -89,6 +90,15 @@
 		backdrop-filter: var(--h-surface-blur);
 		color: var(--h-text-2);
 		cursor: pointer;
+	}
+
+	/* the circles read better small than a thumb needs them to be; the hit area
+	   grows to 44px without the button growing with it */
+	.primary::after,
+	.cancel::after {
+		content: '';
+		position: absolute;
+		inset: -4px;
 	}
 
 	.running .primary {

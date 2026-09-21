@@ -28,6 +28,7 @@
 
 <style>
 	.field {
+		min-width: 0;
 		padding: 8px 10px;
 		border-radius: var(--h-radius-xs);
 		background: var(--h-inset);
@@ -69,6 +70,7 @@
 	}
 
 	.value {
+		flex: none;
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-label);
 		letter-spacing: 1px;

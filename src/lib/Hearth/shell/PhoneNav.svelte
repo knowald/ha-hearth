@@ -11,8 +11,13 @@
 	 */
 	let { onsearch }: { onsearch: () => void } = $props();
 
+	// the rail's own search widget is hidden here, so this button stands in for
+	// it - unless the user hid search on mobile outright
 	let hasSearch = $derived(
-		$hearthConfig.rail.some((widget) => widget.type === 'search' && widget.hide_mobile !== true)
+		$hearthConfig.rail.some(
+			(widget) =>
+				widget.type === 'search' && widget.mobile !== 'hidden' && widget.hide_mobile !== true
+		)
 	);
 </script>
 
@@ -43,6 +48,7 @@
 		display: none;
 	}
 
+	/* see breakpoints.ts */
 	@media (max-width: 900px) {
 		.phone-nav {
 			min-width: 0;
@@ -52,9 +58,18 @@
 			display: flex;
 			align-items: center;
 			gap: 8px;
-			margin: 0 calc(-1 * var(--h-pad-x));
-			padding: 8px calc(12px + var(--h-pad-x));
-			background: linear-gradient(180deg, var(--h-bg-1) 70%, transparent);
+			/* back out to the screen edge, past whatever padding the folded
+			   layout set - including the landscape notch inset */
+			margin: 0 calc(-1 * var(--h-fold-pad-right, var(--h-pad-x))) 0
+				calc(-1 * var(--h-fold-pad-left, var(--h-pad-x)));
+			/* the layout leaves no room above the strip, so the top inset is the
+			   strip's to carry; the sides match the layout's own padding so the
+			   pills line up with the cards under them */
+			padding: calc(8px + env(safe-area-inset-top)) var(--h-fold-pad-right, var(--h-pad-x)) 8px
+				var(--h-fold-pad-left, var(--h-pad-x));
+			/* opaque: the page passing behind a translucent strip shows through
+			   the pills, which reads as a smudge */
+			background: var(--h-bg-1);
 		}
 
 		.pages {
@@ -74,6 +89,7 @@
 		.page,
 		.search {
 			flex: none;
+			position: relative;
 			display: flex;
 			align-items: center;
 			gap: 8px;
@@ -100,6 +116,29 @@
 			background: rgb(var(--h-accent-rgb) / calc(0.16 * var(--h-accent-scale)));
 			border-color: rgb(var(--h-accent-rgb) / calc(0.4 * var(--h-accent-scale)));
 			color: var(--h-accent-text);
+		}
+	}
+
+	/*
+	 * A phone held sideways: the strip would take a sixth of the screen. Only
+	 * the page being viewed keeps its label; the rest shrink to their icon and
+	 * hand the name to assistive technology instead of dropping it. See
+	 * breakpoints.ts.
+	 */
+	@media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
+		.page:not(.active) {
+			width: 44px;
+			padding: 0;
+			justify-content: center;
+		}
+
+		.page:not(.active) span {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
 		}
 	}
 </style>

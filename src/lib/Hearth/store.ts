@@ -77,7 +77,10 @@ export type Editor =
 	| { kind: 'settings' }
 	| { kind: 'appSettings' }
 	| { kind: 'customCss' }
-	| { kind: 'code' };
+	| { kind: 'code' }
+	// `from` is where a back arrow returns to; the YAML editor parks its draft
+	// for that trip
+	| { kind: 'versions'; from?: 'code' };
 
 export const editor = writable<Editor | null>(null);
 

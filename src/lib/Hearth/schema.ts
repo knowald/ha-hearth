@@ -153,6 +153,7 @@ export const CardSharedSchema = v.looseObject({
 });
 
 export const WidgetSharedSchema = v.looseObject({
+	mobile: v.optional(v.picklist(['top', 'bottom', 'hidden'], 'must be top, bottom or hidden')),
 	hide_mobile: OptionalFlag,
 	visibility: VisibilityListSchema
 });

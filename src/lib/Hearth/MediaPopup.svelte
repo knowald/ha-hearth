@@ -891,7 +891,8 @@
 		color: var(--h-on-art-2);
 		cursor: pointer;
 	}
-	@media (max-width: 700px) {
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
 		.sheet {
 			width: 100%;
 			height: min(560px, calc(100dvh - 24px));

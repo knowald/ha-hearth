@@ -99,7 +99,8 @@
 		pointer-events: auto;
 	}
 
-	@media (max-width: 820px) {
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
 		/* fields first on narrow screens; the preview follows them */
 		.pane {
 			padding: 12px;

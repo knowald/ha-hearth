@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { saveYamlDocument } from './persistence';
+import { listBackups, readBackup, saveYamlDocument } from './persistence';
 
 let directory: string;
 let file: string;
@@ -102,5 +102,50 @@ describe('saveYamlDocument', () => {
 		await expect(saveYamlDocument({ file, body: { name: 'two' }, revision: 0 })).rejects.toThrow();
 		expect(await readFile(file, 'utf8')).toBe('rooms: [unterminated');
 		expect(await readdir(directory)).toEqual(['hearth.yaml']);
+	});
+});
+
+describe('listBackups', () => {
+	it('lists nothing for a document that has never been replaced', async () => {
+		expect(await listBackups(file)).toEqual([]);
+		await saveYamlDocument({ file, body: { name: 'one' }, revision: 0 });
+		expect(await listBackups(file)).toEqual([]);
+	});
+
+	it('reports each backup newest first, with the revision it holds', async () => {
+		await saveYamlDocument({ file, body: { name: 'one' }, revision: 0 });
+		await saveYamlDocument({ file, body: { name: 'two' }, revision: 1 });
+		await saveYamlDocument({ file, body: { name: 'three' }, revision: 2 });
+		const entries = await listBackups(file);
+		expect(entries.map((entry) => entry.revision)).toEqual([2, 1]);
+		expect(entries[0].size).toBeGreaterThan(0);
+		expect(entries[0].at).toBeGreaterThan(0);
+	});
+
+	it('leaves the backups of another document out', async () => {
+		const sibling = join(directory, 'hearth.yml');
+		await saveYamlDocument({ file, body: { name: 'one' }, revision: 0 });
+		await saveYamlDocument({ file, body: { name: 'two' }, revision: 1 });
+		await saveYamlDocument({ file: sibling, body: { name: 'a' }, revision: 0 });
+		await saveYamlDocument({ file: sibling, body: { name: 'b' }, revision: 1 });
+		expect(await listBackups(file)).toHaveLength(1);
+		expect((await listBackups(file))[0].name).toMatch(/^hearth-\d+-r1\.yaml$/);
+	});
+});
+
+describe('readBackup', () => {
+	it('returns the text the backup holds', async () => {
+		await saveYamlDocument({ file, body: { name: 'one' }, revision: 0 });
+		await saveYamlDocument({ file, body: { name: 'two' }, revision: 1 });
+		const [entry] = await listBackups(file);
+		expect(await readBackup(file, entry.name)).toContain('name: one');
+	});
+
+	it('reads nothing outside the backup directory', async () => {
+		await saveYamlDocument({ file, body: { name: 'one' }, revision: 0 });
+		await saveYamlDocument({ file, body: { name: 'two' }, revision: 1 });
+		expect(await readBackup(file, '../../hearth-1-r1.yaml')).toBeUndefined();
+		expect(await readBackup(file, 'hearth.yaml')).toBeUndefined();
+		expect(await readBackup(file, 'other-1-r1.yaml')).toBeUndefined();
 	});
 });

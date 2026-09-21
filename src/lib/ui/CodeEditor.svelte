@@ -2,7 +2,7 @@
 	import { autocompleteOpen, pasteContent } from './codeEditorState';
 	import { onMount, onDestroy } from 'svelte';
 	import { basicSetup } from 'codemirror';
-	import { EditorView, keymap } from '@codemirror/view';
+	import { EditorView, keymap, placeholder as placeholderText } from '@codemirror/view';
 	import { indentWithTab } from '@codemirror/commands';
 	import { EditorState } from '@codemirror/state';
 	import { autocompletion, completeFromList, completionStatus } from '@codemirror/autocomplete';
@@ -17,7 +17,11 @@
 		autocompleteList = undefined,
 		init = undefined,
 		reloadView = $bindable(undefined),
-		onchange = undefined
+		onchange = undefined,
+		onsave = undefined,
+		readOnly = false,
+		original = undefined,
+		placeholder = undefined
 	}: {
 		type: string;
 		value: string;
@@ -26,10 +30,17 @@
 		init?: string;
 		reloadView?: boolean | undefined;
 		onchange?: ((value: string) => void) | undefined;
+		/** Bound to Mod-s, so the editor can be committed without leaving it. */
+		onsave?: (() => void) | undefined;
+		readOnly?: boolean;
+		/** The text `value` is shown as a diff against, when comparing two documents. */
+		original?: string | undefined;
+		/** Sample content shown while the document is empty. */
+		placeholder?: string | undefined;
 	} = $props();
 
 	let editor: HTMLDivElement;
-	let view: EditorView | null;
+	let view = $state<EditorView | null>(null);
 	let timeout: ReturnType<typeof setTimeout>;
 
 	$effect(() => {
@@ -41,7 +52,9 @@
 		}
 	});
 
-	// figure out how to update codemirror properly
+	// Replaces the whole document when the host pushes new text in, an imported
+	// file for instance. `view` is state so this runs again once CodeMirror has
+	// mounted, rather than being skipped while the module is still loading.
 	$effect(() => {
 		if (view && reloadView && init) {
 			// current
@@ -149,8 +162,19 @@
 		{ dark: true }
 	);
 	onMount(async () => {
-		// shared extensions
+		// shared extensions; the save binding comes first so it wins over
+		// anything basicSetup puts on the same key
 		let extensions = [
+			keymap.of([
+				{
+					key: 'Mod-s',
+					preventDefault: true,
+					run: () => {
+						onsave?.();
+						return true;
+					}
+				}
+			]),
 			basicSetup,
 			EditorView.lineWrapping,
 			styles,
@@ -211,6 +235,18 @@
 			const cssModule = await import('@codemirror/legacy-modes/mode/css');
 			extensions.push(...[StreamLanguage.define(cssModule.css)]);
 		}
+		if (placeholder !== undefined) extensions.push(placeholderText(placeholder));
+		if (readOnly) {
+			extensions.push(EditorState.readOnly.of(true), EditorView.editable.of(false));
+		}
+		// side by side would halve the width a sheet has; the unified view marks
+		// the changed lines in the document itself
+		if (original !== undefined) {
+			const mergeModule = await import('@codemirror/merge');
+			extensions.push(
+				mergeModule.unifiedMergeView({ original, mergeControls: false, highlightChanges: true })
+			);
+		}
 		// codemirror
 		view = new EditorView({
 			parent: editor,
@@ -219,7 +255,8 @@
 				extensions
 			})
 		});
-		selectLastLine();
+		// a document opened to read starts at its top, not its end
+		if (!readOnly) selectLastLine();
 		return view;
 	});
 	onDestroy(() => {

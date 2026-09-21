@@ -197,7 +197,8 @@
 		color: var(--h-icon);
 		cursor: pointer;
 	}
-	@media (max-width: 700px) {
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
 		.overlay {
 			align-items: flex-end;
 			padding: 0;

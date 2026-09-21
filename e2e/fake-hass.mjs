@@ -51,6 +51,8 @@ function initialStates() {
 		},
 		'switch.fan': { s: 'on', a: { friendly_name: 'Ceiling fan' } },
 		'switch.heater': { s: 'off', a: { friendly_name: 'Space heater' } },
+		// a config entity: reachable, but never proposed for a page
+		'switch.firmware_update': { s: 'off', a: { friendly_name: 'Firmware update' } },
 		'fan.bedroom': {
 			s: 'on',
 			a: {
@@ -619,10 +621,13 @@ function handleMessage(socket, message) {
 			reply({ context: { id: 'ctx', parent_id: null, user_id: null } });
 			return;
 		}
+		case 'config/floor_registry/list':
+			reply([{ floor_id: 'ground', name: 'Ground floor', level: 0 }]);
+			return;
 		case 'config/area_registry/list':
 			reply([
-				{ area_id: 'living', name: 'Living room' },
-				{ area_id: 'office', name: 'Office' }
+				{ area_id: 'living', name: 'Living room', floor_id: 'ground', icon: 'mdi:sofa' },
+				{ area_id: 'office', name: 'Office', floor_id: 'ground' }
 			]);
 			return;
 		case 'config/device_registry/list':
@@ -633,7 +638,11 @@ function handleMessage(socket, message) {
 				Object.keys(states).map((entityId) => ({
 					entity_id: entityId,
 					area_id: entityId.includes('desk') ? 'office' : 'living',
-					device_id: null
+					device_id: null,
+					disabled_by: null,
+					hidden_by: null,
+					// the dashboard must keep these out of the imported pages
+					entity_category: entityId.includes('firmware') ? 'config' : null
 				}))
 			);
 			return;

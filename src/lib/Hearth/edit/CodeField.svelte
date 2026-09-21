@@ -1,14 +1,24 @@
 <script lang="ts">
 	import * as yaml from 'js-yaml';
+	import { entityIds } from '$lib/core/ha/entities';
 
 	let {
 		label,
 		value = $bindable(''),
-		placeholder = ''
-	}: { label: string; value?: string; placeholder?: string } = $props();
+		placeholder = '',
+		language = 'yaml',
+		expectMapping = language === 'yaml'
+	}: {
+		label: string;
+		value?: string;
+		placeholder?: string;
+		language?: 'yaml' | 'jinja2' | 'css';
+		/** Off for languages a YAML parser would reject, such as a bare template. */
+		expectMapping?: boolean;
+	} = $props();
 
 	let error = $derived.by(() => {
-		if (!value.trim()) return null;
+		if (!expectMapping || !value.trim()) return null;
 		try {
 			const parsed = yaml.load(value);
 			return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
@@ -20,13 +30,24 @@
 	});
 </script>
 
-<label class="field yaml-field">
+<div class="field code-field">
 	<span class="field-label">{label}</span>
-	<textarea bind:value {placeholder} rows="7" spellcheck="false"></textarea>
+	<div class="code-workspace">
+		{#await import('$lib/ui/CodeEditor.svelte') then CodeEditor}
+			<CodeEditor.default
+				{value}
+				{placeholder}
+				type={language}
+				transitionend={false}
+				autocompleteList={$entityIds}
+				onchange={(next) => (value = next)}
+			/>
+		{/await}
+	</div>
 	{#if error}
 		<span class="error">{error}</span>
 	{/if}
-</label>
+</div>
 
 <style>
 	.field {
@@ -44,27 +65,8 @@
 		margin-bottom: 6px;
 	}
 
-	textarea {
-		width: 100%;
-		padding: 12px 14px;
-		border-radius: var(--h-radius-xs);
-		border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
-		background: var(--h-track);
-		color: var(--h-text-2);
-		font-family: var(--h-font-mono);
-		font-size: var(--h-type-secondary);
-		line-height: 1.5;
-		outline: none;
-		resize: vertical;
-		box-sizing: border-box;
-	}
-
-	textarea:focus {
-		border-color: rgb(var(--h-accent-rgb) / calc(0.4 * var(--h-accent-scale)));
-	}
-
-	textarea::placeholder {
-		color: var(--h-text-6);
+	.code-workspace {
+		min-height: 160px;
 	}
 
 	.error {

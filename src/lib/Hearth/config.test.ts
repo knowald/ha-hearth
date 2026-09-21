@@ -6,7 +6,11 @@ import {
 	findOverviewCard,
 	findOverviewItemList,
 	isStack,
-	wildcardEntityIds
+	placeInSlot,
+	railSlots,
+	reorderSlot,
+	wildcardEntityIds,
+	type RailWidget
 } from './config';
 import { hearthConfigIssues, normalizeHearthConfig } from './normalize';
 
@@ -324,5 +328,168 @@ describe('wall tablet settings', () => {
 		expect(config.screensaver_minutes).toBeUndefined();
 		expect(config.theme).toBeUndefined();
 		expect(config.theme_night).toEqual({ accent: '#fff' });
+	});
+});
+
+describe('railSlots', () => {
+	const rail = (...types: string[]) =>
+		types.map((type, index) => ({ id: `${type}-${index}`, type }) as RailWidget);
+
+	const ids = (widgets: RailWidget[]) => widgets.map((widget) => widget.id);
+
+	it('splits at a flexible gap that has widgets after it', () => {
+		const widgets = [
+			{ id: 'clock', type: 'clock' },
+			{ id: 'gap', type: 'spacer' },
+			{ id: 'energy', type: 'energy' },
+			{ id: 'calendar', type: 'calendar' }
+		] as RailWidget[];
+		const { top, bottom } = railSlots(widgets);
+		expect(ids(top)).toEqual(['clock']);
+		expect(ids(bottom)).toEqual(['gap', 'energy', 'calendar']);
+	});
+
+	it('takes the glance widgets above the page when the flexible gap is trailing', () => {
+		// the shape the default config has: the gap only keeps the rail's own
+		// widgets at the top of its column, so it divides nothing
+		const widgets = [
+			{ id: 'clock', type: 'clock' },
+			{ id: 'weather', type: 'weather' },
+			{ id: 'energy', type: 'energy' },
+			{ id: 'gap', type: 'spacer' }
+		] as RailWidget[];
+		const { top, bottom } = railSlots(widgets);
+		expect(ids(top)).toEqual(['clock', 'weather']);
+		expect(ids(bottom)).toEqual(['energy', 'gap']);
+	});
+
+	it('lets a widget name its own slot', () => {
+		const widgets = [
+			{ id: 'clock', type: 'clock', mobile: 'bottom' },
+			{ id: 'energy', type: 'energy', mobile: 'top' }
+		] as RailWidget[];
+		const { top, bottom } = railSlots(widgets);
+		expect(ids(top)).toEqual(['energy']);
+		expect(ids(bottom)).toEqual(['clock']);
+	});
+
+	it('drops hidden widgets unless the editor asks for them', () => {
+		const widgets = [
+			{ id: 'clock', type: 'clock' },
+			{ id: 'energy', type: 'energy', mobile: 'hidden' }
+		] as RailWidget[];
+		expect(ids(railSlots(widgets).bottom)).toEqual([]);
+		expect(ids(railSlots(widgets, { includeHidden: true }).bottom)).toEqual(['energy']);
+	});
+
+	it('places every widget exactly once', () => {
+		const widgets = rail('clock', 'weather', 'energy', 'calendar', 'status');
+		const { top, bottom } = railSlots(widgets);
+		expect([...ids(top), ...ids(bottom)].sort()).toEqual(ids(widgets).sort());
+	});
+});
+
+describe('mobile placement migration', () => {
+	it('reads hide_mobile as the hidden slot and stops writing it', () => {
+		const config = normalizeHearthConfig({
+			rail: [{ id: 'clock', type: 'clock', hide_mobile: true }],
+			rooms: []
+		});
+		expect(config.rail[0].mobile).toBe('hidden');
+		expect(config.rail[0].hide_mobile).toBeUndefined();
+	});
+
+	it('keeps an explicit slot over the older flag', () => {
+		const config = normalizeHearthConfig({
+			rail: [{ id: 'clock', type: 'clock', hide_mobile: true, mobile: 'top' }],
+			rooms: []
+		});
+		expect(config.rail[0].mobile).toBe('top');
+	});
+
+	it('rejects a slot that is not one of the three', () => {
+		expect(
+			hearthConfigIssues({ rail: [{ id: 'clock', type: 'clock', mobile: 'middle' }], rooms: [] })
+		).toContain('rail[0].mobile must be top, bottom or hidden');
+	});
+});
+
+describe('railSlots on a screen with no height', () => {
+	const widgets = [
+		{ id: 'clock', type: 'clock' },
+		{ id: 'weather', type: 'weather' },
+		{ id: 'pinned', type: 'status', mobile: 'top' }
+	] as RailWidget[];
+
+	it('keeps only what asked for the slot by name', () => {
+		const { top, bottom } = railSlots(widgets, { compact: true });
+		expect(top.map((widget) => widget.id)).toEqual(['pinned']);
+		expect(bottom.map((widget) => widget.id)).toEqual(['clock', 'weather']);
+	});
+});
+
+describe('moving a widget between folded runs', () => {
+	const rail = () =>
+		[
+			{ id: 'clock', type: 'clock' },
+			{ id: 'weather', type: 'weather' },
+			{ id: 'energy', type: 'energy' },
+			{ id: 'calendar', type: 'calendar' }
+		] as RailWidget[];
+
+	const ids = (widgets: RailWidget[]) => widgets.map((widget) => widget.id);
+
+	it('assigns the destination slot and takes the widget out of the other run', () => {
+		const next = placeInSlot(rail(), 'energy', 'top', 0);
+		expect(ids(railSlots(next).top)).toEqual(['energy', 'clock', 'weather']);
+		expect(ids(railSlots(next).bottom)).toEqual(['calendar']);
+		expect(next.find((widget) => widget.id === 'energy')?.mobile).toBe('top');
+	});
+
+	it('sends a glance widget down when it is dropped in the trailing run', () => {
+		const next = placeInSlot(rail(), 'clock', 'bottom', 1);
+		expect(ids(railSlots(next).top)).toEqual(['weather']);
+		expect(ids(railSlots(next).bottom)).toEqual(['energy', 'clock', 'calendar']);
+	});
+
+	it('leaves the original in place when the drop is a copy', () => {
+		const next = placeInSlot(rail(), 'energy', 'top', 0, { copy: true });
+		expect(next).toHaveLength(5);
+		// the copy leads, in the run it was dropped into; the original stays put
+		expect(ids(next).filter((id) => id.startsWith('energy'))).toEqual(['energy-2', 'energy']);
+		expect(ids(railSlots(next).top)).toContain('energy-2');
+		expect(ids(railSlots(next).bottom)).toContain('energy');
+	});
+
+	// the editor keeps hidden widgets in the runs, dimmed, so a drop or a
+	// reorder lands next to one
+	const withHidden = () =>
+		[...rail(), { id: 'spare-clock', type: 'clock', mobile: 'hidden' }] as RailWidget[];
+
+	it('does not un-hide a hidden widget sharing the run a drop lands in', () => {
+		const start = withHidden();
+		expect(ids(railSlots(start, { includeHidden: true }).top)).toContain('spare-clock');
+		const next = placeInSlot(start, 'energy', 'top', 0);
+		expect(next.find((widget) => widget.id === 'spare-clock')?.mobile).toBe('hidden');
+	});
+
+	it('does not un-hide a hidden widget when its run is reordered', () => {
+		const start = withHidden();
+		const run = railSlots(start, { includeHidden: true }).top;
+		const next = reorderSlot(start, 'top', [...run].reverse());
+		expect(next.find((widget) => widget.id === 'spare-clock')?.mobile).toBe('hidden');
+	});
+
+	it('keeps every widget when a run is reordered', () => {
+		const start = rail();
+		const run = railSlots(start).top;
+		const next = reorderSlot(start, 'top', [run[1], run[0]]);
+		expect(ids(next).sort()).toEqual(ids(start).sort());
+		expect(ids(railSlots(next).top)).toEqual(['weather', 'clock']);
+	});
+
+	it('ignores a drop of a widget that is no longer there', () => {
+		const start = rail();
+		expect(placeInSlot(start, 'gone', 'top', 0)).toBe(start);
 	});
 });

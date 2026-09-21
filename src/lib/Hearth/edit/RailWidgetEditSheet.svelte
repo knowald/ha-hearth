@@ -4,7 +4,7 @@
 	import { get } from 'svelte/store';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { activateOnKeyboard } from '../interaction';
-	import type { RailWidget, VisibilityCondition } from '../types';
+	import type { MobileSlot, RailWidget, VisibilityCondition } from '../types';
 	import { normalizeVisibility, PRESS_RIPPLE, slugify, uniqueId } from '../config';
 	import { RAIL_WIDGET_TYPES, widgetDescriptor, type WidgetDraft } from '../widgets';
 	import { editor, hearthConfig, updateConfig } from '../store';
@@ -21,7 +21,10 @@
 	const initial = index !== null ? get(hearthConfig).rail[index] : undefined;
 
 	let type = $state<RailWidget['type']>(initial?.type ?? 'status');
-	let hideMobile = $state(initial?.hide_mobile ?? false);
+	// undefined is the automatic slot: the rail's own flexible gap decides
+	let mobile = $state<MobileSlot | undefined>(
+		initial?.mobile ?? (initial?.hide_mobile ? 'hidden' : undefined)
+	);
 	let visibility = $state<VisibilityCondition[]>(
 		(initial?.visibility ?? []).map((condition) => ({ ...condition }))
 	);
@@ -34,10 +37,17 @@
 	let descriptor = $derived(widgetDescriptor(type));
 	let editorInitial = $derived(initial?.type === type ? initial : undefined);
 
-	let alwaysVisible = $derived(!hideMobile && visibility.length === 0);
+	const MOBILE_CHOICES = [
+		{ slot: undefined, label: 'hearth_mobile_auto', icon: 'auto_awesome' },
+		{ slot: 'top', label: 'hearth_mobile_above_page', icon: 'vertical_align_top' },
+		{ slot: 'bottom', label: 'hearth_mobile_below_page', icon: 'vertical_align_bottom' },
+		{ slot: 'hidden', label: 'hearth_hide_on_mobile', icon: 'smartphone' }
+	] as const;
+
+	let alwaysVisible = $derived(mobile !== 'hidden' && visibility.length === 0);
 
 	function setAlwaysVisible() {
-		hideMobile = false;
+		if (mobile === 'hidden') mobile = undefined;
 		visibility = [];
 		conditionsOpen = false;
 	}
@@ -59,7 +69,9 @@
 			...(descriptor.normalize?.(fields) ?? {}),
 			id,
 			type,
-			hide_mobile: hideMobile || undefined,
+			mobile,
+			// superseded by `mobile`; a saved widget never carries both
+			hide_mobile: undefined,
 			visibility: normalizeVisibility($state.snapshot(visibility))
 		} as RailWidget;
 	}
@@ -135,19 +147,6 @@
 				</span>
 				<span
 					class="chip pressable"
-					class:active={hideMobile}
-					use:Ripple={PRESS_RIPPLE}
-					role="button"
-					tabindex="0"
-					aria-pressed={hideMobile}
-					onclick={() => (hideMobile = !hideMobile)}
-					onkeydown={(event) => activateOnKeyboard(event, () => (hideMobile = !hideMobile))}
-				>
-					<Icon name="smartphone" size={ICON.inline} />
-					{$lang('hearth_hide_on_mobile')}
-				</span>
-				<span
-					class="chip pressable"
 					class:active={visibility.length > 0 || conditionsOpen}
 					use:Ripple={PRESS_RIPPLE}
 					role="button"
@@ -163,6 +162,28 @@
 
 			{#if conditionsOpen}
 				<VisibilityField bind:value={visibility} />
+			{/if}
+
+			<div class="group-label">{$lang('hearth_on_mobile')}</div>
+			<div class="chips">
+				{#each MOBILE_CHOICES as choice (choice.label)}
+					<span
+						class="chip pressable"
+						class:active={mobile === choice.slot}
+						use:Ripple={PRESS_RIPPLE}
+						role="button"
+						tabindex="0"
+						aria-pressed={mobile === choice.slot}
+						onclick={() => (mobile = choice.slot)}
+						onkeydown={(event) => activateOnKeyboard(event, () => (mobile = choice.slot))}
+					>
+						<Icon name={choice.icon} size={ICON.inline} />
+						{$lang(choice.label)}
+					</span>
+				{/each}
+			</div>
+			{#if mobile === undefined}
+				<div class="hint">{$lang('hearth_mobile_auto_hint')}</div>
 			{/if}
 		</div>
 		<aside class="pane">
@@ -250,7 +271,8 @@
 		color: var(--h-accent-icon);
 	}
 
-	@media (max-width: 820px) {
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
 		.rail-editor {
 			grid-template-columns: 1fr;
 			gap: 18px;

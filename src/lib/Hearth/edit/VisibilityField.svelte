@@ -179,7 +179,7 @@
 			{:else}
 				<TextField
 					label={$lang('hearth_media_query')}
-					placeholder="(max-width: 700px)"
+					placeholder="(max-width: 900px)"
 					bind:value={() => mediaValue(index), (media) => setMedia(index, media)}
 				/>
 			{/if}

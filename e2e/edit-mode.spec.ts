@@ -141,6 +141,9 @@ test('the theme editor floats over the dashboard and drags by its header', async
 	// not modal: the dashboard behind it stays live for the preview
 	await expect(sheet).toHaveAttribute('aria-modal', 'false');
 	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+	expect(await sheet.locator('.body').evaluate((node) => node.scrollWidth - node.clientWidth)).toBe(
+		0
+	);
 
 	const before = await sheet.boundingBox();
 	const handle = await sheet.locator('.header').boundingBox();
@@ -180,6 +183,9 @@ test('the colour picker edits a knob in place and previews it live', async ({ pa
 	await expect(sheet.locator('input[type="color"]')).toHaveCount(0);
 	const area = sheet.locator('.area');
 	await expect(area).toBeVisible();
+	expect(await sheet.locator('.body').evaluate((node) => node.scrollWidth - node.clientWidth)).toBe(
+		0
+	);
 
 	// dragging the saturation square repaints the dashboard behind the window
 	const box = await area.boundingBox();

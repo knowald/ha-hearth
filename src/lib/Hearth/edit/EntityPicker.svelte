@@ -267,7 +267,8 @@
 		text-align: center;
 	}
 
-	@media (max-width: 820px) {
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
 		.overlay {
 			align-items: stretch;
 			padding: 8px;
