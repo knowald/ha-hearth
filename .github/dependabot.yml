@@ -5,6 +5,11 @@ updates:
     schedule:
       interval: 'monthly'
     versioning-strategy: 'increase'
+    ignore:
+      # 6.65.7 is CodeMirror 5.65.7 published under a 6.x number, so it wins
+      # every ^6 range and shadows the real CodeMirror 6 line, which ends at 6.0.2
+      - dependency-name: 'codemirror'
+        versions: ['6.65.7']
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
