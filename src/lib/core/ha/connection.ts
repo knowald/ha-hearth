@@ -131,9 +131,7 @@ export async function authentication(
 			// app. Strip the query string; the library appends auth_callback
 			// itself, and Ingress does not reliably round-trip extra search params.
 			const isIngress = location.pathname.includes('/api/hassio_ingress/');
-			const redirectUrl = isIngress
-				? `${location.origin}${location.pathname}`
-				: undefined;
+			const redirectUrl = isIngress ? `${location.origin}${location.pathname}` : undefined;
 			auth = await getAuth({
 				...tokenStorage,
 				hassUrl,
