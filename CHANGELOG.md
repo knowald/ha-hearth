@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- When Hearth is opened as a Home Assistant app (`/app/...`), reuse the panel's existing login instead of starting OAuth inside the iframe.
+
 ## 0.1.2
 
 - Fix Home Assistant login through Nabu Casa Ingress by using the forwarded HA origin and an explicit Ingress OAuth redirect URL, matching Fusion.
