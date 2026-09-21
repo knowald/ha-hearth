@@ -39,7 +39,7 @@ pnpm build
 HASS_URL=http://homeassistant.local:8123 PORT=5050 node server.js
 ```
 
-`HASS_URL` is the server's Home Assistant proxy target. Browser authentication and WebSocket connections use `HASS_PUBLIC_URL` when set; otherwise they use the current Home Assistant origin for requests carrying the Ingress `X-Ingress-Path` header, or `HASS_URL` for direct access. Ingress therefore works with both local and Nabu Casa URLs without exposing the internal container address to the browser.
+`HASS_URL` is the server's Home Assistant proxy target. Browser authentication and WebSocket connections use the current Home Assistant origin for requests carrying the Ingress `X-Ingress-Path` header. For direct access, they use `HASS_PUBLIC_URL` when set, otherwise `HASS_URL`. Ingress therefore works with both local and Nabu Casa URLs without exposing the internal container address to the browser.
 
 For standalone deployments where `HASS_URL` is internal (for example, `http://homeassistant:8123`), set `HASS_PUBLIC_URL` to a Home Assistant URL reachable by the browser. Use an HTTPS URL when Hearth is served over HTTPS. Docker Compose accepts the same setting in `.env.docker`.
 

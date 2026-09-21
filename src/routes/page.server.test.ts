@@ -16,7 +16,7 @@ async function configuration(ingress = false) {
 	const request = new Request('http://container:8099/', {
 		headers: ingress ? { 'X-Ingress-Path': '/api/hassio_ingress/session' } : {}
 	});
-	return (await load({ request })).configuration;
+	return (await load({ request } as Parameters<typeof load>[0])).configuration;
 }
 
 describe('browser Home Assistant URL', () => {
@@ -29,11 +29,14 @@ describe('browser Home Assistant URL', () => {
 		expect((await configuration()).hassUrl).toBe('http://homeassistant:8123');
 	});
 
-	it.each([true, false])('honors an explicit public URL (Ingress: %s)', async (ingress) => {
-		vi.stubEnv('HASS_PUBLIC_URL', 'https://ha.example.com');
-		expect((await configuration(ingress)).hassUrl).toBe('https://ha.example.com');
-		expect(process.env.HASS_URL).toBe('http://homeassistant:8123');
-	});
+	it.each([true, false])(
+		'uses Ingress origin before the direct-access public URL (Ingress: %s)',
+		async (ingress) => {
+			vi.stubEnv('HASS_PUBLIC_URL', 'https://ha.example.com');
+			expect((await configuration(ingress)).hassUrl).toBe(ingress ? '/' : 'https://ha.example.com');
+			expect(process.env.HASS_URL).toBe('http://homeassistant:8123');
+		}
+	);
 
 	it('keeps the missing configuration state for standalone access', async () => {
 		vi.stubEnv('HASS_URL', '');
