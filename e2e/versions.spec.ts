@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
 /*
@@ -11,6 +12,9 @@ test.beforeEach(async ({ page }) => {
 	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
 	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
 });
+
+/** The document the fixture server saves to, watched for writes a test forbids. */
+const CONFIG_FILE = 'e2e/fixture/data/hearth.yaml';
 
 async function openYamlEditor(page: import('@playwright/test').Page) {
 	await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -91,4 +95,72 @@ test('an unapplied YAML edit survives the trip through Versions', async ({ page 
 	const reopened = page.getByRole('dialog', { name: 'Configuration YAML' });
 	await expect(reopened).toBeVisible();
 	await expect(reopened.locator('.cm-content')).toContainText('a note that was never applied');
+});
+
+test('a draft parked for Versions is dropped when Versions is closed', async ({ page }) => {
+	const dialog = await openYamlEditor(page);
+	await dialog.locator('.cm-content').click();
+	await page.keyboard.type('# a note that was abandoned\n');
+
+	await dialog.getByRole('button', { name: 'Versions' }).click();
+	const versions = page.getByRole('dialog', { name: 'Versions' });
+	await expect(versions).toBeVisible();
+	await versions.getByRole('button', { name: 'Close' }).click();
+	await expect(versions).toBeHidden();
+
+	// the abandoned draft would otherwise come back and overwrite the dashboard
+	const reopened = await openYamlEditor(page);
+	await expect(reopened.locator('.cm-content')).toContainText('rooms');
+	await expect(reopened.locator('.cm-content')).not.toContainText('a note that was abandoned');
+});
+
+test('a restore leaves no draft behind for the next configuration edit', async ({ page }) => {
+	// a page added and saved, so the snapshot the save leaves behind differs
+	// from the dashboard and Restore has something to do
+	await page.getByRole('button', { name: 'Add page' }).first().click();
+	const pageSheet = page.getByRole('dialog', { name: 'Add page' });
+	await pageSheet.getByLabel('Name').fill('Garage');
+	await pageSheet.getByRole('button', { name: 'Done' }).click();
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByRole('button', { name: 'Edit Hearth configuration' })).toBeVisible();
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+
+	const dialog = await openYamlEditor(page);
+	await dialog.locator('.cm-content').click();
+	await page.keyboard.press('ControlOrMeta+End');
+	await page.keyboard.type('\n# a note that lost to a restore');
+	await dialog.getByRole('button', { name: 'Versions' }).click();
+
+	const versions = page.getByRole('dialog', { name: 'Versions' });
+	const version = versions.getByRole('option').filter({ hasNotText: 'Saved file' }).first();
+	await version.click();
+	await versions.getByRole('button', { name: 'Restore' }).click();
+	await expect(versions).toBeHidden();
+
+	// the restore is what the next open must show, not the note left in the box
+	const reopened = await openYamlEditor(page);
+	await expect(reopened.locator('.cm-content')).toContainText('rooms');
+	await expect(reopened.locator('.cm-content')).not.toContainText('a note that lost to a restore');
+	await expect(reopened.locator('.cm-content')).not.toContainText('Garage');
+});
+
+test('the editor save shortcut applies the draft without writing the file', async ({ page }) => {
+	const saved = readFileSync(CONFIG_FILE, 'utf8');
+	const dialog = await openYamlEditor(page);
+	await dialog.locator('.cm-content').click();
+	// past the end of the document, so the comment cannot split a key in two
+	await page.keyboard.press('ControlOrMeta+End');
+	await page.keyboard.type('\n# applied with the keyboard');
+	await expect(dialog.locator('.cm-content')).toContainText('applied with the keyboard');
+	await page.keyboard.press('ControlOrMeta+s');
+
+	await expect(dialog).toBeHidden();
+	// the shortcut applies the draft; the dashboard's own Ctrl-S behind it
+	// would have written the file, which only the edit bar is allowed to do
+	await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled();
+	// a leaked shortcut writes through the network, so give it the time it
+	// would need before calling the file untouched
+	await page.waitForTimeout(1000);
+	expect(readFileSync(CONFIG_FILE, 'utf8')).toBe(saved);
 });

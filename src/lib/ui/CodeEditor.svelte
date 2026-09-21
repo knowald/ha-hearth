@@ -169,6 +169,9 @@
 				{
 					key: 'Mod-s',
 					preventDefault: true,
+					// applying closes the sheet, which would let the same event reach
+					// the dashboard's own Mod-s and write the file the draft edits
+					stopPropagation: true,
 					run: () => {
 						onsave?.();
 						return true;

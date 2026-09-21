@@ -1,13 +1,3 @@
-<script module lang="ts">
-	/*
-	 * Opening Versions swaps the editor target, which unmounts this sheet and
-	 * would take an unapplied draft with it - the versions viewer compares
-	 * against the saved config, not against the box. The draft waits here for
-	 * the trip back and is consumed by the next open.
-	 */
-	let parkedDraft: string | null = null;
-</script>
-
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
 	import { entityIds } from '$lib/core/ha/entities';
@@ -20,10 +10,19 @@
 	import EditSheet from './EditSheet.svelte';
 	import Icon from '../Icon.svelte';
 
+	/*
+	 * Opening Versions swaps the editor target, which unmounts this sheet and
+	 * would take an unapplied draft with it - the versions viewer compares
+	 * against the saved config, not against the box. The draft rides along in
+	 * the editor state instead, so the Back arrow is the only thing that hands
+	 * it back and closing the editor drops it.
+	 */
+	let { draft }: { draft?: string } = $props();
+
 	// snapshot at open time - the editor owns the draft until Apply/discard,
 	// it doesn't track further store changes while the sheet is open
-	const init = parkedDraft ?? configDocument($hearthConfig);
-	parkedDraft = null;
+	// svelte-ignore state_referenced_locally
+	const init = draft ?? configDocument($hearthConfig);
 	let value = $state(init);
 	let loaded = $state<string | null>(null);
 	// pushes an imported document into the mounted CodeMirror view
@@ -87,10 +86,7 @@
 			type="button"
 			class="tool pressable"
 			use:Ripple={PRESS_RIPPLE}
-			onclick={() => {
-				parkedDraft = value;
-				editor.set({ kind: 'versions', from: 'code' });
-			}}
+			onclick={() => editor.set({ kind: 'versions', from: 'code', draft: value })}
 		>
 			<Icon name="history" size={ICON.inline} />
 			{$lang('hearth_versions')}

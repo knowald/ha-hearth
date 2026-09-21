@@ -106,4 +106,31 @@ describe('CodeEditor', () => {
 
 		expect(onsave).toHaveBeenCalled();
 	});
+
+	it('keeps the save shortcut away from the page behind it', async () => {
+		const onsave = vi.fn();
+		const page = vi.fn();
+		const { container } = render(CodeEditor, {
+			type: 'text',
+			value: 'draft',
+			transitionend: false,
+			onsave
+		});
+		await waitFor(() => expect(container.querySelector('.cm-editor')).toBeTruthy());
+
+		window.addEventListener('keydown', page);
+		try {
+			container
+				.querySelector('.cm-content')!
+				.dispatchEvent(
+					new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true })
+				);
+		} finally {
+			window.removeEventListener('keydown', page);
+		}
+
+		expect(onsave).toHaveBeenCalled();
+		// the dashboard's own Ctrl-S writes the file; the editor's applies a draft
+		expect(page).not.toHaveBeenCalled();
+	});
 });

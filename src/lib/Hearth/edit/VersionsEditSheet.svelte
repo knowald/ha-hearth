@@ -25,8 +25,14 @@
 		size: number;
 	}
 
+	/**
+	 * Where the back arrow returns to, when the sheet was opened from another,
+	 * and the unapplied YAML draft that sheet handed over for the trip.
+	 */
+	let { from, draft }: { from?: 'code'; draft?: string } = $props();
+
 	// the document a restore would replace, frozen at open time
-	const draft = configDocument($hearthConfig);
+	const dashboard = configDocument($hearthConfig);
 
 	let versions = $state<Version[]>([]);
 	let savedRevision = $state(0);
@@ -80,7 +86,7 @@
 	// the counter is the server's bookkeeping, not part of the dashboard
 	let comparable = $derived(content === null ? null : withoutRevision(content));
 	let issue = $derived(content === null ? null : documentIssue(content));
-	let unchanged = $derived(comparable !== null && comparable === draft);
+	let unchanged = $derived(comparable !== null && comparable === dashboard);
 
 	function restore() {
 		if (content === null || issue) return;
@@ -109,15 +115,12 @@
 	function whenLabel(at: number) {
 		return relativeTime(new Date(at).toISOString(), $selectedLanguage);
 	}
-
-	/** Where the back arrow returns to, when the sheet was opened from another. */
-	let { from }: { from?: 'code' } = $props();
 </script>
 
 <EditSheet
 	title={$lang('hearth_versions')}
 	onclose={() => editor.set(null)}
-	onback={from === 'code' ? () => editor.set({ kind: 'code' }) : undefined}
+	onback={from === 'code' ? () => editor.set({ kind: 'code', draft }) : undefined}
 	ondone={restore}
 	doneDisabled={content === null || !!issue || unchanged}
 	wide
@@ -203,7 +206,7 @@
 					{#await import('$lib/ui/CodeEditor.svelte') then CodeEditor}
 						<CodeEditor.default
 							value={comparable}
-							original={draft}
+							original={dashboard}
 							readOnly
 							type="yaml"
 							transitionend={false}

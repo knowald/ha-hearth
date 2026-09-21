@@ -35,9 +35,9 @@
 		{:else if $editor.kind === 'customCss'}
 			<CustomCssEditSheet />
 		{:else if $editor.kind === 'code'}
-			<CodeEditSheet />
+			<CodeEditSheet draft={$editor.draft} />
 		{:else if $editor.kind === 'versions'}
-			<VersionsEditSheet from={$editor.from} />
+			<VersionsEditSheet from={$editor.from} draft={$editor.draft} />
 		{:else}
 			<ThemeEditSheet />
 		{/if}
