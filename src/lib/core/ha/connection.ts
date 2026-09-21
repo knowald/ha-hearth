@@ -112,8 +112,9 @@ export async function authentication(
 	let auth: Auth | undefined;
 
 	try {
+		const hassUrl = new URL(configuration.hassUrl, location.origin).href.replace(/\/$/, '');
 		if (configuration?.token) {
-			auth = createLongLivedTokenAuth(configuration.hassUrl, configuration.token);
+			auth = createLongLivedTokenAuth(hassUrl, configuration.token);
 		} else if (navigator.userAgent.includes('Home Assistant')) {
 			// the companion app requires token authentication
 			if (!tokenPromptShown) {
@@ -127,7 +128,8 @@ export async function authentication(
 		} else {
 			auth = await getAuth({
 				...tokenStorage,
-				hassUrl: configuration.hassUrl
+				hassUrl,
+				limitHassInstance: true
 			});
 			if (auth.expired) await auth.refreshAccessToken();
 		}

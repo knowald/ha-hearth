@@ -7,6 +7,7 @@ import type { Translations } from '$lib/core/i18n';
 import { CONFIG_VERSION, configVersion } from '$lib/Hearth/format';
 import { hearthConfigIssues } from '$lib/Hearth/normalize';
 import dotenv from 'dotenv';
+import type { RequestEvent } from './$types';
 
 dotenv.config({ quiet: true });
 
@@ -28,7 +29,7 @@ async function loadJson(file: string) {
 	}
 }
 
-export async function load(): Promise<{
+export async function load({ request }: Pick<RequestEvent, 'request'>): Promise<{
 	configuration: Configuration;
 	hearth: unknown;
 	hearthError: string | null;
@@ -83,7 +84,13 @@ export async function load(): Promise<{
 			);
 	const hearthNeedsSetup = !hearthError && (hearth === undefined || hearthKeys.length === 0);
 
-	configuration.hassUrl = process.env.HASS_URL || undefined;
+	// Ingress shares Home Assistant's browser origin, which can differ from
+	// both the internal proxy target and the origin seen by this Node server.
+	// Resolve '/' in the browser so local and Nabu Casa access both work.
+	configuration.hassUrl =
+		process.env.HASS_PUBLIC_URL ||
+		(request.headers.get('x-ingress-path') ? '/' : process.env.HASS_URL) ||
+		undefined;
 
 	// Load the selected language with English fallback.
 	const dir = dev ? './static' : './build/client';
