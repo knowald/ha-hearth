@@ -1,6 +1,12 @@
 import { get } from 'svelte/store';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createConnection, type Connection } from 'home-assistant-js-websocket';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+	createConnection,
+	ERR_INVALID_AUTH_CALLBACK,
+	ERR_CANNOT_CONNECT,
+	ERR_INVALID_AUTH,
+	type Connection
+} from 'home-assistant-js-websocket';
 import {
 	authentication,
 	connected,
@@ -22,6 +28,9 @@ afterEach(() => {
 	stopConnection();
 	vi.useRealTimers();
 	vi.clearAllMocks();
+	vi.restoreAllMocks();
+	vi.unstubAllGlobals();
+	localStorage.clear();
 });
 
 describe('authentication', () => {
@@ -51,4 +60,175 @@ describe('authentication', () => {
 		expect(get(connection)).toBeUndefined();
 		expect(get(connected)).toBe(false);
 	});
+});
+
+describe('Ingress authentication', () => {
+	beforeEach(() => {
+		vi.stubGlobal(
+			'location',
+			new URL(
+				'https://example.ui.nabu.casa/api/hassio_ingress/session/?room=living&theme=amber&menu=false#panel'
+			)
+		);
+		vi.mocked(createConnection).mockResolvedValue({
+			close: vi.fn(),
+			addEventListener: vi.fn(),
+			subscribeMessage: vi.fn(async () => async () => {})
+		} as unknown as Connection);
+	});
+
+	it('redirects to HTTPS OAuth and retains the Ingress callback path, ignoring internal cached tokens', async () => {
+		localStorage.hearthTokens = JSON.stringify({
+			hassUrl: 'http://homeassistant:8123',
+			access_token: 'old',
+			expires: Date.now() + 60000
+		});
+		const navigation = { href: '' };
+		vi.stubGlobal('document', { location: navigation });
+		// getAuth intentionally never resolves after navigating away.
+		void authentication({ hassUrl: '/' });
+		await vi.waitFor(() => expect(navigation.href).not.toBe(''));
+		const authorize = new URL(navigation.href);
+		expect(authorize.origin + authorize.pathname).toBe(
+			'https://example.ui.nabu.casa/auth/authorize'
+		);
+		expect(authorize.searchParams.get('redirect_uri')).toBe(
+			'https://example.ui.nabu.casa/api/hassio_ingress/session/?room=living&theme=amber&menu=false&auth_callback=1'
+		);
+		expect(JSON.parse(atob(authorize.searchParams.get('state')!)).hassUrl).toBe(
+			'https://example.ui.nabu.casa'
+		);
+		expect(createConnection).not.toHaveBeenCalled();
+	});
+
+	it('exchanges the callback code over HTTPS and connects over WSS', async () => {
+		const callback = new URL(location.href);
+		callback.searchParams.set('auth_callback', '1');
+		callback.searchParams.set('code', 'test-code');
+		callback.searchParams.set(
+			'state',
+			btoa(JSON.stringify({ hassUrl: callback.origin, clientId: callback.origin + '/' }))
+		);
+		vi.stubGlobal('location', callback);
+		vi.spyOn(history, 'replaceState').mockImplementation((_state, _title, url) => {
+			vi.stubGlobal('location', new URL(String(url), location.origin));
+		});
+		const fetch = vi
+			.fn()
+			.mockResolvedValue(
+				new Response(
+					JSON.stringify({ access_token: 'access', refresh_token: 'refresh', expires_in: 1800 })
+				)
+			);
+		vi.stubGlobal('fetch', fetch);
+		await authentication({ hassUrl: '/' });
+		expect(location.search + location.hash).toBe('?room=living&theme=amber&menu=false#panel');
+		expect(fetch).toHaveBeenCalledWith(
+			'https://example.ui.nabu.casa/auth/token',
+			expect.objectContaining({ method: 'POST' })
+		);
+		expect(vi.mocked(createConnection).mock.calls[0][0]?.auth?.wsUrl).toBe(
+			'wss://example.ui.nabu.casa/api/websocket'
+		);
+	});
+
+	it('rejects a stale internal OAuth callback before attempting an HTTP token exchange', async () => {
+		const callback = new URL(location.href);
+		callback.searchParams.set('auth_callback', '1');
+		callback.searchParams.set('code', 'test-code');
+		callback.searchParams.set(
+			'state',
+			btoa(
+				JSON.stringify({ hassUrl: 'http://homeassistant:8123', clientId: callback.origin + '/' })
+			)
+		);
+		vi.stubGlobal('location', callback);
+		vi.spyOn(history, 'replaceState').mockImplementation((_state, _title, url) => {
+			vi.stubGlobal('location', new URL(String(url), location.origin));
+		});
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		const fetch = vi.fn();
+		vi.stubGlobal('fetch', fetch);
+		await expect(authentication({ hassUrl: '/' })).rejects.toBe(ERR_INVALID_AUTH_CALLBACK);
+		expect(fetch).not.toHaveBeenCalled();
+		expect(location.pathname + location.search + location.hash).toBe(
+			'/api/hassio_ingress/session/?room=living&theme=amber&menu=false#panel'
+		);
+	});
+
+	it('retries a failed socket using saved tokens without redeeming the consumed code again', async () => {
+		vi.useFakeTimers();
+		const callback = new URL(location.href);
+		callback.searchParams.set('auth_callback', '1');
+		callback.searchParams.set('code', 'one-time-code');
+		callback.searchParams.set(
+			'state',
+			btoa(JSON.stringify({ hassUrl: callback.origin, clientId: callback.origin + '/' }))
+		);
+		vi.stubGlobal('location', callback);
+		vi.spyOn(history, 'replaceState').mockImplementation((_state, _title, url) => {
+			vi.stubGlobal('location', new URL(String(url), location.origin));
+		});
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		const fetch = vi
+			.fn()
+			.mockResolvedValue(
+				new Response(
+					JSON.stringify({ access_token: 'access', refresh_token: 'refresh', expires_in: 1800 })
+				)
+			);
+		vi.stubGlobal('fetch', fetch);
+		vi.mocked(createConnection).mockRejectedValueOnce(ERR_CANNOT_CONNECT);
+		startConnection({ hassUrl: '/' });
+		await vi.advanceTimersByTimeAsync(3001);
+		expect(fetch).toHaveBeenCalledOnce();
+		expect(createConnection).toHaveBeenCalledTimes(2);
+		expect(get(connected)).toBe(true);
+		expect(location.search + location.hash).toBe('?room=living&theme=amber&menu=false#panel');
+	});
+
+	it('removes an invalid code and restarts authorization on retry without losing kiosk parameters', async () => {
+		vi.useFakeTimers();
+		const callback = new URL(location.href);
+		callback.searchParams.set('auth_callback', '1');
+		callback.searchParams.set('code', 'expired-code');
+		callback.searchParams.set(
+			'state',
+			btoa(JSON.stringify({ hassUrl: callback.origin, clientId: callback.origin + '/' }))
+		);
+		vi.stubGlobal('location', callback);
+		vi.spyOn(history, 'replaceState').mockImplementation((_state, _title, url) => {
+			vi.stubGlobal('location', new URL(String(url), location.origin));
+		});
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		const fetch = vi.fn().mockResolvedValue(new Response('{}', { status: 400 }));
+		vi.stubGlobal('fetch', fetch);
+		localStorage.hearthTokens = JSON.stringify({ access_token: 'stale' });
+		await expect(authentication({ hassUrl: '/' })).rejects.toBe(ERR_INVALID_AUTH);
+		expect(localStorage.hearthTokens).toBeUndefined();
+		expect(location.search + location.hash).toBe('?room=living&theme=amber&menu=false#panel');
+		const navigation = { href: '' };
+		vi.stubGlobal('document', { location: navigation });
+		startConnection({ hassUrl: '/' });
+		await vi.advanceTimersByTimeAsync(3001);
+		expect(fetch).toHaveBeenCalledOnce();
+		const redirect = new URL(new URL(navigation.href).searchParams.get('redirect_uri')!);
+		expect(redirect.searchParams.get('menu')).toBe('false');
+		expect(redirect.searchParams.get('room')).toBe('living');
+		expect(redirect.searchParams.has('code')).toBe(false);
+		expect(createConnection).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		['https://example.ui.nabu.casa', '/', 'wss://example.ui.nabu.casa/api/websocket'],
+		['http://homeassistant.local:8123', '/', 'ws://homeassistant.local:8123/api/websocket'],
+		['https://hearth.example.com', 'https://ha.example.com/', 'wss://ha.example.com/api/websocket']
+	])(
+		'uses the correct WebSocket URL for token authentication from %s',
+		async (origin, hassUrl, wsUrl) => {
+			vi.stubGlobal('location', new URL(origin + '/api/hassio_ingress/session/'));
+			await authentication({ hassUrl, token: 'test' });
+			expect(vi.mocked(createConnection).mock.calls[0][0]?.auth?.wsUrl).toBe(wsUrl);
+		}
+	);
 });

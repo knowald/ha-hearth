@@ -112,8 +112,9 @@ export async function authentication(
 	let auth: Auth | undefined;
 
 	try {
+		const hassUrl = new URL(configuration.hassUrl, location.origin).href.replace(/\/$/, '');
 		if (configuration?.token) {
-			auth = createLongLivedTokenAuth(configuration.hassUrl, configuration.token);
+			auth = createLongLivedTokenAuth(hassUrl, configuration.token);
 		} else if (navigator.userAgent.includes('Home Assistant')) {
 			// the companion app requires token authentication
 			if (!tokenPromptShown) {
@@ -127,8 +128,10 @@ export async function authentication(
 		} else {
 			auth = await getAuth({
 				...tokenStorage,
-				hassUrl: configuration.hassUrl
+				hassUrl,
+				limitHassInstance: true
 			});
+			clearAuthCallback();
 			if (auth.expired) await auth.refreshAccessToken();
 		}
 
@@ -168,11 +171,6 @@ export async function authentication(
 			console.error('ERR_INVALID_AUTH.');
 			if (get(connection) === conn) health.set('lost');
 		});
-
-		// clear auth query string
-		if (location.search.includes('auth_callback=1')) {
-			history.replaceState(null, '', location.pathname);
-		}
 
 		trackSubscription(
 			conn.subscribeMessage(
@@ -226,11 +224,19 @@ export async function authentication(
 	}
 }
 
+function clearAuthCallback() {
+	const url = new URL(location.href);
+	if (!url.searchParams.has('auth_callback')) return;
+	for (const key of ['auth_callback', 'code', 'state']) url.searchParams.delete(key);
+	history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+}
+
 function handleError(error: unknown) {
 	switch (error) {
 		case ERR_INVALID_AUTH:
 			console.error('ERR_INVALID_AUTH');
 			tokenStorage.clearTokens();
+			clearAuthCallback();
 			break;
 		case ERR_INVALID_AUTH_CALLBACK:
 			// raised by getAuth() when the auth callback state (client id /
@@ -238,9 +244,7 @@ function handleError(error: unknown) {
 			// string so the next retry restarts the auth flow cleanly
 			console.error('ERR_INVALID_AUTH_CALLBACK');
 			tokenStorage.clearTokens();
-			if (location.search.includes('auth_callback=1')) {
-				history.replaceState(null, '', location.pathname);
-			}
+			clearAuthCallback();
 			break;
 		case ERR_CANNOT_CONNECT:
 			console.error('ERR_CANNOT_CONNECT');
