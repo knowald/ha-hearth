@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Fix Home Assistant login through HTTPS Ingress and Nabu Casa by using the browser's Home Assistant origin.
+- Add `HASS_PUBLIC_URL` for direct access when the server uses an internal Home Assistant address.
+- Recover from expired or consumed login codes and preserve room, theme and kiosk settings after login.
+- Fix the CodeMirror dependency so the configuration editor and type checks use the supported editor API.
+
 ## 0.1.0
 
 - Add frosted glass surfaces: a backdrop blur knob for every card, tile and widget, a scrim over the background image and an inherited text shadow.
