@@ -24,12 +24,15 @@ vi.mock('home-assistant-js-websocket', async (importOriginal) => ({
 	subscribeServices: vi.fn()
 }));
 
+const windowParent = window.parent;
+
 afterEach(() => {
 	stopConnection();
 	vi.useRealTimers();
 	vi.clearAllMocks();
 	vi.restoreAllMocks();
 	vi.unstubAllGlobals();
+	Object.defineProperty(window, 'parent', { value: windowParent, configurable: true });
 	localStorage.clear();
 });
 
@@ -216,6 +219,43 @@ describe('Ingress authentication', () => {
 		expect(redirect.pathname).toBe('/api/hassio_ingress/session/');
 		expect([...redirect.searchParams.keys()]).toEqual(['auth_callback']);
 		expect(redirect.searchParams.has('code')).toBe(false);
+		expect(createConnection).not.toHaveBeenCalled();
+	});
+
+	it('uses the parent Home Assistant panel token when embedded as an app', async () => {
+		vi.mocked(createConnection).mockResolvedValue({
+			close: vi.fn(),
+			addEventListener: vi.fn(),
+			subscribeMessage: vi.fn(async () => async () => {})
+		} as unknown as Connection);
+		Object.defineProperty(window, 'parent', {
+			configurable: true,
+			value: {
+				hassConnection: Promise.resolve({
+					auth: { data: { access_token: 'panel-token' } }
+				})
+			}
+		});
+		const navigation = { href: '' };
+		vi.stubGlobal('document', { location: navigation });
+		await authentication({ hassUrl: '/' });
+		expect(navigation.href).toBe('');
+		expect(vi.mocked(createConnection).mock.calls[0][0]?.auth?.data?.access_token).toBe(
+			'panel-token'
+		);
+	});
+
+	it('does not start OAuth inside a Home Assistant app iframe', async () => {
+		Object.defineProperty(window, 'parent', {
+			configurable: true,
+			value: {}
+		});
+		const navigation = { href: '' };
+		vi.stubGlobal('document', { location: navigation });
+		await expect(authentication({ hassUrl: '/' })).rejects.toThrow(
+			'Waiting for Home Assistant panel authentication'
+		);
+		expect(navigation.href).toBe('');
 		expect(createConnection).not.toHaveBeenCalled();
 	});
 

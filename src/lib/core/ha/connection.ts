@@ -91,6 +91,34 @@ export interface ConnectionHooks {
 
 let tokenPromptShown = false;
 
+/**
+ * HA's /app/<slug> panel embeds this page in a same-origin iframe and exposes
+ * the already-authenticated frontend session as window.parent.hassConnection.
+ * Reusing that access token skips OAuth, which cannot complete inside the iframe
+ * (HA's authorize page reports Invalid redirect URI).
+ */
+async function accessTokenFromParentHass(): Promise<string | undefined> {
+	if (typeof window === 'undefined' || window.parent === window) return;
+	try {
+		const pending = (
+			window.parent as Window & {
+				hassConnection?: Promise<{ auth?: { data?: { access_token?: string } } }>;
+			}
+		).hassConnection;
+		if (!pending) return;
+		const session = await Promise.race([
+			pending,
+			new Promise<undefined>((resolve) => {
+				setTimeout(() => resolve(undefined), 2000);
+			})
+		]);
+		const token = session?.auth?.data?.access_token;
+		return typeof token === 'string' && token.length > 0 ? token : undefined;
+	} catch {
+		return;
+	}
+}
+
 function trackSubscription(subscription: Promise<unknown>, channel: string) {
 	void subscription.catch((error) => {
 		console.error(`Home Assistant ${channel} subscription failed`, error);
@@ -115,31 +143,42 @@ export async function authentication(
 		const hassUrl = new URL(configuration.hassUrl, location.origin).href.replace(/\/$/, '');
 		if (configuration?.token) {
 			auth = createLongLivedTokenAuth(hassUrl, configuration.token);
-		} else if (navigator.userAgent.includes('Home Assistant')) {
-			// the companion app requires token authentication
-			if (!tokenPromptShown) {
-				tokenPromptShown = true;
-				hooks.onTokenRequired?.();
-			}
-			health.set('lost');
-			// not a successful authentication: callers must keep retrying until
-			// the configuration supplies a long-lived token
-			throw new Error('A long-lived access token is required in the companion app');
 		} else {
-			// Ingress serves this app under /api/hassio_ingress/<token>/.
-			// Pass that path as redirect_uri so the callback returns to this
-			// app. Strip the query string; the library appends auth_callback
-			// itself, and Ingress does not reliably round-trip extra search params.
-			const isIngress = location.pathname.includes('/api/hassio_ingress/');
-			const redirectUrl = isIngress ? `${location.origin}${location.pathname}` : undefined;
-			auth = await getAuth({
-				...tokenStorage,
-				hassUrl,
-				limitHassInstance: true,
-				...(redirectUrl && { redirectUrl })
-			});
-			clearAuthCallback();
-			if (auth.expired) await auth.refreshAccessToken();
+			const parentToken = await accessTokenFromParentHass();
+			if (parentToken) {
+				auth = createLongLivedTokenAuth(hassUrl, parentToken);
+			} else if (navigator.userAgent.includes('Home Assistant')) {
+				// the companion app requires token authentication
+				if (!tokenPromptShown) {
+					tokenPromptShown = true;
+					hooks.onTokenRequired?.();
+				}
+				health.set('lost');
+				// not a successful authentication: callers must keep retrying until
+				// the configuration supplies a long-lived token
+				throw new Error('A long-lived access token is required in the companion app');
+			} else if (window.parent !== window) {
+				// HA app iframe without a parent session yet. Retry until the
+				// panel session is ready. OAuth in this frame is rejected with
+				// Invalid redirect URI.
+				health.set('lost');
+				throw new Error('Waiting for Home Assistant panel authentication');
+			} else {
+				// Ingress serves this app under /api/hassio_ingress/<token>/.
+				// Pass that path as redirect_uri so the callback returns to this
+				// app. Strip the query string; the library appends auth_callback
+				// itself, and Ingress does not reliably round-trip extra search params.
+				const isIngress = location.pathname.includes('/api/hassio_ingress/');
+				const redirectUrl = isIngress ? `${location.origin}${location.pathname}` : undefined;
+				auth = await getAuth({
+					...tokenStorage,
+					hassUrl,
+					limitHassInstance: true,
+					...(redirectUrl && { redirectUrl })
+				});
+				clearAuthCallback();
+				if (auth.expired) await auth.refreshAccessToken();
+			}
 		}
 
 		const conn = await createConnection({ auth });
@@ -266,6 +305,12 @@ function handleError(error: unknown) {
 			console.error('ERR_INVALID_HTTPS_TO_HTTP');
 			break;
 		default:
+			if (
+				error instanceof Error &&
+				error.message === 'Waiting for Home Assistant panel authentication'
+			) {
+				break;
+			}
 			console.error(error);
 	}
 	throw error;
