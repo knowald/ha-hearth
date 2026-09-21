@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Fix Home Assistant login through Nabu Casa Ingress by using the forwarded HA origin and an explicit Ingress OAuth redirect URL, matching Fusion.
+
 ## 0.1.1
 
 - Fix Home Assistant login through HTTPS Ingress and Nabu Casa by using the browser's Home Assistant origin.

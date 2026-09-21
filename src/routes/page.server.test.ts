@@ -14,14 +14,20 @@ afterEach(() => vi.unstubAllEnvs());
 
 async function configuration(ingress = false) {
 	const request = new Request('http://container:8099/', {
-		headers: ingress ? { 'X-Ingress-Path': '/api/hassio_ingress/session' } : {}
+		headers: ingress
+			? {
+					'X-Hass-Source': 'core.ingress',
+					'X-Forwarded-Proto': 'https',
+					'X-Forwarded-Host': 'example.ui.nabu.casa'
+				}
+			: {}
 	});
 	return (await load({ request } as Parameters<typeof load>[0])).configuration;
 }
 
 describe('browser Home Assistant URL', () => {
-	it('uses the browser origin under Ingress instead of the internal server address', async () => {
-		expect((await configuration(true)).hassUrl).toBe('/');
+	it('uses the forwarded Home Assistant origin under Ingress instead of the internal server address', async () => {
+		expect((await configuration(true)).hassUrl).toBe('https://example.ui.nabu.casa');
 		expect(process.env.HASS_URL).toBe('http://homeassistant:8123');
 	});
 
@@ -33,7 +39,9 @@ describe('browser Home Assistant URL', () => {
 		'uses Ingress origin before the direct-access public URL (Ingress: %s)',
 		async (ingress) => {
 			vi.stubEnv('HASS_PUBLIC_URL', 'https://ha.example.com');
-			expect((await configuration(ingress)).hassUrl).toBe(ingress ? '/' : 'https://ha.example.com');
+			expect((await configuration(ingress)).hassUrl).toBe(
+				ingress ? 'https://example.ui.nabu.casa' : 'https://ha.example.com'
+			);
 			expect(process.env.HASS_URL).toBe('http://homeassistant:8123');
 		}
 	);

@@ -86,12 +86,15 @@ export const load = (async ({
 			);
 	const hearthNeedsSetup = !hearthError && (hearth === undefined || hearthKeys.length === 0);
 
-	// Ingress shares Home Assistant's browser origin, which can differ from
-	// both the internal proxy target and the origin seen by this Node server.
-	// Resolve '/' in the browser so local and Nabu Casa access both work.
+	// Ingress: Supervisor forwards the browser's HA origin. Fusion used this
+	// as hassUrl so OAuth authorizes against the HTTPS Nabu Casa (or local)
+	// host the browser is already on.
+	const source = request.headers.get('x-hass-source');
+	const forwardedProto = request.headers.get('x-forwarded-proto');
+	const forwardedHost = request.headers.get('x-forwarded-host');
 	configuration.hassUrl =
-		(request.headers.get('x-ingress-path')
-			? '/'
+		(source && forwardedProto && forwardedHost
+			? `${forwardedProto}://${forwardedHost}`
 			: process.env.HASS_PUBLIC_URL || process.env.HASS_URL) || undefined;
 
 	// Load the selected language with English fallback.
