@@ -217,10 +217,40 @@
 	color: var(--h-text-4);
 }
 
-.editor-fields .hint {
+/* the one hint style; sheets outside .editor-fields use .field-hint directly */
+.editor-fields .hint,
+.field-hint {
 	font-size: var(--h-type-small);
 	color: var(--h-text-6);
 	margin: 4px 0 12px;
+}
+
+.editor-fields .chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0 14px;
+}
+
+.editor-fields .chip {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px;
+	border-radius: var(--h-radius-card);
+	border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
+	font-size: var(--h-type-secondary);
+	color: var(--h-text-4);
+	cursor: pointer;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.editor-fields .chip.active {
+	background: rgb(var(--h-accent-rgb) / calc(0.12 * var(--h-accent-scale)));
+	border-color: rgb(var(--h-accent-rgb) / calc(0.25 * var(--h-accent-scale)));
+	color: var(--h-accent-icon);
 }
 
 .editor-fields .row {

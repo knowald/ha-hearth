@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
-	import { states, getDomain, sensorNumber } from '$lib/core/ha/entities';
+	import { states, sensorNumber } from '$lib/core/ha/entities';
+	import type { SliderUpdateMode } from '$lib/core/app/configuration';
 	import StateLogic from '$lib/ui/StateLogic.svelte';
 	import { detailLoader } from './details';
 	import SensorPopup from './SensorPopup.svelte';
 	import './details/detail.css';
 
-	let { entity }: { entity: string } = $props();
+	let { entity, sliderUpdates = undefined }: { entity: string; sliderUpdates?: SliderUpdateMode } =
+		$props();
 
 	// attributes that the header, the icon or the controls already express
 	const HIDDEN = new Set([
@@ -20,12 +22,10 @@
 	]);
 
 	let stateObj = $derived($states?.[entity]);
-	let domain = $derived(getDomain(entity) ?? '');
 	let loader = $derived(detailLoader(entity));
-	let numeric = $derived(
-		(domain === 'sensor' || domain === 'number' || domain === 'input_number') &&
-			sensorNumber(stateObj?.state) !== null
-	);
+	// a numeric reading without controls gets the big reading and its history,
+	// which already say what the state line would
+	let numeric = $derived(!loader && sensorNumber(stateObj?.state) !== null);
 	let attributes = $derived(
 		Object.entries(stateObj?.attributes ?? {}).filter(([key]) => !HIDDEN.has(key))
 	);
@@ -40,17 +40,19 @@
 </script>
 
 <div class="detail">
-	<div class="state-line">
-		{#if stateObj}
-			<StateLogic entity_id={entity} />
-		{:else}
-			{$lang('hearth_missing_entity')}
-		{/if}
-	</div>
+	{#if !numeric}
+		<div class="state-line">
+			{#if stateObj}
+				<StateLogic entity_id={entity} />
+			{:else}
+				{$lang('hearth_missing_entity')}
+			{/if}
+		</div>
+	{/if}
 
 	{#if loader}
 		{#await loader() then module}
-			<module.default {entity} />
+			<module.default {entity} {sliderUpdates} />
 		{/await}
 	{:else if numeric}
 		<SensorPopup {entity} />

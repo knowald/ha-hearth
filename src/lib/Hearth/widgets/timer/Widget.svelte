@@ -2,9 +2,8 @@
 	import { ICON } from '../../iconSizes';
 	import { lang } from '$lib/core/i18n';
 	import { timer } from '$lib/core/app/clock';
-	import { states } from '$lib/core/ha/entities';
+	import { entityAvailable, states } from '$lib/core/ha/entities';
 	import { callEntityService } from '$lib/core/ha/commands';
-	import { hearthEditMode } from '../../store';
 	import Icon from '../../Icon.svelte';
 	import type { TimerWidget } from './descriptor';
 
@@ -13,6 +12,7 @@
 	let entity = $derived(widget.entity ?? '');
 	let stateObj = $derived($states?.[entity]);
 	let timerState = $derived(stateObj?.state);
+	let available = $derived(entityAvailable(stateObj));
 	let label = $derived(widget.name || stateObj?.attributes?.friendly_name || entity);
 
 	function format(totalSeconds: number) {
@@ -26,6 +26,8 @@
 
 	// finishes_at is authoritative while running; paused timers report remaining
 	let display = $derived.by(() => {
+		// an unreachable timer has no count; 0:00 would read as one that ran out
+		if (!available) return '-';
 		if (timerState === 'active' && stateObj?.attributes?.finishes_at) {
 			const ms = Date.parse(stateObj.attributes.finishes_at) - $timer.getTime();
 			return format(Math.max(0, Math.round(ms / 1000)));
@@ -39,7 +41,7 @@
 	});
 
 	function primary() {
-		if ($hearthEditMode || !entity) return;
+		if (!entity) return;
 		callEntityService('timer', timerState === 'active' ? 'pause' : 'start', entity);
 	}
 </script>
@@ -49,6 +51,7 @@
 		type="button"
 		class="primary"
 		aria-label={timerState === 'active' ? $lang('hearth_pause') : $lang('hearth_start')}
+		disabled={!available}
 		onclick={primary}
 	>
 		<Icon name={timerState === 'active' ? 'pause' : 'play_arrow'} size={ICON.control} fill />
@@ -57,7 +60,7 @@
 		<div class="name">{label}</div>
 		<div class="count">{display}</div>
 	</div>
-	{#if timerState !== 'idle'}
+	{#if available && timerState !== 'idle'}
 		<button
 			type="button"
 			class="cancel"
@@ -99,6 +102,11 @@
 		content: '';
 		position: absolute;
 		inset: -4px;
+	}
+
+	.primary:disabled {
+		opacity: 0.45;
+		cursor: default;
 	}
 
 	.running .primary {

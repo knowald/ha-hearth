@@ -4,6 +4,7 @@
 	import { callEntityService } from '$lib/core/ha/commands';
 	import { relativeTime } from '$lib/core/i18n/time';
 	import { selectedLanguage } from '$lib/core/i18n';
+	import { pressFeedback } from '../pressFeedback';
 
 	let { entity }: { entity: string } = $props();
 
@@ -25,6 +26,7 @@
 		<button
 			type="button"
 			class="segment danger"
+			use:pressFeedback={entity}
 			onclick={() => callEntityService('script', 'turn_off', entity)}
 		>
 			{$lang('hearth_stop')}
@@ -33,6 +35,7 @@
 		<button
 			type="button"
 			class="segment active"
+			use:pressFeedback={entity}
 			onclick={() => callEntityService('script', 'turn_on', entity)}
 		>
 			{$lang('hearth_run')}

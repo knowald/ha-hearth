@@ -14,6 +14,7 @@
 		findOverviewCard,
 		findOverviewItemList,
 		isStack,
+		moveItem,
 		normalizeVisibility,
 		slugify,
 		takenCardIds,
@@ -27,7 +28,7 @@
 	import TypeGallery from './TypeGallery.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
-	import VisibilityField from './VisibilityField.svelte';
+	import VisibilitySection from './VisibilitySection.svelte';
 
 	let {
 		roomId,
@@ -141,6 +142,19 @@
 		close();
 	}
 
+	function move(delta: number) {
+		updateConfig((config) => {
+			if (id === null) return;
+			const cards = findOverviewItemList(config, id, roomId);
+			if (cards)
+				moveItem(
+					cards,
+					cards.findIndex((card) => card.id === id),
+					delta
+				);
+		});
+	}
+
 	function selectType(value: string) {
 		type = value as OverviewCard['type'];
 		// the previous type's fields must not leak into the preview or the save
@@ -154,6 +168,8 @@
 	ondone={done}
 	doneDisabled={typeOpen || draft.valid === false}
 	onremove={id !== null ? remove : undefined}
+	onmoveup={id !== null ? () => move(-1) : undefined}
+	onmovedown={id !== null ? () => move(1) : undefined}
 	wide
 >
 	<TypeGallery
@@ -191,23 +207,19 @@
 						{ value: '2', label: $lang('hearth_fill_double') },
 						{ value: '3', label: $lang('hearth_fill_triple') }
 					]}
+					hint={$lang('hearth_cards_sharing_a_column_split_whatever')}
 				/>
-				<div class="hint">
-					{$lang('hearth_cards_sharing_a_column_split_whatever')}
-				</div>
 
 				{#if descriptor.sizable}
 					<TextField
 						label={$lang('hearth_height_in_px_optional')}
 						bind:value={height}
 						placeholder="240"
+						hint={$lang(descriptor.heightHint ?? 'hearth_height_hint_fill')}
 					/>
-					<div class="hint">
-						{$lang(descriptor.heightHint ?? 'hearth_height_hint_fill')}
-					</div>
 				{/if}
 
-				<VisibilityField bind:value={visibility} />
+				<VisibilitySection bind:value={visibility} />
 			</FormSection>
 		</div>
 

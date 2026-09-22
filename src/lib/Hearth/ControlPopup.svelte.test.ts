@@ -74,4 +74,35 @@ describe('ControlPopup', () => {
 		const toggle = screen.getByRole('switch', { name: en.hearth_toggle_light });
 		expect(toggle.getAttribute('aria-checked')).toBe('true');
 	});
+
+	it('captions every sheet with the translated domain name, never a guess or a raw id', async () => {
+		states.set({
+			'fan.desk': hassEntity('fan.desk', 'off', { friendly_name: 'Desk fan' }),
+			'binary_sensor.door': hassEntity('binary_sensor.door', 'off', { friendly_name: 'Door' })
+		});
+		const { container } = render(ControlPopup);
+		popup.set({ kind: 'fan', entity: 'fan.desk', name: 'Desk fan' });
+		await tick();
+		expect(container.querySelector('.sub')?.textContent).toBe(en.hearth_domain_fan);
+		popup.set({ kind: 'detail', entity: 'binary_sensor.door', name: 'Door' });
+		await tick();
+		expect(container.querySelector('.sub')?.textContent).toBe(en.hearth_domain_binary_sensor);
+	});
+
+	it('shows the icon configured on the tile that opened it', async () => {
+		states.set({ 'switch.pump': hassEntity('switch.pump', 'on') });
+		const { container } = render(ControlPopup);
+		popup.set({ kind: 'detail', entity: 'switch.pump', name: 'Pump', icon: 'water_pump' });
+		await tick();
+		expect(container.querySelector('.icon-tile')?.textContent).toContain('water_pump');
+	});
+
+	it('gives the fan popup a header switch', async () => {
+		states.set({ 'fan.desk': hassEntity('fan.desk', 'on', { percentage: 66 }) });
+		render(ControlPopup);
+		popup.set({ kind: 'fan', entity: 'fan.desk', name: 'Desk fan' });
+		await tick();
+		const toggle = screen.getByRole('switch', { name: en.hearth_toggle_fan });
+		expect(toggle.getAttribute('aria-checked')).toBe('true');
+	});
 });

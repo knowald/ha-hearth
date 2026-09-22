@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { ICON } from './iconSizes';
 	import { lang } from '$lib/core/i18n';
-	import { states } from '$lib/core/ha/entities';
+	import { entityActiveFor, states } from '$lib/core/ha/entities';
 	import { closePopup, popup } from './store';
 	import { layer } from '$lib/ui/layers';
 	import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
 	import { lightViewFor, toggleLight } from '$lib/core/domains/light';
+	import { toggleEntity } from '$lib/core/domains/entity';
 	import BlindPopup from './BlindPopup.svelte';
 	import CloseButton from './CloseButton.svelte';
 	import Switch from './Switch.svelte';
@@ -13,29 +14,36 @@
 	import Icon from './Icon.svelte';
 	import LightPopup from './LightPopup.svelte';
 	import MediaPopup from './MediaPopup.svelte';
-	import SensorPopup from './SensorPopup.svelte';
 	import DetailPopup from './DetailPopup.svelte';
 	import { domainIcon } from '$lib/core/domains';
-	import { getDomain } from '$lib/core/ha/entities';
+	import { domainCaption } from './details';
 
-	const meta = {
-		light: { icon: 'lightbulb', sub: 'hearth_dimmable_light' },
-		blind: { icon: 'blinds', sub: 'hearth_window_covering' },
-		fan: { icon: 'mode_fan', sub: 'hearth_ceiling_fan' },
-		media: { icon: 'music_note', sub: 'hearth_media_player' },
-		sensor: { icon: 'monitoring', sub: 'hearth_last_24_hours' }
-	};
-
-	// the detail sheet takes its icon and caption from the entity's domain
-	function headerFor(current: NonNullable<typeof $popup>) {
-		if (current.kind !== 'detail') {
-			return { icon: meta[current.kind].icon, sub: $lang(meta[current.kind].sub) };
+	/*
+	 * The header power switch, for the kinds whose sheet is about one on/off
+	 * device. A cover has none: moving it is a position with open and close
+	 * buttons in the sheet, and a door or gate asks first, which a switch
+	 * flipping state would hide.
+	 */
+	function powerFor(current: NonNullable<typeof $popup>) {
+		const entity = current.entity;
+		if (current.kind === 'light') {
+			return {
+				checked: lightViewFor(entity, $states, $controlOverrides).on,
+				label: $lang('hearth_toggle_light'),
+				toggle: () => toggleLight(entity)
+			};
 		}
-		return {
-			icon: domainIcon(current.entity),
-			sub: (getDomain(current.entity) ?? '').replaceAll('_', ' ')
-		};
+		if (current.kind === 'fan') {
+			return {
+				checked: entityActiveFor(entity, $states?.[entity], $controlOverrides),
+				label: $lang('hearth_toggle_fan'),
+				toggle: () => toggleEntity(entity)
+			};
+		}
+		return null;
 	}
+
+	let power = $derived($popup ? powerFor($popup) : null);
 
 	// a drag that starts on a slider and ends over the backdrop is not a backdrop tap
 	let pressStartedOnBackdrop = false;
@@ -61,19 +69,22 @@
 			<div class="sheet" role="dialog" aria-modal="true" aria-label={$popup.name}>
 				<div class="header">
 					<div class="icon-tile">
-						<Icon name={headerFor($popup).icon} size={ICON.tile} color="var(--h-accent-text)" />
+						<Icon
+							name={$popup.icon || domainIcon($popup.entity)}
+							size={ICON.tile}
+							color="var(--h-accent-text)"
+						/>
 					</div>
 					<div class="titles">
 						<div class="name">{$popup.name}</div>
-						<div class="sub">{headerFor($popup).sub}</div>
+						<div class="sub">{domainCaption($popup.entity, $lang)}</div>
 					</div>
-					{#if $popup.kind === 'light'}
-						{@const entity = $popup.entity}
+					{#if power}
 						<Switch
-							checked={lightViewFor(entity, $states, $controlOverrides).on}
-							label={$lang('hearth_toggle_light')}
-							pending={$pendingEntities[entity] !== undefined}
-							onchange={() => toggleLight(entity)}
+							checked={power.checked}
+							label={power.label}
+							pending={$pendingEntities[$popup.entity] !== undefined}
+							onchange={power.toggle}
 						/>
 					{/if}
 					<CloseButton onclick={closePopup} />
@@ -83,10 +94,8 @@
 					<LightPopup entity={$popup.entity} sliderUpdates={$popup.sliderUpdates} />
 				{:else if $popup.kind === 'blind'}
 					<BlindPopup entity={$popup.entity} sliderUpdates={$popup.sliderUpdates} />
-				{:else if $popup.kind === 'sensor'}
-					<SensorPopup entity={$popup.entity} />
 				{:else if $popup.kind === 'detail'}
-					<DetailPopup entity={$popup.entity} />
+					<DetailPopup entity={$popup.entity} sliderUpdates={$popup.sliderUpdates} />
 				{:else}
 					<FanPopup entity={$popup.entity} />
 				{/if}

@@ -60,9 +60,10 @@
 	onclose={() => editor.set(null)}
 	onback={back}
 	ondone={save}
+	doneLabel={$lang('save')}
 	doneDisabled={!loaded || saving}
 >
-	<div class="hint">{$lang('hearth_custom_css_hint')}</div>
+	<div class="field-hint">{$lang('hearth_custom_css_hint')}</div>
 	<div class="code-workspace">
 		{#if loaded}
 			{#await import('$lib/ui/CodeEditor.svelte') then CodeEditor}
@@ -75,19 +76,13 @@
 				/>
 			{/await}
 		{:else}
-			<div class="hint">{$lang('hearth_loading')}</div>
+			<div class="field-hint">{$lang('hearth_loading')}</div>
 		{/if}
 	</div>
 	{#if error}<div class="error" role="alert">{error}</div>{/if}
 </EditSheet>
 
 <style>
-	.hint {
-		font-size: var(--h-type-secondary);
-		color: var(--h-text-6);
-		margin-bottom: 12px;
-	}
-
 	.code-workspace {
 		min-height: 320px;
 	}

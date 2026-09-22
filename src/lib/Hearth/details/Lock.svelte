@@ -1,24 +1,20 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
-	import { callEntityService } from '$lib/core/ha/commands';
+	import { controlOverrides } from '$lib/core/ha/commands';
+	import { guardLockCommand } from '$lib/core/domains/lock';
 	import { requestConfirmation } from '../store';
+	import { pressFeedback } from '../pressFeedback';
 
 	let { entity }: { entity: string } = $props();
 
 	let stateObj = $derived($states?.[entity]);
-	let locked = $derived(stateObj?.state === 'locked');
+	let locked = $derived.by(() => {
+		const override = $controlOverrides[`active:${entity}`];
+		return override !== undefined ? override === 0 : stateObj?.state === 'locked';
+	});
 	// supported_features bit 1: the lock can also open (a latch)
 	let canOpen = $derived(((stateObj?.attributes?.supported_features ?? 0) & 1) === 1);
-
-	function guarded(service: 'unlock' | 'open', label: string) {
-		requestConfirmation({
-			title: label,
-			message: `${label} ${stateObj?.attributes?.friendly_name ?? entity}?`,
-			confirmLabel: label,
-			action: () => callEntityService('lock', service, entity)
-		});
-	}
 </script>
 
 <div class="segments">
@@ -26,7 +22,8 @@
 		type="button"
 		class="segment"
 		class:active={locked}
-		onclick={() => callEntityService('lock', 'lock', entity)}
+		use:pressFeedback={entity}
+		onclick={() => guardLockCommand(entity, 'lock', requestConfirmation)}
 	>
 		{$lang('hearth_lock')}
 	</button>
@@ -34,7 +31,8 @@
 		type="button"
 		class="segment"
 		class:active={!locked}
-		onclick={() => guarded('unlock', $lang('hearth_unlock'))}
+		use:pressFeedback={entity}
+		onclick={() => guardLockCommand(entity, 'unlock', requestConfirmation)}
 	>
 		{$lang('hearth_unlock')}
 	</button>
@@ -42,7 +40,8 @@
 		<button
 			type="button"
 			class="segment"
-			onclick={() => guarded('open', $lang('hearth_open_door'))}
+			use:pressFeedback={entity}
+			onclick={() => guardLockCommand(entity, 'open', requestConfirmation)}
 		>
 			{$lang('hearth_open_door')}
 		</button>

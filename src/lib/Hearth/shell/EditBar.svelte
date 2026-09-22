@@ -10,9 +10,11 @@
 		editor,
 		enterEditMode,
 		hearthConfig,
+		hasUnsavedEdits,
 		hearthEditMode,
 		hearthLoadError,
 		redoConfig,
+		reportCopy,
 		requestConfirmation,
 		saveState,
 		saveFailure,
@@ -24,8 +26,14 @@
 	let { hideEditToggle = false, onsetup }: { hideEditToggle?: boolean; onsetup: () => void } =
 		$props();
 
+	// The YAML serializer pulls in js-yaml, which stays out of the eager bundle.
+	// Loading starts with the bar so the copy click does not wait on the
+	// network, which would cost Safari's user activation for the clipboard.
+	const transfer = import('../transfer');
+
+	// the same YAML document the code editor and Versions export
 	async function copySessionEdits() {
-		const text = JSON.stringify($hearthConfig, null, 2);
+		const text = (await transfer).configDocument($hearthConfig);
 		try {
 			if (navigator.clipboard) {
 				await navigator.clipboard.writeText(text);
@@ -36,13 +44,28 @@
 				area.style.opacity = '0';
 				document.body.append(area);
 				area.select();
-				document.execCommand('copy');
+				const copied = document.execCommand('copy');
 				area.remove();
+				if (!copied) throw new Error('copy command was refused');
 			}
+			reportCopy('copied');
 		} catch (error) {
 			console.error(error);
-			$saveState = 'error';
+			reportCopy('failed');
 		}
+	}
+
+	function cancel() {
+		if (!hasUnsavedEdits()) {
+			cancelEdit();
+			return;
+		}
+		requestConfirmation({
+			title: $lang('hearth_discard_edits_title'),
+			message: $lang('hearth_discard_edits_message'),
+			confirmLabel: $lang('hearth_discard'),
+			action: cancelEdit
+		});
 	}
 
 	function confirmOverwrite() {
@@ -130,11 +153,8 @@
 		>
 			<Icon name="redo" size={ICON.control} />
 		</button>
-		<button
-			type="button"
-			class="bar-button pressable"
-			use:Ripple={PRESS_RIPPLE}
-			onclick={cancelEdit}>{$lang('cancel')}</button
+		<button type="button" class="bar-button pressable" use:Ripple={PRESS_RIPPLE} onclick={cancel}
+			>{$lang('cancel')}</button
 		>
 		<button
 			type="button"

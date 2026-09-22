@@ -45,6 +45,29 @@ describe('Keyboard', () => {
 		expect(onsearch).toHaveBeenCalledTimes(1);
 	});
 
+	it('ignores f while the only search widget is hidden', () => {
+		const onsearch = vi.fn();
+		render(Keyboard, { onsearch });
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			rail: [{ id: 'search', type: 'search', visibility: [{ entity: 'input_boolean.missing' }] }]
+		});
+		press('f');
+		expect(onsearch).not.toHaveBeenCalled();
+
+		// hidden on mobile only counts while the rail is folded
+		vi.stubGlobal('matchMedia', () => ({ matches: true }));
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			rail: [{ id: 'search', type: 'search', mobile: 'hidden' }]
+		});
+		press('f');
+		expect(onsearch).not.toHaveBeenCalled();
+		vi.stubGlobal('matchMedia', () => ({ matches: false }));
+		press('f');
+		expect(onsearch).toHaveBeenCalledTimes(1);
+	});
+
 	it('undoes and redoes with cmd+z while editing', () => {
 		render(Keyboard, { onsearch: () => {} });
 		enterEditMode();

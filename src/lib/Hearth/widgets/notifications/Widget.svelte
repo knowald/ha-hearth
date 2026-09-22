@@ -5,6 +5,7 @@
 	import { persistentNotifications } from '$lib/core/ha/connection';
 	import { service } from '$lib/core/ha/commands';
 	import { loadMarkdownRenderer } from '../../markdown';
+	import { hearthEditMode } from '../../store';
 	import type { NotificationsWidget } from './descriptor';
 
 	let { widget }: { widget: NotificationsWidget } = $props();
@@ -36,31 +37,34 @@
 	}
 </script>
 
-<div class="notifications" data-widget={widget.id}>
-	{#each entries as [id, notification] (id)}
-		<div class="item">
-			<div class="body">
-				{#if notification.title}<div class="title">{notification.title}</div>{/if}
-				{#if rendered[id]?.message === (notification.message ?? '')}
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized in markdown.ts -->
-					<div class="message">{@html rendered[id].html}</div>
-				{:else}
-					<div class="message">{notification.message ?? ''}</div>
-				{/if}
+<!-- nothing to show hides the widget; the editor keeps it findable, dimmed -->
+{#if entries.length || $hearthEditMode}
+	<div class="notifications" class:inactive={!entries.length} data-widget={widget.id}>
+		{#each entries as [id, notification] (id)}
+			<div class="item">
+				<div class="body">
+					{#if notification.title}<div class="title">{notification.title}</div>{/if}
+					{#if rendered[id]?.message === (notification.message ?? '')}
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized in markdown.ts -->
+						<div class="message">{@html rendered[id].html}</div>
+					{:else}
+						<div class="message">{notification.message ?? ''}</div>
+					{/if}
+				</div>
+				<button
+					type="button"
+					class="dismiss"
+					aria-label={$lang('hearth_dismiss')}
+					onclick={() => dismiss(id)}
+				>
+					<Icon name="close" size={ICON.inline} />
+				</button>
 			</div>
-			<button
-				type="button"
-				class="dismiss"
-				aria-label={$lang('hearth_dismiss')}
-				onclick={() => dismiss(id)}
-			>
-				<Icon name="close" size={ICON.inline} />
-			</button>
-		</div>
-	{:else}
-		<EmptyState inline text={$lang('hearth_no_notifications')} />
-	{/each}
-</div>
+		{:else}
+			<EmptyState inline text={$lang('hearth_no_notifications')} />
+		{/each}
+	</div>
+{/if}
 
 <style>
 	.notifications {
@@ -68,6 +72,10 @@
 		flex-direction: column;
 		gap: 8px;
 		padding: 6px 0;
+	}
+
+	.notifications.inactive {
+		opacity: 0.45;
 	}
 
 	.item {

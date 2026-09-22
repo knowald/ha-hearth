@@ -1,6 +1,8 @@
 import { fireEvent, render } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import SearchOverlay from './SearchOverlay.svelte';
+import overlaySource from './SearchOverlay.svelte?raw';
+import { FOLD_WIDTH } from './breakpoints';
 
 function backdrop(container: HTMLElement) {
 	return container.querySelector('.overlay') as HTMLElement;
@@ -31,5 +33,14 @@ describe('SearchOverlay', () => {
 		await fireEvent.pointerDown(panel);
 		await fireEvent.click(panel);
 		expect(onclose).not.toHaveBeenCalled();
+	});
+
+	it('becomes a full-width sheet at the fold and sizes to the dynamic viewport', () => {
+		const sheet = overlaySource.match(
+			new RegExp(`@media \\(max-width: ${FOLD_WIDTH}px\\) \\{([\\s\\S]*?)\\n\\t\\}`)
+		)?.[1];
+		expect(sheet).toMatch(/\.panel \{[^}]*width: 100%;/);
+		expect(sheet).toMatch(/safe-area-inset-top/);
+		expect(overlaySource).not.toMatch(/\d+vh\b/);
 	});
 });

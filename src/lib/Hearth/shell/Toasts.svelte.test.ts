@@ -2,7 +2,16 @@ import { act, render, screen } from '@testing-library/svelte';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { commandFailure } from '$lib/core/ha/commands';
 import { health } from '$lib/core/ha/connection';
-import { configurationLoadError, hearthLoadError, hearthLoadErrorKind } from '../store';
+import {
+	configurationLoadError,
+	copyState,
+	editor,
+	hearthEditMode,
+	hearthLoadError,
+	hearthLoadErrorKind,
+	saveFailure,
+	saveState
+} from '../store';
 import { LAYERS } from '$lib/core/theme';
 import Toasts from './Toasts.svelte';
 import source from './Toasts.svelte?raw';
@@ -25,6 +34,11 @@ describe('Toasts', () => {
 		hearthLoadErrorKind.set(null);
 		configurationLoadError.set(null);
 		health.set('booting');
+		copyState.set('idle');
+		saveState.set('idle');
+		saveFailure.set(null);
+		editor.set(null);
+		hearthEditMode.set(false);
 		vi.useRealTimers();
 	});
 
@@ -100,5 +114,40 @@ describe('Toasts', () => {
 		}
 		expect(LAYERS.alert).toBeLessThan(LAYERS.confirm);
 		expect(LAYERS.alert).toBeLessThan(LAYERS.screensaver);
+	});
+
+	it('confirms a copy and reports a failed one as an alert', async () => {
+		render(Toasts);
+		await act(() => copyState.set('copied'));
+		expect(screen.getByRole('status').textContent).toContain(en.copied);
+		await act(() => copyState.set('failed'));
+		expect(screen.getByRole('alert').textContent).toContain(en.hearth_copy_failed);
+	});
+
+	it('raises a save conflict above an open sheet, which hides the edit bar', async () => {
+		hearthEditMode.set(true);
+		editor.set({ kind: 'settings' });
+		render(Toasts);
+		await act(() => saveState.set('conflict'));
+		const alert = screen.getByRole('alert');
+		expect(alert.textContent).toContain(en.hearth_config_changed);
+		expect(alert.textContent).toContain(en.hearth_save_close_sheet_hint);
+		expect(zIndexOf('.save-alert')).toBe('var(--h-layer-alert)');
+	});
+
+	it('raises a failed save with its reason above an open sheet', async () => {
+		hearthEditMode.set(true);
+		editor.set({ kind: 'settings' });
+		saveFailure.set('disk full');
+		render(Toasts);
+		await act(() => saveState.set('error'));
+		expect(screen.getByRole('alert').textContent).toContain('disk full');
+	});
+
+	it('leaves a save conflict to the edit bar while no sheet covers it', async () => {
+		hearthEditMode.set(true);
+		render(Toasts);
+		await act(() => saveState.set('conflict'));
+		expect(screen.queryByRole('alert')).toBeNull();
 	});
 });

@@ -110,7 +110,13 @@
 </script>
 
 {#if next || $hearthEditMode}
-	<div class="row" class:inactive={!next}>
+	<button
+		type="button"
+		class="row pressable"
+		class:inactive={!next}
+		use:Ripple={PRESS_RIPPLE}
+		onclick={openCalendar}
+	>
 		<Icon name="event" size={ICON.control} color="var(--h-icon)" />
 		<div class="body">
 			<div class="title">{next?.title ?? $lang('hearth_no_upcoming_events')}</div>
@@ -118,16 +124,8 @@
 				<div class="time">{timeLine}</div>
 			{/if}
 		</div>
-		<button
-			type="button"
-			class="chevron pressable"
-			aria-label={$lang('calendar')}
-			use:Ripple={PRESS_RIPPLE}
-			onclick={openCalendar}
-		>
-			<Icon name="chevron_right" size={ICON.control} color="var(--h-icon)" />
-		</button>
-	</div>
+		<Icon name="chevron_right" size={ICON.control} color="var(--h-icon)" />
+	</button>
 {/if}
 
 <style>
@@ -135,6 +133,7 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
+		width: 100%;
 		padding: 10px 10px 10px 14px;
 		border-radius: var(--h-radius-sm);
 		background: rgb(var(--h-surface-rgb) / calc(0.045 * var(--h-fill-scale)));
@@ -142,6 +141,9 @@
 		box-shadow: var(--h-card-shadow);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.07 * var(--h-line-scale)));
 		margin-bottom: 8px;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
 	}
 
 	.row.inactive {
@@ -166,18 +168,5 @@
 		font-size: var(--h-type-small);
 		color: var(--h-text-5);
 		margin-top: 2px;
-	}
-
-	.chevron {
-		display: grid;
-		place-items: center;
-		width: 44px;
-		height: 44px;
-		margin: -10px -6px -10px 0;
-		padding: 0;
-		border-radius: 50%;
-		cursor: pointer;
-		border: 0;
-		background: none;
 	}
 </style>

@@ -11,6 +11,7 @@
 	} from '$lib/core/ha/history';
 	import type { ChartWidget } from './descriptor';
 	import { applyMath, PERIOD_MS } from './math';
+	import { openEntityDetail } from '$lib/Hearth/details';
 
 	let { widget }: { widget: ChartWidget } = $props();
 
@@ -99,7 +100,7 @@
 	let circumference = 2 * Math.PI * RADIUS;
 </script>
 
-<div class="chart" class:radial={style === 'radial'}>
+{#snippet content()}
 	<div class="head">
 		<span class="name">{label}</span>
 		{#if style !== 'radial'}
@@ -115,6 +116,8 @@
 		{:else}
 			<EmptyState inline text={$lang('hearth_no_recorded_history_for_the_last')} />
 		{/if}
+	{:else if style === 'history' && segments?.length === 0}
+		<EmptyState inline text={$lang('hearth_no_recorded_history_for_the_last')} />
 	{:else if style === 'history'}
 		<div class="timeline" title={stateObj?.state}>
 			{#each segments ?? [] as segment, index (index)}
@@ -156,11 +159,34 @@
 			<span class="reading">{value === null ? '-' : Math.round(value)}{unit || '%'}</span>
 		</div>
 	{/if}
-</div>
+{/snippet}
+{#if stateObj}
+	<button
+		type="button"
+		class="chart pressable"
+		class:radial={style === 'radial'}
+		onclick={() => openEntityDetail(entity)}
+	>
+		{@render content()}
+	</button>
+{:else}
+	<div class="chart" class:radial={style === 'radial'}>{@render content()}</div>
+{/if}
 
 <style>
 	.chart {
+		display: block;
+		width: 100%;
 		padding: 10px 0;
+		border: 0;
+		background: none;
+		font: inherit;
+		color: inherit;
+		text-align: left;
+	}
+
+	button.chart {
+		cursor: pointer;
 	}
 
 	.head {

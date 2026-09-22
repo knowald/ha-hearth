@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
+	import { motion } from '$lib/core/app/motion';
 	import { ICON } from '../iconSizes';
+	import { states } from '$lib/core/ha/entities';
 	import { currentRoom, hearthConfig, hearthEditMode } from '../store';
+	import { searchAvailable } from '../visibility';
 	import Icon from '../Icon.svelte';
 
 	/**
@@ -12,13 +15,18 @@
 	let { onsearch }: { onsearch: () => void } = $props();
 
 	// the rail's own search widget is hidden here, so this button stands in for
-	// it - unless the user hid search on mobile outright
-	let hasSearch = $derived(
-		$hearthConfig.rail.some(
-			(widget) =>
-				widget.type === 'search' && widget.mobile !== 'hidden' && widget.hide_mobile !== true
-		)
-	);
+	// it - unless that widget is hidden on mobile or by its visibility conditions
+	let hasSearch = $derived(searchAvailable($hearthConfig.rail, $states, true));
+
+	// a page picked from search or a ?room= link can sit past the strip's edge
+	let pills: Record<string, HTMLButtonElement | undefined> = {};
+	$effect(() => {
+		pills[$currentRoom]?.scrollIntoView?.({
+			inline: 'nearest',
+			block: 'nearest',
+			behavior: $motion ? 'smooth' : 'auto'
+		});
+	});
 </script>
 
 <nav class="phone-nav" aria-label={$lang('hearth_pages')}>
@@ -29,6 +37,7 @@
 				class="page pressable"
 				class:active={$currentRoom === room.id}
 				aria-current={$currentRoom === room.id ? 'page' : undefined}
+				bind:this={pills[room.id]}
 				onclick={() => currentRoom.set(room.id)}
 			>
 				<Icon name={room.icon} size={ICON.inline} />

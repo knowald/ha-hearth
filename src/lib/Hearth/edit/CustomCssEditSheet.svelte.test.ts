@@ -28,7 +28,7 @@ describe('CustomCssEditSheet', () => {
 		const { container } = render(CustomCssEditSheet);
 		await waitFor(() => expect(container.querySelector('.cm-editor')).toBeTruthy());
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
 		await waitFor(() => expect(get(customCss)).toBe('.card { color: red; }'));
 		expect(fetchMock).toHaveBeenCalledWith(

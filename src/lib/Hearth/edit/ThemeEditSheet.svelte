@@ -21,7 +21,13 @@
 		THEME_PRESETS,
 		type HearthTheme
 	} from '$lib/core/theme';
-	import { editedThemeSlot, editor, hearthConfig, updateConfig } from '../store';
+	import {
+		editedThemeSlot,
+		editor,
+		hearthConfig,
+		requestConfirmation,
+		updateConfig
+	} from '../store';
 	import EditSheet from './EditSheet.svelte';
 	import ColorField from './ColorField.svelte';
 	import EntityField from './EntityField.svelte';
@@ -189,8 +195,16 @@
 		backgroundImageUrl = unwrapUrl(saved.theme.background_image);
 	}
 
+	function confirmDeleteSavedTheme(saved: SavedTheme) {
+		requestConfirmation({
+			title: fill($lang('hearth_delete_theme_confirm'), { name: saved.name }),
+			message: $lang('hearth_delete_theme_message'),
+			confirmLabel: $lang('delete'),
+			action: () => void deleteSavedTheme(saved)
+		});
+	}
+
 	async function deleteSavedTheme(saved: SavedTheme) {
-		if (!confirm(fill($lang('hearth_delete_theme_confirm'), { name: saved.name }))) return;
 		themesError = '';
 		try {
 			const response = await fetch(`${base}/_api/hearth_themes`, {
@@ -251,7 +265,13 @@
 	}
 </script>
 
-<EditSheet title={$lang('theme')} onclose={close} ondone={close} floating>
+<EditSheet
+	title={$lang('theme')}
+	onclose={close}
+	ondone={close}
+	doneLabel={$lang('hearth_close')}
+	floating
+>
 	<div class="slots">
 		<div
 			class="slot pressable"
@@ -278,7 +298,7 @@
 		</div>
 	</div>
 
-	<div class="hint">
+	<div class="field-hint">
 		{#if slot === 'night'}
 			{#if nightEnabled}
 				{$lang('hearth_shown_while_the_switch_entity_reads')}
@@ -300,10 +320,8 @@
 			label={$lang('hearth_night_states')}
 			bind:value={nightState}
 			placeholder="below_horizon"
+			hint={$lang('hearth_comma_separated_when_empty_below_horizon')}
 		/>
-	</div>
-	<div class="hint">
-		{$lang('hearth_comma_separated_when_empty_below_horizon')}
 	</div>
 
 	{#if nightEnabled}
@@ -358,11 +376,11 @@
 	</div>
 
 	{#if themesError}
-		<div class="error">{themesError}</div>
+		<div class="error" role="alert">{themesError}</div>
 	{/if}
 
 	{#if themesLoading}
-		<div class="hint">{$lang('hearth_loading_saved_themes')}</div>
+		<div class="field-hint">{$lang('hearth_loading_saved_themes')}</div>
 	{:else if savedThemes.length}
 		<div class="saved-themes">
 			{#each savedThemes as saved (saved.id)}
@@ -384,7 +402,7 @@
 						type="button"
 						class="icon-button"
 						aria-label={`${$lang('delete')} ${saved.name}`}
-						onclick={() => deleteSavedTheme(saved)}
+						onclick={() => confirmDeleteSavedTheme(saved)}
 					>
 						<Icon name="delete" size={ICON.control} />
 					</button>
@@ -393,7 +411,7 @@
 		</div>
 	{/if}
 
-	<div class="hint">
+	<div class="field-hint">
 		{$lang('hearth_saving_or_deleting_a_theme_writes')}
 	</div>
 
@@ -500,7 +518,7 @@
 		}}
 	/>
 
-	<div class="hint">
+	<div class="field-hint">
 		{$lang('hearth_pickers_set_sensible_derived_shades_automatically')}
 	</div>
 	<div
@@ -597,12 +615,6 @@
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 8px;
 		margin-bottom: 18px;
-	}
-
-	.hint {
-		font-size: var(--h-type-small);
-		color: var(--h-text-6);
-		margin: 4px 0 12px;
 	}
 
 	.reset {

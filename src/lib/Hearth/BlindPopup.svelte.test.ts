@@ -9,7 +9,7 @@ vi.mock('$lib/core/ha/commands', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/core/ha/commands')>()),
 	service: vi.fn()
 }));
-import { service } from '$lib/core/ha/commands';
+import { pendingEntities, service } from '$lib/core/ha/commands';
 import { confirmRequestedAction, dismissConfirmation, requestedConfirmation } from './store';
 
 describe('BlindPopup', () => {
@@ -51,5 +51,17 @@ describe('BlindPopup', () => {
 		render(BlindPopup, { entity: 'cover.gate' });
 		await fireEvent.click(screen.getByRole('button', { name: 'Close cover' }));
 		expect(get(requestedConfirmation)?.title).toBe('Close Gate?');
+	});
+
+	it('pulses the button that moved the blind and leaves its siblings still', async () => {
+		pendingEntities.set({});
+		states.set({ 'cover.blind': hassEntity('cover.blind', 'closed', { current_position: 0 }) });
+		render(BlindPopup, { entity: 'cover.blind' });
+		const open = screen.getByRole('button', { name: 'Open fully' });
+		await fireEvent.click(open);
+		expect(open.classList.contains('pending')).toBe(true);
+		expect(screen.getByRole('button', { name: 'Close cover' }).classList.contains('pending')).toBe(
+			false
+		);
 	});
 });

@@ -117,14 +117,14 @@
 
 {#if active || completionVisible || $hearthEditMode}
 	<svelte:element
-		this={completed && !$hearthEditMode ? 'button' : 'div'}
+		this={completed ? 'button' : 'div'}
 		class="row"
 		class:inactive={!active && !completed}
 		class:completed
-		type={completed && !$hearthEditMode ? 'button' : undefined}
-		role={completed && !$hearthEditMode ? undefined : 'status'}
-		title={completed && !$hearthEditMode ? $lang('hearth_tap_to_dismiss') : undefined}
-		onclick={completed && !$hearthEditMode ? dismissCompletion : undefined}
+		type={completed ? 'button' : undefined}
+		role={completed ? undefined : 'status'}
+		title={completed ? $lang('hearth_tap_to_dismiss') : undefined}
+		onclick={completed ? dismissCompletion : undefined}
 	>
 		<Icon name={widget.icon || 'autorenew'} size={ICON.control} color="var(--h-cool-icon)" />
 		<div class="body">
@@ -140,7 +140,7 @@
 		{#if progressLabel !== null || remaining !== null}
 			<span class="remaining">{[progressLabel, remaining].filter(Boolean).join(' · ')}</span>
 		{/if}
-		{#if completed && !$hearthEditMode}
+		{#if completed}
 			<span class="dismiss" aria-hidden="true">×</span>
 		{/if}
 	</svelte:element>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { lang } from '$lib/core/i18n';
+	import { states } from '$lib/core/ha/entities';
 	import { THEME_PRESETS, type HearthTheme } from '$lib/core/theme';
 	import {
 		currentRoom,
@@ -11,6 +12,7 @@
 		setupWizardOpen
 	} from './store';
 	import { foldedTopCount } from './config';
+	import { railWidgetShown } from './visibility';
 	import ControlPopup from './ControlPopup.svelte';
 	import EmptyState from './EmptyState.svelte';
 	import Rail from './Rail.svelte';
@@ -24,6 +26,8 @@
 	import PhoneNav from './shell/PhoneNav.svelte';
 	import ThemeStyle from './shell/ThemeStyle.svelte';
 	import Toasts from './shell/Toasts.svelte';
+	import NavWidget from './widgets/nav/Widget.svelte';
+	import type { NavWidget as NavWidgetConfig } from './widgets/nav/descriptor';
 	import { wakeLock } from './wakeLock';
 	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
 	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
@@ -31,6 +35,12 @@
 	import { FOLD_QUERY, SHORT_QUERY } from './breakpoints';
 
 	let showSearch = $state(false);
+
+	// search belongs to the running dashboard; every way of asking for it
+	// (rail widget, page switcher, f key) goes through here
+	function openSearch() {
+		if (!$hearthEditMode) showSearch = true;
+	}
 
 	// the folded layout is a different tree, not a restyled one: the rail
 	// splits into the run above the page and the run below it, so which one
@@ -108,21 +118,55 @@
 		mainElement?.scrollTo({ top: 0 });
 	});
 
+	/*
+	 * Pages stay reachable on every layout. The folded layout always has the
+	 * page switcher; a wide rail whose nav widget was removed or is hidden by
+	 * its visibility conditions gets the same page list built in, above the
+	 * rest of the rail. The nav widget's own settings shape only the wide rail.
+	 */
+	const BUILT_IN_NAV: NavWidgetConfig = { id: 'built-in-nav', type: 'nav' };
+	let railHasNav = $derived(
+		$hearthEditMode
+			? $hearthConfig.rail.some((widget) => widget.type === 'nav')
+			: railWidgetShown($hearthConfig.rail, 'nav', $states, { narrow: false })
+	);
+
 	// display-only theme override via ?theme=<preset id>: the matched preset
 	// entry (theme null = default look) replaces the stored theme without
-	// touching the config or undo history
-	let presetOverride = $state<{ theme: HearthTheme | null } | undefined>(undefined);
+	// touching the config or undo history. It would mask theme edits, so it
+	// steps aside while editing and returns when editing ends.
+	let urlPreset = $state<{ theme: HearthTheme | null } | undefined>(undefined);
+	let presetOverride = $derived($hearthEditMode ? undefined : urlPreset);
 
 	// ?menu=false hides the edit-toggle pencil for kiosk frames; edit mode
 	// stays reachable if already active, it just can't be entered from here
 	let hideEditToggle = $state(false);
+
+	/*
+	 * The page on screen is kept in ?room= so a reload or a shared link lands
+	 * on it. Replaced, never pushed: back closes overlays, it does not walk
+	 * through pages. Other parameters and the hash are kept as they are. It
+	 * also runs on popstate, since back from an overlay lands on the entry the
+	 * overlay opened over, whose address can predate a page change since.
+	 */
+	let roomParamRead = $state(false);
+
+	function syncRoomParam() {
+		if (!roomParamRead || !activeRoomId) return;
+		const url = new URL(location.href);
+		if (url.searchParams.get('room') === activeRoomId) return;
+		url.searchParams.set('room', activeRoomId);
+		history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+	}
+
+	$effect(syncRoomParam);
 
 	onMount(() => {
 		const params = new URLSearchParams(location.search);
 		if ($hearthNeedsSetup && !$hearthLoadError) setupWizardOpen.set(true);
 
 		const presetId = params.get('theme');
-		presetOverride = THEME_PRESETS.find((preset) => preset.id === presetId);
+		urlPreset = THEME_PRESETS.find((preset) => preset.id === presetId);
 
 		const roomId = params.get('room');
 		if (roomId && $hearthConfig.rooms.some((room) => room.id === roomId)) {
@@ -130,22 +174,19 @@
 		}
 
 		hideEditToggle = params.get('menu') === 'false';
+		roomParamRead = true;
 	});
 
-	// the override would mask theme edits, so drop it while editing
-	$effect(() => {
-		if ($hearthEditMode) presetOverride = undefined;
-	});
-
-	// the search overlay only opens outside edit mode; entering edit mode
-	// while it happens to be open (not reachable via the UI today, but cheap
-	// to guard) closes it rather than leaving it stranded above the edit bar
+	// search only opens outside edit mode (see openSearch); should edit mode
+	// start while it is open anyway, it closes rather than staying stranded
+	// above the edit bar
 	$effect(() => {
 		if ($hearthEditMode) showSearch = false;
 	});
 </script>
 
-<Keyboard onsearch={() => (showSearch = true)} />
+<svelte:window onpopstate={syncRoomParam} />
+<Keyboard onsearch={openSearch} />
 <ThemeStyle {presetOverride} />
 
 {#snippet pageColumn()}
@@ -183,20 +224,23 @@
 		bind:this={layoutElement}
 		use:scrollEdges={{ report: (edges) => (layoutCut = edges) }}
 	>
-		<PhoneNav onsearch={() => (showSearch = true)} />
+		<PhoneNav onsearch={openSearch} />
 		{#if $narrow}
 			{#if leadingWidgets > 0}
 				<div class="rail-run">
-					<Rail mobileSlot="top" compact={$shortScreen} onsearch={() => (showSearch = true)} />
+					<Rail mobileSlot="top" compact={$shortScreen} onsearch={openSearch} />
 				</div>
 			{/if}
 			{@render pageColumn()}
 			<div class="rail-run trailing">
-				<Rail mobileSlot="bottom" compact={$shortScreen} onsearch={() => (showSearch = true)} />
+				<Rail mobileSlot="bottom" compact={$shortScreen} onsearch={openSearch} />
 			</div>
 		{:else}
 			<div class="rail-scroll">
-				<Rail onsearch={() => (showSearch = true)} />
+				{#if !railHasNav}
+					<NavWidget widget={BUILT_IN_NAV} />
+				{/if}
+				<Rail onsearch={openSearch} />
 			</div>
 			{@render pageColumn()}
 		{/if}

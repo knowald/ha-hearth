@@ -7,7 +7,10 @@
 		saveWithFeedback,
 		undoConfig
 	} from '../store';
+	import { states } from '$lib/core/ha/entities';
 	import { layerDepth } from '$lib/ui/layers';
+	import { FOLD_QUERY } from '../breakpoints';
+	import { searchAvailable } from '../visibility';
 
 	/** Global shortcuts: f for search, cmd/ctrl+s and cmd/ctrl+z while editing. */
 	let { onsearch }: { onsearch: () => void } = $props();
@@ -19,12 +22,12 @@
 		if (
 			!typing &&
 			!$hearthEditMode &&
-			$hearthConfig.rail.some((widget) => widget.type === 'search') &&
 			!$layerDepth &&
 			event.key === 'f' &&
 			!event.metaKey &&
 			!event.ctrlKey &&
-			!event.altKey
+			!event.altKey &&
+			searchAvailable($hearthConfig.rail, $states, window.matchMedia?.(FOLD_QUERY).matches ?? false)
 		) {
 			event.preventDefault();
 			onsearch();

@@ -2,13 +2,13 @@
 	import { ICON } from './iconSizes';
 	import Ripple from '$lib/ui/actions/ripple';
 	import StateLogic from '$lib/ui/StateLogic.svelte';
-	import { lang, fill } from '$lib/core/i18n';
+	import { lang } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import type { SliderUpdateMode } from '$lib/core/app/configuration';
 	import { PRESS_RIPPLE } from './config';
 	import { domainDescriptor, domainIcon, entityIsReadout } from '$lib/core/domains';
 	import { getTogglableService } from '$lib/core/ha/entities';
-	import { hearthEditMode, popup, requestConfirmation } from './store';
+	import { hearthEditMode, requestConfirmation } from './store';
 	import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
 	import {
 		entityActiveFor,
@@ -17,7 +17,8 @@
 		sensorNumber
 	} from '$lib/core/ha/entities';
 	import { toggleEntity } from '$lib/core/domains/entity';
-	import { openEntityDetail } from '$lib/Hearth/details';
+	import { guardLockCommand } from '$lib/core/domains/lock';
+	import { detailOffersMore, openEntityDetail } from '$lib/Hearth/details';
 	import BlindTile from './BlindTile.svelte';
 	import Icon from './Icon.svelte';
 	import LightTile from './LightTile.svelte';
@@ -70,50 +71,45 @@
 					: 'none'
 				: 'modal'
 	);
-	let interactive = $derived(
-		$hearthEditMode || (!readonly && controllable && tapSurface !== 'none')
+	// read only means no commands: a history chart still opens, controls do not
+	let opens = $derived(!readonly || tapSurface === 'history');
+	let interactive = $derived($hearthEditMode || (opens && controllable && tapSurface !== 'none'));
+	// a toggle whose detail sheet only repeats the tap earns no tune glyph
+	let tunable = $derived(
+		!readonly &&
+			controllable &&
+			tapSurface !== 'none' &&
+			(tapSurface !== 'toggle' || detailOffersMore(entity))
 	);
+
+	function openDetail() {
+		openEntityDetail(entity, name, { icon, sliderUpdates });
+	}
 
 	function handleClick() {
 		if ($hearthEditMode) {
 			onedit?.();
-		} else if (readonly) {
-			// a readout: no command, and no detail sheet either, since every one of
-			// them offers controls for a controllable domain
+		} else if (!controllable || !opens) {
 			return;
-		} else if (!controllable) {
-			return;
+		} else if (tapSurface === 'history') {
+			openDetail();
 		} else if (domain === 'lock') {
-			const unlocking = stateObj?.state === 'locked';
-			const verb = $lang(unlocking ? 'hearth_unlock' : 'hearth_lock');
-			requestConfirmation({
-				title: $lang(unlocking ? 'hearth_unlock_door_question' : 'hearth_lock_door_question'),
-				message: fill(
-					$lang(unlocking ? 'hearth_unlock_confirm_message' : 'hearth_lock_confirm_message'),
-					{ label: label }
-				),
-				confirmLabel: verb,
-				action: () => toggleEntity(entity)
-			});
+			guardLockCommand(
+				entity,
+				stateObj?.state === 'locked' ? 'unlock' : 'lock',
+				requestConfirmation,
+				label
+			);
 		} else if (tapSurface === 'toggle') {
 			toggleEntity(entity);
-		} else if (tapSurface === 'history') {
-			popup.set({ kind: 'sensor', entity, name: label });
 		} else if (tapSurface === 'modal') {
-			openEntityDetail(entity, name);
+			openDetail();
 		}
 	}
 
 	function openControls() {
-		if ($hearthEditMode || readonly || !controllable) return;
-		if (domain === 'fan') {
-			// the fan sheet exposes speed controls
-			popup.set({ kind: 'fan', entity, name: label });
-		} else if (tapSurface === 'history') {
-			popup.set({ kind: 'sensor', entity, name: label });
-		} else if (tapSurface !== 'none') {
-			openEntityDetail(entity, name);
-		}
+		if ($hearthEditMode || !controllable || !opens) return;
+		if (tapSurface !== 'none') openDetail();
 	}
 </script>
 
@@ -135,7 +131,7 @@
 		use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
 		use:longPress={{
 			hold: openControls,
-			disabled: $hearthEditMode || readonly || !controllable
+			disabled: $hearthEditMode || !opens || !controllable
 		}}
 		onclick={handleClick}
 		onkeydown={(event) => activateOnKeyboard(event, event.shiftKey ? openControls : handleClick)}
@@ -157,7 +153,7 @@
 		</div>
 		{#if $hearthEditMode && onedit}
 			<TuneButton icon="edit" onopen={onedit} alignEdge />
-		{:else if showTune && !$hearthEditMode && !readonly && controllable && tapSurface !== 'none'}
+		{:else if showTune && !$hearthEditMode && tunable}
 			<TuneButton alignEdge onopen={openControls} />
 		{/if}
 	</div>

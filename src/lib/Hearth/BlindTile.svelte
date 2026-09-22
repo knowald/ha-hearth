@@ -6,12 +6,19 @@
 	import type { SliderUpdateMode } from '$lib/core/app/configuration';
 	import { capitalize, PRESS_RIPPLE } from './config';
 	import { hearthEditMode, popup, requestConfirmation } from './store';
-	import { blindPositionFor, guardCoverMotion, toggleBlind } from '$lib/core/domains/cover';
+	import {
+		blindPositionFor,
+		coverIsAccessPoint,
+		guardCoverMotion,
+		setBlindPosition,
+		toggleBlind
+	} from '$lib/core/domains/cover';
 	import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
 	import { entityAvailability, entityControllable } from '$lib/core/ha/entities';
 	import Icon from './Icon.svelte';
 	import TuneButton from './TuneButton.svelte';
-	import { activateOnKeyboard, longPress } from './interaction';
+	import { horizontalDrag } from './drag';
+	import { activateOnKeyboard } from './interaction';
 
 	let {
 		entity,
@@ -53,10 +60,30 @@
 
 	let pending = $derived($pendingEntities[entity] !== undefined);
 	let interactive = $derived($hearthEditMode || (!readonly && controllable));
+	let accessPoint = $derived(coverIsAccessPoint($states?.[entity]));
+
 	function handleClick() {
 		if ($hearthEditMode) return onedit?.();
 		if (readonly || !controllable) return;
 		guardCoverMotion([entity], !open, () => toggleBlind(entity), requestConfirmation, label);
+	}
+
+	function openControls() {
+		popup.set({ kind: 'blind', entity, name: label, icon, sliderUpdates });
+	}
+
+	// a door or gate commits only on release, so the drag asks once
+	function slide(value: number, commit: boolean) {
+		setBlindPosition(entity, value, false);
+		if (!commit) return;
+		const current = blindPositionFor(entity, $states, {});
+		guardCoverMotion(
+			[entity],
+			value > current,
+			() => setBlindPosition(entity, value),
+			requestConfirmation,
+			label
+		);
 	}
 </script>
 
@@ -72,17 +99,21 @@
 	tabindex={interactive ? 0 : -1}
 	aria-pressed={open}
 	use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
-	use:longPress={{
-		hold: () => popup.set({ kind: 'blind', entity, name: label, sliderUpdates }),
-		disabled: $hearthEditMode || readonly || !controllable
-	}}
-	onclick={handleClick}
+	onclick={() => $hearthEditMode && onedit?.()}
 	onkeydown={(event) =>
 		activateOnKeyboard(event, () =>
 			event.shiftKey && controllable && !readonly && !$hearthEditMode
-				? popup.set({ kind: 'blind', entity, name: label, sliderUpdates })
+				? openControls()
 				: handleClick()
 		)}
+	use:horizontalDrag={{
+		set: slide,
+		updateMode: accessPoint ? 'release' : sliderUpdates,
+		tap: handleClick,
+		hold: openControls,
+		disabled: $hearthEditMode || readonly || !controllable,
+		ignore: '.tune'
+	}}
 >
 	<div class="fill" style:width="{position}%"></div>
 	<div class="content">
@@ -103,10 +134,7 @@
 	{#if $hearthEditMode && onedit}
 		<TuneButton icon="edit" onopen={onedit} alignEdge />
 	{:else if showTune && !$hearthEditMode && !readonly && controllable}
-		<TuneButton
-			alignEdge
-			onopen={() => popup.set({ kind: 'blind', entity, name: label, sliderUpdates })}
-		/>
+		<TuneButton alignEdge onopen={openControls} />
 	{/if}
 </div>
 

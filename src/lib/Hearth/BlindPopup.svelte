@@ -13,9 +13,10 @@
 		setBlindPosition,
 		setBlindTiltPosition
 	} from '$lib/core/domains/cover';
-	import { callEntityService, controlOverrides } from '$lib/core/ha/commands';
+	import { callEntityService, controlOverrides, markPending } from '$lib/core/ha/commands';
 	import { requestConfirmation } from './store';
 	import PopupSlider from './PopupSlider.svelte';
+	import { pressFeedback } from './pressFeedback';
 	import './buttons.css';
 
 	let {
@@ -39,12 +40,16 @@
 	let position = $derived(blindPositionFor(entity, $states, $controlOverrides));
 	let accessPoint = $derived(coverIsAccessPoint($states?.[entity]));
 
-	function moveTo(target: number) {
+	function moveTo(target: number, discrete = false) {
 		const current = blindPositionFor(entity, $states, {});
 		guardCoverMotion(
 			[entity],
 			target > current,
-			() => setBlindPosition(entity, target),
+			() => {
+				setBlindPosition(entity, target);
+				// a drag previews through its override; a button press pulses
+				if (discrete) markPending(entity);
+			},
 			requestConfirmation
 		);
 	}
@@ -74,7 +79,8 @@
 		type="button"
 		class="hearth-button secondary pressable"
 		use:Ripple={PRESS_RIPPLE}
-		onclick={() => moveTo(0)}
+		use:pressFeedback={entity}
+		onclick={() => moveTo(0, true)}
 	>
 		{$lang('hearth_close_cover')}
 	</button>
@@ -83,6 +89,7 @@
 			type="button"
 			class="hearth-button secondary pressable"
 			use:Ripple={PRESS_RIPPLE}
+			use:pressFeedback={entity}
 			onclick={() => callCoverService('stop_cover')}
 		>
 			{$lang('stop')}
@@ -92,7 +99,8 @@
 		type="button"
 		class="hearth-button primary pressable"
 		use:Ripple={PRESS_RIPPLE}
-		onclick={() => moveTo(100)}
+		use:pressFeedback={entity}
+		onclick={() => moveTo(100, true)}
 	>
 		{$lang('hearth_open_fully')}
 	</button>
@@ -116,6 +124,7 @@
 				type="button"
 				class="hearth-button secondary pressable"
 				use:Ripple={PRESS_RIPPLE}
+				use:pressFeedback={entity}
 				onclick={() => callCoverService('close_cover_tilt')}
 			>
 				{$lang('hearth_close_tilt')}
@@ -126,6 +135,7 @@
 				type="button"
 				class="hearth-button secondary pressable"
 				use:Ripple={PRESS_RIPPLE}
+				use:pressFeedback={entity}
 				onclick={() => callCoverService('stop_cover_tilt')}
 			>
 				{$lang('hearth_stop_tilt')}
@@ -136,6 +146,7 @@
 				type="button"
 				class="hearth-button primary pressable"
 				use:Ripple={PRESS_RIPPLE}
+				use:pressFeedback={entity}
 				onclick={() => callCoverService('open_cover_tilt')}
 			>
 				{$lang('hearth_open_tilt')}

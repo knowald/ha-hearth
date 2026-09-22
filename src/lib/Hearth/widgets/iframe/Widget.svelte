@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
-	import { hearthEditMode } from '../../store';
 	import type { IframeWidget } from './descriptor';
 
 	let { widget }: { widget: IframeWidget } = $props();
@@ -14,7 +13,6 @@
 	sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
 	referrerpolicy="strict-origin-when-cross-origin"
 	style:height="{widget.height ?? 150}px"
-	style:pointer-events={$hearthEditMode ? 'none' : undefined}
 ></iframe>
 
 <style>

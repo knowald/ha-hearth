@@ -48,10 +48,10 @@ test('loads an imported file into the editor without applying it', async ({ page
 
 	await expect(dialog.getByText('File loaded into the editor')).toBeVisible();
 	await expect(dialog.locator('.cm-content')).toContainText('Den');
-	// nothing reaches the dashboard until Done
+	// nothing reaches the dashboard until Apply
 	await expect(page.locator('.rail').getByRole('button', { name: 'Den' })).toHaveCount(0);
 
-	await dialog.getByRole('button', { name: 'Done' }).click();
+	await dialog.getByRole('button', { name: 'Apply' }).click();
 	await expect(page.locator('.rail').getByRole('button', { name: 'Den' })).toBeVisible();
 });
 
@@ -105,7 +105,8 @@ test('a draft parked for Versions is dropped when Versions is closed', async ({ 
 	await dialog.getByRole('button', { name: 'Versions' }).click();
 	const versions = page.getByRole('dialog', { name: 'Versions' });
 	await expect(versions).toBeVisible();
-	await versions.getByRole('button', { name: 'Close' }).click();
+	// the header's text action and its close icon both read Close
+	await versions.getByRole('button', { name: 'Close' }).last().click();
 	await expect(versions).toBeHidden();
 
 	// the abandoned draft would otherwise come back and overwrite the dashboard

@@ -2,7 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from '../config';
-import { editor, hearthConfig, hearthEditMode } from '../store';
+import en from '../../../../static/translations/en.json';
+import { editor, hearthConfig, hearthEditMode, requestedConfirmation } from '../store';
 import CardColumns from '../CardColumns.svelte';
 import StackEditSheet from './StackEditSheet.svelte';
 
@@ -64,5 +65,57 @@ describe('adding a stack', () => {
 		render(StackEditSheet, { roomId: 'den', column: 0, index: 0 });
 		expect(screen.getByRole('dialog', { name: 'Edit stack' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Unwrap' })).toBeTruthy();
+	});
+});
+
+describe('editing a stack', () => {
+	beforeEach(() => {
+		seed();
+		const config = get(hearthConfig);
+		config.rooms[0].cards[0].push({ id: 'first', type: 'entities', entities: [] } as never, {
+			id: 'stack',
+			kind: 'stack',
+			direction: 'vertical',
+			fill: 0,
+			cards: [{ id: 'inner', type: 'entities', entities: [] } as never]
+		});
+		hearthConfig.set(config);
+	});
+
+	afterEach(() => {
+		editor.set(null);
+		requestedConfirmation.set(null);
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+	});
+
+	it('unwraps at once, as the non-destructive action it is', async () => {
+		render(StackEditSheet, { roomId: 'den', column: 0, index: 1 });
+		const unwrap = screen.getByRole('button', { name: 'Unwrap' });
+		expect(unwrap.classList.contains('danger')).toBe(false);
+		await fireEvent.click(unwrap);
+		expect(get(requestedConfirmation)).toBeNull();
+		expect(denColumn().map((item) => item.id)).toEqual(['first', 'inner']);
+	});
+
+	it('offers the same fill choices as a card and keeps an explicit none', () => {
+		render(StackEditSheet, { roomId: 'den', column: 0, index: 1 });
+		const select = screen.getByRole('combobox', {
+			name: en.hearth_fill_leftover_height
+		}) as HTMLSelectElement;
+		expect([...select.options].map((option) => option.value)).toEqual(['', '0', '1', '2', '3']);
+		expect(select.options[0].textContent).toBe(en.hearth_fill_default_stack);
+		expect(select.value).toBe('0');
+	});
+
+	it('moves up from the header and still saves the moved stack', async () => {
+		render(StackEditSheet, { roomId: 'den', column: 0, index: 1 });
+		await fireEvent.click(screen.getByTitle(en.hearth_move_up));
+		expect(denColumn().map((item) => item.id)).toEqual(['stack', 'first']);
+		await fireEvent.input(screen.getByRole('textbox', { name: en.hearth_title_optional }), {
+			target: { value: 'Lights' }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+		expect(denColumn()[0]).toMatchObject({ id: 'stack', title: 'Lights' });
+		expect(denColumn()[1]).not.toHaveProperty('title');
 	});
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -7,6 +7,8 @@ import {
 	editor,
 	requestedConfirmation
 } from '../store';
+import { configuration } from '$lib/core/app/configuration';
+import en from '../../../../static/translations/en.json';
 import AppSettingsEditSheet from './AppSettingsEditSheet.svelte';
 
 function stageAChange() {
@@ -75,5 +77,73 @@ describe('AppSettingsEditSheet', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 		expect(get(requestedConfirmation)).toBeNull();
 		expect(get(editor)).toBeNull();
+	});
+
+	it('names its header action Save, since it writes to the server', () => {
+		render(AppSettingsEditSheet);
+		expect(screen.getByRole('button', { name: en.save })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: en.done })).toBeNull();
+	});
+
+	it('asks through the shared dialog before logging out', async () => {
+		const confirmSpy = vi.fn(() => true);
+		vi.stubGlobal('confirm', confirmSpy);
+		render(AppSettingsEditSheet);
+		await fireEvent.click(screen.getByRole('button', { name: new RegExp(en.log_out) }));
+		expect(confirmSpy).not.toHaveBeenCalled();
+		expect(get(requestedConfirmation)).toMatchObject({
+			title: en.hearth_logout_confirm,
+			confirmLabel: en.log_out
+		});
+	});
+});
+
+describe('AppSettingsEditSheet revision conflict', () => {
+	const saves: Record<string, unknown>[] = [];
+
+	beforeEach(() => {
+		saves.length = 0;
+		configuration.set({ locale: 'en', revision: 4 } as never);
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (address: string, init?: RequestInit) => {
+				if (!address.endsWith('/_api/save_config'))
+					return { ok: false, json: async (): Promise<unknown> => null };
+				const body: { revision?: number } = JSON.parse(String(init?.body));
+				saves.push(body);
+				return body.revision === 7
+					? { ok: true, status: 200, json: async (): Promise<unknown> => ({ revision: 8 }) }
+					: {
+							ok: false,
+							status: 409,
+							json: async (): Promise<unknown> => ({ error: 'conflict', revision: 7 })
+						};
+			})
+		);
+		editor.set({ kind: 'appSettings' });
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		dismissConfirmation();
+		editor.set(null);
+		configuration.set(undefined as never);
+	});
+
+	it('explains the conflict and overwrites with the revision the server returned', async () => {
+		render(AppSettingsEditSheet);
+		await stageAChange();
+		await fireEvent.click(screen.getByRole('button', { name: en.save }));
+		const alert = await screen.findByRole('alert');
+		expect(alert.textContent).toContain(en.hearth_app_settings_changed);
+		expect(alert.textContent).not.toContain('409');
+		expect(screen.getByRole('button', { name: en.hearth_reload })).toBeTruthy();
+
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_overwrite }));
+		expect(get(requestedConfirmation)?.title).toBe(en.hearth_overwrite_newer_app_settings);
+		confirmRequestedAction();
+		await waitFor(() => expect(get(editor)).toBeNull());
+		expect(saves.map((save) => save.revision)).toEqual([4, 7]);
+		expect(get(configuration)?.revision).toBe(8);
 	});
 });

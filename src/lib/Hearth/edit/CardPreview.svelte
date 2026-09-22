@@ -6,6 +6,7 @@
 	import { provideHearthInteractionMode } from '../interaction';
 	import CardRenderer from '../CardRenderer.svelte';
 	import Icon from '../Icon.svelte';
+	import PreviewPane from './PreviewPane.svelte';
 
 	let {
 		card,
@@ -21,49 +22,23 @@
 	);
 </script>
 
-<aside class="pane">
-	<div class="heading" class:empty={!reorderable}>
-		<div class="label">{$lang('hearth_live_preview')}</div>
-		{#if reorderable}
-			<button
-				type="button"
-				class:active={reorder}
-				aria-pressed={reorder}
-				onclick={() => (reorder = !reorder)}
-			>
-				<Icon name="drag_indicator" size={ICON.inline} />
-				{$lang(reorder ? 'hearth_finish_reorder' : 'hearth_reorder')}
-			</button>
-		{/if}
-	</div>
-	<div class="preview" class:interactive>
-		<CardRenderer {card} {onentitiesreorder} showEntityDragHandles={reorderable && reorder} />
-	</div>
-</aside>
+{#snippet reorderToggle()}
+	<button
+		type="button"
+		class:active={reorder}
+		aria-pressed={reorder}
+		onclick={() => (reorder = !reorder)}
+	>
+		<Icon name="drag_indicator" size={ICON.inline} />
+		{$lang(reorder ? 'hearth_finish_reorder' : 'hearth_reorder')}
+	</button>
+{/snippet}
+
+<PreviewPane {interactive} actions={reorderable ? reorderToggle : undefined}>
+	<CardRenderer {card} {onentitiesreorder} showEntityDragHandles={reorderable && reorder} />
+</PreviewPane>
 
 <style>
-	.pane {
-		position: sticky;
-		top: 0;
-		min-width: 0;
-		align-self: start;
-	}
-
-	.heading {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		margin-bottom: 10px;
-	}
-
-	.label {
-		color: var(--h-label);
-		font-family: var(--h-font-mono);
-		font-size: var(--h-type-label);
-		letter-spacing: 2px;
-	}
-
 	button {
 		display: flex;
 		align-items: center;
@@ -83,43 +58,5 @@
 		border-color: rgb(var(--h-accent-rgb) / calc(0.35 * var(--h-accent-scale)));
 		background: rgb(var(--h-accent-rgb) / calc(0.1 * var(--h-accent-scale)));
 		color: var(--h-accent-text);
-	}
-
-	.preview {
-		max-height: calc(100dvh - 210px);
-		padding: 14px;
-		margin-bottom: 14px;
-		overflow: auto;
-		border-radius: var(--h-radius-md);
-		background: var(--h-inset);
-		pointer-events: none;
-	}
-
-	.preview.interactive {
-		pointer-events: auto;
-	}
-
-	/* see breakpoints.ts */
-	@media (max-width: 900px) {
-		/* fields first on narrow screens; the preview follows them */
-		.pane {
-			padding: 12px;
-			margin: 12px -12px 0;
-			border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
-			background: var(--h-sheet-0);
-		}
-
-		.label {
-			display: none;
-		}
-
-		.heading.empty {
-			display: none;
-		}
-
-		.preview {
-			max-height: 30dvh;
-			margin-bottom: 0;
-		}
 	}
 </style>

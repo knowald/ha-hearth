@@ -7,7 +7,7 @@
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from '../config';
 	import { downloadText } from '$lib/ui/download';
-	import { editor, hearthConfig, updateConfig } from '../store';
+	import { editor, hearthConfig, updateConfig, type Editor } from '../store';
 	import {
 		configDocument,
 		documentIssue,
@@ -26,10 +26,10 @@
 	}
 
 	/**
-	 * Where the back arrow returns to, when the sheet was opened from another,
-	 * and the unapplied YAML draft that sheet handed over for the trip.
+	 * The sheet the back arrow returns to, when this one was opened from
+	 * another, including any unapplied YAML draft it handed over for the trip.
 	 */
-	let { from, draft }: { from?: 'code'; draft?: string } = $props();
+	let { from }: { from?: Editor } = $props();
 
 	// the document a restore would replace, frozen at open time
 	const dashboard = configDocument($hearthConfig);
@@ -122,12 +122,12 @@
 <EditSheet
 	title={$lang('hearth_versions')}
 	onclose={() => editor.set(null)}
-	onback={from === 'code' ? () => editor.set({ kind: 'code', draft }) : undefined}
-	ondone={restore}
-	doneDisabled={content === null || !!issue || unchanged}
+	onback={from ? () => editor.set(from) : undefined}
+	ondone={() => editor.set(null)}
+	doneLabel={$lang('hearth_close')}
 	wide
 >
-	<div class="hint">{$lang('hearth_versions_hint')}</div>
+	<div class="field-hint">{$lang('hearth_versions_hint')}</div>
 	{#if error}
 		<div class="error" role="alert">{error}</div>
 	{/if}
@@ -179,7 +179,7 @@
 		</div>
 		<div class="preview">
 			{#if comparable === null}
-				<div class="hint">{$lang('hearth_loading')}</div>
+				<div class="field-hint">{$lang('hearth_loading')}</div>
 			{:else}
 				<div class="preview-bar">
 					{#if unchanged}
@@ -221,12 +221,6 @@
 </EditSheet>
 
 <style>
-	.hint {
-		font-size: var(--h-type-small);
-		color: var(--h-text-6);
-		margin: 4px 0 12px;
-	}
-
 	.error {
 		font-size: var(--h-type-small);
 		color: var(--h-bad-text);

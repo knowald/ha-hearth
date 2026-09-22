@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { autocompleteOpen } from './codeEditorState';
 import { layer, layerDepth, pushLayer } from './layers';
 
@@ -170,5 +170,79 @@ describe('layer action focus', () => {
 		expect(document.activeElement).toBe(buttons[1]);
 		action.destroy();
 		node.remove();
+	});
+});
+
+describe('layers and history', () => {
+	const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
+	const pressBack = () => window.dispatchEvent(new PopStateEvent('popstate'));
+
+	beforeEach(async () => {
+		await settle();
+		vi.restoreAllMocks();
+	});
+
+	it('pushes one entry while layers are open and closes the top layer on back', async () => {
+		const push = vi.spyOn(history, 'pushState');
+		const back = vi.spyOn(history, 'back').mockImplementation(pressBack);
+		const lower = vi.fn();
+		const releaseLower = pushLayer(lower);
+		let releaseUpper = () => {};
+		const upper = vi.fn(() => releaseUpper());
+		releaseUpper = pushLayer(upper);
+		await settle();
+		expect(push).toHaveBeenCalledTimes(1);
+
+		pressBack();
+		expect(upper).toHaveBeenCalledTimes(1);
+		expect(lower).not.toHaveBeenCalled();
+		await settle();
+		// the lower layer is still open, so back must reach it next
+		expect(push).toHaveBeenCalledTimes(2);
+
+		releaseLower();
+		await settle();
+		// closed without back: our entry comes off, and that pop closes nothing
+		expect(back).toHaveBeenCalledTimes(1);
+		expect(lower).not.toHaveBeenCalled();
+	});
+
+	it('does not touch history when back itself closed the last layer', async () => {
+		vi.spyOn(history, 'pushState');
+		const back = vi.spyOn(history, 'back').mockImplementation(pressBack);
+		let release = () => {};
+		release = pushLayer(() => release());
+		await settle();
+		pressBack();
+		await settle();
+		expect(back).not.toHaveBeenCalled();
+		expect(get(layerDepth)).toBe(0);
+	});
+
+	it('reuses the entry when one layer replaces another', async () => {
+		const push = vi.spyOn(history, 'pushState');
+		const back = vi.spyOn(history, 'back').mockImplementation(pressBack);
+		const releaseSearch = pushLayer(() => {});
+		await settle();
+		releaseSearch();
+		const releaseDetail = pushLayer(() => {});
+		await settle();
+		expect(push).toHaveBeenCalledTimes(1);
+		expect(back).not.toHaveBeenCalled();
+		releaseDetail();
+		await settle();
+		expect(back).toHaveBeenCalledTimes(1);
+	});
+
+	it('closes on Escape without a second close from the history pop', async () => {
+		vi.spyOn(history, 'pushState');
+		vi.spyOn(history, 'back').mockImplementation(pressBack);
+		let release = () => {};
+		const close = vi.fn(() => release());
+		release = pushLayer(close);
+		await settle();
+		pressEscape();
+		await settle();
+		expect(close).toHaveBeenCalledTimes(1);
 	});
 });

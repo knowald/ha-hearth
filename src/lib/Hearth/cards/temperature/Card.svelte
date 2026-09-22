@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ICON } from '../../iconSizes';
 	import { lang } from '$lib/core/i18n';
-	import { connected } from '$lib/core/ha/connection';
+	import { config, connected } from '$lib/core/ha/connection';
 	import { states } from '$lib/core/ha/entities';
 	import type { OverviewCard } from '../../config';
 	import { cachedData, fetchStatisticSeries, startDataRefresh } from '$lib/core/ha/history';
@@ -9,6 +9,7 @@
 	import { controlOverrides } from '$lib/core/ha/commands';
 	import { sensorNumber } from '$lib/core/ha/entities';
 	import { setClimateTemperature } from '$lib/core/domains/climate';
+	import { formatReading } from '../../format';
 	import Icon from '../../Icon.svelte';
 
 	let { card }: { card: Extract<OverviewCard, { type: 'temperature' }> } = $props();
@@ -99,9 +100,7 @@
 		};
 	});
 
-	function formatReading(reading: number) {
-		return reading % 1 === 0 ? String(reading) : reading.toFixed(1);
-	}
+	let temperatureUnit = $derived($config?.unit_system?.temperature ?? '°');
 
 	// gradient ids are per-card: duplicated ids across cards would make every
 	// area fill resolve against whichever card rendered first
@@ -113,14 +112,14 @@
 		<div>
 			<div class="label">{card.label ?? ''}</div>
 			<div class="reading">
-				<span class="value">{value === null ? '-' : value.toFixed(1)}</span>
+				<span class="value">{formatReading(value)}</span>
 				<span class="unit">{card.unit ?? ''}</span>
 			</div>
 		</div>
 		{#if climate && target !== null}
 			<div class="thermostat">
 				<div class="target-label">{$lang('hearth_target')}</div>
-				<div class="target-value">{target.toFixed(1)}°</div>
+				<div class="target-value">{formatReading(target, temperatureUnit)}</div>
 				<div class="target-buttons">
 					<button
 						type="button"
@@ -176,7 +175,7 @@
 			{#if chart.targetY !== null && target !== null}
 				<div class="target-line-label" style:top="{(chart.targetY / CHART_HEIGHT) * 100}%">
 					{$lang('hearth_target')}
-					{target.toFixed(1)}
+					{formatReading(target, temperatureUnit)}
 				</div>
 			{/if}
 		</div>

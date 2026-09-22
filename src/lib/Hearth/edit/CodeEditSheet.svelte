@@ -5,7 +5,7 @@
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from '../config';
 	import { downloadText, pickTextFile } from '$lib/ui/download';
-	import { editor, hearthConfig, updateConfig } from '../store';
+	import { editor, hearthConfig, updateConfig, type Editor } from '../store';
 	import { configDocument, documentIssue, parseDocument, transferFileName } from '../transfer';
 	import EditSheet from './EditSheet.svelte';
 	import Icon from '../Icon.svelte';
@@ -17,7 +17,7 @@
 	 * the editor state instead, so the Back arrow is the only thing that hands
 	 * it back and closing the editor drops it.
 	 */
-	let { draft }: { draft?: string } = $props();
+	let { draft, from }: { draft?: string; from?: Editor } = $props();
 
 	// snapshot at open time - the editor owns the draft until Apply/discard,
 	// it doesn't track further store changes while the sheet is open
@@ -60,17 +60,19 @@
 		value = text;
 		source = text;
 		reloadView = true;
-		loaded = $lang('hearth_import_file_loaded');
+		loaded = $lang('hearth_import_file_loaded_apply');
 	}
 </script>
 
 <EditSheet
 	title={$lang('hearth_configuration_yaml')}
 	onclose={close}
+	onback={from ? () => editor.set(from) : undefined}
 	ondone={apply}
+	doneLabel={$lang('hearth_apply')}
 	doneDisabled={!!error}
 >
-	<div class="hint">
+	<div class="field-hint">
 		{$lang('hearth_edits_the_whole_configuration_applies_as')}
 	</div>
 	<div class="toolbar">
@@ -86,7 +88,7 @@
 			type="button"
 			class="tool pressable"
 			use:Ripple={PRESS_RIPPLE}
-			onclick={() => editor.set({ kind: 'versions', from: 'code', draft: value })}
+			onclick={() => editor.set({ kind: 'versions', from: { kind: 'code', draft: value, from } })}
 		>
 			<Icon name="history" size={ICON.inline} />
 			{$lang('hearth_versions')}
@@ -110,19 +112,13 @@
 		{/await}
 	</div>
 	{#if error}
-		<div class="error">{error}</div>
+		<div class="error" role="alert">{error}</div>
 	{:else if loaded}
 		<div class="loaded">{loaded}</div>
 	{/if}
 </EditSheet>
 
 <style>
-	.hint {
-		font-size: var(--h-type-small);
-		color: var(--h-text-6);
-		margin: 4px 0 12px;
-	}
-
 	.toolbar {
 		display: flex;
 		flex-wrap: wrap;

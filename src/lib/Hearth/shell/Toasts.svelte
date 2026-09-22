@@ -8,9 +8,12 @@
 	import { lang } from '$lib/core/i18n';
 	import {
 		configurationLoadError,
+		copyState,
+		editor,
 		hearthEditMode,
 		hearthLoadError,
 		hearthLoadErrorKind,
+		saveFailure,
 		saveState,
 		type HearthErrorKind
 	} from '../store';
@@ -95,6 +98,33 @@
 	<div class="save-toast" transition:fade={{ duration: $motion ? MOTION.slow : 0 }}>
 		<Icon name="check_circle" size={ICON.control} />
 		{$lang('saved')}
+	</div>
+{/if}
+{#if $copyState !== 'idle'}
+	<div
+		class="save-toast"
+		class:failed={$copyState === 'failed'}
+		class:editing={$hearthEditMode}
+		role={$copyState === 'failed' ? 'alert' : 'status'}
+		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
+	>
+		<Icon name={$copyState === 'failed' ? 'error' : 'content_copy'} size={ICON.control} />
+		{$lang($copyState === 'failed' ? 'hearth_copy_failed' : 'copied')}
+	</div>
+{/if}
+<!-- an open sheet covers the edit bar, which otherwise carries this state and its actions -->
+{#if $hearthEditMode && $editor && ($saveState === 'conflict' || $saveState === 'error')}
+	<div class="save-alert" role="alert" transition:fade={{ duration: $motion ? MOTION.slow : 0 }}>
+		<Icon name="error" size={ICON.control} />
+		<div>
+			{#if $saveState === 'conflict'}
+				<strong>{$lang('hearth_config_changed')}</strong>
+				<span>{$lang('hearth_save_close_sheet_hint')}</span>
+			{:else}
+				<strong>{$lang('hearth_save_failed')}</strong>
+				{#if $saveFailure}<span>{$saveFailure}</span>{/if}
+			{/if}
+		</div>
 	</div>
 {/if}
 {#if $commandFailure}
@@ -234,6 +264,45 @@
 		box-shadow: var(--h-shadow-toast);
 	}
 
+	.save-toast.failed {
+		color: var(--h-bad-text);
+	}
+
+	.save-alert {
+		position: absolute;
+		top: calc(18px + var(--h-pad-y));
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: var(--h-layer-alert);
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		width: min(560px, calc(100vw - 32px));
+		padding: 12px;
+		border-radius: var(--h-radius-md);
+		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
+		border: 1px solid rgb(var(--h-bad-rgb) / calc(0.55 * var(--h-accent-scale)));
+		color: var(--h-bad-text);
+		box-shadow: var(--h-shadow-toast);
+	}
+
+	.save-alert > div {
+		display: flex;
+		flex: 1;
+		min-width: 0;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.save-alert strong {
+		font-size: var(--h-type-body);
+	}
+
+	.save-alert span {
+		font-size: var(--h-type-small);
+		overflow-wrap: anywhere;
+	}
+
 	.command-error {
 		position: absolute;
 		bottom: calc(40px + var(--h-pad-y));
@@ -297,6 +366,7 @@
 		box-shadow: var(--h-shadow-toast);
 	}
 	/* the edit bar sits along the bottom while editing; the toast moves above it */
+	.save-toast.editing,
 	.command-error.editing {
 		/* the same room the layout leaves for the edit bar */
 		bottom: calc(

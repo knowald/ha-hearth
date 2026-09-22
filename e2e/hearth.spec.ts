@@ -112,7 +112,7 @@ test('a long press opens the light sheet and Escape closes it', async ({ page })
 	await page.mouse.down();
 	await page.waitForTimeout(700);
 	await page.mouse.up();
-	const toggle = page.getByRole('button', { name: 'Toggle light' });
+	const toggle = page.getByRole('switch', { name: 'Toggle light' });
 	await expect(toggle).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(toggle).toBeHidden();
@@ -158,6 +158,7 @@ test('adds a card and a widget from the galleries', async ({ page }) => {
 	await widgetSheet.getByRole('button', { name: 'Done' }).click();
 	await expect(widgetSheet).toBeHidden();
 	await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Discard' }).click();
 });
 
 test.describe('saving', () => {

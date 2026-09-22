@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { FullAutoFill } from 'svelte/elements';
 
+	import FieldMessages, { describedBy } from './FieldMessages.svelte';
+
+	const uid = $props.id();
+
 	let {
 		label,
 		value = $bindable(''),
@@ -8,6 +12,8 @@
 		type = 'text',
 		autocomplete = undefined,
 		autofocus = false,
+		hint = undefined,
+		error = undefined,
 		onchange = undefined
 	}: {
 		label: string;
@@ -17,28 +23,40 @@
 		autocomplete?: FullAutoFill;
 		/** Ask the surrounding sheet to focus this field when it opens. */
 		autofocus?: boolean;
+		hint?: string;
+		/** Shown in place of nothing when the value is not acceptable; marks the input invalid. */
+		error?: string | null;
 		/** Fires on the input's own change event - blur or Enter, not per keystroke. */
 		onchange?: (value: string) => void;
 	} = $props();
 </script>
 
-<label class="field">
-	<span class="field-label">{label}</span>
-	<input
-		{type}
-		{autocomplete}
-		data-autofocus={autofocus || undefined}
-		bind:value
-		{placeholder}
-		spellcheck="false"
-		onchange={() => onchange?.(value)}
-	/>
-</label>
+<div class="field">
+	<label>
+		<span class="field-label">{label}</span>
+		<input
+			{type}
+			{autocomplete}
+			data-autofocus={autofocus || undefined}
+			bind:value
+			{placeholder}
+			spellcheck="false"
+			aria-invalid={error ? true : undefined}
+			aria-describedby={describedBy(uid, hint, error)}
+			onchange={() => onchange?.(value)}
+		/>
+	</label>
+	<FieldMessages id={uid} {hint} {error} />
+</div>
 
 <style>
 	.field {
 		display: block;
 		margin-bottom: 14px;
+	}
+
+	label {
+		display: block;
 	}
 
 	.field-label {

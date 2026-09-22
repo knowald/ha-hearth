@@ -72,14 +72,15 @@
 		activateOnKeyboard(event, () => {
 			if ($hearthEditMode) onedit?.();
 			else if (readonly || !controllable) return;
-			else if (event.shiftKey) popup.set({ kind: 'light', entity, name: label, sliderUpdates });
+			else if (event.shiftKey)
+				popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates });
 			else toggleLight(entity);
 		})}
 	use:horizontalDrag={{
 		set: (value, commit) => setLightLevel(entity, value, commit),
 		updateMode: sliderUpdates,
 		tap: () => toggleLight(entity),
-		hold: () => popup.set({ kind: 'light', entity, name: label, sliderUpdates }),
+		hold: () => popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates }),
 		disabled: $hearthEditMode || readonly || !controllable,
 		ignore: '.tune'
 	}}
@@ -99,7 +100,7 @@
 	{:else if showTune && !$hearthEditMode && !readonly && controllable}
 		<TuneButton
 			alignEdge
-			onopen={() => popup.set({ kind: 'light', entity, name: label, sliderUpdates })}
+			onopen={() => popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates })}
 		/>
 	{/if}
 </div>

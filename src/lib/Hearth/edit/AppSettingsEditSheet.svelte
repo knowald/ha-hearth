@@ -28,6 +28,8 @@
 	let customJs = $state($configuration?.custom_js ?? false);
 	let installedVersion = $state<string>();
 	let saveError = $state<string | null>(null);
+	// the revision the server holds after another session saved first
+	let conflictRevision = $state<number | null>(null);
 	let saving = $state(false);
 
 	function staged() {
@@ -82,14 +84,17 @@
 		});
 	}
 
-	async function done() {
+	/** `revision` overrides the one loaded with the page, for an explicit overwrite. */
+	async function done(revision?: number) {
 		if (saving) return;
 		saving = true;
 		saveError = null;
+		conflictRevision = null;
 
 		const next = {
 			...($configuration ?? {}),
-			locale
+			locale,
+			...(revision === undefined ? {} : { revision })
 		};
 		if (reduceMotion) next.motion = false;
 		else delete next.motion;
@@ -108,6 +113,13 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(json)
 			});
+			if (response.status === 409) {
+				const body = await response.json().catch(() => null);
+				conflictRevision = Number.isInteger(body?.revision) ? body.revision : null;
+				saveError = $lang('hearth_app_settings_changed');
+				vibrate('error');
+				return;
+			}
 			if (!response.ok) {
 				saveError = `${$lang('hearth_save_failed')} [${response.status}]`;
 				vibrate('error');
@@ -142,10 +154,25 @@
 		target.type = event.type === 'focus' ? 'text' : 'password';
 	}
 
+	function confirmOverwrite(revision: number) {
+		requestConfirmation({
+			title: $lang('hearth_overwrite_newer_app_settings'),
+			message: $lang('hearth_overwrite_app_settings_message'),
+			confirmLabel: $lang('hearth_overwrite'),
+			action: () => void done(revision)
+		});
+	}
+
 	function handleLogout() {
-		if (!confirm($lang('hearth_logout_confirm'))) return;
-		localStorage.removeItem('hearthTokens');
-		location.reload();
+		requestConfirmation({
+			title: $lang('hearth_logout_confirm'),
+			message: $lang('hearth_logout_confirm_message'),
+			confirmLabel: $lang('log_out'),
+			action: () => {
+				localStorage.removeItem('hearthTokens');
+				location.reload();
+			}
+		});
 	}
 </script>
 
@@ -153,7 +180,8 @@
 	title={$lang('hearth_application_settings')}
 	onclose={() => leave(null)}
 	onback={() => leave({ kind: 'settings' })}
-	ondone={done}
+	ondone={() => done()}
+	doneLabel={$lang('save')}
 	doneDisabled={saving}
 >
 	<div class="settings">
@@ -205,7 +233,25 @@
 				<span class="row-value">{installedVersion ?? $lang('hearth_loading')}</span>
 			</SettingsRow>
 		</div>
-		{#if saveError}<div class="error" role="alert">{saveError}</div>{/if}
+		{#if saveError}
+			<div class="error" role="alert">
+				<span>{saveError}</span>
+				{#if conflictRevision !== null}
+					<span class="error-actions">
+						<button
+							type="button"
+							class="hearth-button danger"
+							onclick={() => conflictRevision !== null && confirmOverwrite(conflictRevision)}
+						>
+							{$lang('hearth_overwrite')}
+						</button>
+						<button type="button" class="hearth-button secondary" onclick={() => location.reload()}>
+							{$lang('hearth_reload')}
+						</button>
+					</span>
+				{/if}
+			</div>
+		{/if}
 
 		<div class="rows">
 			<SettingsRow
@@ -243,7 +289,17 @@
 	}
 
 	.error {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px;
 		color: var(--h-bad-text);
+	}
+
+	.error-actions {
+		display: flex;
+		gap: 8px;
+		margin-left: auto;
 	}
 
 	.rows {

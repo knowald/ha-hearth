@@ -88,11 +88,11 @@ export type Editor =
 	| { kind: 'settings' }
 	| { kind: 'appSettings' }
 	| { kind: 'customCss' }
-	// `draft` is an unapplied YAML edit handed back by the sheet Versions was
-	// opened from; the editor closing is what discards it
-	| { kind: 'code'; draft?: string }
-	// `from` is where a back arrow returns to, carrying the draft with it
-	| { kind: 'versions'; from?: 'code'; draft?: string };
+	// `from` is the sheet a back arrow returns to, in the state it was left in.
+	// `draft` is an unapplied YAML edit handed back from Versions; the editor
+	// closing is what discards it
+	| { kind: 'code'; draft?: string; from?: Editor }
+	| { kind: 'versions'; from?: Editor };
 
 export const editor = writable<Editor | null>(null);
 
@@ -119,6 +119,13 @@ export function cancelEdit() {
 	hearthEditMode.set(false);
 }
 
+/** True when the draft differs from what edit mode started with or last saved. */
+export function hasUnsavedEdits(): boolean {
+	return (
+		editSnapshot !== null && JSON.stringify(get(hearthConfig)) !== JSON.stringify(editSnapshot)
+	);
+}
+
 export const saveState = writable<'idle' | 'saved' | 'conflict' | 'error'>('idle');
 saveState.subscribe((state) => {
 	if (state === 'saved') vibrate('success');
@@ -139,6 +146,17 @@ export async function saveWithFeedback(force = false): Promise<void> {
 		saveFailure.set(error instanceof Error ? error.message : String(error));
 		saveState.set('error');
 	}
+}
+
+/** Outcome of the edit bar's Copy edits, kept apart from saveState since nothing is saved. */
+export const copyState = writable<'idle' | 'copied' | 'failed'>('idle');
+let copyToastTimer: ReturnType<typeof setTimeout>;
+
+export function reportCopy(outcome: 'copied' | 'failed') {
+	copyState.set(outcome);
+	vibrate(outcome === 'copied' ? 'success' : 'error');
+	clearTimeout(copyToastTimer);
+	copyToastTimer = setTimeout(() => copyState.set('idle'), 2500);
 }
 
 let saveInFlight: Promise<boolean> | null = null;
@@ -215,9 +233,11 @@ export const displayTimeZone = derived(hearthConfig, ($config) =>
 export const currentRoom = writable<string>('home');
 
 export type Popup = {
-	kind: 'light' | 'blind' | 'fan' | 'media' | 'sensor' | 'detail';
+	kind: 'light' | 'blind' | 'fan' | 'media' | 'detail';
 	entity: string;
 	name: string;
+	/** the opening tile's configured icon, shown in the popup header */
+	icon?: string;
 	sliderUpdates?: SliderUpdateMode;
 };
 

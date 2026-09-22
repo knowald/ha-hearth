@@ -5,6 +5,7 @@
 	import { states } from '$lib/core/ha/entities';
 	import { cachedData, fetchStatisticSeries, startDataRefresh } from '$lib/core/ha/history';
 	import { sensorNumber } from '$lib/core/ha/entities';
+	import { formatReading } from './format';
 
 	let { entity }: { entity: string } = $props();
 
@@ -56,14 +57,10 @@
 			end: points[points.length - 1]
 		};
 	});
-
-	function formatReading(reading: number) {
-		return reading % 1 === 0 ? String(reading) : reading.toFixed(1);
-	}
 </script>
 
 <div class="reading">
-	<span class="value">{value === null ? '-' : formatReading(value)}</span>
+	<span class="value">{formatReading(value)}</span>
 	<span class="unit">{unit}</span>
 </div>
 

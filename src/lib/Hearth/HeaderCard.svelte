@@ -23,6 +23,8 @@
 		onedit?: () => void;
 	} = $props();
 
+	let editable = $derived($hearthEditMode && !!onedit);
+
 	let climate = $derived.by(() => {
 		const temp = sensorNumber(tempEntity ? $states?.[tempEntity]?.state : undefined);
 		const humidity = sensorNumber(humidityEntity ? $states?.[humidityEntity]?.state : undefined);
@@ -33,14 +35,7 @@
 	});
 </script>
 
-<div
-	class="header"
-	class:editable={$hearthEditMode && onedit}
-	onclick={() => $hearthEditMode && onedit?.()}
-	role="button"
-	tabindex="0"
-	onkeydown={(event) => activateOnKeyboard(event, () => $hearthEditMode && onedit?.())}
->
+{#snippet content()}
 	<div class="icon-tile">
 		<Icon name={icon || 'home'} size={ICON.hero} color="var(--h-accent-text)" />
 	</div>
@@ -48,7 +43,7 @@
 		<div class="name">{title}</div>
 		<div class="summary">{subtitle ?? ''}</div>
 	</div>
-	{#if $hearthEditMode && onedit}
+	{#if editable}
 		<div class="edit-hint">
 			<Icon name="edit" size={ICON.control} />
 		</div>
@@ -67,7 +62,22 @@
 			</div>
 		{/if}
 	</div>
-</div>
+{/snippet}
+
+<!-- a control only while there is something to edit; otherwise plain content -->
+{#if editable && onedit}
+	<div
+		class="header editable"
+		role="button"
+		tabindex="0"
+		onclick={onedit}
+		onkeydown={(event) => activateOnKeyboard(event, onedit)}
+	>
+		{@render content()}
+	</div>
+{:else}
+	<div class="header">{@render content()}</div>
+{/if}
 
 <style>
 	.header {

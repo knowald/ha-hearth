@@ -1,20 +1,40 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
-	import { states } from '$lib/core/ha/entities';
-	import { callEntityService } from '$lib/core/ha/commands';
+	import { entityActiveFor, states } from '$lib/core/ha/entities';
+	import type { SliderUpdateMode } from '$lib/core/app/configuration';
+	import {
+		callEntityService,
+		controlOverrides,
+		controlValueFor,
+		service
+	} from '$lib/core/ha/commands';
+	import { setEntityActive, setSliderValue } from '$lib/core/domains/entity';
+	import PopupSlider from '../PopupSlider.svelte';
+	import { pressFeedback } from '../pressFeedback';
 
-	let { entity }: { entity: string } = $props();
+	let {
+		entity,
+		sliderUpdates = 'continuous'
+	}: { entity: string; sliderUpdates?: SliderUpdateMode } = $props();
 
 	let stateObj = $derived($states?.[entity]);
 	let attributes = $derived(stateObj?.attributes ?? {});
-	let on = $derived(stateObj?.state === 'on');
-	let humidity = $derived<number>(attributes.humidity ?? 50);
+	let on = $derived(entityActiveFor(entity, stateObj, $controlOverrides));
+	let humidity = $derived(
+		controlValueFor(`humidity:${entity}`, attributes.humidity ?? 50, $controlOverrides)
+	);
 	let min = $derived<number>(attributes.min_humidity ?? 0);
 	let max = $derived<number>(attributes.max_humidity ?? 100);
+	let step = $derived<number>(attributes.target_humidity_step ?? 1);
 	let modes = $derived<string[]>(
 		Array.isArray(attributes.available_modes) ? attributes.available_modes : []
 	);
-	let draft = $state<number | null>(null);
+
+	function setHumidity(value: number, commit = true) {
+		setSliderValue(entity, 'humidity', value, commit, (next) =>
+			service('humidifier', 'set_humidity', { entity_id: entity, humidity: next })
+		);
+	}
 </script>
 
 <div class="segments">
@@ -22,33 +42,27 @@
 		type="button"
 		class="segment"
 		class:active={on}
-		onclick={() => callEntityService('humidifier', 'turn_on', entity)}
-		>{$lang('hearth_turn_on')}</button
+		use:pressFeedback={entity}
+		onclick={() => setEntityActive(entity, true)}>{$lang('hearth_turn_on')}</button
 	>
 	<button
 		type="button"
 		class="segment"
 		class:active={!on}
-		onclick={() => callEntityService('humidifier', 'turn_off', entity)}
-		>{$lang('hearth_turn_off')}</button
+		use:pressFeedback={entity}
+		onclick={() => setEntityActive(entity, false)}>{$lang('hearth_turn_off')}</button
 	>
 </div>
-<div class="label">{$lang('hearth_target_humidity')}</div>
-<div class="stepper">
-	<div><span class="value">{draft ?? humidity}</span><span class="unit">%</span></div>
-</div>
-<input
-	type="range"
+<PopupSlider
+	label={$lang('hearth_target_humidity')}
+	icon="humidity_mid"
+	value={humidity}
+	variant="blue"
 	{min}
 	{max}
-	value={draft ?? humidity}
-	oninput={(event) => (draft = Number(event.currentTarget.value))}
-	onchange={(event) => {
-		draft = null;
-		callEntityService('humidifier', 'set_humidity', entity, {
-			humidity: Number(event.currentTarget.value)
-		});
-	}}
+	{step}
+	updateMode={sliderUpdates}
+	onchange={setHumidity}
 />
 {#if modes.length}
 	<div class="label">{$lang('hearth_mode')}</div>
@@ -58,6 +72,7 @@
 				type="button"
 				class="segment"
 				class:active={attributes.mode === mode}
+				use:pressFeedback={entity}
 				onclick={() => callEntityService('humidifier', 'set_mode', entity, { mode })}
 			>
 				{mode}

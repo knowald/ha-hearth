@@ -18,7 +18,7 @@
 	import { clampToViewport, windowDrag, type WindowPosition } from '$lib/ui/actions/windowDrag';
 	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
 	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
-	import { hearthConfig } from '../store';
+	import { hearthConfig, requestConfirmation } from '../store';
 	import { WIDE_QUERY } from '../breakpoints';
 	import './editor-fields.css';
 	import '../buttons.css';
@@ -33,6 +33,7 @@
 		doneLabel = undefined,
 		onremove,
 		removeLabel = undefined,
+		removeTone = 'danger',
 		onmoveup,
 		onmovedown,
 		wide = false,
@@ -49,6 +50,8 @@
 		doneLabel?: string;
 		onremove?: () => void;
 		removeLabel?: string;
+		/** A neutral remove action (one that destroys nothing) runs without asking. */
+		removeTone?: 'danger' | 'neutral';
 		onmoveup?: () => void;
 		onmovedown?: () => void;
 		wide?: boolean;
@@ -58,9 +61,6 @@
 		/** False keeps a backdrop tap from closing the sheet; Escape and the close button still do. */
 		dismissible?: boolean;
 	} = $props();
-
-	let confirmRemove = $state(false);
-	let confirmTimer: ReturnType<typeof setTimeout>;
 
 	// long editor forms run off the sheet with no scrollbar to say so
 	let bodyCut = $state<ScrollEdges>({ top: false, bottom: false, left: false, right: false });
@@ -131,13 +131,16 @@
 	}
 
 	function handleRemove() {
-		clearTimeout(confirmTimer);
-		if (confirmRemove) {
+		if (removeTone === 'neutral') {
 			onremove?.();
 			return;
 		}
-		confirmRemove = true;
-		confirmTimer = setTimeout(() => (confirmRemove = false), 4000);
+		requestConfirmation({
+			title: $lang('hearth_remove_confirm_title'),
+			message: $lang('hearth_remove_confirm_message'),
+			confirmLabel: removeLabel ?? $lang('remove'),
+			action: () => onremove?.()
+		});
 	}
 </script>
 
@@ -229,14 +232,13 @@
 			<div class="footer">
 				<button
 					type="button"
-					class="hearth-button danger pressable"
-					class:confirm={confirmRemove}
+					class="hearth-button pressable"
+					class:danger={removeTone === 'danger'}
+					class:secondary={removeTone === 'neutral'}
 					use:Ripple={PRESS_RIPPLE}
 					onclick={handleRemove}
 				>
-					{confirmRemove
-						? `${removeLabel ?? $lang('remove')} - ${$lang('hearth_are_you_sure')}`
-						: (removeLabel ?? $lang('remove'))}
+					{removeLabel ?? $lang('remove')}
 				</button>
 			</div>
 		{/if}
@@ -360,6 +362,7 @@
 	.body > :global(.visibility-row),
 	.body > :global(.add-row),
 	.body > :global(.hint),
+	.body > :global(.field-hint),
 	.body > :global(.error),
 	.body > :global(.advanced-toggle),
 	.body > :global(.elements-editor),
@@ -382,10 +385,6 @@
 		padding: 14px 28px 18px;
 		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
 		flex: none;
-	}
-
-	.hearth-button.danger.confirm {
-		border-color: var(--h-bad-text);
 	}
 
 	/* the page keeps the pointer; only the window itself takes it back */

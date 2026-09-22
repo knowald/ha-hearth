@@ -78,14 +78,64 @@ function handleTab(event: KeyboardEvent) {
 	if (root) cycleTab(event, root);
 }
 
+/*
+ * Back closes the top layer, the way Android's back gesture and a browser's
+ * back button are expected to. While any layer is open there is exactly one
+ * history entry of our own on top of the page's. Popping it closes the top
+ * layer, and a new entry is pushed if layers remain. When the last layer
+ * closes another way (Escape, a tap, a button), the entry is taken back off
+ * so the next back leaves the page as usual. Settling waits a task, so a
+ * layer that replaces another (search result -> detail popup) reuses the
+ * entry instead of popping and pushing.
+ */
+let historyEntry = false;
+let ignoreNextPop = false;
+let settleQueued = false;
+
+function settleHistory() {
+	settleQueued = false;
+	if (stack.length && !historyEntry) {
+		history.pushState({ ...history.state, hearthLayer: true }, '');
+		historyEntry = true;
+	} else if (!stack.length && historyEntry) {
+		historyEntry = false;
+		ignoreNextPop = true;
+		history.back();
+	}
+}
+
+function queueSettle() {
+	if (settleQueued) return;
+	settleQueued = true;
+	setTimeout(settleHistory);
+}
+
+function handlePopState() {
+	if (ignoreNextPop) {
+		ignoreNextPop = false;
+		return;
+	}
+	if (!historyEntry) return;
+	historyEntry = false;
+	stack[stack.length - 1]?.close();
+	queueSettle();
+}
+
+let listeningForPop = false;
+
 function register(layer: Layer): () => void {
 	if (typeof window === 'undefined') return () => {};
+	if (!listeningForPop) {
+		window.addEventListener('popstate', handlePopState);
+		listeningForPop = true;
+	}
 	if (stack.length === 0) {
 		window.addEventListener('keydown', handleKeydown, true);
 		window.addEventListener('keydown', handleTab);
 	}
 	stack.push(layer);
 	notify(stack.length);
+	queueSettle();
 	return () => {
 		const index = stack.indexOf(layer);
 		if (index === -1) return;
@@ -95,6 +145,7 @@ function register(layer: Layer): () => void {
 			window.removeEventListener('keydown', handleTab);
 		}
 		notify(stack.length);
+		queueSettle();
 	};
 }
 

@@ -4,9 +4,11 @@
 	import {
 		ensureRoomCardColumns,
 		isStack,
+		moveItem,
 		takenCardIds,
 		uniqueId,
 		type HearthConfig,
+		type OverviewItem,
 		type OverviewStack
 	} from '../config';
 	import { editor, hearthConfig, updateConfig } from '../store';
@@ -25,6 +27,11 @@
 	// svelte-ignore state_referenced_locally
 	const initialItem = index !== null ? columnItems(get(hearthConfig))?.[index] : undefined;
 	const initial = initialItem && isStack(initialItem) ? initialItem : undefined;
+
+	// moving the stack shifts its index, so later writes find it by id
+	function stackIndex(items: OverviewItem[] | undefined) {
+		return initial ? (items?.findIndex((item) => item.id === initial.id) ?? -1) : -1;
+	}
 
 	let title = $state(initial?.title ?? '');
 	let direction = $state<OverviewStack['direction']>(initial?.direction ?? 'horizontal');
@@ -55,7 +62,8 @@
 
 	function done() {
 		updateConfig((config) => {
-			const target = index === null ? appendStack(config) : columnItems(config)?.[index];
+			const items = columnItems(config);
+			const target = initial ? items?.[stackIndex(items)] : appendStack(config);
 			if (!target || !isStack(target)) return;
 			target.title = title.trim() || undefined;
 			target.direction = direction;
@@ -69,13 +77,20 @@
 	// at the stack's position - they are never destroyed
 	function unwrap() {
 		updateConfig((config) => {
-			if (index === null) return;
 			const items = columnItems(config);
-			const target = items?.[index];
+			const position = stackIndex(items);
+			const target = items?.[position];
 			if (!items || !target || !isStack(target)) return;
-			items.splice(index, 1, ...target.cards);
+			items.splice(position, 1, ...target.cards);
 		});
 		close();
+	}
+
+	function move(delta: number) {
+		updateConfig((config) => {
+			const items = columnItems(config);
+			if (items) moveItem(items, stackIndex(items), delta);
+		});
 	}
 </script>
 
@@ -83,8 +98,11 @@
 	title={$lang(index !== null ? 'hearth_edit_stack' : 'hearth_add_stack')}
 	onclose={close}
 	ondone={done}
-	onremove={index !== null ? unwrap : undefined}
+	onremove={initial ? unwrap : undefined}
 	removeLabel={$lang('hearth_unwrap')}
+	removeTone="neutral"
+	onmoveup={initial ? () => move(-1) : undefined}
+	onmovedown={initial ? () => move(1) : undefined}
 >
 	<TextField label={$lang('hearth_title_optional')} bind:value={title} placeholder="Living room" />
 	<SelectField label={$lang('fan_direction')} bind:value={direction} options={DIRECTION_OPTIONS} />
@@ -92,7 +110,8 @@
 		label={$lang('hearth_fill_leftover_height')}
 		bind:value={fill}
 		options={[
-			{ value: '', label: $lang('hearth_fill_none') },
+			{ value: '', label: $lang('hearth_fill_default_stack') },
+			{ value: '0', label: $lang('hearth_fill_none') },
 			{ value: '1', label: $lang('hearth_fill_one') },
 			{ value: '2', label: $lang('hearth_fill_double') },
 			{ value: '3', label: $lang('hearth_fill_triple') }

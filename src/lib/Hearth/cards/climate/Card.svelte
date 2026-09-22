@@ -11,6 +11,7 @@
 	import { controlOverrides, controlValueFor, pendingEntities } from '$lib/core/ha/commands';
 	import { setClimateHvacMode, setClimateTemperature } from '$lib/core/domains/climate';
 	import { openEntityDetail } from '$lib/Hearth/details';
+	import { formatReading } from '../../format';
 	import EmptyState from '../../EmptyState.svelte';
 	import Icon from '../../Icon.svelte';
 	import TuneButton from '../../TuneButton.svelte';
@@ -84,7 +85,7 @@
 				<div class="stat">
 					<div class="stat-label">{$lang('hearth_current')}</div>
 					<div class="current-value">
-						{current === null ? '-' : current.toFixed(1)}<span class="stat-unit">{unit}</span>
+						{formatReading(current)}<span class="stat-unit">{unit}</span>
 					</div>
 				</div>
 				<div class="stat">
@@ -100,9 +101,7 @@
 						>
 							<Icon name="remove" size={ICON.control} />
 						</span>
-						<span class="target-value"
-							>{displayTarget === null ? '-' : displayTarget.toFixed(1)}</span
-						>
+						<span class="target-value">{formatReading(displayTarget)}</span>
 						<span
 							class="step pressable"
 							use:Ripple={PRESS_RIPPLE}

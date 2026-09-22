@@ -6,9 +6,13 @@
 	import type { RailWidget } from '../../config';
 	import { fetchStatistics, startDataRefresh } from '$lib/core/ha/history';
 	import { sensorNumber } from '$lib/core/ha/entities';
+	import { openEntityDetail } from '$lib/Hearth/details';
 	import Icon from '../../Icon.svelte';
 
 	let { widget }: { widget: Extract<RailWidget, { type: 'energy' }> } = $props();
+
+	// a long-term statistic id need not be an entity; only an entity has a detail sheet
+	let openable = $derived(!!widget.entity && !!$states?.[widget.entity]);
 
 	const BAR_COUNT = 8;
 	// kWh per hour for today, oldest first; null until the first fetch lands
@@ -74,7 +78,7 @@
 	});
 </script>
 
-<div class="card">
+{#snippet content()}
 	<div class="header">
 		<Icon name="bolt" size={ICON.control} color="rgb(var(--h-accent-rgb))" fill />
 		<span class="title">{$lang('hearth_energy')}</span>
@@ -102,7 +106,14 @@
 			{/each}
 		</div>
 	{/if}
-</div>
+{/snippet}
+{#if openable}
+	<button type="button" class="card pressable" onclick={() => openEntityDetail(widget.entity!)}>
+		{@render content()}
+	</button>
+{:else}
+	<div class="card">{@render content()}</div>
+{/if}
 
 <style>
 	.card {
@@ -113,6 +124,15 @@
 		box-shadow: var(--h-card-shadow);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.07 * var(--h-line-scale)));
 		margin-bottom: 8px;
+		display: block;
+		width: 100%;
+		font: inherit;
+		color: inherit;
+		text-align: left;
+	}
+
+	button.card {
+		cursor: pointer;
 	}
 
 	.header {

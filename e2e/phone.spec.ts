@@ -115,7 +115,7 @@ test('a light popup opens as a bottom sheet and the card sheet leads with its fi
 	await page.mouse.down();
 	await page.waitForTimeout(700);
 	await page.mouse.up();
-	const toggle = page.getByRole('button', { name: 'Toggle light' });
+	const toggle = page.getByRole('switch', { name: 'Toggle light' });
 	await expect(toggle).toBeVisible();
 	const sheetBox = (await page.locator('.sheet').first().boundingBox())!;
 	expect(Math.round(sheetBox.x + sheetBox.width)).toBe(390);

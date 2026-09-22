@@ -2,7 +2,9 @@
 	import { lang } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import type { VerdictBands } from '$lib/core/domains/sensor';
-	import { hearthEditMode, popup } from './store';
+	import { hearthEditMode } from './store';
+	import { formatReading } from './format';
+	import { openEntityDetail } from './details';
 	import { airQualityVerdict } from '$lib/core/domains/sensor';
 	import { entityAvailability, sensorNumber } from '$lib/core/ha/entities';
 
@@ -27,16 +29,16 @@
 					? $lang('hearth_missing_entity')
 					: $lang(availability)
 				: stateObj.state
-			: value % 1 === 0
-				? String(value)
-				: value.toFixed(1)
+			: formatReading(value)
 	);
 
-	// a numeric readout earns a tap: its 24h history in a popup
+	// a numeric readout earns a tap: its detail sheet with the 24h history.
+	// A stat tile never sends a command, so there is nothing for read only to
+	// suppress
 	let openable = $derived(value !== null && !$hearthEditMode);
 
 	function openHistory() {
-		if (openable) popup.set({ kind: 'sensor', entity, name: label });
+		if (openable) openEntityDetail(entity, name);
 	}
 </script>
 

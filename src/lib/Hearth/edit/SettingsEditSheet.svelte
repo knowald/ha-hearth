@@ -78,7 +78,13 @@
 	}
 </script>
 
-<EditSheet title={$lang('settings')} onclose={close} ondone={close}>
+<!-- every row applies as it changes, so the header action only closes -->
+<EditSheet
+	title={$lang('settings')}
+	onclose={close}
+	ondone={close}
+	doneLabel={$lang('hearth_close')}
+>
 	<div class="settings">
 		<section>
 			<div class="section-title">{$lang('hearth_display_2')}</div>
@@ -232,13 +238,13 @@
 					icon="code"
 					label={$lang('hearth_edit_configuration_yaml')}
 					sub={$lang('hearth_edits_the_whole_configuration_as_yaml')}
-					onclick={() => editor.set({ kind: 'code' })}
+					onclick={() => editor.set({ kind: 'code', from: { kind: 'settings' } })}
 				/>
 				<SettingsRow
 					icon="history"
 					label={$lang('hearth_versions')}
 					sub={$lang('hearth_versions_row_sub')}
-					onclick={() => editor.set({ kind: 'versions' })}
+					onclick={() => editor.set({ kind: 'versions', from: { kind: 'settings' } })}
 				/>
 			</div>
 		</section>

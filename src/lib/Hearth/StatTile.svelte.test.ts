@@ -9,7 +9,7 @@ import StatTile from './StatTile.svelte';
 describe('StatTile', () => {
 	beforeEach(() => closePopup());
 
-	it('renders a numeric reading as a button that opens its history', async () => {
+	it('renders a numeric reading as a button that opens the same detail sheet as search', async () => {
 		states.set({
 			'sensor.co2': hassEntity('sensor.co2', '812', {
 				friendly_name: 'CO2',
@@ -22,7 +22,7 @@ describe('StatTile', () => {
 		expect(tile.textContent).toContain('812');
 		expect(tile.textContent).toContain('ppm');
 		await fireEvent.click(tile);
-		expect(get(popup)).toMatchObject({ kind: 'sensor', entity: 'sensor.co2', name: 'CO2' });
+		expect(get(popup)).toMatchObject({ kind: 'detail', entity: 'sensor.co2', name: 'CO2' });
 	});
 
 	it('renders a non-numeric or unreachable reading as plain text with nothing to open', () => {
@@ -31,5 +31,15 @@ describe('StatTile', () => {
 		expect(screen.queryByRole('button')).toBeNull();
 		expect(screen.getByText('Unavailable')).toBeTruthy();
 		expect(get(popup)).toBeNull();
+	});
+
+	it('formats its reading like every other reading surface', () => {
+		states.set({
+			'sensor.temp': hassEntity('sensor.temp', '21.04', { unit_of_measurement: '°C' })
+		});
+		render(StatTile, { entity: 'sensor.temp' });
+		expect(screen.getByRole('button').querySelector('.stat-value')?.firstChild?.textContent).toBe(
+			'21'
+		);
 	});
 });

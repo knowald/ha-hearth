@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
+	import { config } from '$lib/core/ha/connection';
 	import { states } from '$lib/core/ha/entities';
-	import { callEntityService } from '$lib/core/ha/commands';
+	import { callEntityService, controlOverrides, controlValueFor } from '$lib/core/ha/commands';
 	import { setClimateHvacMode, setClimateTemperature } from '$lib/core/domains/climate';
+	import { formatReading } from '../format';
+	import { pressFeedback } from '../pressFeedback';
 
 	let { entity }: { entity: string } = $props();
 
@@ -11,8 +14,12 @@
 	let step = $derived<number>(attributes.target_temp_step ?? 0.5);
 	let min = $derived<number>(attributes.min_temp ?? 7);
 	let max = $derived<number>(attributes.max_temp ?? 35);
+	let unit = $derived($config?.unit_system?.temperature ?? '°');
+	// rapid taps step from the optimistic value, like the climate card
 	let target = $derived<number | null>(
-		typeof attributes.temperature === 'number' ? attributes.temperature : null
+		typeof attributes.temperature === 'number'
+			? controlValueFor(`climate:${entity}`, attributes.temperature, $controlOverrides)
+			: null
 	);
 	let low = $derived<number | null>(
 		typeof attributes.target_temp_low === 'number' ? attributes.target_temp_low : null
@@ -50,7 +57,9 @@
 </script>
 
 {#if current !== null}
-	<div class="readout"><span>{$lang('hearth_current')}</span><strong>{current}°</strong></div>
+	<div class="readout">
+		<span>{$lang('hearth_current')}</span><strong>{formatReading(current, unit)}</strong>
+	</div>
 {/if}
 {#if target !== null}
 	<div class="label">{$lang('hearth_target_temperature')}</div>
@@ -58,13 +67,15 @@
 		<button
 			type="button"
 			class="step"
+			use:pressFeedback={entity}
 			aria-label={$lang('hearth_decrement')}
 			onclick={() => setClimateTemperature(entity, clamp(target - step))}>-</button
 		>
-		<div><span class="value">{target}</span><span class="unit">°</span></div>
+		<div><span class="value">{formatReading(target)}</span><span class="unit">{unit}</span></div>
 		<button
 			type="button"
 			class="step"
+			use:pressFeedback={entity}
 			aria-label={$lang('hearth_increment')}
 			onclick={() => setClimateTemperature(entity, clamp(target + step))}>+</button
 		>
@@ -75,13 +86,15 @@
 		<button
 			type="button"
 			class="step"
+			use:pressFeedback={entity}
 			aria-label={$lang('hearth_decrement')}
 			onclick={() => setRange(low - step, high)}>-</button
 		>
-		<div><span class="value">{low}</span><span class="unit">°</span></div>
+		<div><span class="value">{formatReading(low)}</span><span class="unit">{unit}</span></div>
 		<button
 			type="button"
 			class="step"
+			use:pressFeedback={entity}
 			aria-label={$lang('hearth_increment')}
 			onclick={() => setRange(low + step, high)}>+</button
 		>
@@ -90,13 +103,15 @@
 		<button
 			type="button"
 			class="step"
+			use:pressFeedback={entity}
 			aria-label={$lang('hearth_decrement')}
 			onclick={() => setRange(low, high - step)}>-</button
 		>
-		<div><span class="value">{high}</span><span class="unit">°</span></div>
+		<div><span class="value">{formatReading(high)}</span><span class="unit">{unit}</span></div>
 		<button
 			type="button"
 			class="step"
+			use:pressFeedback={entity}
 			aria-label={$lang('hearth_increment')}
 			onclick={() => setRange(low, high + step)}>+</button
 		>
@@ -109,6 +124,7 @@
 			<button
 				type="button"
 				class="segment"
+				use:pressFeedback={entity}
 				class:active={stateObj?.state === mode}
 				onclick={() => setClimateHvacMode(entity, mode)}>{$lang(mode)}</button
 			>
@@ -122,6 +138,7 @@
 			<button
 				type="button"
 				class="segment"
+				use:pressFeedback={entity}
 				class:active={attributes.preset_mode === mode}
 				onclick={() =>
 					callEntityService('climate', 'set_preset_mode', entity, { preset_mode: mode })}
@@ -137,6 +154,7 @@
 			<button
 				type="button"
 				class="segment"
+				use:pressFeedback={entity}
 				class:active={attributes.fan_mode === mode}
 				onclick={() => callEntityService('climate', 'set_fan_mode', entity, { fan_mode: mode })}
 				>{mode}</button
@@ -151,6 +169,7 @@
 			<button
 				type="button"
 				class="segment"
+				use:pressFeedback={entity}
 				class:active={attributes.swing_mode === mode}
 				onclick={() => callEntityService('climate', 'set_swing_mode', entity, { swing_mode: mode })}
 				>{mode}</button

@@ -11,12 +11,12 @@ test.describe('companion app authentication', () => {
 	test('saves a token in the Hearth prompt and connects', async ({ page }) => {
 		writeFileSync(file, fixture.replace(/^token:.*\n/m, ''));
 		await page.goto('/');
-		const prompt = page.getByRole('dialog', { name: 'Log in' });
+		const prompt = page.getByRole('dialog', { name: 'Sign in' });
 		await expect(prompt).toBeVisible();
 		const token = prompt.getByLabel('Long-lived access token');
 		await expect(token).toHaveCSS('border-radius', '12px');
 		await token.fill('e2e-token');
-		await prompt.getByRole('button', { name: 'Done' }).click();
+		await prompt.getByRole('button', { name: 'Sign in' }).click();
 		await expect(prompt).toBeHidden();
 		await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
 	});
@@ -34,7 +34,7 @@ test('two application settings saves use successive revisions', async ({ page })
 			(response) =>
 				response.url().endsWith('/_api/save_config') && response.request().method() === 'POST'
 		);
-		await sheet.getByRole('button', { name: 'Done' }).click();
+		await sheet.getByRole('button', { name: 'Save' }).click();
 		const saved = await response;
 		expect(saved.status()).toBe(200);
 		revisions.push((await saved.json()).revision);

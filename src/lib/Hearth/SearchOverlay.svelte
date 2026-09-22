@@ -186,13 +186,13 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: center;
-		padding-top: 12vh;
+		padding-top: 12dvh;
 	}
 
 	.panel {
 		width: 480px;
 		max-width: calc(100vw - 40px);
-		max-height: calc(100vh - 80px);
+		max-height: calc(100dvh - 80px);
 		display: flex;
 		flex-direction: column;
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
@@ -298,5 +298,25 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	/*
+	 * See breakpoints.ts: a full-width sheet like every other overlay. It
+	 * hangs from the top rather than rising from the bottom, since the
+	 * on-screen keyboard takes the bottom of the screen while typing.
+	 */
+	@media (max-width: 900px) {
+		.overlay {
+			padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
+		}
+
+		.panel {
+			width: 100%;
+			max-width: none;
+			max-height: 100dvh;
+			border-top: 0;
+			border-radius: 0 0 var(--h-radius-xl) var(--h-radius-xl);
+			padding-top: calc(16px + env(safe-area-inset-top));
+		}
 	}
 </style>

@@ -3,6 +3,7 @@
 	import { connected } from '$lib/core/ha/connection';
 	import { subscribeTemplate } from '$lib/core/ha/history';
 	import { loadMarkdownRenderer } from '../../markdown';
+	import { hearthEditMode } from '../../store';
 	import type { TemplateWidget } from './descriptor';
 
 	let { widget }: { widget: TemplateWidget } = $props();
@@ -36,14 +37,19 @@
 	});
 </script>
 
-<div class="template">
-	{#if error}
-		<div class="error">{$lang('hearth_template_error')}: {error}</div>
-	{:else}
-		<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized in markdown.ts -->
-		{@html html}
-	{/if}
-</div>
+<!-- a template that renders nothing hides the widget; the editor keeps it findable, dimmed -->
+{#if error || html.trim() || $hearthEditMode}
+	<div class="template">
+		{#if error}
+			<div class="error">{$lang('hearth_template_error')}: {error}</div>
+		{:else if html.trim()}
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -- sanitized in markdown.ts -->
+			{@html html}
+		{:else}
+			<div class="inactive">{$lang('hearth_widget_template_name')}</div>
+		{/if}
+	</div>
+{/if}
 
 <style>
 	.template {
@@ -55,6 +61,10 @@
 
 	.template :global(p) {
 		margin: 0 0 6px;
+	}
+
+	.inactive {
+		opacity: 0.45;
 	}
 
 	.error {

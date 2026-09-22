@@ -1,13 +1,18 @@
 <script lang="ts">
 	import { ICON } from '../iconSizes';
 	import Icon from '../Icon.svelte';
+	import FieldMessages, { describedBy } from './FieldMessages.svelte';
+
+	const uid = $props.id();
 
 	let {
 		label,
 		value = $bindable(''),
 		options,
 		onchange,
-		inline = false
+		inline = false,
+		hint = undefined,
+		error = undefined
 	}: {
 		label: string;
 		value?: string;
@@ -15,11 +20,20 @@
 		onchange?: (value: string) => void;
 		/** Sit beside a settings row's label: the label becomes the accessible name only. */
 		inline?: boolean;
+		/** Not shown inline, where the settings row carries the explanation. */
+		hint?: string;
+		error?: string | null;
 	} = $props();
 </script>
 
 {#snippet select(accessibleName?: string)}
-	<select aria-label={accessibleName} bind:value onchange={() => onchange?.(value)}>
+	<select
+		aria-label={accessibleName}
+		aria-invalid={error ? true : undefined}
+		aria-describedby={inline ? undefined : describedBy(uid, hint, error)}
+		bind:value
+		onchange={() => onchange?.(value)}
+	>
 		{#each options as option (option.value)}
 			<option value={option.value}>{option.label}</option>
 		{/each}
@@ -32,16 +46,23 @@
 		<Icon name="expand_more" size={ICON.control} />
 	</span>
 {:else}
-	<label class="field">
-		<span class="field-label">{label}</span>
-		{@render select()}
-	</label>
+	<div class="field">
+		<label>
+			<span class="field-label">{label}</span>
+			{@render select()}
+		</label>
+		<FieldMessages id={uid} {hint} {error} />
+	</div>
 {/if}
 
 <style>
 	.field {
 		display: block;
 		margin-bottom: 14px;
+	}
+
+	label {
+		display: block;
 	}
 
 	.field-label {

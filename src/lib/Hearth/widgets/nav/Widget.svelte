@@ -18,6 +18,9 @@
 	class="room-list"
 	use:sortable={{
 		group: 'hearth-rooms',
+		// the same grip cards and widgets drag by; no Alt-clone, since a copied
+		// page would carry every card id of the original
+		handle: '.drag-handle',
 		disabled: !$hearthEditMode,
 		filter: '.add',
 		items: $hearthConfig.rooms,
@@ -33,11 +36,17 @@
 			class="nav-item pressable"
 			data-id={room.id}
 			class:active={$currentRoom === room.id}
+			aria-current={$currentRoom === room.id ? 'page' : undefined}
 			use:Ripple={PRESS_RIPPLE}
 			onclick={() => currentRoom.set(room.id)}
 		>
 			<Icon name={room.icon} size={ICON.control} />
 			<span class="nav-name">{room.name}</span>
+			{#if $hearthEditMode}
+				<span class="drag-handle" aria-hidden="true">
+					<Icon name="drag_indicator" size={ICON.inline} />
+				</span>
+			{/if}
 		</button>
 	{/each}
 	{#if $hearthEditMode}
@@ -92,6 +101,13 @@
 	.nav-name {
 		font-size: var(--h-type-emphasis);
 		font-weight: 500;
+	}
+
+	.drag-handle {
+		display: inline-flex;
+		margin-left: auto;
+		color: var(--h-icon-dim);
+		cursor: grab;
 	}
 
 	/* phones (the rail's own fold): rooms become a horizontal chip row

@@ -2,6 +2,7 @@
 	import { lang } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import { callEntityService } from '$lib/core/ha/commands';
+	import { pressFeedback } from '../pressFeedback';
 
 	let { entity }: { entity: string } = $props();
 
@@ -15,6 +16,7 @@
 		<button
 			type="button"
 			class="segment"
+			use:pressFeedback={entity}
 			class:active={stateObj?.state === 'mowing'}
 			onclick={() => callEntityService('lawn_mower', 'start_mowing', entity)}
 			>{$lang('hearth_start_mowing')}</button
@@ -24,6 +26,7 @@
 		<button
 			type="button"
 			class="segment"
+			use:pressFeedback={entity}
 			class:active={stateObj?.state === 'paused'}
 			onclick={() => callEntityService('lawn_mower', 'pause', entity)}
 			>{$lang('hearth_pause')}</button
@@ -33,6 +36,7 @@
 		<button
 			type="button"
 			class="segment"
+			use:pressFeedback={entity}
 			class:active={stateObj?.state === 'docked'}
 			onclick={() => callEntityService('lawn_mower', 'dock', entity)}>{$lang('hearth_dock')}</button
 		>

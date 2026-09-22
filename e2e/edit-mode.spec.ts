@@ -94,9 +94,9 @@ test('pages, stacks and the settings sheets open and close', async ({ page }) =>
 		.click();
 
 	await page.getByRole('button', { name: 'Add stack' }).click();
-	const stackSheet = page.getByRole('dialog', { name: 'Edit stack' });
+	const stackSheet = page.getByRole('dialog', { name: 'Add stack' });
 	await expect(stackSheet).toBeVisible();
-	await page.keyboard.press('Escape');
+	await stackSheet.getByRole('button', { name: 'Done' }).click();
 	await expect(stackSheet).toBeHidden();
 	await expect(page.locator('.stack-slot')).toHaveCount(1);
 
@@ -128,6 +128,7 @@ test('pages, stacks and the settings sheets open and close', async ({ page }) =>
 	await page.getByRole('button', { name: 'Undo' }).click();
 	await page.getByRole('button', { name: 'Redo' }).click();
 	await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+	await page.getByRole('alertdialog').getByRole('button', { name: 'Discard' }).click();
 	await expect(page.getByRole('button', { name: 'Edit Hearth configuration' })).toBeVisible();
 	expect(errors).toEqual([]);
 });

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { lang, fill } from '$lib/core/i18n';
 	import { ICON } from '../../iconSizes';
-	import { states } from '$lib/core/ha/entities';
-	import { hearthConfig } from '../../store';
+	import { entityAvailable, states } from '$lib/core/ha/entities';
+	import { hearthConfig, hearthEditMode } from '../../store';
+	import { openEntityDetail } from '$lib/Hearth/details';
 	import { attentionItems } from '../../attention';
 	import Icon from '../../Icon.svelte';
 
@@ -13,12 +14,17 @@
 	let text = $derived(widget.text);
 	let entity = $derived(widget.entity);
 
-	let entityState = $derived(entity ? $states?.[entity]?.state : undefined);
-	let label = $derived(
-		entityState !== undefined
-			? `${text ? `${text} ` : ''}${entityState.charAt(0).toUpperCase()}${entityState.slice(1)}`
-			: (text ?? '')
+	let stateObj = $derived(entity ? $states?.[entity] : undefined);
+	let entityState = $derived(stateObj?.state);
+	let unavailable = $derived(!!entity && !entityAvailable(stateObj));
+	let reading = $derived(
+		unavailable
+			? '-'
+			: entityState !== undefined
+				? `${entityState.charAt(0).toUpperCase()}${entityState.slice(1)}`
+				: ''
 	);
+	let label = $derived([text, reading].filter(Boolean).join(' '));
 
 	// without configured content the widget reports actual unresolved conditions;
 	// nothing unresolved renders as nothing, not as a nominal platitude
@@ -37,12 +43,30 @@
 				<div class="attention-detail">{item.detail}</div>
 			</div>
 		</div>
+	{:else}
+		{#if $hearthEditMode}
+			<div class="status-pill inactive">
+				<Icon name={icon} size={ICON.control} color="var(--h-icon)" />
+				<span class="pill-text">{$lang('hearth_status_all_clear')}</span>
+			</div>
+		{/if}
 	{/each}
 {:else}
-	<div class="status-pill">
-		<Icon name={icon} size={ICON.control} color="var(--h-good)" />
+	{#snippet content()}
+		<Icon name={icon} size={ICON.control} color={unavailable ? 'var(--h-icon)' : 'var(--h-good)'} />
 		<span class="pill-text">{label}</span>
-	</div>
+	{/snippet}
+	{#if stateObj}
+		<button
+			type="button"
+			class="status-pill pressable"
+			onclick={() => openEntityDetail(stateObj.entity_id)}
+		>
+			{@render content()}
+		</button>
+	{:else}
+		<div class="status-pill">{@render content()}</div>
+	{/if}
 {/if}
 
 <style>
@@ -55,6 +79,18 @@
 		background: rgb(var(--h-surface-rgb) / calc(0.04 * var(--h-fill-scale)));
 		backdrop-filter: var(--h-surface-blur);
 		box-shadow: var(--h-card-shadow);
+		width: 100%;
+		border: 0;
+		font: inherit;
+		text-align: left;
+	}
+
+	button.status-pill {
+		cursor: pointer;
+	}
+
+	.status-pill.inactive {
+		opacity: 0.45;
 	}
 
 	.pill-text {

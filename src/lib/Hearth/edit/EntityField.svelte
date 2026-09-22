@@ -6,14 +6,23 @@
 	import { PRESS_RIPPLE } from '../config';
 	import Icon from '../Icon.svelte';
 	import EntityPicker from './EntityPicker.svelte';
+	import FieldMessages, { describedBy } from './FieldMessages.svelte';
 
 	const uid = $props.id();
 
 	let {
 		label,
 		value = $bindable(''),
-		domains = []
-	}: { label: string; value?: string; domains?: string[] } = $props();
+		domains = [],
+		hint = undefined,
+		error = undefined
+	}: {
+		label: string;
+		value?: string;
+		domains?: string[];
+		hint?: string;
+		error?: string | null;
+	} = $props();
 
 	let pickerOpen = $state(false);
 
@@ -24,44 +33,49 @@
 	);
 </script>
 
-<label class="field">
-	<span class="field-label">{label}</span>
-	<span class="input-wrap">
-		<input
-			type="text"
-			bind:value
-			list="entities-{uid}"
-			placeholder="entity_id"
-			spellcheck="false"
-		/>
-		<span
-			class="search pressable"
-			use:Ripple={PRESS_RIPPLE}
-			onclick={(event) => {
-				// prevent the label from bouncing focus back to the input
-				event.preventDefault();
-				pickerOpen = true;
-			}}
-			role="button"
-			tabindex="0"
-			onkeydown={(event) =>
-				activateOnKeyboard(event, () =>
-					((event) => {
-						// prevent the label from bouncing focus back to the input
-						event.preventDefault();
-						pickerOpen = true;
-					})(event)
-				)}
-		>
-			<Icon name="search" size={ICON.control} />
+<div class="field">
+	<label>
+		<span class="field-label">{label}</span>
+		<span class="input-wrap">
+			<input
+				type="text"
+				bind:value
+				list="entities-{uid}"
+				placeholder="entity_id"
+				spellcheck="false"
+				aria-invalid={error ? true : undefined}
+				aria-describedby={describedBy(uid, hint, error)}
+			/>
+			<span
+				class="search pressable"
+				use:Ripple={PRESS_RIPPLE}
+				onclick={(event) => {
+					// prevent the label from bouncing focus back to the input
+					event.preventDefault();
+					pickerOpen = true;
+				}}
+				role="button"
+				tabindex="0"
+				onkeydown={(event) =>
+					activateOnKeyboard(event, () =>
+						((event) => {
+							// prevent the label from bouncing focus back to the input
+							event.preventDefault();
+							pickerOpen = true;
+						})(event)
+					)}
+			>
+				<Icon name="search" size={ICON.control} />
+			</span>
 		</span>
-	</span>
-	<datalist id="entities-{uid}">
-		{#each options as option (option)}
-			<option value={option}>{$states?.[option]?.attributes?.friendly_name ?? ''}</option>
-		{/each}
-	</datalist>
-</label>
+		<datalist id="entities-{uid}">
+			{#each options as option (option)}
+				<option value={option}>{$states?.[option]?.attributes?.friendly_name ?? ''}</option>
+			{/each}
+		</datalist>
+	</label>
+	<FieldMessages id={uid} {hint} {error} />
+</div>
 
 {#if pickerOpen}
 	<EntityPicker
@@ -75,6 +89,10 @@
 	.field {
 		display: block;
 		margin-bottom: 14px;
+	}
+
+	label {
+		display: block;
 	}
 
 	.field-label {

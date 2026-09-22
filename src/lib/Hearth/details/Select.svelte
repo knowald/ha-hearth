@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { states } from '$lib/core/ha/entities';
 	import { callEntityService } from '$lib/core/ha/commands';
+	import { pressFeedback } from '../pressFeedback';
 
 	let { entity }: { entity: string } = $props();
 
@@ -16,6 +17,7 @@
 		<button
 			type="button"
 			class="segment"
+			use:pressFeedback={entity}
 			class:active={stateObj?.state === option}
 			onclick={() => callEntityService(domain, 'select_option', entity, { option })}
 		>

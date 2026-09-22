@@ -7,7 +7,7 @@
 	import { PRESS_RIPPLE, type VacuumModeRef } from './config';
 	import { getHearthInteractionMode } from './interaction';
 	import { callEntityService } from '$lib/core/ha/commands';
-	import { vacuumCommand } from '$lib/core/domains/vacuum';
+	import { vacuumActions, vacuumCommand, type VacuumAction } from '$lib/core/domains/vacuum';
 	import EmptyState from './EmptyState.svelte';
 	import Icon from './Icon.svelte';
 
@@ -37,13 +37,6 @@
 		paused: 'paused',
 		idle: 'idle',
 		error: 'hearth_vacuum_needs_help'
-	};
-
-	type Action = {
-		command: 'start' | 'pause' | 'return_to_base';
-		label: string;
-		icon: string;
-		primary?: boolean;
 	};
 
 	function percent(value: unknown): number | null {
@@ -76,27 +69,13 @@
 	// tiles stay identical in height - the whole point of this layout
 	let showMeta = $derived(modes.some((mode) => mode.detail || mode.duration));
 
-	/** Only what applies to the current state; starting a run is the grid's job. */
-	let actions = $derived.by<Action[]>(() => {
-		switch (vacuum?.state) {
-			case 'cleaning':
-			case 'returning':
-				return [
-					{ command: 'pause', label: $lang('hearth_pause'), icon: 'pause' },
-					{ command: 'return_to_base', label: $lang('hearth_send_home'), icon: 'home' }
-				];
-			case 'paused':
-			case 'error':
-				return [
-					{ command: 'start', label: $lang('hearth_resume'), icon: 'play_arrow', primary: true },
-					{ command: 'return_to_base', label: $lang('hearth_send_home'), icon: 'home' }
-				];
-			case 'idle':
-				return [{ command: 'return_to_base', label: $lang('hearth_send_home'), icon: 'home' }];
-			default:
-				return [];
-		}
-	});
+	// the same commands as the detail sheet, less a plain start: starting a
+	// run is the mode grid's job
+	let actions = $derived(
+		vacuumActions(vacuum?.state, vacuum?.attributes?.supported_features ?? 0).filter(
+			(action) => action.label !== 'hearth_start'
+		)
+	);
 
 	let launched = $state<{ index: number; mode: VacuumModeRef } | null>(null);
 	let undoTimer: ReturnType<typeof setTimeout> | undefined;
@@ -116,7 +95,7 @@
 		vacuumCommand(entity, 'return_to_base');
 	}
 
-	function run(action: Action) {
+	function run(action: VacuumAction) {
 		if (readonly) return;
 		vacuumCommand(entity, action.command);
 	}
@@ -189,7 +168,7 @@
 				onclick={() => run(action)}
 			>
 				<Icon name={action.icon} size={ICON.control} fill={action.primary} />
-				{action.label}
+				{$lang(action.label)}
 			</button>
 		{/each}
 	</div>
