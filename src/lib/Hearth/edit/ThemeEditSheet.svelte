@@ -104,6 +104,15 @@
 
 	let switchEntity = $state(get(hearthConfig).day_night?.entity ?? '');
 	let nightState = $state(get(hearthConfig).day_night?.night_state ?? '');
+	let switchFields = $state<HTMLElement>();
+
+	// Typing reaches applySwitch through the bubbling change event, like the
+	// background URL. The picker sets the value with no event of its own, so a
+	// value that arrives while the field's own input is not focused applies here.
+	function setSwitchEntity(next: string) {
+		switchEntity = next;
+		if (switchFields?.querySelector('input') !== document.activeElement) applySwitch();
+	}
 
 	function applySwitch() {
 		const entity = switchEntity.trim();
@@ -232,19 +241,17 @@
 			.value;
 	});
 
+	// every field applies live, so closing keeps a value still being typed
+	// rather than dropping it; there is nothing staged for Done to commit
 	function close() {
+		applyBackgroundImage();
+		applySwitch();
 		editedThemeSlot.set('day');
 		editor.set(null);
 	}
-
-	function done() {
-		applyBackgroundImage();
-		applySwitch();
-		close();
-	}
 </script>
 
-<EditSheet title={$lang('theme')} onclose={close} ondone={done} floating>
+<EditSheet title={$lang('theme')} onclose={close} ondone={close} floating>
 	<div class="slots">
 		<div
 			class="slot pressable"
@@ -284,12 +291,17 @@
 	</div>
 
 	<div class="group-label">{$lang('hearth_day_night_switch')}</div>
-	<EntityField label={$lang('hearth_switch_entity')} bind:value={switchEntity} />
-	<TextField
-		label={$lang('hearth_night_states')}
-		bind:value={nightState}
-		placeholder="below_horizon"
-	/>
+	<div class="switch-fields" bind:this={switchFields} onchange={applySwitch}>
+		<EntityField
+			label={$lang('hearth_switch_entity')}
+			bind:value={() => switchEntity, setSwitchEntity}
+		/>
+		<TextField
+			label={$lang('hearth_night_states')}
+			bind:value={nightState}
+			placeholder="below_horizon"
+		/>
+	</div>
 	<div class="hint">
 		{$lang('hearth_comma_separated_when_empty_below_horizon')}
 	</div>
@@ -505,6 +517,11 @@
 </EditSheet>
 
 <style>
+	/* groups the fields for one change listener without taking a grid cell */
+	.switch-fields {
+		display: contents;
+	}
+
 	.slots {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
