@@ -97,7 +97,7 @@ pnpm matrix
 
 Browser tests use a fake Home Assistant and fixture data. `pnpm matrix` generates screenshots and a review sheet. Actual device and live camera behavior also need testing against your installation.
 
-See [component conventions](src/lib/Hearth/README.md) and [releasing](docs/release.md). Changes use the `hearth` commit scope. Contributions are covered by the [MIT license](LICENSE); retained copyright notices apply to included code.
+See [component conventions](src/lib/Hearth/README.md) and [releasing](docs/release.md). The [changelog](CHANGELOG.md) follows [Common Changelog](https://common-changelog.org/). Changes use the `hearth` commit scope. Contributions are covered by the [MIT license](LICENSE); retained copyright notices apply to included code.
 
 ## Shoutout
 
