@@ -16,7 +16,7 @@
 {#if src}
 	<img {src} alt="" />
 {:else}
-	<div class="note">{$lang('hearth_image_not_available')}</div>
+	<div class="note">{$lang('hearth_image_unavailable')}</div>
 {/if}
 
 <style>

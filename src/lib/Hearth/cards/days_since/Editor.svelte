@@ -27,7 +27,11 @@
 	});
 </script>
 
-<TextField label={$lang('hearth_title')} bind:value={title} placeholder="Filter changed" />
+<TextField
+	label={$lang('hearth_title')}
+	bind:value={title}
+	placeholder={$lang('hearth_example_days_since_title')}
+/>
 <EntityField label={$lang('entity')} bind:value={entity} domains={['input_datetime']} />
 <div class="hint">{$lang('hearth_days_since_entity_hint')}</div>
 <IconField label={$lang('hearth_icon_optional')} bind:value={icon} />

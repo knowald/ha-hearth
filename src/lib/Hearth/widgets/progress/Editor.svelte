@@ -53,7 +53,11 @@
 
 <div class="row">
 	<div class="grow">
-		<TextField label={$lang('name')} bind:value={name} placeholder="Washer" />
+		<TextField
+			label={$lang('name')}
+			bind:value={name}
+			placeholder={$lang('hearth_example_progress_name')}
+		/>
 	</div>
 	<div class="icon-column">
 		<IconField label={$lang('icon')} bind:value={icon} placeholder="local_laundry_service" />

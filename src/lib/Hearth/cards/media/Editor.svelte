@@ -50,14 +50,18 @@
 <TextField
 	label={$lang('hearth_default_device')}
 	bind:value={defaultDevice}
-	placeholder="Living room speaker"
+	placeholder={$lang('hearth_example_speaker')}
 />
 <div class="group-label">{$lang('hearth_quick_play')}</div>
 <div class="hint">{$lang('hearth_shortcuts_hint')}</div>
 {#each shortcuts as shortcut, index (index)}
 	<div class="filter-row">
 		<div class="filter-fields">
-			<TextField label={$lang('name')} bind:value={shortcut.name} placeholder="Focus" />
+			<TextField
+				label={$lang('name')}
+				bind:value={shortcut.name}
+				placeholder={$lang('hearth_example_shortcut_name')}
+			/>
 			<TextField
 				label={$lang('hearth_shortcut_uri')}
 				bind:value={shortcut.uri}

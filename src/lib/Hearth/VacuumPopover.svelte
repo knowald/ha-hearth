@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ICON } from './iconSizes';
-	import { lang } from '$lib/core/i18n';
+	import { lang, fill } from '$lib/core/i18n';
 	import { onDestroy } from 'svelte';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { states } from '$lib/core/ha/entities';
@@ -33,7 +33,7 @@
 	const statusKeys: Record<string, string> = {
 		docked: 'docked',
 		cleaning: 'cleaning',
-		returning: 'hearth_vacuum_returning_home',
+		returning: 'returning',
 		paused: 'paused',
 		idle: 'idle',
 		error: 'hearth_vacuum_needs_help'
@@ -146,7 +146,9 @@
 	<div class="undo">
 		<Icon name="check_circle" size={ICON.control} color="var(--h-good)" />
 		<div class="undo-text">
-			<div class="undo-title">{$lang('hearth_starting')} {modeName(launched.mode)}</div>
+			<div class="undo-title">
+				{fill($lang('hearth_starting'), { mode: modeName(launched.mode) })}
+			</div>
 			{#if modeMeta(launched.mode)}
 				<div class="undo-detail">{modeMeta(launched.mode)}</div>
 			{/if}
@@ -233,6 +235,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-caption);
 		letter-spacing: 1.2px;
+		text-transform: uppercase;
 	}
 
 	.name {

@@ -38,7 +38,7 @@
 			/>
 		</div>
 	{:else}
-		<EmptyState text={$lang('hearth_image_not_available')} />
+		<EmptyState text={$lang('hearth_image_unavailable')} />
 	{/if}
 </div>
 

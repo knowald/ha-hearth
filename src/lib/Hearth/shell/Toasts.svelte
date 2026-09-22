@@ -5,7 +5,7 @@
 	import { MOTION } from '$lib/core/theme';
 	import { health } from '$lib/core/ha/connection';
 	import { commandFailure, dismissCommandFailure } from '$lib/core/ha/commands';
-	import { lang } from '$lib/core/i18n';
+	import { lang, fill } from '$lib/core/i18n';
 	import {
 		configurationLoadError,
 		copyState,
@@ -155,8 +155,7 @@
 {#if overflowBy > 0}
 	<div class="overflow-toast" transition:fade={{ duration: $motion ? MOTION.slow : 0 }}>
 		<Icon name="unfold_less" size={ICON.control} />
-		{$lang('hearth_page_overflows_this_screen_by')}
-		{overflowBy}px
+		{fill($lang('hearth_page_overflows_by'), { size: overflowBy })}
 	</div>
 {/if}
 

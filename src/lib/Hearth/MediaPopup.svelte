@@ -291,7 +291,7 @@
 							: pane === 'library'
 								? 'hearth_library'
 								: 'hearth_play_on'
-				).toUpperCase()}
+				)}
 			</div>
 			<div class="panel-list">
 				{#if pane === 'queue'}
@@ -349,14 +349,14 @@
 					{/if}
 				{:else if pane === 'library'}
 					<div class="library-kinds">
-						{#each ['albums', 'tracks', 'artists'] as kind (kind)}
+						{#each [['albums', 'hearth_albums'], ['tracks', 'hearth_tracks'], ['artists', 'hearth_artists']] as [kind, label] (kind)}
 							<button
 								type="button"
 								class="kind-chip"
 								class:active={libraryKind === kind}
 								onclick={() => loadLibrary(kind as LibraryKind)}
 							>
-								{$lang(`hearth_${kind}`)}
+								{$lang(label)}
 							</button>
 						{/each}
 					</div>
@@ -441,7 +441,7 @@
 						onkeydown={(event) => activateOnKeyboard(event, openPlaylists)}
 					>
 						<Icon name="queue_music" size={ICON.inline} />
-						{$lang('playlists')}
+						{$lang('hearth_playlists')}
 					</div>
 					<div
 						class="chip pressable"
@@ -659,6 +659,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-label);
 		letter-spacing: 2px;
+		text-transform: uppercase;
 		color: var(--h-on-art-3);
 		padding: 0 8px 8px;
 	}

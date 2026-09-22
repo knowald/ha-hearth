@@ -53,5 +53,5 @@
 		>
 	</div>
 {:else}
-	<div class="note">{$lang('hearth_up_to_date')}</div>
+	<div class="note">{$lang('update_up_to_date')}</div>
 {/if}

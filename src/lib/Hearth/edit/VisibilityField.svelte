@@ -211,6 +211,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-label);
 		letter-spacing: 2px;
+		text-transform: uppercase;
 		color: var(--h-label);
 		margin: 18px 0 10px;
 	}

@@ -17,7 +17,7 @@
 		type="button"
 		class="step"
 		use:pressFeedback={entity}
-		aria-label={$lang('hearth_decrement')}
+		aria-label={$lang('hearth_decrease')}
 		disabled={typeof min === 'number' && Number(value) <= min}
 		onclick={() => callEntityService('counter', 'decrement', entity)}>-</button
 	>
@@ -26,7 +26,7 @@
 		type="button"
 		class="step"
 		use:pressFeedback={entity}
-		aria-label={$lang('hearth_increment')}
+		aria-label={$lang('hearth_increase')}
 		disabled={typeof max === 'number' && Number(value) >= max}
 		onclick={() => callEntityService('counter', 'increment', entity)}>+</button
 	>

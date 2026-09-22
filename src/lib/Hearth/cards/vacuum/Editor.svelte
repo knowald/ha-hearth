@@ -102,7 +102,7 @@
 			<TextField
 				label={$lang('hearth_covers_optional')}
 				bind:value={mode.detail}
-				placeholder="Living + Bedroom"
+				placeholder={$lang('hearth_example_vacuum_covers')}
 			/>
 			<TextField
 				label={$lang('hearth_duration_optional')}

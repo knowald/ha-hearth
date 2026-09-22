@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('proposes a page per area, grouped by floor', async ({ page }) => {
-	const dialog = page.getByRole('dialog', { name: 'Import from Home Assistant' });
+	const dialog = page.getByRole('dialog', { name: 'Import Home Assistant areas' });
 
 	await expect(dialog).toBeVisible();
 	await expect(dialog.getByText('Ground floor')).toBeVisible();
@@ -22,7 +22,7 @@ test('proposes a page per area, grouped by floor', async ({ page }) => {
 });
 
 test('adds the selected pages and leaves the existing one alone', async ({ page }) => {
-	const dialog = page.getByRole('dialog', { name: 'Import from Home Assistant' });
+	const dialog = page.getByRole('dialog', { name: 'Import Home Assistant areas' });
 	// the fixture already has an Office page; importing the area again would
 	// duplicate it
 	await dialog.getByRole('checkbox').last().uncheck();
@@ -35,7 +35,7 @@ test('adds the selected pages and leaves the existing one alone', async ({ page 
 });
 
 test('keeps config entities off the imported page', async ({ page }) => {
-	const dialog = page.getByRole('dialog', { name: 'Import from Home Assistant' });
+	const dialog = page.getByRole('dialog', { name: 'Import Home Assistant areas' });
 	await dialog.getByRole('button', { name: 'Apply' }).click();
 	await page.locator('.rail').getByRole('button', { name: 'Living room' }).click();
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import LoadingState from './LoadingState.svelte';
 	import { get } from 'svelte/store';
 	import { ICON } from './iconSizes';
 	import { connection } from '$lib/core/ha/connection';
@@ -138,7 +139,7 @@
 	function apply() {
 		if (mode === 'replace' && replacedCount > 0) {
 			requestConfirmation({
-				title: $lang('hearth_import'),
+				title: $lang('hearth_setup'),
 				message: fill($lang('hearth_import_replace_confirm'), { count: String(replacedCount) }),
 				confirmLabel: $lang('hearth_apply'),
 				action: runImport
@@ -150,7 +151,7 @@
 </script>
 
 <EditSheet
-	title={$lang('hearth_import')}
+	title={$lang('hearth_setup')}
 	{onclose}
 	ondone={apply}
 	doneLabel={$lang('hearth_apply')}
@@ -164,7 +165,7 @@
 		{#if status === 'disconnected'}
 			<div class="hint">{$lang('hearth_not_connected')}</div>
 		{:else if status === 'loading'}
-			<div class="hint" role="status">{$lang('hearth_loading_registries')}</div>
+			<LoadingState text={$lang('hearth_loading_registries')} />
 		{:else if status === 'error'}
 			<div class="hint">
 				<div class="error" role="alert">

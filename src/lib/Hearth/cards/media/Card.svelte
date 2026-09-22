@@ -100,7 +100,7 @@
 				{#if hasTrack}
 					<div class="kicker">
 						{$lang('hearth_now_playing')}{attributes.friendly_name
-							? ` · ${String(attributes.friendly_name).toUpperCase()}`
+							? ` · ${attributes.friendly_name}`
 							: ''}
 					</div>
 				{/if}
@@ -209,6 +209,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-caption);
 		letter-spacing: 2px;
+		text-transform: uppercase;
 		color: var(--h-accent-dim-text);
 		margin-bottom: 8px;
 		white-space: nowrap;

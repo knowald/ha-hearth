@@ -147,7 +147,11 @@
 	});
 </script>
 
-<TextField label={$lang('hearth_title')} bind:value={title} placeholder="Lights" />
+<TextField
+	label={$lang('hearth_title')}
+	bind:value={title}
+	placeholder={$lang('hearth_example_entities_title')}
+/>
 <SelectField
 	label={$lang('hearth_style')}
 	bind:value={style}
@@ -160,7 +164,7 @@
 	label={$lang('columns')}
 	bind:value={columns}
 	options={[
-		{ value: '', label: 'Auto' },
+		{ value: '', label: $lang('auto') },
 		{ value: '1', label: '1' },
 		{ value: '2', label: '2' },
 		{ value: '3', label: '3' },
@@ -171,8 +175,8 @@
 	label={$lang('hearth_vertical_padding')}
 	bind:value={verticalPadding}
 	options={[
-		{ value: '', label: 'Standard' },
-		{ value: 'compact', label: 'Compact' }
+		{ value: '', label: $lang('hearth_standard_density') },
+		{ value: 'compact', label: $lang('hearth_compact') }
 	]}
 />
 <SelectField
@@ -214,7 +218,7 @@
 	<TextField
 		label={$lang('hearth_summary_text_optional')}
 		bind:value={summary}
-		placeholder="5 open · 3 closed"
+		placeholder={$lang('hearth_example_entities_summary')}
 	/>
 	<EntityField label={$lang('hearth_summary_from_entity_optional')} bind:value={summaryEntity} />
 	<div class="hint">

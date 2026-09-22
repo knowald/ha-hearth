@@ -244,6 +244,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-caption);
 		letter-spacing: 1.6px;
+		text-transform: uppercase;
 		color: var(--h-text-6);
 	}
 
@@ -319,6 +320,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-caption);
 		letter-spacing: 1px;
+		text-transform: uppercase;
 		color: var(--h-label);
 		pointer-events: none;
 	}
@@ -330,6 +332,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-caption);
 		letter-spacing: 1.4px;
+		text-transform: uppercase;
 		color: var(--h-text-6);
 	}
 </style>

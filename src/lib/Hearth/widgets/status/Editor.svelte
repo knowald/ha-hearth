@@ -29,7 +29,11 @@
 
 <div class="row">
 	<div class="grow">
-		<TextField label={$lang('text')} bind:value={text} placeholder="All systems nominal" />
+		<TextField
+			label={$lang('text')}
+			bind:value={text}
+			placeholder={$lang('hearth_example_status_text')}
+		/>
 	</div>
 	<div class="icon-column">
 		<IconField label={$lang('icon')} bind:value={icon} placeholder="eco" />

@@ -68,7 +68,7 @@
 	{#if failed}
 		<button type="button" onclick={() => (attempt += 1)}>{$lang('hearth_retry')}</button>
 	{:else if !poster && !playing}
-		<span>{$lang('hearth_image_not_available')}</span>
+		<span>{$lang('hearth_image_unavailable')}</span>
 	{/if}
 </div>
 

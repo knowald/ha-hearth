@@ -31,11 +31,15 @@
 	});
 </script>
 
-<TextField label={$lang('hearth_title')} bind:value={title} placeholder="Home" />
+<TextField
+	label={$lang('hearth_title')}
+	bind:value={title}
+	placeholder={$lang('hearth_example_header_title')}
+/>
 <TextField
 	label={$lang('hearth_subtitle')}
 	bind:value={subtitle}
-	placeholder="Cozy · curtains open"
+	placeholder={$lang('hearth_example_page_summary')}
 />
 <IconField label={$lang('icon')} bind:value={icon} placeholder="home" />
 <EntityField

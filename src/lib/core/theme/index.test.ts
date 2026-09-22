@@ -23,7 +23,7 @@ describe('THEME_PRESETS', () => {
 
 	it('exposes Void as a true-black dark theme', () => {
 		const preset = THEME_PRESETS.find((entry) => entry.id === 'void');
-		expect(preset).toMatchObject({ id: 'void', name: 'Void (OLED)', theme: VOID_THEME });
+		expect(preset).toMatchObject({ id: 'void', theme: VOID_THEME });
 		expect(VOID_THEME.background_outer).toBe('#000000');
 		expect(VOID_THEME.background_inner).toBe('#0a0a0a');
 		expect(isLightTheme(VOID_THEME)).toBe(false);
@@ -37,7 +37,7 @@ describe('THEME_PRESETS', () => {
 
 	it('gives Frosted Glass a blur and a scrim to sit under it', () => {
 		const preset = THEME_PRESETS.find((entry) => entry.id === 'glass');
-		expect(preset).toMatchObject({ id: 'glass', name: 'Frosted Glass', theme: GLASS_THEME });
+		expect(preset).toMatchObject({ id: 'glass', theme: GLASS_THEME });
 		expect(GLASS_THEME.surface_blur).toContain('blur(');
 		expect(GLASS_THEME.background_scrim).toContain('linear-gradient');
 		const css = themeStyle(GLASS_THEME);

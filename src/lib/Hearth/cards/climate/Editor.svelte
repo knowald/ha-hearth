@@ -24,5 +24,9 @@
 	});
 </script>
 
-<TextField label={$lang('hearth_title')} bind:value={title} placeholder="Lights" />
+<TextField
+	label={$lang('hearth_title')}
+	bind:value={title}
+	placeholder={$lang('hearth_example_climate_title')}
+/>
 <EntityField label={$lang('entity')} bind:value={entity} domains={['climate']} />

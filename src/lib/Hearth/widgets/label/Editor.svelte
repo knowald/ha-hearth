@@ -18,7 +18,11 @@
 	});
 </script>
 
-<TextField label={$lang('text')} bind:value={text} placeholder="TODAY" />
+<TextField
+	label={$lang('text')}
+	bind:value={text}
+	placeholder={$lang('hearth_example_label_text')}
+/>
 <label class="check">
 	<input type="checkbox" bind:checked={divider} />
 	<span>{$lang('hearth_divider_line')}</span>

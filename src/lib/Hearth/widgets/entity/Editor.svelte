@@ -43,7 +43,7 @@
 	label={$lang('hearth_vertical_padding')}
 	bind:value={verticalPadding}
 	options={[
-		{ value: '', label: 'Standard' },
-		{ value: 'compact', label: 'Compact' }
+		{ value: '', label: $lang('hearth_standard_density') },
+		{ value: 'compact', label: $lang('hearth_compact') }
 	]}
 />

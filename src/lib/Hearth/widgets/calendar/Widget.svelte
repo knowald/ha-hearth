@@ -2,7 +2,7 @@
 	import { ICON } from '../../iconSizes';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { connected } from '$lib/core/ha/connection';
-	import { lang, selectedLanguage } from '$lib/core/i18n';
+	import { lang, fill, selectedLanguage } from '$lib/core/i18n';
 	import { dateKey, parseLocalDate } from '$lib/core/i18n/time';
 	import { timer } from '$lib/core/app/clock';
 	import { states } from '$lib/core/ha/entities';
@@ -98,7 +98,7 @@
 			: null;
 		if (travelMinutes !== null) {
 			const leave = new Date(next.start.getTime() - travelMinutes * 60_000);
-			line += ` · ${$lang('hearth_leave_by')} ${clockTime(leave)}`;
+			line += ` · ${fill($lang('hearth_leave_by'), { time: clockTime(leave) })}`;
 		}
 		return line;
 	});

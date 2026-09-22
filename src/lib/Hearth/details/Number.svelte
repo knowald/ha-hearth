@@ -42,7 +42,7 @@
 	<button
 		type="button"
 		class="step"
-		aria-label={$lang('hearth_decrement')}
+		aria-label={$lang('hearth_decrease')}
 		use:pressFeedback={entity}
 		onclick={() => stepBy(-1)}>-</button
 	>
@@ -54,7 +54,7 @@
 	<button
 		type="button"
 		class="step"
-		aria-label={$lang('hearth_increment')}
+		aria-label={$lang('hearth_increase')}
 		use:pressFeedback={entity}
 		onclick={() => stepBy(1)}>+</button
 	>

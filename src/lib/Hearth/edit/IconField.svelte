@@ -1,4 +1,5 @@
 <script lang="ts">
+	import LoadingState from '../LoadingState.svelte';
 	import { ICON } from '../iconSizes';
 	import { layer } from '$lib/ui/layers';
 	import { lang, fill } from '$lib/core/i18n';
@@ -230,12 +231,12 @@
 				>
 					{$lang('hearth_show_more')} ({matches.length - shown.length})
 				</button>
-			{:else if !query}
+			{:else if !query && allNames.length}
 				<div class="hint">
-					{allNames.length
-						? fill($lang('hearth_search_all_icons_count'), { count: String(allNames.length) })
-						: $lang('hearth_loading_icon_list')}
+					{fill($lang('hearth_search_all_icons_count'), { count: String(allNames.length) })}
 				</div>
+			{:else if !query}
+				<LoadingState inline text={$lang('hearth_loading_icon_list')} />
 			{/if}
 		</div>
 	{/if}

@@ -1,7 +1,8 @@
 <script lang="ts">
+	import LoadingState from '../LoadingState.svelte';
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
-	import { lang, selectedLanguage } from '$lib/core/i18n';
+	import { lang, fill, selectedLanguage } from '$lib/core/i18n';
 	import { relativeTime } from '$lib/core/i18n/time';
 	import { ICON } from '../iconSizes';
 	import Ripple from '$lib/ui/actions/ripple';
@@ -145,7 +146,9 @@
 				<Icon name="draft" size={ICON.control} />
 				<span class="entry-main">
 					<span class="entry-label">{$lang('hearth_saved_file')}</span>
-					<span class="entry-sub">{$lang('hearth_revision')} {savedRevision}</span>
+					<span class="entry-sub"
+						>{fill($lang('hearth_revision'), { revision: savedRevision })}</span
+					>
 				</span>
 			</button>
 			{#each versions as version (version.name)}
@@ -164,8 +167,7 @@
 							{#if version.revision === undefined}
 								{whenLabel(version.at)}
 							{:else}
-								{$lang('hearth_revision')}
-								{version.revision}
+								{fill($lang('hearth_revision'), { revision: version.revision })}
 							{/if}
 						</span>
 						<span class="entry-sub">{whenLabel(version.at)} &middot; {sizeLabel(version.size)}</span
@@ -179,7 +181,7 @@
 		</div>
 		<div class="preview">
 			{#if comparable === null}
-				<div class="field-hint">{$lang('hearth_loading')}</div>
+				<LoadingState inline text={$lang('hearth_loading')} />
 			{:else}
 				<div class="preview-bar">
 					{#if unchanged}

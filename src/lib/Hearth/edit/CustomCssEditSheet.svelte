@@ -1,4 +1,5 @@
 <script lang="ts">
+	import LoadingState from '../LoadingState.svelte';
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import { lang } from '$lib/core/i18n';
@@ -76,7 +77,7 @@
 				/>
 			{/await}
 		{:else}
-			<div class="field-hint">{$lang('hearth_loading')}</div>
+			<LoadingState inline text={$lang('hearth_loading')} />
 		{/if}
 	</div>
 	{#if error}<div class="error" role="alert">{error}</div>{/if}

@@ -26,7 +26,11 @@
 	});
 </script>
 
-<TextField label={$lang('hearth_title')} bind:value={title} placeholder="Lights" />
+<TextField
+	label={$lang('hearth_title')}
+	bind:value={title}
+	placeholder={$lang('hearth_example_camera_title')}
+/>
 <EntityField label={$lang('entity')} bind:value={entity} domains={['camera']} />
 <label class="check">
 	<input type="checkbox" bind:checked={stream} />

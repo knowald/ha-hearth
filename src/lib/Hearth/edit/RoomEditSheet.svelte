@@ -102,9 +102,17 @@
 	onmoveup={id ? () => move(-1) : undefined}
 	onmovedown={id ? () => move(1) : undefined}
 >
-	<TextField label={$lang('name')} bind:value={name} placeholder="Living Room" />
+	<TextField
+		label={$lang('name')}
+		bind:value={name}
+		placeholder={$lang('hearth_example_page_name')}
+	/>
 	<IconField label={$lang('icon')} bind:value={icon} placeholder="meeting_room" />
-	<TextField label={$lang('summary')} bind:value={summary} placeholder="Cozy · curtains open" />
+	<TextField
+		label={$lang('summary')}
+		bind:value={summary}
+		placeholder={$lang('hearth_example_page_summary')}
+	/>
 	<EntityField
 		label={$lang('hearth_temperature_sensor')}
 		bind:value={tempEntity}

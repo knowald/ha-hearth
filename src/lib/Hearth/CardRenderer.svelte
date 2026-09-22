@@ -18,9 +18,11 @@
 </script>
 
 {#if !descriptor}
-	<ConfigurationPlaceholder label={fill($lang('hearth_unknown_card_type'), { type: card.type })} />
+	<ConfigurationPlaceholder text={fill($lang('hearth_unknown_card_type'), { type: card.type })} />
 {:else if cardNeedsConfiguration(card)}
-	<ConfigurationPlaceholder label={cardConfigurationLabel(card)} />
+	<ConfigurationPlaceholder
+		text={fill($lang('hearth_configure_type'), { type: cardConfigurationLabel(card) })}
+	/>
 {:else}
 	<descriptor.component {card} {onentitiesreorder} {showEntityDragHandles} />
 {/if}

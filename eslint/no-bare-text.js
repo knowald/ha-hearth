@@ -3,7 +3,10 @@
  * going through $lang(). Applies to text nodes, to the attributes that render
  * as copy (label, title, aria-label and friends), and to string literals in
  * expressions and TypeScript helpers that read as a sentence: two or more
- * words in a row. Placeholders are exempt: they show example values, not copy.
+ * words in a row. Object properties that feed those attributes (label,
+ * title and friends) count as copy even as a single word. Placeholders show
+ * example values, which are often data (entity ids, states, URLs); only ones
+ * that read as a capitalised word or phrase are flagged.
  * Diagnostics (thrown errors, console output) and technical strings (entity
  * ids, CSS, URLs, templates) are data, not copy. A literal that is copy for a
  * reason the rule cannot see carries a same-line `// copy ok: <reason>`.
@@ -18,8 +21,12 @@ const COPY_ATTRIBUTES = new Set([
 	'text',
 	'name',
 	'sub',
-	'alt'
+	'alt',
+	'placeholder'
 ]);
+
+// object keys whose string values end up in the same attributes
+const COPY_PROPERTIES = new Set(['label', 'title', 'sub', 'text', 'confirmLabel', 'removeLabel']);
 
 // attributes whose string values are identifiers, never copy
 const IDENTIFIER_ELEMENTS = new Set(['Icon', 'svelte:element', 'input', 'meta', 'link']);
@@ -39,6 +46,13 @@ function isCopy(text) {
 	// urls; a plain lowercase word such as "save" is copy
 	if (/^[a-z0-9_.:/#%*-]+$/.test(trimmed) && /[0-9_.:/#%*-]/.test(trimmed)) return false;
 	return true;
+}
+
+// "Living room" is an example the reader would translate; "light.kitchen_*",
+// "running, rinse, spin" and "Europe/Warsaw" are values they would type as-is
+function isPlaceholderCopy(text) {
+	const trimmed = text.trim();
+	return isCopy(trimmed) && /^\p{Lu}/u.test(trimmed) && !/[/_{}()]/.test(trimmed);
 }
 
 // a sentence: two words in a row, which no identifier, key or unit contains
@@ -112,7 +126,13 @@ export default {
 				context.report({ node, message: `Bare text "${node.value.trim()}": use $lang()` });
 			},
 			Literal(node) {
-				if (typeof node.value !== 'string' || !isSentence(node.value)) return;
+				if (typeof node.value !== 'string') return;
+				const property =
+					node.parent?.type === 'Property' && node.parent.value === node
+						? node.parent.key?.name
+						: undefined;
+				const copy = COPY_PROPERTIES.has(property) ? isCopy(node.value) : isSentence(node.value);
+				if (!copy) return;
 				if (isDataContext(node) || exemptedByComment(context, node)) return;
 				context.report({ node, message: `Bare copy "${node.value.trim()}": use $lang()` });
 			},
@@ -127,7 +147,7 @@ export default {
 				if (!COPY_ATTRIBUTES.has(key)) return;
 				const parentName = node.parent?.parent?.name?.name ?? node.parent?.parent?.name;
 				if (key === 'name' && parentName !== undefined && parentName !== 'TextField') return;
-				if (IDENTIFIER_ELEMENTS.has(parentName)) return;
+				if (IDENTIFIER_ELEMENTS.has(parentName) && key !== 'placeholder') return;
 				if (node.value.length !== 1) return;
 				const value = node.value[0];
 				// title="Delete" and title={'Delete'} are the same mistake
@@ -139,7 +159,8 @@ export default {
 							  typeof value.expression.value === 'string'
 							? value.expression.value
 							: undefined;
-				if (text === undefined || !isCopy(text)) return;
+				if (text === undefined) return;
+				if (key === 'placeholder' ? !isPlaceholderCopy(text) : !isCopy(text)) return;
 				context.report({
 					node: value,
 					message: `Bare ${key} "${text.trim()}": use $lang()`

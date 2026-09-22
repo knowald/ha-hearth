@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ICON } from '../iconSizes';
-	import { lang } from '$lib/core/i18n';
+	import { lang, fill } from '$lib/core/i18n';
 	import { activateOnKeyboard } from '../interaction';
 	import { states } from '$lib/core/ha/entities';
 	import Ripple from '$lib/ui/actions/ripple';
@@ -100,8 +100,7 @@
 			{/each}
 			{#if matches.length > MAX_ROWS}
 				<div class="hint">
-					{matches.length - MAX_ROWS}
-					{$lang('hearth_more_matches_refine_your_search')}
+					{fill($lang('hearth_more_matches'), { count: matches.length - MAX_ROWS })}
 				</div>
 			{/if}
 		</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import LoadingState from '../LoadingState.svelte';
 	import { ICON } from '../iconSizes';
 	import { lang, fill } from '$lib/core/i18n';
 	import { activateOnKeyboard } from '../interaction';
@@ -351,7 +352,7 @@
 					style:background="linear-gradient(135deg, {preset.theme?.background_inner ??
 						THEME_DEFAULTS.background_inner} 55%, {preset.theme?.accent ?? THEME_DEFAULTS.accent})"
 				></span>
-				<span>{preset.name}</span>
+				<span>{$lang(`hearth_theme_preset_${preset.id}`)}</span>
 			</div>
 		{/each}
 	</div>
@@ -361,7 +362,7 @@
 		<input
 			type="text"
 			bind:value={newThemeName}
-			placeholder="Save current as..."
+			placeholder={$lang('hearth_save_current_theme_as')}
 			spellcheck="false"
 			onkeydown={(event) => event.key === 'Enter' && saveCurrentTheme()}
 		/>
@@ -380,7 +381,7 @@
 	{/if}
 
 	{#if themesLoading}
-		<div class="field-hint">{$lang('hearth_loading_saved_themes')}</div>
+		<LoadingState inline text={$lang('hearth_loading_saved_themes')} />
 	{:else if savedThemes.length}
 		<div class="saved-themes">
 			{#each savedThemes as saved (saved.id)}
@@ -472,14 +473,17 @@
 	<TextField
 		label={$lang('hearth_background_image_url')}
 		bind:value={backgroundImageUrl}
-		placeholder="/local/wallpaper.jpg or https://..."
+		placeholder={$lang('hearth_example_background_image')}
 		onchange={applyBackgroundImage}
 	/>
 
 	<SelectField
 		label={$lang('hearth_text_contrast')}
 		value={textContrast}
-		options={TEXT_CONTRAST_SCALES.map(({ value, label }) => ({ value, label }))}
+		options={TEXT_CONTRAST_SCALES.map(({ value }) => ({
+			value,
+			label: $lang(`hearth_text_contrast_${value}`)
+		}))}
 		onchange={(value) => {
 			const scale = TEXT_CONTRAST_SCALES.find((entry) => entry.value === value);
 			if (scale) {
@@ -491,7 +495,10 @@
 	<SelectField
 		label={$lang('hearth_text_shadow')}
 		value={textShadow}
-		options={TEXT_SHADOW_SCALES.map(({ value, label }) => ({ value, label }))}
+		options={TEXT_SHADOW_SCALES.map(({ value }) => ({
+			value,
+			label: $lang(`hearth_text_shadow_${value}`)
+		}))}
 		onchange={(value) => {
 			const scale = TEXT_SHADOW_SCALES.find((entry) => entry.value === value);
 			if (scale) patchTheme({ text_shadow: scale.shadow });
@@ -501,7 +508,10 @@
 	<SelectField
 		label={$lang('hearth_glass')}
 		value={surfaceBlur}
-		options={SURFACE_BLUR_SCALES.map(({ value, label }) => ({ value, label }))}
+		options={SURFACE_BLUR_SCALES.map(({ value }) => ({
+			value,
+			label: $lang(`hearth_glass_${value}`)
+		}))}
 		onchange={(value) => {
 			const scale = SURFACE_BLUR_SCALES.find((entry) => entry.value === value);
 			if (scale) patchTheme({ surface_blur: scale.blur });
@@ -511,7 +521,10 @@
 	<SelectField
 		label={$lang('hearth_corners')}
 		value={radiusScale}
-		options={RADIUS_SCALES.map(({ value, label }) => ({ value, label }))}
+		options={RADIUS_SCALES.map(({ value }) => ({
+			value,
+			label: $lang(`hearth_corners_${value}`)
+		}))}
 		onchange={(value) => {
 			const scale = RADIUS_SCALES.find((entry) => entry.value === value);
 			if (scale) patchTheme(deriveRadii(scale.factor));
@@ -578,6 +591,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-label);
 		letter-spacing: 2px;
+		text-transform: uppercase;
 		color: var(--h-label);
 		margin: 4px 0 10px;
 	}

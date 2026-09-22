@@ -36,7 +36,7 @@
 <TextField
 	label={$lang('hearth_label')}
 	bind:value={label}
-	placeholder="Average home temperature"
+	placeholder={$lang('hearth_example_temperature_label')}
 />
 <EntityField label={$lang('entity')} bind:value={entity} domains={['sensor']} />
 <TextField label={$lang('hearth_unit')} bind:value={unit} placeholder="°C" />

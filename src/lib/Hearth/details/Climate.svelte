@@ -68,7 +68,7 @@
 			type="button"
 			class="step"
 			use:pressFeedback={entity}
-			aria-label={$lang('hearth_decrement')}
+			aria-label={$lang('hearth_decrease')}
 			onclick={() => setClimateTemperature(entity, clamp(target - step))}>-</button
 		>
 		<div><span class="value">{formatReading(target)}</span><span class="unit">{unit}</span></div>
@@ -76,7 +76,7 @@
 			type="button"
 			class="step"
 			use:pressFeedback={entity}
-			aria-label={$lang('hearth_increment')}
+			aria-label={$lang('hearth_increase')}
 			onclick={() => setClimateTemperature(entity, clamp(target + step))}>+</button
 		>
 	</div>
@@ -87,7 +87,7 @@
 			type="button"
 			class="step"
 			use:pressFeedback={entity}
-			aria-label={$lang('hearth_decrement')}
+			aria-label={$lang('hearth_decrease')}
 			onclick={() => setRange(low - step, high)}>-</button
 		>
 		<div><span class="value">{formatReading(low)}</span><span class="unit">{unit}</span></div>
@@ -95,7 +95,7 @@
 			type="button"
 			class="step"
 			use:pressFeedback={entity}
-			aria-label={$lang('hearth_increment')}
+			aria-label={$lang('hearth_increase')}
 			onclick={() => setRange(low + step, high)}>+</button
 		>
 	</div>
@@ -104,7 +104,7 @@
 			type="button"
 			class="step"
 			use:pressFeedback={entity}
-			aria-label={$lang('hearth_decrement')}
+			aria-label={$lang('hearth_decrease')}
 			onclick={() => setRange(low, high - step)}>-</button
 		>
 		<div><span class="value">{formatReading(high)}</span><span class="unit">{unit}</span></div>
@@ -112,7 +112,7 @@
 			type="button"
 			class="step"
 			use:pressFeedback={entity}
-			aria-label={$lang('hearth_increment')}
+			aria-label={$lang('hearth_increase')}
 			onclick={() => setRange(low, high + step)}>+</button
 		>
 	</div>

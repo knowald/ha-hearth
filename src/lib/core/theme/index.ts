@@ -246,17 +246,18 @@ export function deriveText(ink: string, background: string, light = false, fade 
 	};
 }
 
-export const TEXT_CONTRAST_SCALES: { value: string; label: string; fade: number }[] = [
-	{ value: 'soft', label: 'Soft', fade: 1.3 },
-	{ value: 'normal', label: 'Normal (default)', fade: 1 },
-	{ value: 'high', label: 'High', fade: 0.6 },
-	{ value: 'max', label: 'Maximum', fade: 0.3 }
+// display names live in the translations, keyed by value in the theme sheet
+export const TEXT_CONTRAST_SCALES: { value: string; fade: number }[] = [
+	{ value: 'soft', fade: 1.3 },
+	{ value: 'normal', fade: 1 },
+	{ value: 'high', fade: 0.6 },
+	{ value: 'max', fade: 0.3 }
 ];
 
-export const TEXT_SHADOW_SCALES: { value: string; label: string; shadow: string }[] = [
-	{ value: 'none', label: 'Off (default)', shadow: 'none' },
-	{ value: 'soft', label: 'Soft', shadow: '0 1px 3px rgba(0, 0, 0, 0.35)' },
-	{ value: 'strong', label: 'Strong', shadow: '0 2px 12px rgba(0, 0, 0, 0.6)' }
+export const TEXT_SHADOW_SCALES: { value: string; shadow: string }[] = [
+	{ value: 'none', shadow: 'none' },
+	{ value: 'soft', shadow: '0 1px 3px rgba(0, 0, 0, 0.35)' },
+	{ value: 'strong', shadow: '0 2px 12px rgba(0, 0, 0, 0.6)' }
 ];
 
 /**
@@ -275,17 +276,17 @@ export function textContrastOf(theme: HearthTheme): string {
 	).value;
 }
 
-export const SURFACE_BLUR_SCALES: { value: string; label: string; blur: string }[] = [
-	{ value: 'none', label: 'Off (default)', blur: 'none' },
-	{ value: 'light', label: 'Light', blur: 'blur(10px) saturate(120%)' },
-	{ value: 'medium', label: 'Medium', blur: 'blur(20px) saturate(140%)' },
-	{ value: 'heavy', label: 'Heavy', blur: 'blur(32px) saturate(160%)' }
+export const SURFACE_BLUR_SCALES: { value: string; blur: string }[] = [
+	{ value: 'none', blur: 'none' },
+	{ value: 'light', blur: 'blur(10px) saturate(120%)' },
+	{ value: 'medium', blur: 'blur(20px) saturate(140%)' },
+	{ value: 'heavy', blur: 'blur(32px) saturate(160%)' }
 ];
 
-export const RADIUS_SCALES: { value: string; label: string; factor: number }[] = [
-	{ value: 'sharp', label: 'Sharp', factor: 0.45 },
-	{ value: 'soft', label: 'Soft (default)', factor: 1 },
-	{ value: 'round', label: 'Round', factor: 1.5 }
+export const RADIUS_SCALES: { value: string; factor: number }[] = [
+	{ value: 'sharp', factor: 0.45 },
+	{ value: 'soft', factor: 1 },
+	{ value: 'round', factor: 1.5 }
 ];
 
 const RADIUS_BASE: Record<string, number> = {
@@ -411,12 +412,12 @@ export const GLASS_THEME: HearthTheme = {
 	overlay: 'rgba(10, 7, 4, 0.55)'
 };
 
-export const THEME_PRESETS: { id: string; name: string; theme: HearthTheme | null }[] = [
-	{ id: 'hearth', name: 'Calm Hearth', theme: null },
-	{ id: 'paper', name: 'Warm Paper (day)', theme: WARM_PAPER_THEME },
+// display names are the hearth_theme_preset_<id> translations
+export const THEME_PRESETS: { id: string; theme: HearthTheme | null }[] = [
+	{ id: 'hearth', theme: null },
+	{ id: 'paper', theme: WARM_PAPER_THEME },
 	{
 		id: 'slate',
-		name: 'Slate',
 		theme: buildTheme({
 			accent: '#6fc3c9',
 			cool: '#7f9cc9',
@@ -425,11 +426,10 @@ export const THEME_PRESETS: { id: string; name: string; theme: HearthTheme | nul
 			ink: '#eef5f9'
 		})
 	},
-	{ id: 'void', name: 'Void (OLED)', theme: VOID_THEME },
-	{ id: 'glass', name: 'Frosted Glass', theme: GLASS_THEME },
+	{ id: 'void', theme: VOID_THEME },
+	{ id: 'glass', theme: GLASS_THEME },
 	{
 		id: 'forest',
-		name: 'Forest',
 		theme: buildTheme({
 			accent: '#a8c98a',
 			cool: '#7fb6d9',
@@ -440,7 +440,6 @@ export const THEME_PRESETS: { id: string; name: string; theme: HearthTheme | nul
 	},
 	{
 		id: 'plum',
-		name: 'Plum',
 		theme: buildTheme({
 			accent: '#d9a3c9',
 			cool: '#9fa3e0',
@@ -454,7 +453,6 @@ export const THEME_PRESETS: { id: string; name: string; theme: HearthTheme | nul
 		// background, white active buttons, Inter, small radii (no background
 		// photo - set the background_image knob for one)
 		id: 'muted',
-		name: 'Muted',
 		theme: {
 			...buildTheme({
 				accent: '#e6e8e9',

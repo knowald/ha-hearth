@@ -69,7 +69,11 @@
 	});
 </script>
 
-<TextField label={$lang('hearth_title')} bind:value={title} placeholder="Scenes" />
+<TextField
+	label={$lang('hearth_title')}
+	bind:value={title}
+	placeholder={$lang('hearth_example_scenes_title')}
+/>
 <SelectField
 	label={$lang('hearth_style')}
 	bind:value={style}
@@ -95,7 +99,7 @@
 				<TextField
 					label={$lang('hearth_caption_optional')}
 					bind:value={ref.caption}
-					placeholder="23:00, all off, ..."
+					placeholder={$lang('hearth_example_scene_caption')}
 				/>
 			{/if}
 			<EntityField

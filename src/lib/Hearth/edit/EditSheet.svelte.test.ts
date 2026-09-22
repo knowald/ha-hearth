@@ -34,7 +34,7 @@ describe('EditSheet remove action', () => {
 			confirmLabel: en.remove
 		});
 		// the label never turns into an inline "are you sure?" second tap
-		expect(screen.queryByText(new RegExp(en.hearth_are_you_sure))).toBeNull();
+		expect(screen.queryByText(/are you sure/i)).toBeNull();
 		confirmRequestedAction();
 		expect(onremove).toHaveBeenCalledOnce();
 	});

@@ -40,7 +40,7 @@ describe('SetupWizard', () => {
 	it('shares the edit sheet chrome: apply in the header beside close, focus inside', async () => {
 		const onclose = vi.fn();
 		render(SetupWizard, { onclose, firstRun: true });
-		const dialog = screen.getByRole('dialog', { name: en.hearth_import });
+		const dialog = screen.getByRole('dialog', { name: en.hearth_setup });
 		expect(dialog.getAttribute('aria-modal')).toBe('true');
 		const apply = screen.getByRole('button', { name: en.hearth_apply }) as HTMLButtonElement;
 		const close = screen.getByRole('button', { name: en.hearth_close });

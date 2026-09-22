@@ -160,7 +160,7 @@
 							<button
 								type="button"
 								class="step"
-								aria-label={`${$lang('hearth_decrease')} ${$lang('hearth_side_padding').toLowerCase()}`}
+								aria-label={$lang('hearth_decrease_side_padding')}
 								onclick={() => setPadding('padding_x', String(paddingX - 4))}
 							>
 								<Icon name="remove" size={ICON.inline} />
@@ -176,7 +176,7 @@
 							<button
 								type="button"
 								class="step"
-								aria-label={`${$lang('hearth_increase')} ${$lang('hearth_side_padding').toLowerCase()}`}
+								aria-label={$lang('hearth_increase_side_padding')}
 								onclick={() => setPadding('padding_x', String(paddingX + 4))}
 							>
 								<Icon name="add" size={ICON.inline} />
@@ -191,7 +191,7 @@
 							<button
 								type="button"
 								class="step"
-								aria-label={`${$lang('hearth_decrease')} ${$lang('hearth_top_bottom_padding').toLowerCase()}`}
+								aria-label={$lang('hearth_decrease_top_bottom_padding')}
 								onclick={() => setPadding('padding_y', String(paddingY - 4))}
 							>
 								<Icon name="remove" size={ICON.inline} />
@@ -207,7 +207,7 @@
 							<button
 								type="button"
 								class="step"
-								aria-label={`${$lang('hearth_increase')} ${$lang('hearth_top_bottom_padding').toLowerCase()}`}
+								aria-label={$lang('hearth_increase_top_bottom_padding')}
 								onclick={() => setPadding('padding_y', String(paddingY + 4))}
 							>
 								<Icon name="add" size={ICON.inline} />
@@ -265,6 +265,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-label);
 		letter-spacing: 2px;
+		text-transform: uppercase;
 		color: var(--h-label);
 		margin: 0 0 8px;
 	}
