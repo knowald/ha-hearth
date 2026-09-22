@@ -60,5 +60,6 @@ export function openEntityDetail(entityId: string, name?: string) {
 	if (domain === 'light') return popup.set({ kind: 'light', entity: entityId, name: label });
 	if (domain === 'fan') return popup.set({ kind: 'fan', entity: entityId, name: label });
 	if (domain === 'cover') return popup.set({ kind: 'blind', entity: entityId, name: label });
+	if (domain === 'media_player') return popup.set({ kind: 'media', entity: entityId, name: label });
 	popup.set({ kind: 'detail', entity: entityId, name: label });
 }
