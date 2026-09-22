@@ -22,6 +22,11 @@ interface DragOptions {
 	 * retargets to the tile.
 	 */
 	ignore?: string;
+	/**
+	 * Report the unrounded percentage, for callers that map it onto their own
+	 * range and step; whole percents would cap a 0-1000 range at steps of 10.
+	 */
+	precise?: boolean;
 }
 
 /**
@@ -63,6 +68,11 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 		return Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
 	}
 
+	function percent(event: PointerEvent) {
+		const value = fraction(event) * 100;
+		return current.precise ? value : Math.round(value);
+	}
+
 	function handleDown(event: PointerEvent) {
 		if (current.disabled) return;
 		if (current.ignore && (event.target as Element).closest?.(current.ignore)) return;
@@ -96,7 +106,7 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 			clearTimeout(holdTimer);
 		}
 		if (tracking.moved) {
-			const value = Math.round(fraction(event) * 100);
+			const value = percent(event);
 			feedStep(value);
 			current.set(value, current.updateMode !== 'release');
 		}
@@ -109,7 +119,7 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 		} else if (!tracking.moved && current.tap) {
 			current.tap();
 		} else if (tracking.moved) {
-			const value = Math.round(fraction(event) * 100);
+			const value = percent(event);
 			// Always commit the final value. In release mode this is the gesture's
 			// only service call; in continuous mode it guarantees the exact endpoint.
 			vibrate('commit');

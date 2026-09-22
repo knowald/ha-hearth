@@ -70,7 +70,8 @@
 	onkeydown={handleKey}
 	use:horizontalDrag={{
 		set: (next, commit) => onchange(snap(min + (next / 100) * span), commit),
-		updateMode
+		updateMode,
+		precise: true
 	}}
 >
 	<div class="fill {variant}" style:width="{fill}%"></div>
