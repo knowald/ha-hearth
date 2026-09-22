@@ -2,7 +2,7 @@
 	import { lang } from '$lib/core/i18n';
 	import type { WidgetEditorProps } from '../types';
 	import type { TemplateWidget } from './descriptor';
-	import YamlField from '../../edit/YamlField.svelte';
+	import CodeField from '../../edit/CodeField.svelte';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<TemplateWidget> = $props();
 
@@ -17,8 +17,9 @@
 	});
 </script>
 
-<YamlField
+<CodeField
 	label={$lang('hearth_template')}
+	language="jinja2"
 	bind:value={template}
 	placeholder={"{{ states('sensor.outdoor') }} outside"}
 />

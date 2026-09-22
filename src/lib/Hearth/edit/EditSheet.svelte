@@ -18,6 +18,7 @@
 	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
 	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
 	import { hearthConfig } from '../store';
+	import { WIDE_QUERY } from '../breakpoints';
 	import './editor-fields.css';
 
 	let {
@@ -67,7 +68,7 @@
 
 	$effect(() => {
 		if (!floating || typeof window.matchMedia !== 'function') return;
-		const query = window.matchMedia('(min-width: 821px)');
+		const query = window.matchMedia(WIDE_QUERY);
 		const sync = () => (wideViewport = query.matches);
 		sync();
 		query.addEventListener('change', sync);
@@ -318,6 +319,7 @@
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		align-content: start;
 		column-gap: 18px;
+		overflow-x: hidden;
 		overflow-y: auto;
 		scrollbar-gutter: stable;
 		padding: 22px 28px 28px;
@@ -354,7 +356,8 @@
 	.body > :global(.picker-grid),
 	.body > :global(.reset),
 	.body > :global(.settings),
-	.body > :global(.yaml-field),
+	.body > :global(.code-field),
+	.body > :global(.versions-layout),
 	.body > :global(.code-workspace),
 	.body > :global(.card-editor-layout) {
 		grid-column: 1 / -1;
@@ -428,7 +431,7 @@
 	}
 
 	.sheet.floating .body {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
 		padding: 18px 20px 24px;
 	}
 
@@ -444,10 +447,12 @@
 		cursor: grabbing;
 	}
 
-	@media (max-width: 820px) {
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
 		.overlay {
 			align-items: stretch;
-			padding: 8px;
+			/* a landscape cutout overlaps the edge a full-width sheet reaches to */
+			padding: 8px calc(8px + env(safe-area-inset-right)) 8px calc(8px + env(safe-area-inset-left));
 		}
 
 		.sheet {
@@ -465,7 +470,7 @@
 		}
 
 		.body {
-			grid-template-columns: 1fr;
+			grid-template-columns: minmax(0, 1fr);
 			padding: 18px;
 		}
 

@@ -9,6 +9,7 @@
 		hearthLoadError,
 		hearthNeedsSetup
 	} from './store';
+	import { foldedTopCount } from './config';
 	import ControlPopup from './ControlPopup.svelte';
 	import Rail from './Rail.svelte';
 	import RoomDetail from './RoomDetail.svelte';
@@ -24,9 +25,23 @@
 	import { wakeLock } from './wakeLock';
 	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
 	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
+	import { mediaQuery } from '$lib/ui/mediaQuery';
+	import { FOLD_QUERY, SHORT_QUERY } from './breakpoints';
 
 	let showSetupWizard = $state(false);
 	let showSearch = $state(false);
+
+	// the folded layout is a different tree, not a restyled one: the rail
+	// splits into the run above the page and the run below it, so which one
+	// to build has to be decided in script rather than in a media query
+	const narrow = mediaQuery(FOLD_QUERY);
+
+	// a phone held sideways has no height to spend before the page, so nothing
+	// rides above it there unless a widget asked for that slot by name
+	const shortScreen = mediaQuery(SHORT_QUERY);
+	let leadingWidgets = $derived(
+		foldedTopCount($hearthConfig.rail, { editing: $hearthEditMode, compact: $shortScreen })
+	);
 
 	// the columns hide their scrollbars, so a blurred edge is the only sign
 	// that the list keeps going. Which column scrolls depends on the fold:
@@ -80,6 +95,18 @@
 		if (activeRoomId && activeRoomId !== $currentRoom) currentRoom.set(activeRoomId);
 	});
 
+	// a page opens at its own top: whichever box scrolls, the offset left over
+	// from the previous page means nothing on this one
+	let layoutElement = $state<HTMLElement | undefined>();
+	let scrolledRoom = '';
+
+	$effect(() => {
+		if (activeRoomId === scrolledRoom) return;
+		scrolledRoom = activeRoomId;
+		layoutElement?.scrollTo({ top: 0 });
+		mainElement?.scrollTo({ top: 0 });
+	});
+
 	// display-only theme override via ?theme=<preset id>: the matched preset
 	// entry (theme null = default look) replaces the stored theme without
 	// touching the config or undo history
@@ -120,30 +147,48 @@
 <Keyboard onsearch={() => (showSearch = true)} />
 <ThemeStyle {presetOverride} />
 
+{#snippet pageColumn()}
+	<div class="main-wrap">
+		<main
+			class="main"
+			class:fill={activeRoom?.fill_screen}
+			bind:this={mainElement}
+			use:scrollEdges={{ report: (edges) => (mainCut = edges) }}
+		>
+			<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+		</main>
+		{#if edgeBlur}
+			<ScrollEdge edge="top" size={96} active={mainCut.top} />
+			<ScrollEdge edge="bottom" size={96} active={mainCut.bottom} />
+		{/if}
+	</div>
+{/snippet}
+
 <section class="frame" use:wakeLock={$hearthConfig.keep_screen_on ?? true}>
 	<div
 		class="layout"
 		class:editing={$hearthEditMode}
+		class:narrow={$narrow}
+		bind:this={layoutElement}
 		use:scrollEdges={{ report: (edges) => (layoutCut = edges) }}
 	>
 		<PhoneNav onsearch={() => (showSearch = true)} />
-		<div class="rail-scroll">
-			<Rail onsearch={() => (showSearch = true)} />
-		</div>
-		<div class="main-wrap">
-			<main
-				class="main"
-				class:fill={activeRoom?.fill_screen}
-				bind:this={mainElement}
-				use:scrollEdges={{ report: (edges) => (mainCut = edges) }}
-			>
-				<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
-			</main>
-			{#if edgeBlur}
-				<ScrollEdge edge="top" size={96} active={mainCut.top} />
-				<ScrollEdge edge="bottom" size={96} active={mainCut.bottom} />
+		{#if $narrow}
+			{#if leadingWidgets > 0}
+				<div class="rail-run">
+					<Rail mobileSlot="top" compact={$shortScreen} onsearch={() => (showSearch = true)} />
+				</div>
 			{/if}
-		</div>
+			{@render pageColumn()}
+			<div class="rail-run trailing">
+				<Rail mobileSlot="bottom" compact={$shortScreen} onsearch={() => (showSearch = true)} />
+			</div>
+		{:else}
+			<div class="rail-scroll">
+				<Rail onsearch={() => (showSearch = true)} />
+			</div>
+			{@render pageColumn()}
+		{/if}
 	</div>
 	{#if edgeBlur}
 		<ScrollEdge edge="top" size={96} active={layoutCut.top} />
@@ -293,52 +338,86 @@
 		outline-offset: 2px;
 	}
 
-	@media (max-width: 900px) {
-		/* edge to edge: only the user's own padding and the device's safe area */
-		.layout {
-			grid-template-columns: 1fr;
-			padding: calc(var(--h-pad-y) + env(safe-area-inset-top)) var(--h-pad-x)
-				calc(var(--h-pad-y) + env(safe-area-inset-bottom));
-			gap: 24px;
-			overflow-y: auto;
-		}
+	/*
+	 * A text field drawn as a framed row (search box, stepper, icon filter) is
+	 * the frame, not the bare input inside it: a ring around the input traces a
+	 * square box within a rounded one. The ring moves out to the frame, which
+	 * is what the field looks like. Buttons sharing the row keep their own.
+	 */
+	.frame :global(.field-frame:has(:is(input, textarea):focus-visible)) {
+		outline: var(--h-focus-ring);
+		outline-offset: 2px;
+	}
 
-		/* the edit bar floats over the scroll container; leave room under the
-		   last widget so nothing hides behind it */
-		.layout.editing {
-			padding-bottom: calc(
-				112px + var(--h-pad-y) + env(safe-area-inset-bottom)
-			); /* literal ok: edit bar height plus margin */
-		}
+	.frame :global(.field-frame :is(input, textarea):focus-visible) {
+		outline: none;
+	}
 
-		/* the glow bleed shrinks to the layout's own padding so the columns end
-		   at the viewport edge instead of 8px past it */
-		.rail-scroll,
-		.main-wrap,
-		.main {
-			overflow-y: visible;
-			min-height: auto;
-			height: auto;
-			padding: 0;
-			margin: 0;
-		}
+	/*
+	 * Folded layout (see breakpoints.ts). The rail leaves its column and
+	 * becomes two runs in the page flow, so this is a different tree, not a
+	 * restyled one - the class comes from the same query in script.
+	 */
+	.layout.narrow {
+		display: flex;
+		flex-direction: column;
+		/* the same shape as the wide layout's padding: a base the user's own
+		   padding adds to, plus the device's safe area, which a landscape notch
+		   makes a horizontal concern too. Published so the page switcher can
+		   bleed back out to the screen edge. */
+		--h-fold-pad-left: calc(16px + var(--h-pad-x) + env(safe-area-inset-left));
+		--h-fold-pad-right: calc(16px + var(--h-pad-x) + env(safe-area-inset-right));
+		/* no padding above: the page switcher pins to the very top of this
+		   scroller and carries the top inset itself, so nothing can scroll
+		   through the strip of screen above it */
+		padding: 0 var(--h-fold-pad-right) calc(16px + var(--h-pad-y) + env(safe-area-inset-bottom))
+			var(--h-fold-pad-left);
+		gap: 24px;
+		overflow-y: auto;
+		/* a dashboard never scrolls sideways: a tile glow or a widened hit area
+		   reaching past the glass is a few stray pixels, not a second axis */
+		overflow-x: hidden;
+		/* the page switcher is sticky over this box; anything scrolled to would
+		   otherwise land underneath it */
+		scroll-padding-top: calc(
+			72px + env(safe-area-inset-top)
+		); /* literal ok: page switcher height plus margin */
+		/* inside the Home Assistant app this scroller sits in a webview that
+		   scrolls too - keep the rubber band here */
+		overscroll-behavior-y: contain;
+	}
 
-		.rail-scroll {
-			padding-bottom: 80px; /* literal ok: toggle height plus margin */
-		}
+	/* the edit bar floats over the scroll container; leave room under the
+	   last widget so nothing hides behind it */
+	.layout.narrow.editing {
+		padding-bottom: calc(
+			112px + var(--h-pad-y) + env(safe-area-inset-bottom)
+		); /* literal ok: edit bar height plus margin */
+	}
 
-		/* On short wall tablets the active page is the primary glance surface;
-		   the rail follows it instead of consuming the entire first viewport. */
-		.main {
-			order: 1;
-		}
+	/* the glow bleed shrinks to the layout's own padding so the columns end
+	   at the viewport edge instead of 8px past it */
+	.layout.narrow .main-wrap,
+	.layout.narrow .main {
+		overflow-y: visible;
+		min-height: auto;
+		height: auto;
+		padding: 0;
+		margin: 0;
+	}
 
-		.main.fill {
-			overflow-y: visible;
-		}
+	.layout.narrow .main.fill {
+		overflow-y: visible;
+	}
 
-		.rail-scroll {
-			order: 2;
-		}
+	.rail-run {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	/* room for the floating edit toggle over the foot of the page */
+	.rail-run.trailing {
+		padding-bottom: 80px; /* literal ok: toggle height plus margin */
 	}
 </style>

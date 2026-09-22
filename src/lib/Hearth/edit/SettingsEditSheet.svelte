@@ -183,7 +183,7 @@
 						<div class="row-sub">{$lang('hearth_for_screens_whose_frame_covers_the')}</div>
 					</div>
 					<span class="unit-input">
-						<span class="stepper">
+						<span class="stepper field-frame">
 							<button
 								type="button"
 								class="step"
@@ -217,7 +217,7 @@
 						<div class="row-label">{$lang('hearth_top_bottom_padding')}</div>
 					</div>
 					<span class="unit-input">
-						<span class="stepper">
+						<span class="stepper field-frame">
 							<button
 								type="button"
 								class="step"
@@ -280,6 +280,21 @@
 					<div class="row-main">
 						<div class="row-label">{$lang('hearth_edit_configuration_yaml')}</div>
 						<div class="row-sub">{$lang('hearth_edits_the_whole_configuration_as_yaml')}</div>
+					</div>
+					<Icon name="chevron_right" size={ICON.control} />
+				</div>
+				<div
+					class="row action pressable"
+					use:Ripple={PRESS_RIPPLE}
+					onclick={() => editor.set({ kind: 'versions' })}
+					role="button"
+					tabindex="0"
+					onkeydown={(event) => activateOnKeyboard(event, () => editor.set({ kind: 'versions' }))}
+				>
+					<Icon name="history" size={ICON.control} />
+					<div class="row-main">
+						<div class="row-label">{$lang('hearth_versions')}</div>
+						<div class="row-sub">{$lang('hearth_versions_row_sub')}</div>
 					</div>
 					<Icon name="chevron_right" size={ICON.control} />
 				</div>

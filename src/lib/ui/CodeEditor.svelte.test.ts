@@ -60,4 +60,126 @@ describe('CodeEditor', () => {
 		unmount();
 		expect(container.querySelector('.cm-editor')).toBeNull();
 	});
+	it('marks the lines that differ from the document it is compared with', async () => {
+		const { container } = render(CodeEditor, {
+			type: 'yaml',
+			value: 'name: two\n',
+			original: 'name: one\n',
+			readOnly: true,
+			transitionend: false
+		});
+
+		await waitFor(() => expect(container.querySelector('.cm-changedLine')).toBeTruthy());
+	});
+
+	it('refuses edits when read only', async () => {
+		const onchange = vi.fn();
+		const { container } = render(CodeEditor, {
+			type: 'text',
+			value: 'locked',
+			readOnly: true,
+			transitionend: false,
+			onchange
+		});
+		await waitFor(() => expect(container.querySelector('.cm-editor')).toBeTruthy());
+
+		const view = EditorView.findFromDOM(container.querySelector('.cm-editor')!)!;
+		expect(view.state.readOnly).toBe(true);
+		expect(container.querySelector('.cm-content')?.getAttribute('contenteditable')).toBe('false');
+	});
+
+	it('commits on the save shortcut', async () => {
+		const onsave = vi.fn();
+		const { container } = render(CodeEditor, {
+			type: 'text',
+			value: 'draft',
+			transitionend: false,
+			onsave
+		});
+		await waitFor(() => expect(container.querySelector('.cm-editor')).toBeTruthy());
+
+		container
+			.querySelector('.cm-content')!
+			.dispatchEvent(
+				new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true })
+			);
+
+		expect(onsave).toHaveBeenCalled();
+	});
+
+	it('keeps the save shortcut away from the page behind it', async () => {
+		const onsave = vi.fn();
+		const page = vi.fn();
+		const { container } = render(CodeEditor, {
+			type: 'text',
+			value: 'draft',
+			transitionend: false,
+			onsave
+		});
+		await waitFor(() => expect(container.querySelector('.cm-editor')).toBeTruthy());
+
+		window.addEventListener('keydown', page);
+		try {
+			container
+				.querySelector('.cm-content')!
+				.dispatchEvent(
+					new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true })
+				);
+		} finally {
+			window.removeEventListener('keydown', page);
+		}
+
+		expect(onsave).toHaveBeenCalled();
+		// the dashboard's own Ctrl-S writes the file; the editor's applies a draft
+		expect(page).not.toHaveBeenCalled();
+	});
+
+	it('leaves the save shortcut to the page when it has nothing to commit', async () => {
+		const page = vi.fn();
+		const { container } = render(CodeEditor, {
+			type: 'text',
+			value: 'a field, not a sheet',
+			transitionend: false
+		});
+		await waitFor(() => expect(container.querySelector('.cm-editor')).toBeTruthy());
+
+		window.addEventListener('keydown', page);
+		try {
+			container
+				.querySelector('.cm-content')!
+				.dispatchEvent(
+					new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true })
+				);
+		} finally {
+			window.removeEventListener('keydown', page);
+		}
+
+		expect(page).toHaveBeenCalled();
+	});
+
+	it('takes in a pushed document that is empty', async () => {
+		const { container, rerender } = render(CodeEditor, {
+			type: 'text',
+			value: 'replaced',
+			init: 'replaced',
+			transitionend: false
+		});
+		await waitFor(() => expect(container.querySelector('.cm-editor')).toBeTruthy());
+
+		await rerender({ init: '', reloadView: true });
+
+		await waitFor(() => expect(container.querySelector('.cm-content')?.textContent).toBe(''));
+	});
+
+	it('names the editable area for a screen reader', async () => {
+		const { container } = render(CodeEditor, {
+			type: 'jinja2',
+			value: '{{ states("sensor.outdoor") }}',
+			label: 'Template',
+			transitionend: false
+		});
+
+		await waitFor(() => expect(container.querySelector('.cm-content')).toBeTruthy());
+		expect(container.querySelector('.cm-content')?.getAttribute('aria-label')).toBe('Template');
+	});
 });

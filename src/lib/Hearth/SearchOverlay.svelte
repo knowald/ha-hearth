@@ -120,7 +120,7 @@
 	use:layer={onclose}
 >
 	<div class="panel" role="dialog" aria-modal="true" aria-label={$lang('search')}>
-		<div class="search">
+		<div class="search field-frame">
 			<Icon name="search" size={ICON.control} />
 			<input
 				type="text"

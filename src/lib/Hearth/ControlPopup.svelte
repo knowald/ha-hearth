@@ -197,10 +197,12 @@
 		color: var(--h-icon);
 		cursor: pointer;
 	}
-	@media (max-width: 700px) {
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
 		.overlay {
 			align-items: flex-end;
-			padding: 0;
+			/* a landscape cutout overlaps the edge a full-width sheet reaches to */
+			padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
 		}
 
 		.sheet {

@@ -155,4 +155,4 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 	};
 };
 
-export { onDndReceive } from '$lib/ui/actions/sortable';
+export { onDndReceive, type DndReceiveDetail } from '$lib/ui/actions/sortable';

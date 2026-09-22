@@ -243,10 +243,11 @@
 		color: var(--h-bad-text);
 		border-color: rgb(var(--h-bad-rgb) / 0.35);
 	}
-	@media (max-width: 700px) {
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
 		.edit-bar {
-			left: 8px;
-			right: 8px;
+			left: calc(8px + env(safe-area-inset-left));
+			right: calc(8px + env(safe-area-inset-right));
 			bottom: calc(8px + env(safe-area-inset-bottom));
 			transform: none;
 			gap: 6px;

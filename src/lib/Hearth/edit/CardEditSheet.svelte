@@ -237,7 +237,8 @@
 		display: none;
 	}
 
-	@media (max-width: 820px) {
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
 		.card-editor-layout {
 			grid-template-columns: 1fr;
 			gap: 18px;

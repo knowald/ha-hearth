@@ -121,8 +121,17 @@ type RailWidgetVariant =
 	| { id: string; type: 'notifications' }
 	| { id: string; type: 'iframe'; url?: string; height?: number };
 
-// Hidden below Hearth’s mobile breakpoint.
+/** Where a widget goes once the rail folds under the page. */
+export type MobileSlot = 'top' | 'bottom' | 'hidden';
+
 export type RailWidget = RailWidgetVariant & {
+	/*
+	 * Unset takes the slot from the rail's own shape: everything before the
+	 * first flexible gap rides above the page, the rest below it. See
+	 * railSlots in config.ts.
+	 */
+	mobile?: MobileSlot;
+	/** Superseded by `mobile: 'hidden'`, still read from configs that set it. */
 	hide_mobile?: boolean;
 	visibility?: VisibilityCondition[];
 };

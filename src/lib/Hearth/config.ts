@@ -1,13 +1,166 @@
 import type {
 	HearthConfig,
 	HearthRoom,
+	MobileSlot,
 	OverviewCard,
 	OverviewItem,
 	OverviewStack,
+	RailWidget,
 	VisibilityCondition
 } from './types';
 
 export type * from './types';
+
+/** A gap with no height is the one that absorbs the rail's leftover space. */
+function isFlexibleGap(widget: RailWidget): boolean {
+	return widget.type === 'spacer' && !widget.height;
+}
+
+/*
+ * Short, ambient widgets - the ones worth reading before the page rather than
+ * after it, and cheap enough in height to put there. Search is not among them:
+ * the folded layout's page switcher carries it.
+ */
+const GLANCE_TYPES = new Set<RailWidget['type']>(['clock', 'weather']);
+
+/**
+ * The gap that divides the rail's two folded runs: a flexible gap with
+ * widgets after it. A trailing one divides nothing - it only says the rail
+ * keeps its widgets at the top of its own column - so it reports -1.
+ */
+export function railDividerIndex(rail: RailWidget[]): number {
+	const index = rail.findIndex(isFlexibleGap);
+	return index === rail.length - 1 ? -1 : index;
+}
+
+/**
+ * Where a widget lands when it has not been told. A rail that divides itself
+ * is taken at its word; otherwise only the glance widgets ride above the
+ * page, since everything else would push the page itself out of reach.
+ */
+function defaultSlot(
+	widget: RailWidget,
+	index: number,
+	dividerIndex: number
+): Exclude<MobileSlot, 'hidden'> {
+	if (dividerIndex !== -1) return index < dividerIndex ? 'top' : 'bottom';
+	return GLANCE_TYPES.has(widget.type) ? 'top' : 'bottom';
+}
+
+/** Which side of the page a widget lands on once the rail folds. */
+export function mobileSlotOf(widget: RailWidget, index: number, dividerIndex: number): MobileSlot {
+	if (widget.mobile) return widget.mobile;
+	if (widget.hide_mobile) return 'hidden';
+	return defaultSlot(widget, index, dividerIndex);
+}
+
+/**
+ * The rail split into the run that rides above the page and the run below it.
+ * Hidden widgets drop out unless `includeHidden`, which the editor passes so
+ * they stay reachable (dimmed) while the layout is being arranged. `compact`
+ * is for a screen with no height to spare - a phone held sideways - where
+ * only a widget that asked for the top keeps it.
+ */
+export function railSlots(
+	rail: RailWidget[],
+	{ includeHidden = false, compact = false }: { includeHidden?: boolean; compact?: boolean } = {}
+): { top: RailWidget[]; bottom: RailWidget[] } {
+	const dividerIndex = railDividerIndex(rail);
+	const top: RailWidget[] = [];
+	const bottom: RailWidget[] = [];
+	rail.forEach((widget, index) => {
+		const slot = mobileSlotOf(widget, index, dividerIndex);
+		if (slot === 'hidden' && !includeHidden) return;
+		// a shown-anyway hidden widget sits where it would have without the flag
+		const placed = slot === 'hidden' ? defaultSlot(widget, index, dividerIndex) : slot;
+		const demoted = compact && widget.mobile !== 'top';
+		(placed === 'top' && !demoted ? top : bottom).push(widget);
+	});
+	return { top, bottom };
+}
+
+/**
+ * How many widgets the run above the folded page actually draws. The page
+ * switcher carries the pages and search itself, so a run holding only those
+ * would render as an empty band everywhere but the editor, which shows them.
+ */
+export function foldedTopCount(
+	rail: RailWidget[],
+	{ editing = false, compact = false }: { editing?: boolean; compact?: boolean } = {}
+): number {
+	const { top } = railSlots(rail, { includeHidden: editing, compact });
+	if (editing) return top.length;
+	return top.filter((widget) => widget.type !== 'nav' && widget.type !== 'search').length;
+}
+
+/*
+ * Landing in a folded run stamps the widget with that run's slot, so the
+ * arrangement the user made by hand stops depending on where the flexible gap
+ * happens to sit. A widget hidden on mobile keeps its slot - it is only in a
+ * run at all because the editor shows hidden widgets dimmed.
+ */
+function stampSlot(widgets: RailWidget[], slot: Exclude<MobileSlot, 'hidden'>): RailWidget[] {
+	return widgets.map((widget) =>
+		widget.mobile === 'hidden' || widget.hide_mobile ? widget : { ...widget, mobile: slot }
+	);
+}
+
+/** One run rewritten, with the other left where it was. */
+function withRun(
+	run: RailWidget[],
+	rest: RailWidget[],
+	slot: Exclude<MobileSlot, 'hidden'>
+): RailWidget[] {
+	const placed = stampSlot(run, slot);
+	return slot === 'top' ? [...placed, ...rest] : [...rest, ...placed];
+}
+
+/** A folded run reordered within itself. */
+export function reorderSlot(
+	rail: RailWidget[],
+	slot: Exclude<MobileSlot, 'hidden'>,
+	run: RailWidget[]
+): RailWidget[] {
+	const moved = new Set(run.map((widget) => widget.id));
+	return withRun(
+		run,
+		rail.filter((widget) => !moved.has(widget.id)),
+		slot
+	);
+}
+
+/**
+ * A widget dropped into a folded run at `index`, which is also what assigns
+ * its slot - dragging past the page is the gesture for changing it. `copy`
+ * leaves the original where it was and inserts a duplicate.
+ */
+export function placeInSlot(
+	rail: RailWidget[],
+	id: string,
+	slot: Exclude<MobileSlot, 'hidden'>,
+	index: number,
+	{ copy = false, compact = false }: { copy?: boolean; compact?: boolean } = {}
+): RailWidget[] {
+	const source = rail.find((widget) => widget.id === id);
+	if (!source) return rail;
+
+	const entry = copy
+		? {
+				...structuredClone(source),
+				id: uniqueId(
+					slugify(source.type),
+					rail.map((widget) => widget.id)
+				)
+			}
+		: source;
+	const remaining = copy ? rail : rail.filter((widget) => widget.id !== id);
+
+	// hidden widgets stay in the split so the rewrite below keeps them
+	const runs = railSlots(remaining, { includeHidden: true, compact });
+	const run = [...runs[slot]];
+	run.splice(index, 0, entry as RailWidget);
+	return withRun(run, slot === 'top' ? runs.bottom : runs.top, slot);
+}
 
 export function isStack(item: OverviewItem): item is OverviewStack {
 	return 'kind' in item && item.kind === 'stack';

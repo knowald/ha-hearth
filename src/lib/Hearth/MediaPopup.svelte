@@ -891,9 +891,13 @@
 		color: var(--h-on-art-2);
 		cursor: pointer;
 	}
-	@media (max-width: 700px) {
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
 		.sheet {
-			width: 100%;
+			/* the margins keep a landscape cutout off the art and the controls */
+			width: calc(100% - env(safe-area-inset-left) - env(safe-area-inset-right));
+			margin-left: env(safe-area-inset-left);
+			margin-right: env(safe-area-inset-right);
 			height: min(560px, calc(100dvh - 24px));
 			border-radius: var(--h-radius-xl) var(--h-radius-xl) 0 0;
 			align-self: flex-end;

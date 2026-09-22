@@ -77,7 +77,11 @@ export type Editor =
 	| { kind: 'settings' }
 	| { kind: 'appSettings' }
 	| { kind: 'customCss' }
-	| { kind: 'code' };
+	// `draft` is an unapplied YAML edit handed back by the sheet Versions was
+	// opened from; the editor closing is what discards it
+	| { kind: 'code'; draft?: string }
+	// `from` is where a back arrow returns to, carrying the draft with it
+	| { kind: 'versions'; from?: 'code'; draft?: string };
 
 export const editor = writable<Editor | null>(null);
 

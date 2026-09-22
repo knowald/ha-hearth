@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { basename, dirname, join } from 'path';
-import { copyFile, mkdir, open, readdir, readFile, rename, unlink } from 'fs/promises';
+import { copyFile, mkdir, open, readdir, readFile, rename, stat, unlink } from 'fs/promises';
 import * as yaml from 'js-yaml';
 
 /*
@@ -154,4 +154,57 @@ export async function saveYamlDocument(request: SaveRequest): Promise<SaveResult
 		await pruneBackups(request.file);
 		return { conflict: false as const, revision: revision + 1 };
 	});
+}
+
+export interface BackupEntry {
+	name: string;
+	/** Milliseconds since the epoch, from the backup's own name. */
+	at: number;
+	/** The revision the backup holds, absent in files written before revisions were named. */
+	revision?: number;
+	size: number;
+}
+
+const BACKUP_REVISION = /-r(\d+)\.yaml$/;
+
+/** The document's saved backups, newest first. A document with none lists empty. */
+export async function listBackups(file: string): Promise<BackupEntry[]> {
+	const directory = backupDirectory(file);
+	const stem = backupStem(file);
+	let names: string[];
+	try {
+		names = await readdir(directory);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return [];
+		throw error;
+	}
+	const entries = await Promise.all(
+		names.map(async (name): Promise<BackupEntry | undefined> => {
+			const match = BACKUP_NAME.exec(name);
+			if (match?.[1] !== stem) return undefined;
+			const size = await stat(join(directory, name))
+				.then((info) => info.size)
+				.catch(() => 0);
+			const revision = BACKUP_REVISION.exec(name)?.[1];
+			return {
+				name,
+				at: Number(match[2]),
+				...(revision === undefined ? {} : { revision: Number(revision) }),
+				size
+			};
+		})
+	);
+	return entries
+		.filter((entry) => entry !== undefined)
+		.sort((a, b) => b.at - a.at || b.name.localeCompare(a.name));
+}
+
+/**
+ * One backup's YAML text. The name is resolved against the listing rather
+ * than joined onto the directory, so no request can read outside it.
+ */
+export async function readBackup(file: string, name: string): Promise<string | undefined> {
+	const found = (await listBackups(file)).some((entry) => entry.name === name);
+	if (!found) return undefined;
+	return readFile(join(backupDirectory(file), name), 'utf8');
 }

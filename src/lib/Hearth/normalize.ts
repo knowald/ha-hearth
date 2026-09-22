@@ -2,6 +2,7 @@ import type {
 	HearthConfig,
 	HearthRoom,
 	HearthTheme,
+	MobileSlot,
 	OverviewCard,
 	OverviewItem,
 	OverviewStack,
@@ -46,6 +47,14 @@ const VALID_WIDGET_DEFINITIONS = new Set<string>(WIDGET_DEFINITIONS.map(({ type 
  * discard or repair. The visual YAML editor uses this before Apply so a typo
  * cannot silently remove a card, widget or entity reference.
  */
+const MOBILE_SLOTS = new Set<MobileSlot>(['top', 'bottom', 'hidden']);
+
+/** `mobile` if it names a slot, otherwise the slot the older `hide_mobile` meant. */
+function normalizeMobileSlot(widget: any): MobileSlot | undefined {
+	if (MOBILE_SLOTS.has(widget.mobile)) return widget.mobile;
+	return widget.hide_mobile === true ? 'hidden' : undefined;
+}
+
 /** Token maps are string to string; other values (arrays, numbers, nested maps) are dropped. */
 function normalizeTheme(raw: unknown): HearthTheme | undefined {
 	if (!isRecord(raw)) return undefined;
@@ -280,7 +289,9 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 			...widget,
 			id: reserveId(widget.id, `widget-${index}`, takenWidgetIds),
 			...(widgetDefinition(widget.type)?.normalize?.(widget) ?? {}),
-			hide_mobile: widget.hide_mobile === true ? true : undefined,
+			mobile: normalizeMobileSlot(widget),
+			// folded into `mobile` above; dropped so only one field decides
+			hide_mobile: undefined,
 			visibility: normalizeVisibility(widget.visibility)
 		})) as RailWidget[];
 
