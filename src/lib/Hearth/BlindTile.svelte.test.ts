@@ -70,7 +70,28 @@ describe('BlindTile', () => {
 			confirmLabel: 'Ouvrir'
 		});
 		confirmRequestedAction();
-		expect(toggleBlind).toHaveBeenCalledWith('cover.garage');
+		expect(toggleBlind).toHaveBeenCalledWith('cover.garage', true);
+	});
+
+	it('sends the direction that was confirmed even if the door moved meanwhile', async () => {
+		const open = hassEntity('cover.garage', 'open', {
+			device_class: 'garage',
+			current_position: 100
+		});
+		states.set({ 'cover.garage': open });
+		render(BlindTile, { entity: 'cover.garage', name: 'Garage' });
+		tap(tile());
+		expect(get(requestedConfirmation)?.confirmLabel).toBe('Close');
+		// another controller closes it while the dialog is up
+		states.set({
+			'cover.garage': {
+				...open,
+				state: 'closed',
+				attributes: { ...open.attributes, current_position: 0 }
+			}
+		});
+		confirmRequestedAction();
+		expect(toggleBlind).toHaveBeenCalledWith('cover.garage', false);
 	});
 
 	it('toggles an ordinary blind without asking', async () => {
@@ -78,7 +99,7 @@ describe('BlindTile', () => {
 		render(BlindTile, { entity: 'cover.blind' });
 		tap(tile());
 		expect(get(requestedConfirmation)).toBeNull();
-		expect(toggleBlind).toHaveBeenCalledWith('cover.blind');
+		expect(toggleBlind).toHaveBeenCalledWith('cover.blind', false);
 	});
 
 	it('still accepts commands while the cover reports unknown', async () => {
@@ -87,7 +108,7 @@ describe('BlindTile', () => {
 		const node = tile();
 		expect(node.classList.contains('unreachable')).toBe(false);
 		tap(node);
-		expect(toggleBlind).toHaveBeenCalledWith('cover.blind');
+		expect(toggleBlind).toHaveBeenCalledWith('cover.blind', true);
 	});
 
 	it('sets the position with a horizontal swipe, like a light tile sets brightness', () => {

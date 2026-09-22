@@ -23,12 +23,17 @@ export function blindPositionFor(
 	return clamp($overrides[`blind:${entityId}`] ?? Math.round(actual), 0, 100);
 }
 
-export function toggleBlind(entityId: string) {
+/**
+ * Opens a closed cover and closes an open one. Pass `open` when the direction
+ * was already chosen, e.g. in a confirmation, so a cover that moved in the
+ * meantime still gets the command the user agreed to.
+ */
+export function toggleBlind(entityId: string, open?: boolean) {
 	if (!entityControllable(get(states)?.[entityId])) return;
-	const open = blindPositionFor(entityId, get(states), get(controlOverrides)) > 0;
-	setControlOverride(`blind:${entityId}`, open ? 0 : 100);
+	const opening = open ?? blindPositionFor(entityId, get(states), get(controlOverrides)) === 0;
+	setControlOverride(`blind:${entityId}`, opening ? 100 : 0);
 	markPending(entityId);
-	service('cover', open ? 'close_cover' : 'open_cover', { entity_id: entityId });
+	service('cover', opening ? 'open_cover' : 'close_cover', { entity_id: entityId });
 }
 
 export function setBlindPosition(entityId: string, position: number, commit = true) {

@@ -65,7 +65,14 @@
 	function handleClick() {
 		if ($hearthEditMode) return onedit?.();
 		if (readonly || !controllable) return;
-		guardCoverMotion([entity], !open, () => toggleBlind(entity), requestConfirmation, label);
+		const opening = !open;
+		guardCoverMotion(
+			[entity],
+			opening,
+			() => toggleBlind(entity, opening),
+			requestConfirmation,
+			label
+		);
 	}
 
 	function openControls() {

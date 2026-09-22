@@ -1,7 +1,29 @@
 import { describe, expect, it, vi } from 'vitest';
 import { states } from '../ha/entities';
 import { hassEntity } from '../ha/testing';
-import { guardCoverMotion, type CoverConfirmation } from './cover';
+
+vi.mock('../ha/commands', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../ha/commands')>()),
+	service: vi.fn()
+}));
+import { service } from '../ha/commands';
+import { guardCoverMotion, toggleBlind, type CoverConfirmation } from './cover';
+
+describe('toggleBlind', () => {
+	it('flips the cover when no direction is given', () => {
+		states.set({ 'cover.blind': hassEntity('cover.blind', 'open', { current_position: 100 }) });
+		toggleBlind('cover.blind');
+		expect(service).toHaveBeenLastCalledWith('cover', 'close_cover', { entity_id: 'cover.blind' });
+	});
+
+	it('sends the given direction whatever the cover reports now', () => {
+		states.set({ 'cover.garage': hassEntity('cover.garage', 'closed', { current_position: 0 }) });
+		toggleBlind('cover.garage', false);
+		expect(service).toHaveBeenLastCalledWith('cover', 'close_cover', {
+			entity_id: 'cover.garage'
+		});
+	});
+});
 
 describe('guardCoverMotion', () => {
 	it('runs the action right away for an ordinary blind', () => {
