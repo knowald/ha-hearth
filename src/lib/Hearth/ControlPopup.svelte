@@ -95,7 +95,11 @@
 				{:else if $popup.kind === 'blind'}
 					<BlindPopup entity={$popup.entity} sliderUpdates={$popup.sliderUpdates} />
 				{:else if $popup.kind === 'detail'}
-					<DetailPopup entity={$popup.entity} sliderUpdates={$popup.sliderUpdates} />
+					<DetailPopup
+						entity={$popup.entity}
+						sliderUpdates={$popup.sliderUpdates}
+						readonly={$popup.readonly}
+					/>
 				{:else}
 					<FanPopup entity={$popup.entity} />
 				{/if}

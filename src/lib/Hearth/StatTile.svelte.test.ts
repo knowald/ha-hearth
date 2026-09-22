@@ -25,6 +25,13 @@ describe('StatTile', () => {
 		expect(get(popup)).toMatchObject({ kind: 'detail', entity: 'sensor.co2', name: 'CO2' });
 	});
 
+	it('opens a read-only sheet for a read-only writable reading', async () => {
+		states.set({ 'input_number.volume': hassEntity('input_number.volume', '4', { max: 10 }) });
+		render(StatTile, { entity: 'input_number.volume', name: 'Volume', readonly: true });
+		await fireEvent.click(screen.getByRole('button'));
+		expect(get(popup)).toMatchObject({ kind: 'detail', readonly: true });
+	});
+
 	it('renders a non-numeric or unreachable reading as plain text with nothing to open', () => {
 		states.set({ 'sensor.mode': hassEntity('sensor.mode', 'unavailable') });
 		render(StatTile, { entity: 'sensor.mode', name: 'Mode' });

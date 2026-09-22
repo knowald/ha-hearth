@@ -7,8 +7,11 @@
 	import SensorPopup from './SensorPopup.svelte';
 	import './details/detail.css';
 
-	let { entity, sliderUpdates = undefined }: { entity: string; sliderUpdates?: SliderUpdateMode } =
-		$props();
+	let {
+		entity,
+		sliderUpdates = undefined,
+		readonly = false
+	}: { entity: string; sliderUpdates?: SliderUpdateMode; readonly?: boolean } = $props();
 
 	// attributes that the header, the icon or the controls already express
 	const HIDDEN = new Set([
@@ -22,7 +25,8 @@
 	]);
 
 	let stateObj = $derived($states?.[entity]);
-	let loader = $derived(detailLoader(entity));
+	// the domain component is where every command lives
+	let loader = $derived(readonly ? undefined : detailLoader(entity));
 	// a numeric reading without controls gets the big reading and its history,
 	// which already say what the state line would
 	let numeric = $derived(!loader && sensorNumber(stateObj?.state) !== null);

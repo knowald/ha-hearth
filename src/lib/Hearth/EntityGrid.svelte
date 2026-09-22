@@ -71,7 +71,12 @@
 				</div>
 			{/if}
 			{#if (ref.display ?? style) === 'stat'}
-				<StatTile entity={ref.entity} name={ref.name} verdictBands={ref.verdict} />
+				<StatTile
+					entity={ref.entity}
+					name={ref.name}
+					verdictBands={ref.verdict}
+					readonly={ref.readonly ?? readonly}
+				/>
 			{:else}
 				<EntityTile
 					entity={ref.entity}

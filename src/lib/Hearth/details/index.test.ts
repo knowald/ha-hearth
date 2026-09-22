@@ -24,6 +24,16 @@ describe('openEntityDetail', () => {
 		});
 	});
 
+	it('keeps a read-only view on the generic sheet, whose domain popups are all controls', () => {
+		openEntityDetail('light.desk', 'Desk', { readonly: true });
+		expect(get(popup)).toEqual({
+			kind: 'detail',
+			entity: 'light.desk',
+			name: 'Desk',
+			readonly: true
+		});
+	});
+
 	it('falls back to the generic detail sheet for other domains', () => {
 		openEntityDetail('switch.pump', 'Pump');
 		expect(get(popup)).toEqual({ kind: 'detail', entity: 'switch.pump', name: 'Pump' });

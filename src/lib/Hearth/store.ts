@@ -239,6 +239,7 @@ export type Popup = {
 	/** the opening tile's configured icon, shown in the popup header */
 	icon?: string;
 	sliderUpdates?: SliderUpdateMode;
+	readonly?: boolean;
 };
 
 export const popup = writable<Popup | null>(null);

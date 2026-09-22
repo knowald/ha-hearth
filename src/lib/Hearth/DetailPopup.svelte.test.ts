@@ -86,6 +86,17 @@ describe('DetailPopup', () => {
 		});
 	});
 
+	it('shows a read-only number as a reading without controls', async () => {
+		states.set({
+			'input_number.volume': hassEntity('input_number.volume', '4', { min: 0, max: 10, step: 2 })
+		});
+		const { container } = render(DetailPopup, { entity: 'input_number.volume', readonly: true });
+		// the reading path replaces the state line; the controls path keeps it
+		expect(container.querySelector('.state-line')).toBeNull();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.queryByRole('slider')).toBeNull();
+	});
+
 	it('steps a number by its configured step', async () => {
 		states.set({
 			'input_number.volume': hassEntity('input_number.volume', '4', { min: 0, max: 10, step: 2 })

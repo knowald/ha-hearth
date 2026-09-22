@@ -83,7 +83,7 @@
 	);
 
 	function openDetail() {
-		openEntityDetail(entity, name, { icon, sliderUpdates });
+		openEntityDetail(entity, name, { icon, sliderUpdates, readonly });
 	}
 
 	function handleClick() {

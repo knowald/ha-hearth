@@ -11,8 +11,14 @@
 	let {
 		entity,
 		name = undefined,
-		verdictBands = undefined
-	}: { entity: string; name?: string; verdictBands?: false | VerdictBands } = $props();
+		verdictBands = undefined,
+		readonly = false
+	}: {
+		entity: string;
+		name?: string;
+		verdictBands?: false | VerdictBands;
+		readonly?: boolean;
+	} = $props();
 
 	let stateObj = $derived($states?.[entity]);
 	let availability = $derived(entityAvailability(stateObj));
@@ -33,12 +39,12 @@
 	);
 
 	// a numeric readout earns a tap: its detail sheet with the 24h history.
-	// A stat tile never sends a command, so there is nothing for read only to
-	// suppress
+	// The sheet of a writable entity (input_number) has controls, which read
+	// only removes
 	let openable = $derived(value !== null && !$hearthEditMode);
 
 	function openHistory() {
-		if (openable) openEntityDetail(entity, name);
+		if (openable) openEntityDetail(entity, name, { readonly });
 	}
 </script>
 

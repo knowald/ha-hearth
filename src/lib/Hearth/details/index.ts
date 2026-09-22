@@ -74,6 +74,8 @@ export interface DetailOptions {
 	/** the opening tile's configured icon */
 	icon?: string;
 	sliderUpdates?: SliderUpdateMode;
+	/** show the state and history only; no control can send a command */
+	readonly?: boolean;
 }
 
 /** Opens the Hearth detail surface for any entity. */
@@ -82,6 +84,8 @@ export function openEntityDetail(entityId: string, name?: string, options: Detai
 	const entity = get(states)?.[entityId];
 	const label = name || entity?.attributes?.friendly_name || entityId;
 	const base = { entity: entityId, name: label, ...options };
+	// the domain popups are all controls, so a read-only view stays on the generic sheet
+	if (options.readonly) return popup.set({ kind: 'detail', ...base });
 	// these have full popups of their own; the generic sheet has no controls for them
 	if (domain === 'light') return popup.set({ kind: 'light', ...base });
 	if (domain === 'fan') return popup.set({ kind: 'fan', ...base });
