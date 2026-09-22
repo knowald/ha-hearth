@@ -555,6 +555,8 @@ export const LAYERS: Record<string, number> = {
 	sheet: 60,
 	'sheet-popover': 70,
 	picker: 80,
+	// toasts that must stay readable over any open sheet or popup
+	alert: 85,
 	confirm: 90,
 	screensaver: 100
 };

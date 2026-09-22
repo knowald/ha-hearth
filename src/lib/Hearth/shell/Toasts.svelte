@@ -86,7 +86,7 @@
 		top: calc(18px + var(--h-pad-y));
 		left: 50%;
 		transform: translateX(-50%);
-		z-index: var(--h-layer-toast);
+		z-index: var(--h-layer-alert);
 		display: flex;
 		align-items: center;
 		gap: 8px;
@@ -158,7 +158,7 @@
 		bottom: calc(40px + var(--h-pad-y));
 		left: 50%;
 		transform: translateX(-50%);
-		z-index: calc(var(--h-layer-toast) + 3);
+		z-index: var(--h-layer-alert);
 		display: flex;
 		align-items: flex-start;
 		gap: 10px;
