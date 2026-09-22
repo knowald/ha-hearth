@@ -8,7 +8,7 @@
 	import { configuration } from '$lib/core/app/configuration';
 	import { disposeHaptics, haptics, startPressFeedback } from '$lib/core/app/haptics';
 	import { motion } from '$lib/core/app/motion';
-	import { connected } from '$lib/core/ha/connection';
+	import { connected, tokenNeeded } from '$lib/core/ha/connection';
 	import { lang, selectedLanguage, translation } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import { startConnection, stopConnection } from '$lib/core/ha/connection';
@@ -29,8 +29,11 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let tokenRequired = $state(false);
-	const connectionHooks = { onTokenRequired: () => (tokenRequired = true) };
+	let tokenPromptOpen = $state(false);
+	// opens once when a token becomes necessary; the boot screen button reopens it after a dismiss
+	$effect(() => {
+		if ($tokenNeeded) tokenPromptOpen = true;
+	});
 
 	// one-time store seeding; `data` only changes on a full page load
 	// svelte-ignore state_referenced_locally
@@ -64,11 +67,11 @@
 	haptics.set(data?.configuration?.haptics === true);
 	const stopPressFeedback = browser ? startPressFeedback() : undefined;
 
-	if (browser) startConnection($configuration, connectionHooks);
+	if (browser) startConnection($configuration);
 
 	// reconnect when a long-lived access token is entered
 	$effect(() => {
-		if ($configuration?.token && browser) startConnection($configuration, connectionHooks);
+		if ($configuration?.token && browser) startConnection($configuration);
 	});
 
 	// taps arrange cards while the layout editor is open and must not reach a device
@@ -93,7 +96,7 @@
 {:else}
 	<ThemeStyle />
 	{#if $configuration?.hassUrl}
-		<section class="boot" aria-live="polite" aria-busy="true">
+		<section class="boot" aria-live="polite" aria-busy={!$tokenNeeded}>
 			<div class="boot-mark" aria-hidden="true"></div>
 			<strong>
 				{$lang(
@@ -101,7 +104,9 @@
 				)}
 			</strong>
 			<span>{$lang('hearth_appears_after_first_snapshot')}</span>
-			<button type="button" onclick={() => (tokenRequired = true)}>{$lang('login')}</button>
+			{#if $tokenNeeded}
+				<button type="button" onclick={() => (tokenPromptOpen = true)}>{$lang('login')}</button>
+			{/if}
 		</section>
 	{:else}
 		<section class="boot" role="alert">
@@ -111,7 +116,7 @@
 	{/if}
 {/if}
 
-{#if tokenRequired}<TokenPrompt onclose={() => (tokenRequired = false)} />{/if}
+{#if tokenPromptOpen}<TokenPrompt onclose={() => (tokenPromptOpen = false)} />{/if}
 
 <!-- modules -->
 {#if $configuration?.custom_js}

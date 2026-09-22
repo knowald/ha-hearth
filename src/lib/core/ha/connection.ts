@@ -80,16 +80,12 @@ const tokenStorage = {
 	}
 };
 
-export interface ConnectionHooks {
-	/**
-	 * Called once when the companion app needs a long-lived token; the auth
-	 * redirect flow does not work there. The caller shows whatever prompt it
-	 * has; authentication keeps failing until the configuration carries a token.
-	 */
-	onTokenRequired?: () => void;
-}
-
-let tokenPromptShown = false;
+/**
+ * True while only a new long-lived token can get past authentication: the
+ * companion app, where the auth redirect flow does not work, or a configured
+ * token that Home Assistant rejects. Cleared once a connection succeeds.
+ */
+export const tokenNeeded = writable(false);
 
 /**
  * HA's /app/<slug> panel embeds this page in a same-origin iframe and exposes
@@ -128,7 +124,6 @@ function trackSubscription(subscription: Promise<unknown>, channel: string) {
 
 export async function authentication(
 	configuration: Configuration,
-	hooks: ConnectionHooks = {},
 	/** False once a newer startConnection took over; the result is then discarded. */
 	isCurrent: () => boolean = () => true
 ) {
@@ -148,11 +143,7 @@ export async function authentication(
 			if (parentToken) {
 				auth = createLongLivedTokenAuth(hassUrl, parentToken);
 			} else if (navigator.userAgent.includes('Home Assistant')) {
-				// the companion app requires token authentication
-				if (!tokenPromptShown) {
-					tokenPromptShown = true;
-					hooks.onTokenRequired?.();
-				}
+				tokenNeeded.set(true);
 				health.set('lost');
 				// not a successful authentication: callers must keep retrying until
 				// the configuration supplies a long-lived token
@@ -187,7 +178,7 @@ export async function authentication(
 			conn.close();
 			return;
 		}
-		tokenPromptShown = false;
+		tokenNeeded.set(false);
 		connection.set(conn);
 
 		// the lib fires "ready" inside the Connection constructor, before any
@@ -266,6 +257,7 @@ export async function authentication(
 		);
 	} catch (error) {
 		if (!isCurrent()) return;
+		if (error === ERR_INVALID_AUTH && configuration.token) tokenNeeded.set(true);
 		handleError(error);
 	}
 }
@@ -327,7 +319,7 @@ let currentRun = 0;
  * it again (after the token changed, say) restarts the loop; the library owns
  * reconnects once a connection exists, so success ends the loop for good.
  */
-export function startConnection(configuration: Configuration, hooks: ConnectionHooks = {}) {
+export function startConnection(configuration: Configuration) {
 	stopConnection();
 	const run = ++currentRun;
 	let connecting = false;
@@ -335,7 +327,7 @@ export function startConnection(configuration: Configuration, hooks: ConnectionH
 		if (connecting || run !== currentRun) return;
 		connecting = true;
 		try {
-			await authentication(configuration, hooks, () => run === currentRun);
+			await authentication(configuration, () => run === currentRun);
 			if (run === currentRun) {
 				clearInterval(retryTimer);
 				retryTimer = undefined;

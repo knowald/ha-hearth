@@ -13,7 +13,8 @@ import {
 	connection,
 	health,
 	startConnection,
-	stopConnection
+	stopConnection,
+	tokenNeeded
 } from './connection';
 
 vi.mock('home-assistant-js-websocket', async (importOriginal) => ({
@@ -34,6 +35,7 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 	Object.defineProperty(window, 'parent', { value: windowParent, configurable: true });
 	localStorage.clear();
+	tokenNeeded.set(false);
 });
 
 describe('authentication', () => {
@@ -62,6 +64,55 @@ describe('authentication', () => {
 		expect(close).toHaveBeenCalledOnce();
 		expect(get(connection)).toBeUndefined();
 		expect(get(connected)).toBe(false);
+	});
+});
+
+describe('tokenNeeded', () => {
+	const socket = {
+		close: vi.fn(),
+		addEventListener: vi.fn(),
+		subscribeMessage: vi.fn(async () => async () => {})
+	} as unknown as Connection;
+
+	it('is set in the companion app without a configured token', async () => {
+		vi.stubGlobal('navigator', { userAgent: 'Home Assistant/2026.9 (io.robbie.HomeAssistant)' });
+		await expect(authentication({ hassUrl: 'http://localhost:8123' })).rejects.toThrow(
+			'A long-lived access token is required'
+		);
+		expect(get(tokenNeeded)).toBe(true);
+	});
+
+	it('is set when Home Assistant rejects the configured token', async () => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.mocked(createConnection).mockRejectedValue(ERR_INVALID_AUTH);
+		await expect(
+			authentication({ hassUrl: 'http://localhost:8123', token: 'revoked' })
+		).rejects.toBe(ERR_INVALID_AUTH);
+		expect(get(tokenNeeded)).toBe(true);
+	});
+
+	it('stays unset when the socket cannot connect with a configured token', async () => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.mocked(createConnection).mockRejectedValue(ERR_CANNOT_CONNECT);
+		await expect(authentication({ hassUrl: 'http://localhost:8123', token: 'test' })).rejects.toBe(
+			ERR_CANNOT_CONNECT
+		);
+		expect(get(tokenNeeded)).toBe(false);
+	});
+
+	it('stays unset in a browser that authenticates through OAuth', async () => {
+		const navigation = { href: '' };
+		vi.stubGlobal('document', { location: navigation });
+		void authentication({ hassUrl: 'http://localhost:8123' });
+		await vi.waitFor(() => expect(navigation.href).not.toBe(''));
+		expect(get(tokenNeeded)).toBe(false);
+	});
+
+	it('clears once a connection succeeds', async () => {
+		tokenNeeded.set(true);
+		vi.mocked(createConnection).mockResolvedValue(socket);
+		await authentication({ hassUrl: 'http://localhost:8123', token: 'new' });
+		expect(get(tokenNeeded)).toBe(false);
 	});
 });
 
