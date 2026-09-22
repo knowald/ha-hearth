@@ -53,7 +53,7 @@ function evaluateCondition(
 	return true;
 }
 
-function mediaQueriesIn(conditions: VisibilityCondition[]): string[] {
+export function mediaQueriesIn(conditions: VisibilityCondition[]): string[] {
 	return conditions.flatMap((condition) =>
 		'media' in condition ? [condition.media] : 'or' in condition ? mediaQueriesIn(condition.or) : []
 	);

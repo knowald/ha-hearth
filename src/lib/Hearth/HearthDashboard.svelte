@@ -12,7 +12,7 @@
 		setupWizardOpen
 	} from './store';
 	import { foldedTopCount } from './config';
-	import { railWidgetShown } from './visibility';
+	import { mediaQueriesIn, railWidgetShown } from './visibility';
 	import ControlPopup from './ControlPopup.svelte';
 	import EmptyState from './EmptyState.svelte';
 	import Rail from './Rail.svelte';
@@ -125,10 +125,27 @@
 	 * rest of the rail. The nav widget's own settings shape only the wide rail.
 	 */
 	const BUILT_IN_NAV: NavWidgetConfig = { id: 'built-in-nav', type: 'nav' };
+	// live results for the rail's media conditions, so a resize that hides the
+	// nav widget brings the built-in list back like VisibilityGate hides the widget
+	let railMedia = $state<Record<string, boolean>>({});
+	$effect(() => {
+		const queries = new Set($hearthConfig.rail.flatMap((w) => mediaQueriesIn(w.visibility ?? [])));
+		const matches: Record<string, boolean> = {};
+		const stops = [...queries].map((query) =>
+			mediaQuery(query).subscribe((value) => {
+				matches[query] = value;
+				railMedia = { ...matches };
+			})
+		);
+		return () => stops.forEach((stop) => stop());
+	});
 	let railHasNav = $derived(
 		$hearthEditMode
 			? $hearthConfig.rail.some((widget) => widget.type === 'nav')
-			: railWidgetShown($hearthConfig.rail, 'nav', $states, { narrow: false })
+			: railWidgetShown($hearthConfig.rail, 'nav', $states, {
+					narrow: false,
+					match: (query) => railMedia[query] ?? false
+				})
 	);
 
 	// display-only theme override via ?theme=<preset id>: the matched preset

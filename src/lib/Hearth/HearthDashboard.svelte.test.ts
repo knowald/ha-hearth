@@ -115,6 +115,29 @@ describe('HearthDashboard navigation', () => {
 		expect(container.querySelector('[data-widget="built-in-nav"]')).toBeNull();
 	});
 
+	it('brings the built-in page list back when a resize hides the nav widget', async () => {
+		// a query no other test uses, since mediaQuery caches its stores
+		const wide = '(min-width: 1401px)';
+		const listeners = new Set<() => void>();
+		const list = {
+			matches: true,
+			addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+			removeEventListener: (_: string, listener: () => void) => listeners.delete(listener)
+		};
+		vi.stubGlobal('matchMedia', (query: string) =>
+			query === wide ? list : { matches: false, addEventListener() {}, removeEventListener() {} }
+		);
+		hearthConfig.set(withRooms([{ id: 'nav', type: 'nav', visibility: [{ media: wide }] }]));
+		const { container } = render(HearthDashboard);
+		await act();
+		expect(container.querySelector('[data-widget="built-in-nav"]')).toBeNull();
+
+		list.matches = false;
+		await act(() => listeners.forEach((listener) => listener()));
+		expect(container.querySelector('[data-widget="built-in-nav"]')).not.toBeNull();
+		expect(container.querySelectorAll('.rail-scroll .nav-item')).toHaveLength(2);
+	});
+
 	it('keeps the page in ?room= next to the other parameters and the hash', async () => {
 		history.replaceState(null, '', '/?theme=slate&room=kitchen#top');
 		hearthConfig.set(withRooms([{ id: 'nav', type: 'nav' }]));
