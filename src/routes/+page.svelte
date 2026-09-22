@@ -18,8 +18,10 @@
 	import ThemeStyle from '$lib/Hearth/shell/ThemeStyle.svelte';
 	import { normalizeHearthConfig } from '$lib/Hearth/normalize';
 	import {
+		configurationLoadError,
 		hearthConfig,
 		hearthLoadError,
+		hearthLoadErrorKind,
 		hearthNeedsSetup,
 		hearthRevision,
 		hearthEditMode
@@ -42,6 +44,10 @@
 	$hearthConfig = normalizeHearthConfig(data?.hearth);
 	// svelte-ignore state_referenced_locally
 	$hearthLoadError = data?.hearthError ?? null;
+	// svelte-ignore state_referenced_locally
+	$hearthLoadErrorKind = data?.hearthErrorKind ?? null;
+	// svelte-ignore state_referenced_locally
+	$configurationLoadError = data?.configurationError ?? null;
 	// svelte-ignore state_referenced_locally
 	$hearthNeedsSetup = data?.hearthNeedsSetup ?? false;
 	// svelte-ignore state_referenced_locally

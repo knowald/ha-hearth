@@ -9,6 +9,7 @@ import {
 	enterEditMode,
 	hearthConfig,
 	hearthEditMode,
+	hearthNeedsSetup,
 	hearthRevision,
 	requestConfirmation,
 	requestedConfirmation,
@@ -172,6 +173,20 @@ describe('Hearth store view helpers', () => {
 });
 
 describe('saveEdit conflicts', () => {
+	it('ends the first-run state once a save succeeds', async () => {
+		hearthNeedsSetup.set(true);
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => new Response(JSON.stringify({ revision: 1 }), { status: 200 }))
+		);
+		try {
+			expect(await saveEdit()).toBe(true);
+			expect(get(hearthNeedsSetup)).toBe(false);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it('keeps the local revision after a 409 so a plain retry conflicts again', async () => {
 		hearthRevision.set(3);
 		const fetchMock = vi.fn(

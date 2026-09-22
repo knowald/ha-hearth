@@ -13,10 +13,20 @@ export const hearthConfig = writable<HearthConfig>(structuredClone(DEFAULT_HEART
 // stays locked so fallback rendering can never overwrite that source.
 export const hearthLoadError = writable<string | null>(null);
 
+/** Which of the server's failure paths produced hearthLoadError. */
+export type HearthErrorKind = 'unreadable' | 'version' | 'invalid';
+export const hearthLoadErrorKind = writable<HearthErrorKind | null>(null);
+
 // True only when the server found no usable source document. The dashboard
 // can offer discovery automatically without confusing parse/I/O failures with
 // a first run.
 export const hearthNeedsSetup = writable(false);
+
+// Non-null when configuration.yaml exists but could not be read; the server
+// then runs on default application settings.
+export const configurationLoadError = writable<string | null>(null);
+
+export const setupWizardOpen = writable(false);
 
 // server-managed save counter for conflict detection between tabs
 export const hearthRevision = writable(0);
@@ -170,6 +180,8 @@ async function performSave(force: boolean): Promise<boolean> {
 	}
 	const { revision } = await response.json();
 	hearthRevision.set(revision);
+	// the file now holds a dashboard, so this is no longer a first run
+	hearthNeedsSetup.set(false);
 	saveState.set('saved');
 	clearTimeout(savedToastTimer);
 	savedToastTimer = setTimeout(() => saveState.set('idle'), 2500);

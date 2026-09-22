@@ -51,3 +51,60 @@ describe('browser Home Assistant URL', () => {
 		expect((await configuration()).hassUrl).toBeUndefined();
 	});
 });
+
+describe('configuration.yaml errors', () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	async function loadWith(files: Record<string, string>) {
+		vi.mocked(readFile).mockImplementation(async (file) => files[String(file)] ?? '');
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		const request = new Request('http://container:8099/');
+		return load({ request } as Parameters<typeof load>[0]);
+	}
+
+	it('returns the error to the page when configuration.yaml cannot be parsed', async () => {
+		const data = await loadWith({ './data/configuration.yaml': 'locale: [unclosed' });
+		expect(data.configurationError).toEqual(expect.any(String));
+		expect(data.configuration.locale).toBeUndefined();
+	});
+
+	it('returns the error when configuration.yaml is not a mapping', async () => {
+		const data = await loadWith({ './data/configuration.yaml': '- a\n- b' });
+		expect(data.configurationError).toBe('configuration.yaml must contain a YAML mapping');
+	});
+
+	it('reports no error for a missing or valid configuration.yaml', async () => {
+		expect((await loadWith({})).configurationError).toBeNull();
+		expect(
+			(await loadWith({ './data/configuration.yaml': 'locale: de' })).configurationError
+		).toBeNull();
+	});
+});
+
+describe('hearth.yaml errors', () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	async function loadHearth(content: string) {
+		vi.mocked(readFile).mockImplementation(async (file) =>
+			String(file) === './data/hearth.yaml' ? content : ''
+		);
+		const request = new Request('http://container:8099/');
+		return load({ request } as Parameters<typeof load>[0]);
+	}
+
+	it.each([
+		['unparseable YAML', 'rooms: [unclosed', 'unreadable'],
+		['a list instead of a mapping', '- a\n- b', 'unreadable'],
+		['an unsupported version', 'version: 999\nrooms: []', 'version']
+	])('names %s as %s', async (_label, content, kind) => {
+		const data = await loadHearth(content);
+		expect(data.hearthError).toEqual(expect.any(String));
+		expect(data.hearthErrorKind).toBe(kind);
+	});
+
+	it('reports no kind for a missing file', async () => {
+		const data = await loadHearth('');
+		expect(data.hearthError).toBeNull();
+		expect(data.hearthErrorKind).toBeNull();
+	});
+});

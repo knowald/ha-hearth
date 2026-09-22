@@ -7,10 +7,12 @@
 		hearthConfig,
 		hearthEditMode,
 		hearthLoadError,
-		hearthNeedsSetup
+		hearthNeedsSetup,
+		setupWizardOpen
 	} from './store';
 	import { foldedTopCount } from './config';
 	import ControlPopup from './ControlPopup.svelte';
+	import EmptyState from './EmptyState.svelte';
 	import Rail from './Rail.svelte';
 	import RoomDetail from './RoomDetail.svelte';
 	import Screensaver from './Screensaver.svelte';
@@ -28,7 +30,6 @@
 	import { mediaQuery } from '$lib/ui/mediaQuery';
 	import { FOLD_QUERY, SHORT_QUERY } from './breakpoints';
 
-	let showSetupWizard = $state(false);
 	let showSearch = $state(false);
 
 	// the folded layout is a different tree, not a restyled one: the rail
@@ -118,7 +119,7 @@
 
 	onMount(() => {
 		const params = new URLSearchParams(location.search);
-		if ($hearthNeedsSetup && !$hearthLoadError) showSetupWizard = true;
+		if ($hearthNeedsSetup && !$hearthLoadError) setupWizardOpen.set(true);
 
 		const presetId = params.get('theme');
 		presetOverride = THEME_PRESETS.find((preset) => preset.id === presetId);
@@ -155,6 +156,16 @@
 			bind:this={mainElement}
 			use:scrollEdges={{ report: (edges) => (mainCut = edges) }}
 		>
+			{#if $hearthNeedsSetup && !$hearthLoadError && !$hearthEditMode && !$setupWizardOpen}
+				<div class="setup-prompt">
+					<EmptyState
+						icon="auto_awesome"
+						text={$lang('hearth_setup_prompt')}
+						hint={$lang('hearth_setup_prompt_hint')}
+						action={{ label: $lang('hearth_setup'), onclick: () => setupWizardOpen.set(true) }}
+					/>
+				</div>
+			{/if}
 			<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
 		</main>
 		{#if edgeBlur}
@@ -214,15 +225,19 @@
 	{#if ($hearthConfig.screensaver_minutes ?? 0) > 0}
 		<Screensaver minutes={$hearthConfig.screensaver_minutes} />
 	{/if}
-	{#if showSetupWizard}
-		<SetupWizard onclose={() => (showSetupWizard = false)} />
+	{#if $setupWizardOpen}
+		<SetupWizard firstRun={$hearthNeedsSetup} onclose={() => setupWizardOpen.set(false)} />
 	{/if}
 	<ConfirmDialog />
 	<Toasts {overflowBy} />
-	<EditBar {hideEditToggle} onsetup={() => (showSetupWizard = true)} />
+	<EditBar {hideEditToggle} onsetup={() => setupWizardOpen.set(true)} />
 </section>
 
 <style>
+	.setup-prompt {
+		margin-bottom: 16px;
+	}
+
 	/* command sent, waiting for the entity to confirm */
 	.frame :global(.pending) {
 		animation: hearth-pending 1.1s ease-in-out infinite;

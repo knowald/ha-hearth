@@ -22,7 +22,8 @@
 	} from './store';
 	import { layer } from '$lib/ui/layers';
 
-	let { onclose }: { onclose: () => void } = $props();
+	/** `firstRun` opened itself on an empty dashboard, so a stray backdrop tap must not dismiss it. */
+	let { onclose, firstRun = false }: { onclose: () => void; firstRun?: boolean } = $props();
 
 	let status = $state<'disconnected' | 'loading' | 'error' | 'ready'>('loading');
 	let errorMessage = $state('');
@@ -150,7 +151,7 @@
 <div
 	class="overlay"
 	role="presentation"
-	onpointerdown={(event) => event.target === event.currentTarget && onclose()}
+	onpointerdown={(event) => !firstRun && event.target === event.currentTarget && onclose()}
 	use:layer={onclose}
 >
 	<div class="panel" role="dialog" aria-modal="true" aria-label={$lang('hearth_import')}>
@@ -171,10 +172,13 @@
 		{#if status === 'disconnected'}
 			<div class="hint">{$lang('hearth_not_connected')}</div>
 		{:else if status === 'loading'}
-			<div class="hint">{$lang('hearth_loading_registries')}</div>
+			<div class="hint" role="status">{$lang('hearth_loading_registries')}</div>
 		{:else if status === 'error'}
 			<div class="hint">
-				<span class="error">{errorMessage}</span>
+				<div class="error" role="alert">
+					<strong>{$lang('hearth_registries_failed')}</strong>
+					<span class="error-detail">{errorMessage}</span>
+				</div>
 				<button type="button" class="bar-button pressable" use:Ripple={PRESS_RIPPLE} onclick={load}
 					>{$lang('hearth_retry')}</button
 				>
@@ -251,7 +255,7 @@
 		{/if}
 		<div class="footer">
 			<button type="button" class="bar-button pressable" use:Ripple={PRESS_RIPPLE} onclick={onclose}
-				>{$lang('cancel')}</button
+				>{$lang(firstRun ? 'hearth_skip_for_now' : 'cancel')}</button
 			>
 			{#if status === 'ready'}
 				<button
@@ -451,7 +455,16 @@
 	}
 
 	.error {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
 		color: var(--h-bad-text);
+	}
+
+	.error-detail {
+		font-size: var(--h-type-small);
+		color: var(--h-text-5);
+		overflow-wrap: anywhere;
 	}
 
 	.footer {

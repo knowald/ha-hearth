@@ -5,7 +5,7 @@
 	import { activateOnKeyboard } from '../interaction';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from '../config';
-	import { editor, hearthConfig, updateConfig } from '../store';
+	import { editor, hearthConfig, setupWizardOpen, updateConfig } from '../store';
 	import EditSheet from './EditSheet.svelte';
 	import Icon from '../Icon.svelte';
 	import { wakeLockState } from '../wakeLock';
@@ -252,6 +252,21 @@
 		<section>
 			<div class="section-title">{$lang('hearth_advanced')}</div>
 			<div class="rows">
+				<div
+					class="row action pressable"
+					use:Ripple={PRESS_RIPPLE}
+					onclick={() => setupWizardOpen.set(true)}
+					role="button"
+					tabindex="0"
+					onkeydown={(event) => activateOnKeyboard(event, () => setupWizardOpen.set(true))}
+				>
+					<Icon name="auto_awesome" size={ICON.control} />
+					<div class="row-main">
+						<div class="row-label">{$lang('hearth_setup')}</div>
+						<div class="row-sub">{$lang('hearth_setup_row_sub')}</div>
+					</div>
+					<Icon name="chevron_right" size={ICON.control} />
+				</div>
 				<div
 					class="row action pressable"
 					use:Ripple={PRESS_RIPPLE}

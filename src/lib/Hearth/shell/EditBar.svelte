@@ -256,7 +256,7 @@
 			justify-content: flex-end;
 		}
 
-		/* the area import is a setup-time action; it lives in the settings sheet too */
+		/* the area import is a setup-time action; phones reach it from the settings sheet */
 		.edit-bar .setup {
 			display: none;
 		}
