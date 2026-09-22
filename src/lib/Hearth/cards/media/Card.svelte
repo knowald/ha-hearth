@@ -141,7 +141,7 @@
 	.card {
 		height: 100%;
 		min-height: 240px;
-		border-radius: var(--h-radius-lg);
+		border-radius: var(--h-radius-card);
 		overflow: hidden;
 		background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));
 		backdrop-filter: var(--h-surface-blur);

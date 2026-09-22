@@ -71,3 +71,104 @@ describe('layer action', () => {
 		release();
 	});
 });
+
+function pressTab(shiftKey = false) {
+	const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, cancelable: true });
+	window.dispatchEvent(event);
+	return event;
+}
+
+function dialogWithButtons(...labels: string[]) {
+	const node = document.createElement('div');
+	node.tabIndex = -1;
+	for (const label of labels) {
+		const button = document.createElement('button');
+		button.textContent = label;
+		node.append(button);
+	}
+	document.body.append(node);
+	return { node, buttons: [...node.querySelectorAll('button')] };
+}
+
+describe('layer action focus', () => {
+	it('moves focus to the first focusable element and cycles Tab inside', () => {
+		const opener = document.createElement('button');
+		document.body.append(opener);
+		opener.focus();
+		const { node, buttons } = dialogWithButtons('one', 'two');
+		const action = layer(node, { close: () => {}, trap: true, initialFocus: true });
+		expect(document.activeElement).toBe(buttons[0]);
+
+		expect(pressTab(true).defaultPrevented).toBe(true);
+		expect(document.activeElement).toBe(buttons[1]);
+		expect(pressTab().defaultPrevented).toBe(true);
+		expect(document.activeElement).toBe(buttons[0]);
+		// between the ends the browser moves focus itself
+		expect(pressTab().defaultPrevented).toBe(false);
+
+		action.destroy();
+		expect(document.activeElement).toBe(opener);
+		opener.remove();
+		node.remove();
+	});
+
+	it('pulls focus back in when it escaped the trapped layer', () => {
+		const outside = document.createElement('button');
+		document.body.append(outside);
+		const { node, buttons } = dialogWithButtons('one', 'two');
+		const action = layer(node, { close: () => {}, trap: true });
+		outside.focus();
+		pressTab();
+		expect(document.activeElement).toBe(buttons[0]);
+		action.destroy();
+		outside.remove();
+		node.remove();
+	});
+
+	it('focuses the element the layer picks and leaves Tab alone without a trap', () => {
+		const { node, buttons } = dialogWithButtons('one', 'two');
+		const action = layer(node, { close: () => {}, initialFocus: () => buttons[1] });
+		expect(document.activeElement).toBe(buttons[1]);
+		expect(pressTab().defaultPrevented).toBe(false);
+		action.destroy();
+		node.remove();
+	});
+
+	it('only the top layer traps Tab', () => {
+		const { node: lower, buttons: lowerButtons } = dialogWithButtons('lower');
+		const { node: upper, buttons: upperButtons } = dialogWithButtons('upper-one', 'upper-two');
+		const lowerAction = layer(lower, { close: () => {}, trap: true });
+		const upperAction = layer(upper, { close: () => {}, trap: false });
+		lowerButtons[0].focus();
+		expect(pressTab().defaultPrevented).toBe(false);
+		upperAction.destroy();
+		upperButtons[0].focus();
+		pressTab();
+		expect(document.activeElement).toBe(lowerButtons[0]);
+		lowerAction.destroy();
+		lower.remove();
+		upper.remove();
+	});
+
+	it('leaves a Tab that a control inside already handled', () => {
+		const { node, buttons } = dialogWithButtons('one', 'two');
+		const action = layer(node, { close: () => {}, trap: true });
+		buttons[1].addEventListener('keydown', (event) => event.preventDefault());
+		buttons[1].focus();
+		buttons[1].dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+		);
+		expect(document.activeElement).toBe(buttons[1]);
+		action.destroy();
+		node.remove();
+	});
+
+	it('keeps focus that is already inside the layer', () => {
+		const { node, buttons } = dialogWithButtons('one', 'two');
+		buttons[1].focus();
+		const action = layer(node, { close: () => {}, initialFocus: true });
+		expect(document.activeElement).toBe(buttons[1]);
+		action.destroy();
+		node.remove();
+	});
+});

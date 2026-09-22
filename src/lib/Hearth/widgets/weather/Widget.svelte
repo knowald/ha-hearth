@@ -107,7 +107,7 @@
 	.card {
 		margin-top: 28px;
 		margin-bottom: 8px;
-		padding: 16px 18px;
+		padding: var(--h-card-padding);
 		border-radius: var(--h-radius-card);
 		background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));
 		backdrop-filter: var(--h-surface-blur);

@@ -1,8 +1,6 @@
 <script lang="ts">
-	import { ICON } from '../iconSizes';
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
-	import Ripple from '$lib/ui/actions/ripple';
 	import { configuration } from '$lib/core/app/configuration';
 	import {
 		hapticCapabilities,
@@ -12,11 +10,13 @@
 		vibrate
 	} from '$lib/core/app/haptics';
 	import { motion } from '$lib/core/app/motion';
+	import { MOTION } from '$lib/core/theme';
 	import { lang, selectedLanguage, translation } from '$lib/core/i18n';
-	import { PRESS_RIPPLE } from '../config';
 	import { editor, requestConfirmation, type Editor } from '../store';
 	import EditSheet from './EditSheet.svelte';
-	import Icon from '../Icon.svelte';
+	import SelectField from './SelectField.svelte';
+	import SettingsRow from './SettingsRow.svelte';
+	import Switch from '../Switch.svelte';
 
 	let languages = $state<{ value: string; label: string }[]>([]);
 	let locale = $state($selectedLanguage || 'en');
@@ -33,6 +33,16 @@
 	function staged() {
 		return { locale, reduceMotion, touchFeedback, token, customJs };
 	}
+
+	let touchFeedbackSub = $derived(
+		$lang(
+			feedbackSupported
+				? 'hearth_touch_feedback_sub'
+				: feedbackNeedsHttps
+					? 'hearth_touch_feedback_needs_https'
+					: 'hearth_touch_feedback_unsupported'
+		)
+	);
 
 	const initial = JSON.stringify(staged());
 	let dirty = $derived(JSON.stringify(staged()) !== initial);
@@ -106,7 +116,7 @@
 
 			$configuration = { ...next, revision: (await response.json()).revision };
 			$selectedLanguage = locale;
-			$motion = reduceMotion ? 0 : 190;
+			$motion = reduceMotion ? 0 : MOTION.base;
 			$haptics = touchFeedback;
 			vibrate('success');
 			document.documentElement.lang = locale || 'en';
@@ -150,66 +160,29 @@
 		<div class="section-note">{$lang('hearth_changes_are_staged_until_you_choose')}</div>
 		<div class="rows">
 			{#if languages.length}
-				<div class="row">
-					<div class="row-main"><div class="row-label">{$lang('language')}</div></div>
-					<span class="select-wrap">
-						<select bind:value={locale}>
-							{#each languages as option (option.value)}
-								<option value={option.value}>{option.label}</option>
-							{/each}
-						</select>
-						<Icon name="expand_more" size={ICON.control} />
-					</span>
-				</div>
+				<SettingsRow label={$lang('language')}>
+					<SelectField inline label={$lang('language')} bind:value={locale} options={languages} />
+				</SettingsRow>
 			{/if}
-			<div class="row">
-				<div class="row-main"><div class="row-label">{$lang('hearth_reduce_motion')}</div></div>
-				<button
-					type="button"
-					class="switch pressable"
-					class:on={reduceMotion}
-					aria-label={$lang('hearth_reduce_motion')}
-					aria-pressed={reduceMotion}
-					use:Ripple={PRESS_RIPPLE}
-					onclick={() => (reduceMotion = !reduceMotion)}
-				>
-					<span class="knob"></span>
-				</button>
-			</div>
-			<div class="row">
-				<div class="row-main">
-					<div class="row-label">{$lang('hearth_touch_feedback')}</div>
-					<div class="row-sub">
-						{#if feedbackSupported}
-							{$lang('hearth_touch_feedback_sub')}
-						{:else if feedbackNeedsHttps}
-							{$lang('hearth_touch_feedback_needs_https')}
-						{:else}
-							{$lang('hearth_touch_feedback_unsupported')}
-						{/if}
-					</div>
-				</div>
-				<button
-					type="button"
-					class="switch pressable"
-					class:on={touchFeedback}
-					aria-label={$lang('hearth_touch_feedback')}
-					aria-pressed={touchFeedback}
-					use:Ripple={PRESS_RIPPLE}
-					onclick={() => {
-						touchFeedback = !touchFeedback;
+			<SettingsRow label={$lang('hearth_reduce_motion')}>
+				<Switch
+					checked={reduceMotion}
+					label={$lang('hearth_reduce_motion')}
+					onchange={(checked) => (reduceMotion = checked)}
+				/>
+			</SettingsRow>
+			<SettingsRow label={$lang('hearth_touch_feedback')} sub={touchFeedbackSub}>
+				<Switch
+					checked={touchFeedback}
+					label={$lang('hearth_touch_feedback')}
+					onchange={(checked) => {
+						touchFeedback = checked;
 						// the choice is staged, so the sample bypasses the store
 						if (touchFeedback) sampleVibration('press');
 					}}
-				>
-					<span class="knob"></span>
-				</button>
-			</div>
-			<div class="row">
-				<div class="row-main">
-					<div class="row-label">{$lang('hearth_long_lived_token')}</div>
-					<div class="row-sub">{$lang('hearth_token_hint')}</div>
-				</div>
+				/>
+			</SettingsRow>
+			<SettingsRow label={$lang('hearth_long_lived_token')} sub={$lang('hearth_token_hint')}>
 				<input
 					class="inline-text"
 					type="password"
@@ -220,51 +193,35 @@
 					onfocus={handleKeyFocus}
 					onblur={handleKeyFocus}
 				/>
-			</div>
-			<div class="row">
-				<div class="row-main">
-					<div class="row-label">{$lang('hearth_custom_js')}</div>
-					<div class="row-sub">{$lang('hearth_custom_js_sub')}</div>
-				</div>
-				<button
-					type="button"
-					class="switch pressable"
-					class:on={customJs}
-					aria-label={$lang('hearth_custom_js')}
-					aria-pressed={customJs}
-					use:Ripple={PRESS_RIPPLE}
-					onclick={() => (customJs = !customJs)}
-				>
-					<span class="knob"></span>
-				</button>
-			</div>
-			<div class="row">
-				<div class="row-main"><div class="row-label">{$lang('version')}</div></div>
+			</SettingsRow>
+			<SettingsRow label={$lang('hearth_custom_js')} sub={$lang('hearth_custom_js_sub')}>
+				<Switch
+					checked={customJs}
+					label={$lang('hearth_custom_js')}
+					onchange={(checked) => (customJs = checked)}
+				/>
+			</SettingsRow>
+			<SettingsRow label={$lang('version')}>
 				<span class="row-value">{installedVersion ?? $lang('hearth_loading')}</span>
-			</div>
+			</SettingsRow>
 		</div>
 		{#if saveError}<div class="error" role="alert">{saveError}</div>{/if}
 
 		<div class="rows">
-			<button
-				type="button"
-				class="row action pressable"
+			<SettingsRow
+				icon="css"
+				label={$lang('hearth_custom_css')}
+				sub={$lang('hearth_custom_css_sub')}
 				onclick={() => leave({ kind: 'customCss' })}
-			>
-				<Icon name="css" size={ICON.control} />
-				<div class="row-main">
-					<div class="row-label">{$lang('hearth_custom_css')}</div>
-					<div class="row-sub">{$lang('hearth_custom_css_sub')}</div>
-				</div>
-				<Icon name="chevron_right" size={ICON.control} />
-			</button>
-			<button type="button" class="row action danger pressable" onclick={handleLogout}>
-				<Icon name="logout" size={ICON.control} />
-				<div class="row-main">
-					<div class="row-label">{$lang('log_out')}</div>
-					<div class="row-sub">{$lang('hearth_clears_the_home_assistant_session')}</div>
-				</div>
-			</button>
+			/>
+			<SettingsRow
+				icon="logout"
+				label={$lang('log_out')}
+				sub={$lang('hearth_clears_the_home_assistant_session')}
+				danger
+				chevron={false}
+				onclick={handleLogout}
+			/>
 		</div>
 	</div>
 </EditSheet>
@@ -296,69 +253,13 @@
 		overflow: hidden;
 	}
 
-	.row {
-		display: flex;
-		align-items: center;
-		gap: 14px;
-		width: 100%;
-		box-sizing: border-box;
-		padding: 12px 16px;
-		min-height: 56px;
-		border: 0;
-		background: none;
-		font: inherit;
-		text-align: left;
-		color: var(--h-icon);
-	}
-
-	.row + .row {
-		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
-	}
-
-	.row-main {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.row-label {
-		font-size: var(--h-type-body);
-		color: var(--h-text-2);
-	}
-
-	.row-sub {
-		font-size: var(--h-type-small);
-		color: var(--h-text-6);
-		margin-top: 2px;
-	}
-
 	.row-value {
 		font-size: var(--h-type-body);
 		color: var(--h-text-3);
 	}
 
-	.row.action {
-		cursor: pointer;
-	}
-
-	.row.action.danger .row-label {
-		color: var(--h-bad-text);
-	}
-
-	.select-wrap {
-		position: relative;
-		display: flex;
-		align-items: center;
-		color: var(--h-icon);
-	}
-
-	.select-wrap :global(.mi) {
-		position: absolute;
-		right: 8px;
-		pointer-events: none;
-	}
-
-	select,
 	.inline-text {
+		width: min(240px, 45%);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
 		border-radius: var(--h-radius-xs);
 		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
@@ -367,45 +268,5 @@
 		font-size: var(--h-type-body);
 		padding: 8px 12px;
 		outline: none;
-	}
-
-	select {
-		appearance: none;
-		padding-right: 32px;
-	}
-
-	.inline-text {
-		width: min(240px, 45%);
-	}
-
-	.switch {
-		width: 52px;
-		height: 30px;
-		padding: 0;
-		border: 0;
-		border-radius: var(--h-radius-sm);
-		cursor: pointer;
-		position: relative;
-		background: rgb(var(--h-surface-rgb) / calc(0.12 * var(--h-fill-scale)));
-	}
-
-	.switch.on {
-		background: linear-gradient(135deg, var(--h-accent-deep), var(--h-accent-bright));
-	}
-
-	.knob {
-		position: absolute;
-		top: 4px;
-		left: 4px;
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
-		background: var(--h-icon);
-		transition: left var(--h-motion-base);
-	}
-
-	.switch.on .knob {
-		left: 24px;
-		background: var(--h-on-accent);
 	}
 </style>

@@ -18,6 +18,7 @@
 	import { guardCoverMotion, setAllCovers } from '$lib/core/domains/cover';
 	import { turnAllOff } from '$lib/core/domains/light';
 	import AnchoredPopover from '../../AnchoredPopover.svelte';
+	import EmptyState from '../../EmptyState.svelte';
 	import EntityGrid from '../../EntityGrid.svelte';
 	import Icon from '../../Icon.svelte';
 
@@ -192,7 +193,7 @@
 				{/if}
 			</div>
 			{#if resolvedEntities.length === 0}
-				<div class="placeholder">{$lang('hearth_add_entities_or_a_wildcard_in')}</div>
+				<EmptyState text={$lang('hearth_add_entities_or_a_wildcard_in')} />
 			{:else}
 				<!-- the popover is ~420px wide, so more than two tracks would squeeze
 				     the tiles to nothing however many the card asks for -->
@@ -256,7 +257,7 @@
 			</div>
 		{/if}
 		{#if resolvedEntities.length === 0 && (!$hearthEditMode || !showEntityDragHandles)}
-			<div class="placeholder">{$lang('hearth_add_entities_or_a_wildcard_in')}</div>
+			<EmptyState text={$lang('hearth_add_entities_or_a_wildcard_in')} />
 		{:else}
 			<EntityGrid
 				entities={resolvedEntities}
@@ -400,15 +401,6 @@
 		text-transform: uppercase;
 		color: var(--h-accent-icon);
 		white-space: nowrap;
-	}
-
-	.placeholder {
-		padding: 22px;
-		border-radius: var(--h-radius-md);
-		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
-		color: var(--h-text-6);
-		font-size: var(--h-type-body);
-		text-align: center;
 	}
 
 	.collapsed-editor-grid {

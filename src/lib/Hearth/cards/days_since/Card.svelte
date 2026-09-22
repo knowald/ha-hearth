@@ -76,8 +76,8 @@
 		display: flex;
 		align-items: center;
 		gap: 14px;
-		padding: 16px 16px;
-		border-radius: var(--h-radius-md);
+		padding: var(--h-card-padding);
+		border-radius: var(--h-radius-card);
 		background: rgb(var(--h-surface-rgb) / calc(0.045 * var(--h-fill-scale)));
 		backdrop-filter: var(--h-surface-blur);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));

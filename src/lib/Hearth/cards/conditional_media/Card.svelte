@@ -2,6 +2,7 @@
 	import { lang } from '$lib/core/i18n';
 	import { timer } from '$lib/core/app/clock';
 	import { states } from '$lib/core/ha/entities';
+	import EmptyState from '../../EmptyState.svelte';
 	import MediaCard from '../media/Card.svelte';
 	import type { ConditionalMediaCard } from './descriptor';
 
@@ -29,18 +30,14 @@
 	<MediaCard card={{ id: card.id, type: 'media', entity: current, height: card.height }} />
 {:else}
 	<div class="idle" style:height={card.height ? `${card.height}px` : undefined}>
-		{$lang('hearth_nothing_playing')}
+		<EmptyState text={$lang('hearth_nothing_playing')} />
 	</div>
 {/if}
 
 <style>
+	/* the grid stretches the empty state to the configured card height */
 	.idle {
 		display: grid;
-		place-items: center;
 		min-height: 120px;
-		border-radius: var(--h-radius-lg);
-		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
-		color: var(--h-text-6);
-		font-size: var(--h-type-body);
 	}
 </style>

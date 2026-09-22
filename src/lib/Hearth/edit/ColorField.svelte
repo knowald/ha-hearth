@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import { motion } from '$lib/core/app/motion';
+	import { MOTION } from '$lib/core/theme';
 	import ColorPicker from './ColorPicker.svelte';
 
 	let {
@@ -20,7 +21,7 @@
 	</button>
 
 	{#if open}
-		<div transition:slide={{ duration: $motion ? 160 : 0 }}>
+		<div transition:slide={{ duration: $motion ? MOTION.base : 0 }}>
 			<ColorPicker {value} {onchange} />
 		</div>
 	{/if}

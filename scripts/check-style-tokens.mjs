@@ -3,8 +3,9 @@ import { join, relative, resolve } from 'node:path';
 
 /*
  * Style token guard for Hearth and ui. Fails on literal colours, font sizes,
- * radii, z-index values and transition durations that bypass the tokens in
- * core/theme, and on spacing values off the even-pixel scale. A declaration may
+ * radii, z-index values, transition and animation durations and elevation
+ * shadows that bypass the tokens in core/theme, on theme alphas that skip the
+ * --h-*-scale multipliers, and on spacing values off the even-pixel scale. A declaration may
  * opt out with a same-line comment: `/* literal ok: <reason> *\/`. Run in CI
  * next to the boundary check.
  */
@@ -18,6 +19,8 @@ const SPACE_SCALE = new Set([0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 
 const SPACING_PROPERTY =
 	/^(padding|margin|gap|row-gap|column-gap|inset|top|right|bottom|left)(-[a-z]+)?$/;
 const EXEMPT = /literal ok:/;
+// blur at which a shadow reads as elevation; below it are glows and hairlines
+const ELEVATION_BLUR = 40;
 
 async function* walk(path) {
 	if ((await stat(path)).isFile()) {
@@ -94,10 +97,24 @@ function check(file, source, block) {
 			fail('z-index literal; use a --h-layer-* token');
 		}
 		if (
-			(property === 'transition' || property === 'transition-duration') &&
-			/\b\d+m?s\b/.test(value)
+			/^(transition|animation)(-duration)?$/.test(property) &&
+			/(?<![\w.-])\d*\.?\d+m?s\b/.test(value)
 		) {
-			fail('transition duration literal; use var(--h-motion-*)');
+			fail(`${property.split('-')[0]} duration literal; use var(--h-motion-*)`);
+		}
+		/*
+		 * Light themes raise --h-fill-scale, --h-line-scale and --h-accent-scale
+		 * so the faint tints stay visible on white; a bare alpha skips that and
+		 * the fill disappears.
+		 */
+		if (/rgb\(var\(--h-[a-z-]+-rgb\b[^)]*\)\s*\/\s*[\d.]+\s*\)/.test(value)) {
+			fail('bare alpha on a theme colour; use calc(<alpha> * var(--h-fill|line|accent-scale))');
+		}
+		if (property === 'box-shadow') {
+			const blurs = [...withoutFunctions(value).matchAll(/-?\d+(?:px)?\s+-?\d+(?:px)?\s+(\d+)px/g)];
+			if (blurs.some((match) => Number(match[1]) >= ELEVATION_BLUR)) {
+				fail('elevation shadow literal; use var(--h-shadow-layer|popover|toast)');
+			}
 		}
 		/*
 		 * Writing the prefix by hand makes lightningcss collapse the pair down to

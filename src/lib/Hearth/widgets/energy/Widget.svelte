@@ -97,7 +97,7 @@
 					style:height="{bar.height}px"
 					style:background={bar.current
 						? 'rgb(var(--h-accent-rgb))'
-						: `rgb(var(--h-accent-rgb) / ${bar.alpha})`}
+						: `rgb(var(--h-accent-rgb) / calc(${bar.alpha} * var(--h-accent-scale)))`}
 				></span>
 			{/each}
 		</div>
@@ -106,8 +106,8 @@
 
 <style>
 	.card {
-		padding: 12px 14px;
-		border-radius: var(--h-radius-md);
+		padding: var(--h-card-padding);
+		border-radius: var(--h-radius-card);
 		background: rgb(var(--h-surface-rgb) / calc(0.045 * var(--h-fill-scale)));
 		backdrop-filter: var(--h-surface-blur);
 		box-shadow: var(--h-card-shadow);

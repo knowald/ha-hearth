@@ -7,7 +7,9 @@
 	import { hearthEditMode, requestConfirmation } from '../../store';
 	import { activateScene, activeSceneIndex } from '$lib/core/domains/scene';
 	import { pendingEntities } from '$lib/core/ha/commands';
+	import EmptyState from '../../EmptyState.svelte';
 	import Icon from '../../Icon.svelte';
+	import { ICON } from '../../iconSizes';
 
 	let { card }: { card: Extract<OverviewCard, { type: 'scenes' }> } = $props();
 
@@ -35,7 +37,7 @@
 		<div class="section-title">{card.title}</div>
 	{/if}
 	{#if card.scenes.length === 0}
-		<div class="placeholder">{$lang('hearth_add_scenes_in_the_card_editor')}</div>
+		<EmptyState text={$lang('hearth_add_scenes_in_the_card_editor')} />
 	{:else}
 		<div class="scenes" class:bar>
 			{#each card.scenes as ref, index (index)}
@@ -52,7 +54,7 @@
 				>
 					<Icon
 						name={ref.icon || 'palette'}
-						size={bar ? 24 : 18}
+						size={bar ? ICON.tile : ICON.control}
 						color={active ? 'var(--h-accent-icon)' : undefined}
 						fill={active}
 					/>
@@ -164,14 +166,5 @@
 
 	.scene.active .scene-caption {
 		color: var(--h-accent-dim-text);
-	}
-
-	.placeholder {
-		padding: 22px;
-		border-radius: var(--h-radius-md);
-		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
-		color: var(--h-text-6);
-		font-size: var(--h-type-body);
-		text-align: center;
 	}
 </style>

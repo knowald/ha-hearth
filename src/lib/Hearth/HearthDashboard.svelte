@@ -240,7 +240,13 @@
 
 	/* command sent, waiting for the entity to confirm */
 	.frame :global(.pending) {
-		animation: hearth-pending 1.1s ease-in-out infinite;
+		animation: hearth-pending 1.1s ease-in-out infinite; /* literal ok: pulse period, not a transition */
+	}
+
+	/* reduced motion keeps a still cue in place of the pulse */
+	:global(html[data-motion='off']) .frame :global(.pending) {
+		animation: none;
+		opacity: 0.7;
 	}
 
 	/* Theme changes animate only the composited dashboard backdrop. Descendant
@@ -283,6 +289,11 @@
 		transition:
 			transform var(--h-motion-fast) ease,
 			filter var(--h-motion-fast) ease;
+	}
+
+	/* the glow stays as press feedback; only the scale moves */
+	:global(html[data-motion='off']) .frame :global(.pressable:active) {
+		transform: none;
 	}
 
 	@keyframes -global-hearth-pending {

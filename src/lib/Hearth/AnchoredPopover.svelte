@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { motion } from '$lib/core/app/motion';
+	import { MOTION } from '$lib/core/theme';
 	import { getHearthInteractionMode } from './interaction';
 	import { clamp } from '$lib/core/ha/commands';
 	import { pushLayer } from '$lib/ui/layers';
@@ -109,7 +110,7 @@
 	class:elevated
 	role="presentation"
 	onclick={onclose}
-	transition:fade={{ duration: $motion ? 120 : 0 }}
+	transition:fade={{ duration: $motion ? MOTION.fast : 0 }}
 ></div>
 
 <div
@@ -122,7 +123,7 @@
 	style:top="{placement?.top ?? 0}px"
 	style:visibility={placement ? 'visible' : 'hidden'}
 	style:--tail-left="{placement?.tail ?? 16}px"
-	transition:fade={{ duration: $motion ? 120 : 0 }}
+	transition:fade={{ duration: $motion ? MOTION.fast : 0 }}
 >
 	<div class="scroll">{@render children()}</div>
 </div>
@@ -143,7 +144,7 @@
 		border-radius: var(--h-radius-card);
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.13 * var(--h-line-scale)));
-		box-shadow: 0 26px 60px var(--h-scrim);
+		box-shadow: var(--h-shadow-popover);
 	}
 
 	/* the tail sits on .card, so scrolling belongs to an inner element */

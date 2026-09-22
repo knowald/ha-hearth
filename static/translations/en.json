@@ -425,6 +425,7 @@
 	"hearth_tilt": "TILT",
 	"hearth_open_fully": "Open fully",
 	"hearth_close_tilt": "Close tilt",
+	"hearth_close_cover": "Close cover",
 	"hearth_stop_tilt": "Stop tilt",
 	"hearth_open_tilt": "Open tilt",
 	"hearth_add_card": "Add card",

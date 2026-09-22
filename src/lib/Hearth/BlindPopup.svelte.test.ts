@@ -27,7 +27,7 @@ describe('BlindPopup', () => {
 			})
 		});
 		render(BlindPopup, { entity: 'cover.gate' });
-		await fireEvent.click(screen.getByText('Open fully'));
+		await fireEvent.click(screen.getByRole('button', { name: 'Open fully' }));
 		expect(get(requestedConfirmation)?.title).toBe('Open Gate?');
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(service).not.toHaveBeenCalled();
@@ -49,7 +49,7 @@ describe('BlindPopup', () => {
 			})
 		});
 		render(BlindPopup, { entity: 'cover.gate' });
-		await fireEvent.click(screen.getByText('Close'));
+		await fireEvent.click(screen.getByRole('button', { name: 'Close cover' }));
 		expect(get(requestedConfirmation)?.title).toBe('Close Gate?');
 	});
 });

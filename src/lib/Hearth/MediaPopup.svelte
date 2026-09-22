@@ -36,8 +36,9 @@
 		toggleMediaPlayback
 	} from '$lib/core/domains/mediaPlayer';
 	import Icon from './Icon.svelte';
+	import CloseButton from './CloseButton.svelte';
 
-	let { entity }: { entity: string } = $props();
+	let { entity, name }: { entity: string; name: string } = $props();
 
 	const FEATURE = {
 		pause: 1,
@@ -178,7 +179,7 @@
 	let volume = $derived(mediaVolumeFor(entity, $states, $controlOverrides));
 </script>
 
-<div class="sheet" onclick={(event) => event.stopPropagation()} role="presentation">
+<div class="sheet" role="dialog" aria-modal="true" aria-label={name}>
 	{#if attributes.entity_picture}
 		<img class="art" src={attributes.entity_picture} alt="" />
 	{:else}
@@ -472,14 +473,8 @@
 		</div>
 	</div>
 
-	<span
-		class="close pressable"
-		onclick={closePopup}
-		role="button"
-		tabindex="0"
-		onkeydown={(event) => activateOnKeyboard(event, closePopup)}
-	>
-		<Icon name="close" size={ICON.tile} />
+	<span class="close">
+		<CloseButton tone="art" onclick={closePopup} />
 	</span>
 </div>
 
@@ -491,7 +486,7 @@
 		position: relative;
 		overflow: hidden;
 		border: 1px solid rgb(var(--h-accent-rgb) / calc(0.18 * var(--h-accent-scale)));
-		box-shadow: 0 40px 100px var(--h-scrim);
+		box-shadow: var(--h-shadow-layer);
 		color: var(--h-on-art-1);
 	}
 
@@ -884,12 +879,11 @@
 		text-overflow: ellipsis;
 	}
 
+	/* the 44px target is centred where the bare icon used to sit */
 	.close {
 		position: absolute;
-		top: 22px;
-		right: 24px;
-		color: var(--h-on-art-2);
-		cursor: pointer;
+		top: 12px;
+		right: 14px;
 	}
 	/* see breakpoints.ts */
 	@media (max-width: 900px) {

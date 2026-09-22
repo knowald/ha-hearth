@@ -7,6 +7,7 @@
 		placeholder = '',
 		type = 'text',
 		autocomplete = undefined,
+		autofocus = false,
 		onchange = undefined
 	}: {
 		label: string;
@@ -14,6 +15,8 @@
 		placeholder?: string;
 		type?: 'text' | 'password';
 		autocomplete?: FullAutoFill;
+		/** Ask the surrounding sheet to focus this field when it opens. */
+		autofocus?: boolean;
 		/** Fires on the input's own change event - blur or Enter, not per keystroke. */
 		onchange?: (value: string) => void;
 	} = $props();
@@ -24,6 +27,7 @@
 	<input
 		{type}
 		{autocomplete}
+		data-autofocus={autofocus || undefined}
 		bind:value
 		{placeholder}
 		spellcheck="false"

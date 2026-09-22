@@ -8,6 +8,7 @@
 	import { getHearthInteractionMode } from './interaction';
 	import { callEntityService } from '$lib/core/ha/commands';
 	import { vacuumCommand } from '$lib/core/domains/vacuum';
+	import EmptyState from './EmptyState.svelte';
 	import Icon from './Icon.svelte';
 
 	let {
@@ -157,7 +158,9 @@
 		{/each}
 	</div>
 {:else}
-	<div class="empty">{$lang('hearth_add_cleaning_mode_button_entities_in')}</div>
+	<div class="empty">
+		<EmptyState text={$lang('hearth_add_cleaning_mode_button_entities_in')} />
+	</div>
 {/if}
 
 {#if launched}
@@ -289,12 +292,6 @@
 
 	.empty {
 		margin-top: 16px;
-		padding: 16px;
-		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.14 * var(--h-line-scale)));
-		border-radius: var(--h-radius-sm);
-		color: var(--h-text-6);
-		font-size: var(--h-type-small);
-		text-align: center;
 	}
 
 	.undo {

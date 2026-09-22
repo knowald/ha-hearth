@@ -1,6 +1,9 @@
 import Sortable from 'sortablejs';
 import type { Options as SortableOptions, SortableEvent, GroupOptions } from 'sortablejs';
 import type { Action, ActionReturn } from 'svelte/action';
+import { get } from 'svelte/store';
+import { motion } from '$lib/core/app/motion';
+import { MOTION } from '$lib/core/theme';
 
 export interface DndReceiveDetail {
 	id: string;
@@ -119,7 +122,7 @@ export function sortable<T>(
 	function buildSortableOptions(): SortableOptions {
 		return {
 			group: options.group,
-			animation: options.animation ?? 150,
+			animation: options.animation ?? (get(motion) ? MOTION.fast : 0),
 			disabled: options.disabled ?? false,
 			ghostClass: options.ghostClass ?? 'sortable-ghost',
 			chosenClass: options.chosenClass ?? 'sortable-chosen',
@@ -218,7 +221,7 @@ export function sortable<T>(
 				instance.option('disabled', newOptions.disabled ?? false);
 			}
 			if (newOptions.animation !== options.animation) {
-				instance.option('animation', newOptions.animation ?? 150);
+				instance.option('animation', newOptions.animation ?? (get(motion) ? MOTION.fast : 0));
 			}
 			if (JSON.stringify(newOptions.group) !== JSON.stringify(options.group)) {
 				instance.option('group', newOptions.group);

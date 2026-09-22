@@ -2,22 +2,16 @@
 	import { fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import { motion } from '$lib/core/app/motion';
+	import { MOTION } from '$lib/core/theme';
 	import { lang, selectedLanguage } from '$lib/core/i18n';
 	import { displayTimeZone, hearthConfig } from './store';
 	import { clockTimeOptions } from './clock';
 	import { timer } from '$lib/core/app/clock';
-	import { pushLayer } from '$lib/ui/layers';
+	import { layer } from '$lib/ui/layers';
 
 	let { minutes = 10 }: { minutes?: number } = $props();
 
 	let active = $state(false);
-
-	// while showing, the screensaver is the top layer: Escape dismisses it
-	// instead of whatever sheet it covers
-	$effect(() => {
-		if (active) return pushLayer(hide);
-	});
-	let overlay: HTMLElement | undefined = $state();
 
 	let lastActivity = Date.now();
 	let idleTimer: ReturnType<typeof setTimeout>;
@@ -90,11 +84,6 @@
 		};
 	});
 
-	$effect(() => {
-		// focus so keydown targets the overlay instead of the dashboard
-		if (active) overlay?.focus();
-	});
-
 	let configuredClock = $derived($hearthConfig.rail.find((widget) => widget.type === 'clock'));
 	let activeTimezone = $derived($displayTimeZone);
 	let now = $derived($timer);
@@ -116,17 +105,22 @@
 	);
 </script>
 
+<!--
+	While showing, the screensaver is the top layer: Escape dismisses it instead
+	of whatever sheet it covers. It takes focus so keydown targets it rather than
+	the dashboard, and hands focus back to where it was on wake.
+-->
 {#if active}
 	<div
 		class="screensaver"
-		bind:this={overlay}
 		tabindex="-1"
 		role="button"
 		aria-label={$lang('hearth_dismiss_screensaver')}
-		in:fade={{ duration: $motion ? 1200 : 0, easing: cubicOut }}
-		out:fade={{ duration: $motion ? 150 : 0 }}
+		in:fade={{ duration: $motion ? MOTION.theme * 2 : 0, easing: cubicOut }}
+		out:fade={{ duration: $motion ? MOTION.fast : 0 }}
 		onpointerdown={dismiss}
 		onkeydown={dismiss}
+		use:layer={{ close: hide, initialFocus: true }}
 	>
 		<div
 			class="screensaver-content"
@@ -159,7 +153,7 @@
 	}
 
 	.screensaver-content.drift {
-		animation: screensaver-drift 90s ease-in-out infinite alternate;
+		animation: screensaver-drift 90s ease-in-out infinite alternate; /* literal ok: slow drift period, not a transition */
 	}
 
 	.clock {

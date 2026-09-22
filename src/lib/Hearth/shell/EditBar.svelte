@@ -195,7 +195,7 @@
 		border-radius: var(--h-radius-md);
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
 		border: 1px solid rgb(var(--h-accent-rgb) / calc(0.18 * var(--h-accent-scale)));
-		box-shadow: 0 20px 60px var(--h-scrim);
+		box-shadow: var(--h-shadow-toast);
 	}
 
 	.save-error {
@@ -241,7 +241,7 @@
 
 	.bar-button.dangerous {
 		color: var(--h-bad-text);
-		border-color: rgb(var(--h-bad-rgb) / 0.35);
+		border-color: rgb(var(--h-bad-rgb) / calc(0.35 * var(--h-accent-scale)));
 	}
 	/* see breakpoints.ts */
 	@media (max-width: 900px) {

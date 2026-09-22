@@ -7,6 +7,8 @@
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from './config';
 	import Icon from './Icon.svelte';
+	import EditSheet from './edit/EditSheet.svelte';
+	import './buttons.css';
 	import { applyImport, existingPageNames, pageNameKey, type ImportMode } from './importPlan';
 	import { buildProposal, type HearthProposal, type ProposedPage } from './proposal';
 	import { fetchRegistry } from '$lib/core/ha/registry';
@@ -20,7 +22,6 @@
 		saveWithFeedback,
 		updateConfig
 	} from './store';
-	import { layer } from '$lib/ui/layers';
 
 	/** `firstRun` opened itself on an empty dashboard, so a stray backdrop tap must not dismiss it. */
 	let { onclose, firstRun = false }: { onclose: () => void; firstRun?: boolean } = $props();
@@ -148,24 +149,15 @@
 	}
 </script>
 
-<div
-	class="overlay"
-	role="presentation"
-	onpointerdown={(event) => !firstRun && event.target === event.currentTarget && onclose()}
-	use:layer={onclose}
+<EditSheet
+	title={$lang('hearth_import')}
+	{onclose}
+	ondone={apply}
+	doneLabel={$lang('hearth_apply')}
+	doneDisabled={status !== 'ready' || !canApply}
+	dismissible={!firstRun}
 >
-	<div class="panel" role="dialog" aria-modal="true" aria-label={$lang('hearth_import')}>
-		<div class="header">
-			<span class="title">{$lang('hearth_import')}</span>
-			<button
-				type="button"
-				class="icon-button"
-				aria-label={$lang('hearth_close')}
-				onclick={onclose}
-			>
-				<Icon name="close" size={ICON.control} />
-			</button>
-		</div>
+	<div class="wizard">
 		<p class="intro">
 			{$lang('hearth_import_intro')}
 		</p>
@@ -179,8 +171,11 @@
 					<strong>{$lang('hearth_registries_failed')}</strong>
 					<span class="error-detail">{errorMessage}</span>
 				</div>
-				<button type="button" class="bar-button pressable" use:Ripple={PRESS_RIPPLE} onclick={load}
-					>{$lang('hearth_retry')}</button
+				<button
+					type="button"
+					class="hearth-button secondary pressable"
+					use:Ripple={PRESS_RIPPLE}
+					onclick={load}>{$lang('hearth_retry')}</button
 				>
 			</div>
 		{:else if proposal}
@@ -253,31 +248,34 @@
 				{/each}
 			</div>
 		{/if}
-		<div class="footer">
-			<button type="button" class="bar-button pressable" use:Ripple={PRESS_RIPPLE} onclick={onclose}
-				>{$lang(firstRun ? 'hearth_skip_for_now' : 'cancel')}</button
+		{#if firstRun}
+			<button
+				type="button"
+				class="hearth-button secondary skip pressable"
+				use:Ripple={PRESS_RIPPLE}
+				onclick={onclose}>{$lang('hearth_skip_for_now')}</button
 			>
-			{#if status === 'ready'}
-				<button
-					type="button"
-					class="bar-button primary pressable"
-					disabled={!canApply}
-					use:Ripple={PRESS_RIPPLE}
-					onclick={apply}
-				>
-					{$lang('hearth_apply')}
-				</button>
-			{/if}
-		</div>
+		{/if}
 	</div>
-</div>
+</EditSheet>
 
 <style>
+	.wizard {
+		grid-column: 1 / -1;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.skip {
+		align-self: flex-end;
+		margin-top: 14px;
+	}
+
 	.modes {
 		display: flex;
 		gap: 6px;
 		padding: 4px;
-		border-radius: var(--h-radius-s);
+		border-radius: var(--h-radius-sm);
 		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
 	}
 
@@ -334,55 +332,6 @@
 		text-transform: uppercase;
 		color: var(--h-text-6);
 	}
-	.overlay {
-		position: fixed;
-		inset: 0;
-		z-index: var(--h-layer-confirm);
-		background: var(--h-overlay);
-		backdrop-filter: blur(8px);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.panel {
-		width: 480px;
-		max-width: calc(100vw - 40px);
-		max-height: calc(100vh - 80px);
-		display: flex;
-		flex-direction: column;
-		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
-		border: 1px solid rgb(var(--h-accent-rgb) / calc(0.18 * var(--h-accent-scale)));
-		border-radius: var(--h-radius-xl);
-		padding: 20px 22px;
-		box-shadow: 0 40px 100px var(--h-scrim);
-	}
-
-	.header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-
-	.title {
-		font-size: var(--h-type-subtitle);
-		font-weight: 600;
-		color: var(--h-text-1);
-	}
-
-	.icon-button {
-		display: flex;
-		color: var(--h-icon);
-		cursor: pointer;
-		border: 0;
-		background: none;
-		padding: 0;
-	}
-
-	.icon-button:hover {
-		color: var(--h-text-3);
-	}
-
 	.intro {
 		margin: 10px 0 14px;
 		font-size: var(--h-type-secondary);
@@ -391,9 +340,6 @@
 	}
 
 	.list {
-		flex: 1;
-		min-height: 80px;
-		overflow-y: auto;
 		margin: 0 -6px;
 		padding: 0 6px;
 	}
@@ -465,37 +411,5 @@
 		font-size: var(--h-type-small);
 		color: var(--h-text-5);
 		overflow-wrap: anywhere;
-	}
-
-	.footer {
-		display: flex;
-		justify-content: flex-end;
-		gap: 10px;
-		margin-top: 14px;
-	}
-
-	.bar-button {
-		padding: 10px 20px;
-		border-radius: var(--h-radius-xs);
-		font-size: var(--h-type-body);
-		font-weight: 600;
-		cursor: pointer;
-		color: var(--h-text-3);
-		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
-		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
-		user-select: none;
-		-webkit-user-select: none;
-		font-family: inherit;
-	}
-
-	.bar-button.primary {
-		background: linear-gradient(135deg, var(--h-accent-deep), var(--h-accent-bright));
-		border: none;
-		color: var(--h-on-accent);
-	}
-
-	.bar-button:disabled {
-		opacity: 0.5;
-		pointer-events: none;
 	}
 </style>

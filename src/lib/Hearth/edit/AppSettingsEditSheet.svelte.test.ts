@@ -10,7 +10,7 @@ import {
 import AppSettingsEditSheet from './AppSettingsEditSheet.svelte';
 
 function stageAChange() {
-	return fireEvent.click(screen.getByRole('button', { name: 'Reduce motion' }));
+	return fireEvent.click(screen.getByRole('switch', { name: 'Reduce motion' }));
 }
 
 describe('AppSettingsEditSheet', () => {

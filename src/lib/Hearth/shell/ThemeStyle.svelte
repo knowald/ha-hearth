@@ -3,6 +3,7 @@
 	import { states } from '$lib/core/ha/entities';
 	import {
 		isNightState,
+		MOTION,
 		STRUCTURE_CSS,
 		THEME_DEFAULTS,
 		themeStyle,
@@ -40,19 +41,35 @@
 		if (!switched || !$motion) return;
 		const root = document.documentElement;
 		root.classList.add('theme-fade');
-		const timer = setTimeout(() => root.classList.remove('theme-fade'), 700);
+		const timer = setTimeout(() => root.classList.remove('theme-fade'), MOTION.theme);
 		return () => {
 			clearTimeout(timer);
 			root.classList.remove('theme-fade');
 		};
 	});
 
+	// Reduced motion (configuration or OS) zeroes the motion tokens, and
+	// components key their animations off the same attribute. Boot and
+	// dashboard both mount this component, so destroy leaves the attribute alone.
+	$effect(() => {
+		const root = document.documentElement;
+		if ($motion) delete root.dataset.motion;
+		else root.dataset.motion = 'off';
+	});
+
+	const reducedMotionCss =
+		":root[data-motion='off'] { " +
+		Object.keys(MOTION)
+			.map((name) => `--h-motion-${name}: 0ms;`)
+			.join(' ') +
+		' }';
+
 	// tokens live on :root (not .frame) so modals portaled outside the frame
 	// resolve them too; base first, user theme overrides second
 	let rootCss = $derived(
 		`:root { ${STRUCTURE_CSS} ${themeStyle(THEME_DEFAULTS)} ${themeStyle(activeTheme)}  ` +
 			`--h-pad-x: ${Math.max(0, $hearthConfig.padding_x ?? 0)}px; ` +
-			`--h-pad-y: ${Math.max(0, $hearthConfig.padding_y ?? 0)}px; }`
+			`--h-pad-y: ${Math.max(0, $hearthConfig.padding_y ?? 0)}px; } ${reducedMotionCss}`
 	);
 </script>
 

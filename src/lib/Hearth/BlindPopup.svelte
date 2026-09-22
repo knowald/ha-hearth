@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
-	import { activateOnKeyboard } from './interaction';
 	import { states } from '$lib/core/ha/entities';
 	import type { SliderUpdateMode } from '$lib/core/app/configuration';
 	import { getSupport } from '$lib/core/ha/entities';
@@ -17,6 +16,7 @@
 	import { callEntityService, controlOverrides } from '$lib/core/ha/commands';
 	import { requestConfirmation } from './store';
 	import PopupSlider from './PopupSlider.svelte';
+	import './buttons.css';
 
 	let {
 		entity,
@@ -70,38 +70,32 @@
 />
 
 <div class="buttons">
-	<div
-		class="button pressable"
+	<button
+		type="button"
+		class="hearth-button secondary pressable"
 		use:Ripple={PRESS_RIPPLE}
 		onclick={() => moveTo(0)}
-		role="button"
-		tabindex="0"
-		onkeydown={(event) => activateOnKeyboard(event, () => moveTo(0))}
 	>
-		{$lang('hearth_close')}
-	</div>
+		{$lang('hearth_close_cover')}
+	</button>
 	{#if supports?.STOP}
-		<div
-			class="button pressable"
+		<button
+			type="button"
+			class="hearth-button secondary pressable"
 			use:Ripple={PRESS_RIPPLE}
 			onclick={() => callCoverService('stop_cover')}
-			role="button"
-			tabindex="0"
-			onkeydown={(event) => activateOnKeyboard(event, () => callCoverService('stop_cover'))}
 		>
 			{$lang('stop')}
-		</div>
+		</button>
 	{/if}
-	<div
-		class="button primary pressable"
+	<button
+		type="button"
+		class="hearth-button primary pressable"
 		use:Ripple={PRESS_RIPPLE}
 		onclick={() => moveTo(100)}
-		role="button"
-		tabindex="0"
-		onkeydown={(event) => activateOnKeyboard(event, () => moveTo(100))}
 	>
 		{$lang('hearth_open_fully')}
-	</div>
+	</button>
 </div>
 
 {#if supports?.SET_TILT_POSITION}
@@ -118,40 +112,34 @@
 {#if supports?.CLOSE_TILT || supports?.STOP_TILT || supports?.OPEN_TILT}
 	<div class="buttons">
 		{#if supports?.CLOSE_TILT}
-			<div
-				class="button pressable"
+			<button
+				type="button"
+				class="hearth-button secondary pressable"
 				use:Ripple={PRESS_RIPPLE}
 				onclick={() => callCoverService('close_cover_tilt')}
-				role="button"
-				tabindex="0"
-				onkeydown={(event) => activateOnKeyboard(event, () => callCoverService('close_cover_tilt'))}
 			>
 				{$lang('hearth_close_tilt')}
-			</div>
+			</button>
 		{/if}
 		{#if supports?.STOP_TILT}
-			<div
-				class="button pressable"
+			<button
+				type="button"
+				class="hearth-button secondary pressable"
 				use:Ripple={PRESS_RIPPLE}
 				onclick={() => callCoverService('stop_cover_tilt')}
-				role="button"
-				tabindex="0"
-				onkeydown={(event) => activateOnKeyboard(event, () => callCoverService('stop_cover_tilt'))}
 			>
 				{$lang('hearth_stop_tilt')}
-			</div>
+			</button>
 		{/if}
 		{#if supports?.OPEN_TILT}
-			<div
-				class="button primary pressable"
+			<button
+				type="button"
+				class="hearth-button primary pressable"
 				use:Ripple={PRESS_RIPPLE}
 				onclick={() => callCoverService('open_cover_tilt')}
-				role="button"
-				tabindex="0"
-				onkeydown={(event) => activateOnKeyboard(event, () => callCoverService('open_cover_tilt'))}
 			>
 				{$lang('hearth_open_tilt')}
-			</div>
+			</button>
 		{/if}
 	</div>
 {/if}
@@ -163,22 +151,13 @@
 		margin-top: 16px;
 	}
 
-	.button {
+	.hearth-button {
 		flex: 1;
-		text-align: center;
-		padding: 16px;
-		border-radius: var(--h-radius-sm);
-		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
-		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
-		font-size: var(--h-type-emphasis);
-		font-weight: 600;
-		color: var(--h-text-3);
-		cursor: pointer;
 	}
 
-	.button.primary {
+	/* covers keep the cool hue their slider uses */
+	.hearth-button.primary {
 		background: linear-gradient(135deg, rgb(var(--h-cool-rgb)), var(--h-cool-light));
-		border: none;
 		color: var(--h-on-cool);
 	}
 </style>

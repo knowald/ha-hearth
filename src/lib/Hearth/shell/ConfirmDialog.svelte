@@ -4,20 +4,7 @@
 	import { confirmRequestedAction, dismissConfirmation, requestedConfirmation } from '../store';
 	import Icon from '../Icon.svelte';
 	import { layer } from '$lib/ui/layers';
-
-	let cancelButton: HTMLButtonElement | undefined = $state();
-	let confirmButton: HTMLButtonElement | undefined = $state();
-
-	// the safe action takes focus; the layer stack hands focus back on close
-	$effect(() => {
-		if ($requestedConfirmation) cancelButton?.focus();
-	});
-
-	function trapTab(event: KeyboardEvent) {
-		if (event.key !== 'Tab' || !cancelButton || !confirmButton) return;
-		event.preventDefault();
-		(document.activeElement === cancelButton ? confirmButton : cancelButton).focus();
-	}
+	import '../buttons.css';
 </script>
 
 {#if $requestedConfirmation}
@@ -32,29 +19,19 @@
 			tabindex="-1"
 			aria-modal="true"
 			aria-labelledby="hearth-confirm-title"
-			use:layer={dismissConfirmation}
-			onkeydown={trapTab}
+			use:layer={{ close: dismissConfirmation, trap: true, initialFocus: true }}
 		>
 			<Icon name="warning" size={ICON.tile} color="var(--h-bad-text)" />
 			<div class="confirm-copy">
 				<strong id="hearth-confirm-title">{$requestedConfirmation.title}</strong>
 				<span>{$requestedConfirmation.message}</span>
 			</div>
+			<!-- cancel comes first, so the safe action is the one that takes focus -->
 			<div class="confirm-actions">
-				<button
-					type="button"
-					class="confirm-button"
-					bind:this={cancelButton}
-					onclick={dismissConfirmation}
-				>
+				<button type="button" class="hearth-button secondary" onclick={dismissConfirmation}>
 					{$lang('cancel')}
 				</button>
-				<button
-					type="button"
-					class="confirm-button dangerous"
-					bind:this={confirmButton}
-					onclick={confirmRequestedAction}
-				>
+				<button type="button" class="hearth-button danger" onclick={confirmRequestedAction}>
 					{$requestedConfirmation.confirmLabel}
 				</button>
 			</div>
@@ -79,11 +56,11 @@
 		grid-template-columns: auto 1fr;
 		gap: 14px;
 		width: min(430px, 100%);
-		padding: 20px;
-		border-radius: var(--h-radius-lg);
+		padding: var(--h-modal-padding);
+		border-radius: var(--h-radius-xl);
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
-		border: 1px solid rgb(var(--h-bad-rgb) / 0.48);
-		box-shadow: 0 24px 80px var(--h-scrim);
+		border: 1px solid rgb(var(--h-bad-rgb) / calc(0.48 * var(--h-accent-scale)));
+		box-shadow: var(--h-shadow-layer);
 	}
 
 	.confirm-copy {
@@ -108,23 +85,5 @@
 		justify-content: flex-end;
 		gap: 10px;
 		margin-top: 6px;
-	}
-
-	.confirm-button {
-		min-height: 44px;
-		padding: 10px 18px;
-		border-radius: var(--h-radius-xs);
-		border: 1px solid rgb(var(--h-line-rgb) / 0.15);
-		background: rgb(var(--h-surface-rgb) / 0.08);
-		color: var(--h-text-2);
-		font: inherit;
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.confirm-button.dangerous {
-		border-color: rgb(var(--h-bad-rgb) / 0.55);
-		background: rgb(var(--h-bad-rgb) / 0.16);
-		color: var(--h-bad-text);
 	}
 </style>

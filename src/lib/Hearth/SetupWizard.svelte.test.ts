@@ -34,7 +34,22 @@ describe('SetupWizard', () => {
 		const { container } = render(SetupWizard, { onclose });
 		await fireEvent.pointerDown(backdrop(container));
 		expect(onclose).toHaveBeenCalledTimes(1);
-		expect(screen.getByRole('button', { name: en.cancel })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: en.hearth_skip_for_now })).toBeNull();
+	});
+
+	it('shares the edit sheet chrome: apply in the header beside close, focus inside', async () => {
+		const onclose = vi.fn();
+		render(SetupWizard, { onclose, firstRun: true });
+		const dialog = screen.getByRole('dialog', { name: en.hearth_import });
+		expect(dialog.getAttribute('aria-modal')).toBe('true');
+		const apply = screen.getByRole('button', { name: en.hearth_apply }) as HTMLButtonElement;
+		const close = screen.getByRole('button', { name: en.hearth_close });
+		expect(apply.disabled).toBe(true);
+		expect(apply.parentElement).toBe(close.parentElement);
+		expect(dialog.contains(document.activeElement)).toBe(true);
+		// the close button still works on first run; only the backdrop is ignored
+		await fireEvent.click(close);
+		expect(onclose).toHaveBeenCalledTimes(1);
 	});
 
 	it('announces loading as a status', () => {

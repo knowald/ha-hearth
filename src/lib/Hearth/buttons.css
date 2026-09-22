@@ -1,0 +1,43 @@
+/*
+ * The one text button Hearth draws for dialog and sheet actions. Components
+ * import this file and add `hearth-button` plus `primary`, `secondary` or
+ * `danger`; local rules only set layout (flex, width) or a domain hue.
+ */
+
+.hearth-button {
+	box-sizing: border-box;
+	min-height: 44px;
+	padding: 10px 20px;
+	border: 1px solid transparent;
+	border-radius: var(--h-radius-xs);
+	font-family: inherit;
+	font-size: var(--h-type-body);
+	font-weight: 600;
+	line-height: 1.2;
+	text-align: center;
+	cursor: pointer;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.hearth-button.primary {
+	background: linear-gradient(135deg, var(--h-accent-deep), var(--h-accent-bright));
+	color: var(--h-on-accent);
+}
+
+.hearth-button.secondary {
+	border-color: rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
+	background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+	color: var(--h-text-3);
+}
+
+.hearth-button.danger {
+	border-color: rgb(var(--h-bad-rgb) / calc(0.55 * var(--h-accent-scale)));
+	background: rgb(var(--h-bad-rgb) / calc(0.16 * var(--h-accent-scale)));
+	color: var(--h-bad-text);
+}
+
+.hearth-button:disabled {
+	opacity: 0.4;
+	cursor: default;
+}

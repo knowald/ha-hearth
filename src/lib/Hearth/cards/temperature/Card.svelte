@@ -196,7 +196,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
-		padding: 18px;
+		padding: var(--h-card-padding);
 		border-radius: var(--h-radius-card);
 		background: rgb(var(--h-surface-rgb) / calc(0.045 * var(--h-fill-scale)));
 		backdrop-filter: var(--h-surface-blur);
@@ -297,8 +297,8 @@
 	}
 
 	.verdict[data-tone='poor'] {
-		background: rgb(var(--h-bad-rgb) / 0.13);
-		border: 1px solid rgb(var(--h-bad-rgb) / 0.26);
+		background: rgb(var(--h-bad-rgb) / calc(0.13 * var(--h-accent-scale)));
+		border: 1px solid rgb(var(--h-bad-rgb) / calc(0.26 * var(--h-accent-scale)));
 		color: var(--h-bad-text);
 	}
 

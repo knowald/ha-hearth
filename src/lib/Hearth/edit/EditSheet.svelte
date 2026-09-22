@@ -13,6 +13,7 @@
 	import { lang } from '$lib/core/i18n';
 	import { PRESS_RIPPLE } from '../config';
 	import Icon from '../Icon.svelte';
+	import CloseButton from '../CloseButton.svelte';
 	import { layer } from '$lib/ui/layers';
 	import { clampToViewport, windowDrag, type WindowPosition } from '$lib/ui/actions/windowDrag';
 	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
@@ -20,6 +21,7 @@
 	import { hearthConfig } from '../store';
 	import { WIDE_QUERY } from '../breakpoints';
 	import './editor-fields.css';
+	import '../buttons.css';
 
 	let {
 		title,
@@ -35,7 +37,8 @@
 		onmovedown,
 		wide = false,
 		split = false,
-		floating = false
+		floating = false,
+		dismissible = true
 	}: {
 		title: string;
 		children: Snippet;
@@ -52,6 +55,8 @@
 		split?: boolean;
 		/** Drop the modal backdrop and let the sheet be dragged over the page. */
 		floating?: boolean;
+		/** False keeps a backdrop tap from closing the sheet; Escape and the close button still do. */
+		dismissible?: boolean;
 	} = $props();
 
 	let confirmRemove = $state(false);
@@ -113,6 +118,18 @@
 		};
 	});
 
+	/*
+	 * A modal sheet takes focus and keeps Tab inside. A form field that asks
+	 * for focus with data-autofocus gets it; otherwise the done button does, so
+	 * opening an editor never raises an on-screen keyboard by itself.
+	 */
+	function initialFocus(node: HTMLElement) {
+		return (
+			node.querySelector<HTMLElement>('[data-autofocus]') ??
+			node.querySelector<HTMLElement>('.header .primary:not(:disabled)')
+		);
+	}
+
 	function handleRemove() {
 		clearTimeout(confirmTimer);
 		if (confirmRemove) {
@@ -130,8 +147,9 @@
 	class="overlay"
 	class:floating={floats}
 	role="presentation"
-	onpointerdown={(event) => !floats && event.target === event.currentTarget && onclose()}
-	use:layer={onclose}
+	onpointerdown={(event) =>
+		dismissible && !floats && event.target === event.currentTarget && onclose()}
+	use:layer={{ close: onclose, trap: !floats, initialFocus: !floating && initialFocus }}
 >
 	<div
 		class="sheet"
@@ -189,21 +207,14 @@
 			{/if}
 			<button
 				type="button"
-				class="button primary pressable"
+				class="hearth-button primary pressable"
 				disabled={doneDisabled}
 				use:Ripple={PRESS_RIPPLE}
 				onclick={() => !doneDisabled && ondone()}
 			>
 				{doneLabel ?? $lang('done')}
 			</button>
-			<button
-				type="button"
-				class="icon-button"
-				aria-label={$lang('hearth_close')}
-				onclick={onclose}
-			>
-				<Icon name="close" size={ICON.tile} />
-			</button>
+			<CloseButton onclick={onclose} />
 		</div>
 		<div class="body-wrap">
 			<div class="body" class:split use:scrollEdges={{ report: (edges) => (bodyCut = edges) }}>
@@ -218,7 +229,7 @@
 			<div class="footer">
 				<button
 					type="button"
-					class="button danger pressable"
+					class="hearth-button danger pressable"
 					class:confirm={confirmRemove}
 					use:Ripple={PRESS_RIPPLE}
 					onclick={handleRemove}
@@ -252,7 +263,7 @@
 		background: radial-gradient(680px 440px at 25% -10%, var(--h-sheet-0), var(--h-sheet-1) 60%);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
 		border-radius: var(--h-radius-xl);
-		box-shadow: 0 30px 80px var(--h-scrim);
+		box-shadow: var(--h-shadow-layer);
 		color: var(--h-text-1);
 		font-family: var(--h-font-ui);
 		overflow: hidden;
@@ -373,34 +384,7 @@
 		flex: none;
 	}
 
-	.button {
-		border: 1px solid transparent;
-		padding: 12px 22px;
-		border-radius: var(--h-radius-xs);
-		font-size: var(--h-type-body);
-		font-weight: 600;
-		cursor: pointer;
-		user-select: none;
-		-webkit-user-select: none;
-		font-family: inherit;
-	}
-
-	.button.primary {
-		background: linear-gradient(135deg, var(--h-accent-deep), var(--h-accent-bright));
-		color: var(--h-on-accent);
-	}
-
-	.button.primary:disabled {
-		opacity: 0.4;
-		cursor: default;
-	}
-
-	.button.danger {
-		background: rgb(var(--h-bad-rgb) / calc(0.16 * var(--h-accent-scale)));
-		color: var(--h-bad-text);
-	}
-
-	.button.danger.confirm {
+	.hearth-button.danger.confirm {
 		border-color: var(--h-bad-text);
 	}
 

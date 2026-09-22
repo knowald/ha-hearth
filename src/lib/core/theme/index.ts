@@ -561,6 +561,9 @@ export const LAYERS: Record<string, number> = {
 	screensaver: 100
 };
 
+/** Motion durations in ms; the --h-motion-* tokens and JS transitions both read these. */
+export const MOTION = { fast: 120, base: 200, slow: 300, theme: 600 } as const;
+
 export const STRUCTURE_CSS = [
 	...Object.entries(TYPE_SCALE).map(([name, px]) => `--h-type-${name}: ${px}px;`),
 	...SPACE_SCALE.map((px) => `--h-space-${px}: ${px}px;`),
@@ -568,10 +571,7 @@ export const STRUCTURE_CSS = [
 	'--h-radius-tight: 8px;',
 	'--h-radius-pill: 999px;',
 	...Object.entries(LAYERS).map(([name, z]) => `--h-layer-${name}: ${z};`),
-	'--h-motion-fast: 120ms;',
-	'--h-motion-base: 200ms;',
-	'--h-motion-slow: 300ms;',
-	'--h-motion-theme: 600ms;',
+	...Object.entries(MOTION).map(([name, ms]) => `--h-motion-${name}: ${ms}ms;`),
 	'--h-ease: ease;',
 	'--h-focus-ring: 2px solid var(--h-accent-text);',
 	// surfaces drawn over artwork or photos: fixed dark scrims and light ink,
@@ -585,7 +585,12 @@ export const STRUCTURE_CSS = [
 	'--h-on-art-line: rgba(255, 238, 220, 0.12);',
 	'--h-on-art-fill: rgba(255, 238, 220, 0.08);',
 	'--h-scrim: rgba(0, 0, 0, 0.55);',
-	'--h-shadow-layer: 0 24px 80px rgba(0, 0, 0, 0.6);'
+	// elevation by role: modals and sheets, anchored popovers, toasts and bars
+	'--h-shadow-layer: 0 40px 100px var(--h-scrim);',
+	'--h-shadow-popover: 0 26px 60px var(--h-scrim);',
+	'--h-shadow-toast: 0 20px 60px var(--h-scrim);',
+	'--h-modal-padding: 22px;',
+	'--h-card-padding: 16px 18px;'
 ].join(' ');
 
 export const SWATCH_COLORS = ['#f4c879', '#f0925f', '#e0788a', '#b39ddb', '#9fc7d8', '#a6cdb2'];

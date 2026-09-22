@@ -2,12 +2,12 @@
 	import { integerFromInput } from './numbers';
 	import { ICON } from '../iconSizes';
 	import { lang } from '$lib/core/i18n';
-	import { activateOnKeyboard } from '../interaction';
-	import Ripple from '$lib/ui/actions/ripple';
-	import { PRESS_RIPPLE } from '../config';
 	import { editor, hearthConfig, setupWizardOpen, updateConfig } from '../store';
 	import EditSheet from './EditSheet.svelte';
 	import Icon from '../Icon.svelte';
+	import SelectField from './SelectField.svelte';
+	import SettingsRow from './SettingsRow.svelte';
+	import Switch from '../Switch.svelte';
 	import { wakeLockState } from '../wakeLock';
 
 	let screensaver = $derived(String($hearthConfig.screensaver_minutes ?? 0));
@@ -83,71 +83,46 @@
 		<section>
 			<div class="section-title">{$lang('hearth_display_2')}</div>
 			<div class="rows">
-				<div class="row">
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_screensaver')}</div>
-					</div>
-					<span class="select-wrap">
-						<select value={screensaver} onchange={(e) => setScreensaver(e.currentTarget.value)}>
-							{#each SCREENSAVER_OPTIONS as option (option.value)}
-								<option value={option.value}>{option.label}</option>
-							{/each}
-						</select>
-						<Icon name="expand_more" size={ICON.control} />
-					</span>
-				</div>
+				<SettingsRow label={$lang('hearth_screensaver')}>
+					<SelectField
+						inline
+						label={$lang('hearth_screensaver')}
+						value={screensaver}
+						options={SCREENSAVER_OPTIONS}
+						onchange={setScreensaver}
+					/>
+				</SettingsRow>
 				{#if screensaver !== '0'}
-					<div class="row">
-						<div class="row-main">
-							<div class="row-label">{$lang('hearth_screensaver_drift')}</div>
-							<div class="row-sub">{$lang('hearth_slowly_moves_the_clock_to_protect')}</div>
-						</div>
-						<button
-							type="button"
-							class="switch pressable"
-							class:on={screensaverDrift}
-							aria-label={$lang('hearth_screensaver_drift')}
-							aria-pressed={screensaverDrift}
-							use:Ripple={PRESS_RIPPLE}
-							onclick={() => setScreensaverDrift(!screensaverDrift)}
-						>
-							<span class="knob"></span>
-						</button>
-					</div>
-					<div class="row">
-						<div class="row-main">
-							<div class="row-label">{$lang('hearth_screensaver_brightness')}</div>
-						</div>
-						<span class="select-wrap">
-							<select
-								value={screensaverBrightness}
-								onchange={(event) => setScreensaverBrightness(event.currentTarget.value)}
-							>
-								{#each SCREENSAVER_BRIGHTNESS_OPTIONS as option (option.value)}
-									<option value={option.value}>{option.label}</option>
-								{/each}
-							</select>
-							<Icon name="expand_more" size={ICON.control} />
-						</span>
-					</div>
-				{/if}
-				<div class="row">
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_keep_screen_awake')}</div>
-						<div class="row-sub">{$lang('hearth_while_the_dashboard_is_open')}</div>
-					</div>
-					<button
-						type="button"
-						class="switch pressable"
-						class:on={keepScreenOn}
-						aria-label={$lang('hearth_keep_screen_awake')}
-						aria-pressed={keepScreenOn}
-						use:Ripple={PRESS_RIPPLE}
-						onclick={() => setKeepScreenOn(!keepScreenOn)}
+					<SettingsRow
+						label={$lang('hearth_screensaver_drift')}
+						sub={$lang('hearth_slowly_moves_the_clock_to_protect')}
 					>
-						<span class="knob"></span>
-					</button>
-				</div>
+						<Switch
+							checked={screensaverDrift}
+							label={$lang('hearth_screensaver_drift')}
+							onchange={setScreensaverDrift}
+						/>
+					</SettingsRow>
+					<SettingsRow label={$lang('hearth_screensaver_brightness')}>
+						<SelectField
+							inline
+							label={$lang('hearth_screensaver_brightness')}
+							value={screensaverBrightness}
+							options={SCREENSAVER_BRIGHTNESS_OPTIONS}
+							onchange={setScreensaverBrightness}
+						/>
+					</SettingsRow>
+				{/if}
+				<SettingsRow
+					label={$lang('hearth_keep_screen_awake')}
+					sub={$lang('hearth_while_the_dashboard_is_open')}
+				>
+					<Switch
+						checked={keepScreenOn}
+						label={$lang('hearth_keep_screen_awake')}
+						onchange={setKeepScreenOn}
+					/>
+				</SettingsRow>
 				{#if keepScreenOn && ($wakeLockState === 'unsupported' || $wakeLockState === 'denied')}
 					<div class="setting-warning" role="alert">
 						<Icon name="warning" size={ICON.control} />
@@ -160,28 +135,20 @@
 						</span>
 					</div>
 				{/if}
-				<div class="row">
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_scroll_edge_blur')}</div>
-						<div class="row-sub">{$lang('hearth_blurs_content_where_a_list_runs_off')}</div>
-					</div>
-					<button
-						type="button"
-						class="switch pressable"
-						class:on={scrollEdgeBlur}
-						aria-label={$lang('hearth_scroll_edge_blur')}
-						aria-pressed={scrollEdgeBlur}
-						use:Ripple={PRESS_RIPPLE}
-						onclick={() => setScrollEdgeBlur(!scrollEdgeBlur)}
-					>
-						<span class="knob"></span>
-					</button>
-				</div>
-				<div class="row">
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_side_padding')}</div>
-						<div class="row-sub">{$lang('hearth_for_screens_whose_frame_covers_the')}</div>
-					</div>
+				<SettingsRow
+					label={$lang('hearth_scroll_edge_blur')}
+					sub={$lang('hearth_blurs_content_where_a_list_runs_off')}
+				>
+					<Switch
+						checked={scrollEdgeBlur}
+						label={$lang('hearth_scroll_edge_blur')}
+						onchange={setScrollEdgeBlur}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={$lang('hearth_side_padding')}
+					sub={$lang('hearth_for_screens_whose_frame_covers_the')}
+				>
 					<span class="unit-input">
 						<span class="stepper field-frame">
 							<button
@@ -211,11 +178,8 @@
 						</span>
 						<span class="unit">px</span>
 					</span>
-				</div>
-				<div class="row">
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_top_bottom_padding')}</div>
-					</div>
+				</SettingsRow>
+				<SettingsRow label={$lang('hearth_top_bottom_padding')}>
 					<span class="unit-input">
 						<span class="stepper field-frame">
 							<button
@@ -245,74 +209,37 @@
 						</span>
 						<span class="unit">px</span>
 					</span>
-				</div>
+				</SettingsRow>
 			</div>
 		</section>
 
 		<section>
 			<div class="section-title">{$lang('hearth_advanced')}</div>
 			<div class="rows">
-				<div
-					class="row action pressable"
-					use:Ripple={PRESS_RIPPLE}
+				<SettingsRow
+					icon="auto_awesome"
+					label={$lang('hearth_setup')}
+					sub={$lang('hearth_setup_row_sub')}
 					onclick={() => setupWizardOpen.set(true)}
-					role="button"
-					tabindex="0"
-					onkeydown={(event) => activateOnKeyboard(event, () => setupWizardOpen.set(true))}
-				>
-					<Icon name="auto_awesome" size={ICON.control} />
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_setup')}</div>
-						<div class="row-sub">{$lang('hearth_setup_row_sub')}</div>
-					</div>
-					<Icon name="chevron_right" size={ICON.control} />
-				</div>
-				<div
-					class="row action pressable"
-					use:Ripple={PRESS_RIPPLE}
+				/>
+				<SettingsRow
+					icon="settings_applications"
+					label={$lang('hearth_application_settings')}
+					sub={$lang('hearth_language_motion_add_ons_version_and')}
 					onclick={() => editor.set({ kind: 'appSettings' })}
-					role="button"
-					tabindex="0"
-					onkeydown={(event) =>
-						activateOnKeyboard(event, () => editor.set({ kind: 'appSettings' }))}
-				>
-					<Icon name="settings_applications" size={ICON.control} />
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_application_settings')}</div>
-						<div class="row-sub">{$lang('hearth_language_motion_add_ons_version_and')}</div>
-					</div>
-					<Icon name="chevron_right" size={ICON.control} />
-				</div>
-				<div
-					class="row action pressable"
-					use:Ripple={PRESS_RIPPLE}
+				/>
+				<SettingsRow
+					icon="code"
+					label={$lang('hearth_edit_configuration_yaml')}
+					sub={$lang('hearth_edits_the_whole_configuration_as_yaml')}
 					onclick={() => editor.set({ kind: 'code' })}
-					role="button"
-					tabindex="0"
-					onkeydown={(event) => activateOnKeyboard(event, () => editor.set({ kind: 'code' }))}
-				>
-					<Icon name="code" size={ICON.control} />
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_edit_configuration_yaml')}</div>
-						<div class="row-sub">{$lang('hearth_edits_the_whole_configuration_as_yaml')}</div>
-					</div>
-					<Icon name="chevron_right" size={ICON.control} />
-				</div>
-				<div
-					class="row action pressable"
-					use:Ripple={PRESS_RIPPLE}
+				/>
+				<SettingsRow
+					icon="history"
+					label={$lang('hearth_versions')}
+					sub={$lang('hearth_versions_row_sub')}
 					onclick={() => editor.set({ kind: 'versions' })}
-					role="button"
-					tabindex="0"
-					onkeydown={(event) => activateOnKeyboard(event, () => editor.set({ kind: 'versions' }))}
-				>
-					<Icon name="history" size={ICON.control} />
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_versions')}</div>
-						<div class="row-sub">{$lang('hearth_versions_row_sub')}</div>
-					</div>
-					<Icon name="chevron_right" size={ICON.control} />
-				</div>
+				/>
 			</div>
 		</section>
 	</div>
@@ -341,82 +268,6 @@
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
 		background: var(--h-track);
 		overflow: hidden;
-	}
-
-	.row {
-		display: flex;
-		align-items: center;
-		gap: 14px;
-		padding: 12px 16px;
-		min-height: 56px;
-	}
-
-	.row + .row {
-		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
-	}
-
-	.row-main {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.row-label {
-		font-size: var(--h-type-body);
-		color: var(--h-text-2);
-	}
-
-	.row-sub {
-		font-size: var(--h-type-small);
-		color: var(--h-text-6);
-		margin-top: 2px;
-	}
-
-	.row.action {
-		cursor: pointer;
-		user-select: none;
-		-webkit-user-select: none;
-		color: var(--h-icon);
-	}
-
-	.row.action:hover {
-		background: rgb(var(--h-surface-rgb) / calc(0.04 * var(--h-fill-scale)));
-	}
-
-	.select-wrap {
-		position: relative;
-		display: flex;
-		align-items: center;
-		flex: none;
-		color: var(--h-icon);
-	}
-
-	.select-wrap :global(.mi) {
-		position: absolute;
-		right: 8px;
-		pointer-events: none;
-	}
-
-	select {
-		appearance: none;
-		/* every select in the sheet shares one width, so their left edges line up */
-		width: 200px;
-		border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
-		border-radius: var(--h-radius-xs);
-		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
-		color: var(--h-text-2);
-		font-family: inherit;
-		font-size: var(--h-type-body);
-		padding: 8px 32px 8px 12px;
-		outline: none;
-		cursor: pointer;
-	}
-
-	select:focus {
-		border-color: rgb(var(--h-accent-rgb) / calc(0.4 * var(--h-accent-scale)));
-	}
-
-	option {
-		background: var(--h-sheet-0);
 	}
 
 	.unit-input {
@@ -483,47 +334,13 @@
 		margin: 0;
 	}
 
-	.switch {
-		box-sizing: border-box;
-		border: 0;
-		padding: 0;
-		width: 52px;
-		height: 30px;
-		border-radius: var(--h-radius-sm);
-		cursor: pointer;
-		position: relative;
-		transition: background var(--h-motion-base);
-		flex: none;
-		background: rgb(var(--h-surface-rgb) / calc(0.12 * var(--h-fill-scale)));
-	}
-
-	.switch.on {
-		background: linear-gradient(135deg, var(--h-accent-deep), var(--h-accent-bright));
-	}
-
-	.knob {
-		position: absolute;
-		top: 4px;
-		left: 4px;
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
-		background: var(--h-icon);
-		transition: left var(--h-motion-base);
-	}
-
-	.switch.on .knob {
-		left: 24px;
-		background: var(--h-on-accent);
-	}
-
 	.setting-warning {
 		display: flex;
 		align-items: flex-start;
 		gap: 8px;
 		padding: 10px 14px;
-		border-top: 1px solid rgb(var(--h-bad-rgb) / 0.22);
-		background: rgb(var(--h-bad-rgb) / 0.06);
+		border-top: 1px solid rgb(var(--h-bad-rgb) / calc(0.22 * var(--h-accent-scale)));
+		background: rgb(var(--h-bad-rgb) / calc(0.06 * var(--h-accent-scale)));
 		color: var(--h-bad-text);
 		font-size: var(--h-type-small);
 		line-height: 1.4;

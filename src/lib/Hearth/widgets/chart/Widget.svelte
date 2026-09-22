@@ -109,7 +109,7 @@
 	{#if style === 'line'}
 		{#if line}
 			<svg viewBox="0 0 {WIDTH} {HEIGHT}" preserveAspectRatio="none">
-				<path d={line.area} fill="rgb(var(--h-accent-rgb) / 0.15)" />
+				<path d={line.area} fill="rgb(var(--h-accent-rgb) / calc(0.15 * var(--h-accent-scale)))" />
 				<path d={line.path} fill="none" stroke="var(--h-accent-dim-text)" stroke-width={stroke} />
 			</svg>
 		{:else}
@@ -137,7 +137,7 @@
 					cy="32"
 					r={RADIUS}
 					fill="none"
-					stroke="rgb(var(--h-line-rgb) / 0.15)"
+					stroke="rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)))"
 					stroke-width={stroke}
 				/>
 				<circle
@@ -195,11 +195,11 @@
 		margin-top: 10px;
 		border-radius: var(--h-radius-hair);
 		overflow: hidden;
-		background: rgb(var(--h-line-rgb) / 0.12);
+		background: rgb(var(--h-line-rgb) / calc(0.12 * var(--h-line-scale)));
 	}
 
 	.segment {
-		background: rgb(var(--h-line-rgb) / 0.2);
+		background: rgb(var(--h-line-rgb) / calc(0.2 * var(--h-line-scale)));
 	}
 
 	.segment.active {
@@ -210,7 +210,7 @@
 		height: 8px;
 		margin-top: 10px;
 		border-radius: var(--h-radius-hair);
-		background: rgb(var(--h-line-rgb) / 0.12);
+		background: rgb(var(--h-line-rgb) / calc(0.12 * var(--h-line-scale)));
 		overflow: hidden;
 	}
 

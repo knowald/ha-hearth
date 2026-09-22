@@ -3,10 +3,12 @@
 	import { lang } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import { closePopup, popup } from './store';
-	import { pushLayer } from '$lib/ui/layers';
+	import { layer } from '$lib/ui/layers';
 	import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
 	import { lightViewFor, toggleLight } from '$lib/core/domains/light';
 	import BlindPopup from './BlindPopup.svelte';
+	import CloseButton from './CloseButton.svelte';
+	import Switch from './Switch.svelte';
 	import FanPopup from './FanPopup.svelte';
 	import Icon from './Icon.svelte';
 	import LightPopup from './LightPopup.svelte';
@@ -35,18 +37,28 @@
 		};
 	}
 
-	$effect(() => {
-		if ($popup) return pushLayer(closePopup);
-	});
+	// a drag that starts on a slider and ends over the backdrop is not a backdrop tap
+	let pressStartedOnBackdrop = false;
 </script>
 
 {#if $popup}
-	<div class="overlay" onclick={closePopup} role="presentation">
+	<div
+		class="overlay"
+		role="presentation"
+		onpointerdown={(event) => (pressStartedOnBackdrop = event.target === event.currentTarget)}
+		onclick={(event) =>
+			event.target === event.currentTarget && pressStartedOnBackdrop && closePopup()}
+		use:layer={{
+			close: closePopup,
+			trap: true,
+			initialFocus: (node) => node.querySelector<HTMLElement>('.close-button')
+		}}
+	>
 		{#if $popup.kind === 'media'}
 			<!-- the media sheet is full-bleed art with its own chrome -->
-			<MediaPopup entity={$popup.entity} />
+			<MediaPopup entity={$popup.entity} name={$popup.name} />
 		{:else}
-			<div class="sheet" onclick={(event) => event.stopPropagation()} role="presentation">
+			<div class="sheet" role="dialog" aria-modal="true" aria-label={$popup.name}>
 				<div class="header">
 					<div class="icon-tile">
 						<Icon name={headerFor($popup).icon} size={ICON.tile} color="var(--h-accent-text)" />
@@ -57,26 +69,14 @@
 					</div>
 					{#if $popup.kind === 'light'}
 						{@const entity = $popup.entity}
-						<button
-							type="button"
-							class="switch pressable"
-							class:on={lightViewFor(entity, $states, $controlOverrides).on}
-							aria-label={$lang('hearth_toggle_light')}
-							aria-pressed={lightViewFor(entity, $states, $controlOverrides).on}
-							class:pending={$pendingEntities[entity] !== undefined}
-							onclick={() => toggleLight(entity)}
-						>
-							<div class="knob"></div>
-						</button>
+						<Switch
+							checked={lightViewFor(entity, $states, $controlOverrides).on}
+							label={$lang('hearth_toggle_light')}
+							pending={$pendingEntities[entity] !== undefined}
+							onchange={() => toggleLight(entity)}
+						/>
 					{/if}
-					<button
-						type="button"
-						class="close pressable"
-						aria-label={$lang('hearth_close')}
-						onclick={closePopup}
-					>
-						<Icon name="close" size={ICON.tile} />
-					</button>
+					<CloseButton onclick={closePopup} />
 				</div>
 
 				{#if $popup.kind === 'light'}
@@ -117,8 +117,8 @@
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
 		border: 1px solid rgb(var(--h-accent-rgb) / calc(0.18 * var(--h-accent-scale)));
 		border-radius: var(--h-radius-xl);
-		padding: 28px;
-		box-shadow: 0 40px 100px var(--h-scrim);
+		padding: var(--h-modal-padding);
+		box-shadow: var(--h-shadow-layer);
 	}
 
 	.header {
@@ -152,51 +152,6 @@
 		color: var(--h-icon);
 	}
 
-	.switch {
-		width: 52px;
-		height: 30px;
-		border-radius: var(--h-radius-sm);
-		cursor: pointer;
-		position: relative;
-		transition: background var(--h-motion-base);
-		flex: none;
-		background: rgb(var(--h-surface-rgb) / calc(0.12 * var(--h-fill-scale)));
-		border: 0;
-		padding: 0;
-	}
-
-	.switch.on {
-		background: linear-gradient(135deg, var(--h-accent-deep), var(--h-accent-bright));
-	}
-
-	.knob {
-		position: absolute;
-		top: 4px;
-		left: 4px;
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
-		background: var(--h-icon);
-		transition: left var(--h-motion-base);
-	}
-
-	.switch.on .knob {
-		left: 24px;
-		background: var(--h-on-accent);
-	}
-
-	.close {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 44px;
-		height: 44px;
-		padding: 0;
-		border: 0;
-		background: transparent;
-		color: var(--h-icon);
-		cursor: pointer;
-	}
 	/* see breakpoints.ts */
 	@media (max-width: 900px) {
 		.overlay {

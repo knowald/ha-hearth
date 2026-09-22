@@ -16,11 +16,10 @@
 {#if !descriptor}
 	<ConfigurationPlaceholder
 		label={fill($lang('hearth_unknown_widget_type'), { type: widget.type })}
-		compact
 		context="widget"
 	/>
 {:else if railWidgetNeedsConfiguration(widget)}
-	<ConfigurationPlaceholder label={railConfigurationLabel(widget)} compact context="widget" />
+	<ConfigurationPlaceholder label={railConfigurationLabel(widget)} context="widget" />
 {:else if descriptor.component}
 	<descriptor.component {widget} {onsearch} />
 {/if}

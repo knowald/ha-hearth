@@ -11,6 +11,7 @@
 	import { controlOverrides, controlValueFor, pendingEntities } from '$lib/core/ha/commands';
 	import { setClimateHvacMode, setClimateTemperature } from '$lib/core/domains/climate';
 	import { openEntityDetail } from '$lib/Hearth/details';
+	import EmptyState from '../../EmptyState.svelte';
 	import Icon from '../../Icon.svelte';
 	import TuneButton from '../../TuneButton.svelte';
 
@@ -139,14 +140,16 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="placeholder">{$lang('hearth_pick_a_climate_entity_in_the')}</div>
+		<div class="placeholder">
+			<EmptyState text={$lang('hearth_pick_a_climate_entity_in_the')} />
+		</div>
 	{/if}
 </div>
 
 <style>
 	.card {
-		padding: 20px;
-		border-radius: var(--h-radius-lg);
+		padding: var(--h-card-padding);
+		border-radius: var(--h-radius-card);
 		background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));
 		backdrop-filter: var(--h-surface-blur);
 		box-shadow: var(--h-card-shadow);
@@ -271,11 +274,5 @@
 
 	.placeholder {
 		margin-top: 16px;
-		padding: 22px;
-		border-radius: var(--h-radius-md);
-		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
-		color: var(--h-text-6);
-		font-size: var(--h-type-body);
-		text-align: center;
 	}
 </style>

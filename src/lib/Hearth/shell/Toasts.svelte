@@ -2,6 +2,7 @@
 	import { ICON } from '../iconSizes';
 	import { fade } from 'svelte/transition';
 	import { motion } from '$lib/core/app/motion';
+	import { MOTION } from '$lib/core/theme';
 	import { health } from '$lib/core/ha/connection';
 	import { commandFailure, dismissCommandFailure } from '$lib/core/ha/commands';
 	import { lang } from '$lib/core/i18n';
@@ -53,7 +54,7 @@
 		class="connection-toast"
 		class:degraded={shownIssue === 'degraded'}
 		role="status"
-		transition:fade={{ duration: $motion ? 250 : 0 }}
+		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
 	>
 		<Icon name={shownIssue === 'lost' ? 'cloud_off' : 'sync_problem'} size={ICON.control} />
 		{$lang(shownIssue === 'lost' ? 'hearth_connection_lost' : 'hearth_connection_degraded')}
@@ -91,7 +92,7 @@
 	</div>
 {/if}
 {#if $saveState === 'saved'}
-	<div class="save-toast" transition:fade={{ duration: $motion ? 250 : 0 }}>
+	<div class="save-toast" transition:fade={{ duration: $motion ? MOTION.slow : 0 }}>
 		<Icon name="check_circle" size={ICON.control} />
 		{$lang('saved')}
 	</div>
@@ -101,7 +102,7 @@
 		class="command-error"
 		class:editing={$hearthEditMode}
 		role="alert"
-		transition:fade={{ duration: $motion ? 250 : 0 }}
+		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
 	>
 		<Icon name="error" size={ICON.control} />
 		<div>
@@ -122,7 +123,7 @@
 	</div>
 {/if}
 {#if overflowBy > 0}
-	<div class="overflow-toast" transition:fade={{ duration: $motion ? 250 : 0 }}>
+	<div class="overflow-toast" transition:fade={{ duration: $motion ? MOTION.slow : 0 }}>
 		<Icon name="unfold_less" size={ICON.control} />
 		{$lang('hearth_page_overflows_this_screen_by')}
 		{overflowBy}px
@@ -146,7 +147,7 @@
 		color: var(--h-bad-text);
 		font-size: var(--h-type-body);
 		font-weight: 600;
-		box-shadow: 0 20px 60px var(--h-scrim);
+		box-shadow: var(--h-shadow-toast);
 	}
 
 	.connection-toast.degraded {
@@ -173,9 +174,9 @@
 		padding: 14px 16px;
 		border-radius: var(--h-radius-md);
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
-		border: 1px solid rgb(var(--h-bad-rgb) / 0.5);
+		border: 1px solid rgb(var(--h-bad-rgb) / calc(0.5 * var(--h-accent-scale)));
 		color: var(--h-bad-text);
-		box-shadow: 0 20px 60px var(--h-scrim);
+		box-shadow: var(--h-shadow-toast);
 	}
 
 	.load-error-copy {
@@ -230,7 +231,7 @@
 		color: var(--h-good-text);
 		font-size: var(--h-type-body);
 		font-weight: 600;
-		box-shadow: 0 20px 60px var(--h-scrim);
+		box-shadow: var(--h-shadow-toast);
 	}
 
 	.command-error {
@@ -246,9 +247,9 @@
 		padding: 12px 12px;
 		border-radius: var(--h-radius-md);
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
-		border: 1px solid rgb(var(--h-bad-rgb) / 0.55);
+		border: 1px solid rgb(var(--h-bad-rgb) / calc(0.55 * var(--h-accent-scale)));
 		color: var(--h-bad-text);
-		box-shadow: 0 20px 60px var(--h-scrim);
+		box-shadow: var(--h-shadow-toast);
 	}
 
 	.command-error > div {
@@ -293,7 +294,7 @@
 		color: var(--h-accent-text);
 		font-size: var(--h-type-body);
 		font-weight: 600;
-		box-shadow: 0 20px 60px var(--h-scrim);
+		box-shadow: var(--h-shadow-toast);
 	}
 	/* the edit bar sits along the bottom while editing; the toast moves above it */
 	.command-error.editing {

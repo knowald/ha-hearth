@@ -2,6 +2,7 @@
 	import { lang } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import type { OverviewCard } from '../../config';
+	import EmptyState from '../../EmptyState.svelte';
 
 	let { card }: { card: Extract<OverviewCard, { type: 'image' }> } = $props();
 
@@ -25,9 +26,9 @@
 	{/if}
 
 	{#if !card.entity}
-		<div class="placeholder">{$lang('hearth_pick_an_image_entity_in_the')}</div>
+		<EmptyState text={$lang('hearth_pick_an_image_entity_in_the')} />
 	{:else if entity?.state === 'unavailable'}
-		<div class="placeholder">{$lang('hearth_image_unavailable')}</div>
+		<EmptyState text={$lang('hearth_image_unavailable')} />
 	{:else if imageSource && imageSource !== failedSource}
 		<div class="image-frame">
 			<img
@@ -37,7 +38,7 @@
 			/>
 		</div>
 	{:else}
-		<div class="placeholder">{$lang('hearth_image_not_available')}</div>
+		<EmptyState text={$lang('hearth_image_not_available')} />
 	{/if}
 </div>
 
@@ -54,8 +55,9 @@
 		place-items: center;
 		min-height: 120px;
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
-		border-radius: var(--h-radius-md);
+		border-radius: var(--h-radius-card);
 		background: var(--h-inset);
+		backdrop-filter: var(--h-surface-blur);
 		box-shadow: var(--h-card-shadow);
 		overflow: hidden;
 	}
@@ -66,14 +68,5 @@
 		height: auto;
 		max-height: 60dvh;
 		object-fit: contain;
-	}
-
-	.placeholder {
-		padding: 22px;
-		border-radius: var(--h-radius-md);
-		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
-		color: var(--h-text-6);
-		font-size: var(--h-type-body);
-		text-align: center;
 	}
 </style>

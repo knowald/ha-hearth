@@ -7,6 +7,7 @@
 	import { PRESS_RIPPLE } from '../config';
 	import { domainIcon } from '$lib/core/domains';
 	import Icon from '../Icon.svelte';
+	import CloseButton from '../CloseButton.svelte';
 	import { layer } from '$lib/ui/layers';
 
 	let {
@@ -46,24 +47,6 @@
 		onclose();
 	}
 
-	// aria-modal promises focus stays inside; the layer stack handles Escape and
-	// restores the opener, so only Tab needs cycling here
-	function trapTab(event: KeyboardEvent) {
-		if (event.key !== 'Tab') return;
-		const panel = event.currentTarget as HTMLElement;
-		const focusable = [...panel.querySelectorAll<HTMLElement>('input, [tabindex="0"]')];
-		if (!focusable.length) return;
-		const first = focusable[0];
-		const last = focusable[focusable.length - 1];
-		if (event.shiftKey && document.activeElement === first) {
-			event.preventDefault();
-			last.focus();
-		} else if (!event.shiftKey && document.activeElement === last) {
-			event.preventDefault();
-			first.focus();
-		}
-	}
-
 	function focusOnMount(node: HTMLInputElement) {
 		node.focus();
 	}
@@ -73,7 +56,7 @@
 	class="overlay"
 	onclick={(event) => event.target === event.currentTarget && onclose()}
 	role="presentation"
-	use:layer={onclose}
+	use:layer={{ close: onclose, trap: true }}
 >
 	<div
 		class="panel"
@@ -81,7 +64,6 @@
 		aria-modal="true"
 		aria-label={$lang('hearth_choose_entity')}
 		tabindex="-1"
-		onkeydown={trapTab}
 	>
 		<div class="search">
 			<Icon name="search" size={ICON.control} />
@@ -92,15 +74,7 @@
 				spellcheck="false"
 				use:focusOnMount
 			/>
-			<span
-				class="icon-button"
-				onclick={onclose}
-				aria-label={$lang('hearth_close')}
-				role="button"
-				tabindex="0"
-				onkeydown={(event) => activateOnKeyboard(event, onclose)}
-				><Icon name="close" size={ICON.control} /></span
-			>
+			<CloseButton onclick={onclose} />
 		</div>
 		<div class="list">
 			{#each matches.slice(0, MAX_ROWS) as entry (entry.entityId)}
@@ -154,8 +128,8 @@
 		background: radial-gradient(620px 420px at 25% -10%, var(--h-sheet-0), var(--h-sheet-1) 60%);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
 		border-radius: var(--h-radius-xl);
-		padding: 22px 28px;
-		box-shadow: 0 30px 80px var(--h-scrim);
+		padding: var(--h-modal-padding);
+		box-shadow: var(--h-shadow-layer);
 	}
 
 	.search {
@@ -188,16 +162,6 @@
 
 	.search input::placeholder {
 		color: var(--h-text-6);
-	}
-
-	.icon-button {
-		display: flex;
-		color: var(--h-icon);
-		cursor: pointer;
-	}
-
-	.icon-button:hover {
-		color: var(--h-text-3);
 	}
 
 	.list {

@@ -1,25 +1,42 @@
 <script lang="ts">
+	import { ICON } from '../iconSizes';
+	import Icon from '../Icon.svelte';
+
 	let {
 		label,
 		value = $bindable(''),
 		options,
-		onchange
+		onchange,
+		inline = false
 	}: {
 		label: string;
 		value?: string;
 		options: { value: string; label: string }[];
 		onchange?: (value: string) => void;
+		/** Sit beside a settings row's label: the label becomes the accessible name only. */
+		inline?: boolean;
 	} = $props();
 </script>
 
-<label class="field">
-	<span class="field-label">{label}</span>
-	<select bind:value onchange={() => onchange?.(value)}>
+{#snippet select(accessibleName?: string)}
+	<select aria-label={accessibleName} bind:value onchange={() => onchange?.(value)}>
 		{#each options as option (option.value)}
 			<option value={option.value}>{option.label}</option>
 		{/each}
 	</select>
-</label>
+{/snippet}
+
+{#if inline}
+	<span class="inline">
+		{@render select(label)}
+		<Icon name="expand_more" size={ICON.control} />
+	</span>
+{:else}
+	<label class="field">
+		<span class="field-label">{label}</span>
+		{@render select()}
+	</label>
+{/if}
 
 <style>
 	.field {
@@ -56,5 +73,27 @@
 
 	option {
 		background: var(--h-sheet-0);
+	}
+
+	.inline {
+		position: relative;
+		display: flex;
+		align-items: center;
+		flex: none;
+		color: var(--h-icon);
+	}
+
+	.inline :global(.mi) {
+		position: absolute;
+		right: 8px;
+		pointer-events: none;
+	}
+
+	/* every inline select shares one width, so the left edges in a list line up */
+	.inline select {
+		width: 200px;
+		padding: 8px 32px 8px 12px;
+		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+		cursor: pointer;
 	}
 </style>

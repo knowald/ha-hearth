@@ -188,45 +188,44 @@
 		width: 100%;
 		height: 100dvh;
 		padding: 24px;
-		/* the boot splash shows before ThemeStyle mounts, so no tokens exist yet */
-		background: #16110c; /* literal ok: pre-theme boot splash */
-		color: #f6eee5; /* literal ok: pre-theme boot splash */
-		font-family: 'Hanken Grotesk Variable', sans-serif;
+		background: var(--h-bg-1, #16110c); /* literal ok: fallback if theme tokens are missing */
+		color: var(--h-text-1, #f6eee5); /* literal ok: fallback if theme tokens are missing */
+		font-family: var(--h-font-ui, 'Hanken Grotesk Variable', sans-serif);
 		text-align: center;
 	}
 
 	.boot-mark {
 		width: 36px;
 		height: 36px;
-		border: 3px solid rgba(240, 166, 61, 0.22); /* literal ok: pre-theme boot splash */
-		border-top-color: #f0a63d; /* literal ok: pre-theme boot splash */
+		border: 3px solid rgb(var(--h-accent-rgb, 240 166 61) / calc(0.22 * var(--h-accent-scale, 1)));
+		border-top-color: rgb(var(--h-accent-rgb, 240 166 61));
 		border-radius: 50%;
-		animation: spin 900ms linear infinite;
+		animation: spin 900ms linear infinite; /* literal ok: spinner period, not a transition */
 	}
 
 	.boot-status {
 		display: grid;
 		justify-items: center;
-		gap: 12px; /* literal ok: pre-theme boot splash */
-		max-width: 480px; /* literal ok: pre-theme boot splash */
+		gap: 12px;
+		max-width: 480px;
 	}
 
 	.boot strong {
-		font-size: 20px; /* literal ok: pre-theme boot splash */
+		font-size: var(--h-type-title, 20px);
 	}
 
 	.boot span {
-		font-size: 14px; /* literal ok: pre-theme boot splash */
-		color: #a99b8b; /* literal ok: pre-theme boot splash */
+		font-size: var(--h-type-body, 14px);
+		color: var(--h-text-4, #a99b8b); /* literal ok: fallback if theme tokens are missing */
 	}
 
 	.boot button {
-		margin-top: 4px; /* literal ok: pre-theme boot splash */
-		border: 1px solid rgba(240, 166, 61, 0.35); /* literal ok: pre-theme boot splash */
-		border-radius: 12px; /* literal ok: pre-theme boot splash */
-		padding: 10px 18px; /* literal ok: pre-theme boot splash */
+		margin-top: 4px;
+		border: 1px solid rgb(var(--h-accent-rgb, 240 166 61) / calc(0.35 * var(--h-accent-scale, 1)));
+		border-radius: var(--h-radius-xs, 12px);
+		padding: 10px 18px;
 		background: transparent;
-		color: #f0a63d; /* literal ok: pre-theme boot splash */
+		color: var(--h-accent-text, #f0a63d); /* literal ok: fallback if theme tokens are missing */
 		font: inherit;
 		font-weight: 600;
 		cursor: pointer;
@@ -238,9 +237,7 @@
 		}
 	}
 
-	@media (prefers-reduced-motion: reduce) {
-		.boot-mark {
-			animation: none;
-		}
+	:global(html[data-motion='off']) .boot-mark {
+		animation: none;
 	}
 </style>

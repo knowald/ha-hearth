@@ -84,4 +84,16 @@ describe('Screensaver', () => {
 		await fireEvent.click(card);
 		expect(onclick).toHaveBeenCalledTimes(1);
 	});
+
+	it('takes focus while showing and hands it back on Escape', async () => {
+		const { card } = cardUnderneath();
+		card.focus();
+		const { container, overlay } = await showScreensaver();
+		expect(document.activeElement).toBe(overlay);
+
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		await tick();
+		expect(container.querySelector('.screensaver')).toBeNull();
+		expect(document.activeElement).toBe(card);
+	});
 });

@@ -46,6 +46,11 @@ describe('TokenPrompt', () => {
 		);
 	});
 
+	it('opens with focus in the token field', () => {
+		render(TokenPrompt, { onclose: vi.fn() });
+		expect(document.activeElement).toBe(screen.getByLabelText('Long-lived access token'));
+	});
+
 	it('saves the token and closes once Home Assistant accepts it', async () => {
 		const onclose = vi.fn();
 		const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ revision: 4 }) });
