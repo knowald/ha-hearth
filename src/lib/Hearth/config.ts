@@ -79,6 +79,20 @@ export function railSlots(
 	return { top, bottom };
 }
 
+/**
+ * How many widgets the run above the folded page actually draws. The page
+ * switcher carries the pages and search itself, so a run holding only those
+ * would render as an empty band everywhere but the editor, which shows them.
+ */
+export function foldedTopCount(
+	rail: RailWidget[],
+	{ editing = false, compact = false }: { editing?: boolean; compact?: boolean } = {}
+): number {
+	const { top } = railSlots(rail, { includeHidden: editing, compact });
+	if (editing) return top.length;
+	return top.filter((widget) => widget.type !== 'nav' && widget.type !== 'search').length;
+}
+
 /*
  * Landing in a folded run stamps the widget with that run's slot, so the
  * arrangement the user made by hand stops depending on where the flexible gap

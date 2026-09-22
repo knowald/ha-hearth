@@ -9,7 +9,7 @@
 		hearthLoadError,
 		hearthNeedsSetup
 	} from './store';
-	import { railSlots } from './config';
+	import { foldedTopCount } from './config';
 	import ControlPopup from './ControlPopup.svelte';
 	import Rail from './Rail.svelte';
 	import RoomDetail from './RoomDetail.svelte';
@@ -40,10 +40,7 @@
 	// rides above it there unless a widget asked for that slot by name
 	const shortScreen = mediaQuery(SHORT_QUERY);
 	let leadingWidgets = $derived(
-		railSlots($hearthConfig.rail, {
-			includeHidden: $hearthEditMode,
-			compact: $shortScreen
-		}).top.length
+		foldedTopCount($hearthConfig.rail, { editing: $hearthEditMode, compact: $shortScreen })
 	);
 
 	// the columns hide their scrollbars, so a blurred edge is the only sign

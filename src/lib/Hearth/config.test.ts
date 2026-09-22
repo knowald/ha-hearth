@@ -7,6 +7,7 @@ import {
 	findOverviewItemList,
 	isStack,
 	placeInSlot,
+	foldedTopCount,
 	railSlots,
 	reorderSlot,
 	wildcardEntityIds,
@@ -328,6 +329,28 @@ describe('wall tablet settings', () => {
 		expect(config.screensaver_minutes).toBeUndefined();
 		expect(config.theme).toBeUndefined();
 		expect(config.theme_night).toEqual({ accent: '#fff' });
+	});
+});
+
+describe('foldedTopCount', () => {
+	const rail = [
+		{ id: 'nav', type: 'nav' },
+		{ id: 'search', type: 'search' },
+		{ id: 'gap', type: 'spacer' },
+		{ id: 'energy', type: 'energy' }
+	] as RailWidget[];
+
+	it('leaves out what the page switcher draws itself', () => {
+		expect(foldedTopCount(rail)).toBe(0);
+	});
+
+	it('counts them in the editor, which shows them', () => {
+		expect(foldedTopCount(rail, { editing: true })).toBe(2);
+	});
+
+	it('counts a widget the switcher does not carry', () => {
+		expect(foldedTopCount([...rail, { id: 'clock', type: 'clock' } as RailWidget])).toBe(0);
+		expect(foldedTopCount([{ id: 'clock', type: 'clock' } as RailWidget, ...rail])).toBe(1);
 	});
 });
 
