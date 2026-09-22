@@ -451,7 +451,8 @@
 	@media (max-width: 900px) {
 		.overlay {
 			align-items: stretch;
-			padding: 8px;
+			/* a landscape cutout overlaps the edge a full-width sheet reaches to */
+			padding: 8px calc(8px + env(safe-area-inset-right)) 8px calc(8px + env(safe-area-inset-left));
 		}
 
 		.sheet {
