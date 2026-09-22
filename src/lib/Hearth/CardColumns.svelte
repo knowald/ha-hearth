@@ -6,7 +6,6 @@
 		findOverviewItemList,
 		isStack,
 		takenCardIds,
-		uniqueId,
 		type HearthConfig,
 		type OverviewCard,
 		type OverviewItem,
@@ -119,19 +118,7 @@
 	}
 
 	function addStack(column: number) {
-		let newIndex = 0;
-		updateConfig((config) => {
-			const stack: OverviewStack = {
-				id: uniqueId('stack', takenCardIds(config)),
-				kind: 'stack',
-				direction: 'horizontal',
-				cards: []
-			};
-			const target = locate(config)[column];
-			newIndex = target.length;
-			target.push(stack);
-		});
-		editor.set({ kind: 'stack', roomId, column, index: newIndex });
+		editor.set({ kind: 'stack', roomId, column, index: null });
 	}
 
 	// a stack's own sortable container refuses drops of another stack (no

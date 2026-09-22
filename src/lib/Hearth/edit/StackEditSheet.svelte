@@ -1,13 +1,21 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
 	import { get } from 'svelte/store';
-	import { isStack, type HearthConfig, type OverviewStack } from '../config';
+	import {
+		ensureRoomCardColumns,
+		isStack,
+		takenCardIds,
+		uniqueId,
+		type HearthConfig,
+		type OverviewStack
+	} from '../config';
 	import { editor, hearthConfig, updateConfig } from '../store';
 	import EditSheet from './EditSheet.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
 
-	let { roomId, column, index }: { roomId: string; column: number; index: number } = $props();
+	let { roomId, column, index }: { roomId: string; column: number; index: number | null } =
+		$props();
 
 	function columnItems(config: HearthConfig) {
 		return config.rooms.find((entry) => entry.id === roomId)?.cards?.[column];
@@ -15,7 +23,7 @@
 
 	// initial value only - the sheet is remounted per editor target via {#key}
 	// svelte-ignore state_referenced_locally
-	const initialItem = columnItems(get(hearthConfig))?.[index];
+	const initialItem = index !== null ? columnItems(get(hearthConfig))?.[index] : undefined;
 	const initial = initialItem && isStack(initialItem) ? initialItem : undefined;
 
 	let title = $state(initial?.title ?? '');
@@ -31,9 +39,23 @@
 		editor.set(null);
 	}
 
+	function appendStack(config: HearthConfig): OverviewStack | undefined {
+		const room = config.rooms.find((entry) => entry.id === roomId);
+		const items = room ? ensureRoomCardColumns(room)[column] : undefined;
+		if (!items) return undefined;
+		const stack: OverviewStack = {
+			id: uniqueId('stack', takenCardIds(config)),
+			kind: 'stack',
+			direction,
+			cards: []
+		};
+		items.push(stack);
+		return stack;
+	}
+
 	function done() {
 		updateConfig((config) => {
-			const target = columnItems(config)?.[index];
+			const target = index === null ? appendStack(config) : columnItems(config)?.[index];
 			if (!target || !isStack(target)) return;
 			target.title = title.trim() || undefined;
 			target.direction = direction;
@@ -47,6 +69,7 @@
 	// at the stack's position - they are never destroyed
 	function unwrap() {
 		updateConfig((config) => {
+			if (index === null) return;
 			const items = columnItems(config);
 			const target = items?.[index];
 			if (!items || !target || !isStack(target)) return;
@@ -57,10 +80,10 @@
 </script>
 
 <EditSheet
-	title={$lang('hearth_edit_stack')}
+	title={$lang(index !== null ? 'hearth_edit_stack' : 'hearth_add_stack')}
 	onclose={close}
 	ondone={done}
-	onremove={unwrap}
+	onremove={index !== null ? unwrap : undefined}
 	removeLabel={$lang('hearth_unwrap')}
 >
 	<TextField label={$lang('hearth_title_optional')} bind:value={title} placeholder="Living room" />

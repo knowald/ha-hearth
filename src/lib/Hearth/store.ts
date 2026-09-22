@@ -71,7 +71,8 @@ export type Editor =
 	// Existing cards are addressed by their globally unique id. Column/stack
 	// identify only the insertion destination for a new card.
 	| { kind: 'card'; roomId: string; id: string | null; column?: number; stackId?: string }
-	| { kind: 'stack'; roomId: string; column: number; index: number }
+	// a null index is a new stack, appended to the column on Done
+	| { kind: 'stack'; roomId: string; column: number; index: number | null }
 	| { kind: 'railWidget'; index: number | null }
 	| { kind: 'theme' }
 	| { kind: 'settings' }
