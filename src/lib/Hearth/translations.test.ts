@@ -8,6 +8,7 @@ import {
 	TEXT_SHADOW_SCALES,
 	THEME_PRESETS
 } from '$lib/core/theme';
+import { CHART_PERIODS } from './model/widgets/chart';
 
 const english: Record<string, string> = JSON.parse(
 	readFileSync('static/translations/en.json', 'utf-8')
@@ -20,9 +21,15 @@ const DYNAMIC_KEYS: Record<string, string[]> = {
 	hearth_text_contrast_: TEXT_CONTRAST_SCALES.map((scale) => scale.value),
 	hearth_text_shadow_: TEXT_SHADOW_SCALES.map((scale) => scale.value),
 	hearth_glass_: SURFACE_BLUR_SCALES.map((scale) => scale.value),
-	hearth_corners_: RADIUS_SCALES.map((scale) => scale.value)
+	hearth_corners_: RADIUS_SCALES.map((scale) => scale.value),
+	hearth_last_: [...CHART_PERIODS]
 };
 const DYNAMIC_PREFIXES = ['hearth_domain_', ...Object.keys(DYNAMIC_KEYS)];
+const DYNAMIC_NAMES = new Set(
+	Object.entries(DYNAMIC_KEYS).flatMap(([prefix, values]) => values.map((value) => prefix + value))
+);
+// hearth_ after a slash is an API route such as /_api/hearth_themes, not a key
+const KEY_NAME = /(?<![\w/])hearth_[a-z0-9_]+/g;
 
 // words that are written in capitals in running text too
 const CAPS_ALLOWED = new Set(['CSS', 'HTTP', 'HTTPS', 'IANA', 'OLED', 'URI', 'URL', 'YAML']);
@@ -34,6 +41,10 @@ function sources(dir: string): string[] {
 		return /\.(ts|svelte|js)$/.test(entry.name) && !/\.test\.ts$/.test(entry.name) ? [path] : [];
 	});
 }
+
+const code = sources('src')
+	.map((path) => readFileSync(path, 'utf-8'))
+	.join('\n');
 
 describe('en.json', () => {
 	it('uses ASCII punctuation', () => {
@@ -52,17 +63,29 @@ describe('en.json', () => {
 	});
 
 	it('references every hearth key from the source', () => {
-		const code = sources('src')
-			.map((path) => readFileSync(path, 'utf-8'))
-			.join('\n');
-		const referenced = new Set(code.match(/\bhearth_[a-z0-9_]+\b/g));
+		const referenced = new Set(code.match(KEY_NAME));
+		// domain captions fall back to the domain name, so any domain key may be used
 		const unused = hearthKeys.filter(
-			(key) => !referenced.has(key) && !DYNAMIC_PREFIXES.some((prefix) => key.startsWith(prefix))
+			(key) => !referenced.has(key) && !DYNAMIC_NAMES.has(key) && !key.startsWith('hearth_domain_')
 		);
 		expect(unused).toEqual([]);
 	});
 
-	it('names every theme preset and scale the theme sheet lists', () => {
+	it('has every hearth key the source names', () => {
+		const named = new Set(code.match(KEY_NAME));
+		// a name ending in _ is the literal half of a key built at runtime
+		const prefixes = [...named].filter((name) => name.endsWith('_'));
+		expect(prefixes.filter((prefix) => !DYNAMIC_PREFIXES.includes(prefix))).toEqual([]);
+		const missing = [...named].filter((name) => !name.endsWith('_') && !(name in english));
+		expect(missing).toEqual([]);
+	});
+
+	it('has every plain key passed to $lang', () => {
+		const passed = [...code.matchAll(/\$lang\(\s*'([a-z0-9_]+)'\s*\)/g)].map((match) => match[1]);
+		expect([...new Set(passed)].filter((key) => !(key in english))).toEqual([]);
+	});
+
+	it('names every value a runtime-built key can take', () => {
 		const missing = Object.entries(DYNAMIC_KEYS)
 			.flatMap(([prefix, values]) => values.map((value) => prefix + value))
 			.filter((key) => !(key in english));
