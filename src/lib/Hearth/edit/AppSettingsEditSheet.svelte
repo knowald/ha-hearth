@@ -14,7 +14,7 @@
 	import { motion } from '$lib/core/app/motion';
 	import { lang, selectedLanguage, translation } from '$lib/core/i18n';
 	import { PRESS_RIPPLE } from '../config';
-	import { editor } from '../store';
+	import { editor, requestConfirmation, type Editor } from '../store';
 	import EditSheet from './EditSheet.svelte';
 	import Icon from '../Icon.svelte';
 
@@ -29,6 +29,13 @@
 	let installedVersion = $state<string>();
 	let saveError = $state<string | null>(null);
 	let saving = $state(false);
+
+	function staged() {
+		return { locale, reduceMotion, touchFeedback, token, customJs };
+	}
+
+	const initial = JSON.stringify(staged());
+	let dirty = $derived(JSON.stringify(staged()) !== initial);
 
 	onMount(async () => {
 		feedbackSupported = hapticsSupported();
@@ -51,12 +58,18 @@
 		}
 	});
 
-	function close() {
-		editor.set(null);
-	}
-
-	function back() {
-		editor.set({ kind: 'settings' });
+	/** Every exit short of Done, so staged edits are never dropped silently. */
+	function leave(next: Editor | null) {
+		if (!dirty) {
+			editor.set(next);
+			return;
+		}
+		requestConfirmation({
+			title: $lang('unsaved_changes_title'),
+			message: $lang('unsaved_changes'),
+			confirmLabel: $lang('hearth_discard'),
+			action: () => editor.set(next)
+		});
 	}
 
 	async function done() {
@@ -104,7 +117,7 @@
 				body: JSON.stringify({ locale })
 			});
 			if (translationResponse.ok) $translation = await translationResponse.json();
-			close();
+			editor.set(null);
 		} catch (error) {
 			console.error(error);
 			saveError = $lang('hearth_save_failed');
@@ -128,8 +141,8 @@
 
 <EditSheet
 	title={$lang('hearth_application_settings')}
-	onclose={close}
-	onback={back}
+	onclose={() => leave(null)}
+	onback={() => leave({ kind: 'settings' })}
 	ondone={done}
 	doneDisabled={saving}
 >
@@ -236,7 +249,7 @@
 			<button
 				type="button"
 				class="row action pressable"
-				onclick={() => editor.set({ kind: 'customCss' })}
+				onclick={() => leave({ kind: 'customCss' })}
 			>
 				<Icon name="css" size={ICON.control} />
 				<div class="row-main">

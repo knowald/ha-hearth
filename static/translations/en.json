@@ -516,6 +516,7 @@
 	"hearth_touch_feedback_unsupported": "This device reports no vibration support",
 	"hearth_touch_feedback_needs_https": "Browsers only vibrate on https; this page is served over http",
 	"hearth_changes_are_staged_until_you_choose": "Changes are staged until you choose Done.",
+	"hearth_discard": "Discard",
 	"hearth_clears_the_home_assistant_session": "Clears the Home Assistant session",
 	"hearth_layout": "LAYOUT",
 	"hearth_fill_leftover_height": "Fill leftover height",
