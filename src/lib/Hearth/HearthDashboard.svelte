@@ -291,7 +291,7 @@
 	{/if}
 	<ConfirmDialog />
 	<Toasts {overflowBy} />
-	<EditBar {hideEditToggle} onsetup={() => setupWizardOpen.set(true)} />
+	<EditBar {hideEditToggle} />
 </section>
 
 <style>

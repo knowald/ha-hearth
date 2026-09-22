@@ -23,8 +23,7 @@
 	} from '../store';
 	import Icon from '../Icon.svelte';
 
-	let { hideEditToggle = false, onsetup }: { hideEditToggle?: boolean; onsetup: () => void } =
-		$props();
+	let { hideEditToggle = false }: { hideEditToggle?: boolean } = $props();
 
 	// The YAML serializer pulls in js-yaml, which stays out of the eager bundle.
 	// Loading starts with the bar so the copy click does not wait on the
@@ -111,14 +110,6 @@
 				{$lang('hearth_save_failed')}{#if $saveFailure}: {$saveFailure}{/if}
 			</span>
 		{/if}
-		<button
-			type="button"
-			class="bar-icon setup pressable"
-			aria-label={$lang('hearth_setup')}
-			onclick={onsetup}
-		>
-			<Icon name="auto_awesome" size={ICON.control} />
-		</button>
 		<button
 			type="button"
 			class="bar-icon pressable"
@@ -274,11 +265,6 @@
 			padding: 8px;
 			flex-wrap: wrap;
 			justify-content: flex-end;
-		}
-
-		/* the area import is a setup-time action; phones reach it from the settings sheet */
-		.edit-bar .setup {
-			display: none;
 		}
 
 		.bar-button {

@@ -9,7 +9,9 @@ test.beforeEach(async ({ page }) => {
 	await page.goto('/');
 	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
 	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
-	await page.getByRole('button', { name: 'Import Home Assistant areas' }).click();
+	// a setup-time action, so it lives in the settings sheet rather than the edit bar
+	await page.getByRole('button', { name: 'Settings', exact: true }).click();
+	await page.getByRole('button', { name: /Import Home Assistant areas/ }).click();
 });
 
 test('proposes a page per area, grouped by floor', async ({ page }) => {

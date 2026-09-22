@@ -14,6 +14,7 @@
 	import { buildProposal, type HearthProposal, type ProposedPage } from './proposal';
 	import { fetchRegistry } from '$lib/core/ha/registry';
 	import {
+		editor,
 		enterEditMode,
 		hearthConfig,
 		hearthEditMode,
@@ -126,6 +127,8 @@
 		// outside edit mode nothing else would persist the import, and a reload
 		// would silently drop it
 		if (!get(hearthEditMode)) void persist();
+		// opened from the settings sheet, which would otherwise cover the new pages
+		editor.set(null);
 		onclose();
 	}
 

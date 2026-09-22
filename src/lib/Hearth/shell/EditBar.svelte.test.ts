@@ -19,7 +19,7 @@ import { configDocument } from '../transfer';
 import EditBar from './EditBar.svelte';
 
 function renderBar() {
-	return render(EditBar, { onsetup: () => {} });
+	return render(EditBar);
 }
 
 describe('EditBar', () => {
@@ -34,6 +34,11 @@ describe('EditBar', () => {
 		saveState.set('idle');
 		copyState.set('idle');
 		vi.unstubAllGlobals();
+	});
+
+	it('leaves the area import to the settings sheet', () => {
+		renderBar();
+		expect(screen.queryByRole('button', { name: en.hearth_setup })).toBeNull();
 	});
 
 	it('cancels at once when nothing changed', async () => {
