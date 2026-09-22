@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import { lang } from '$lib/core/i18n';
+	import { customCss } from '$lib/ui/CustomCss.svelte';
 	import { editor } from '../store';
 	import EditSheet from './EditSheet.svelte';
 
@@ -42,8 +43,9 @@
 				error = `${$lang('hearth_save_failed')} [${response.status}]`;
 				return;
 			}
-			// the stylesheet is read once at boot; a reload applies the new file
-			location.reload();
+			// a reload would discard the dashboard draft the edit bar has not saved
+			customCss.set(value);
+			editor.set(null);
 		} catch (failure) {
 			console.error(failure);
 			error = $lang('hearth_save_failed');
@@ -69,6 +71,7 @@
 					type="css"
 					transitionend={true}
 					onchange={(next) => (value = next)}
+					onsave={save}
 				/>
 			{/await}
 		{:else}

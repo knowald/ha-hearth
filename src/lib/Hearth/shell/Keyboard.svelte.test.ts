@@ -3,15 +3,26 @@ import { get } from 'svelte/store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { pushLayer } from '$lib/ui/layers';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
-import { cancelEdit, enterEditMode, hearthConfig, hearthEditMode, updateConfig } from '../store';
+import {
+	cancelEdit,
+	editor,
+	enterEditMode,
+	hearthConfig,
+	hearthEditMode,
+	updateConfig
+} from '../store';
 import Keyboard from './Keyboard.svelte';
 
 function press(key: string, init: KeyboardEventInit = {}) {
-	window.dispatchEvent(new KeyboardEvent('keydown', { key, cancelable: true, ...init }));
+	const event = new KeyboardEvent('keydown', { key, cancelable: true, ...init });
+	window.dispatchEvent(event);
+	return event;
 }
 
 describe('Keyboard', () => {
 	afterEach(() => {
+		vi.unstubAllGlobals();
+		editor.set(null);
 		if (get(hearthEditMode)) cancelEdit();
 		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
 	});
@@ -43,6 +54,29 @@ describe('Keyboard', () => {
 		press('z', { metaKey: true });
 		expect(get(hearthConfig).padding_x).not.toBe(42);
 		press('z', { metaKey: true, shiftKey: true });
+		expect(get(hearthConfig).padding_x).toBe(42);
+	});
+
+	it('keeps cmd+s from the browser save dialog while a sheet is open, without saving', () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal('fetch', fetchMock);
+		render(Keyboard, { onsearch: () => {} });
+		enterEditMode();
+		editor.set({ kind: 'customCss' });
+		const event = press('s', { metaKey: true });
+		expect(event.defaultPrevented).toBe(true);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('leaves undo to an open sheet', () => {
+		render(Keyboard, { onsearch: () => {} });
+		enterEditMode();
+		updateConfig((config) => {
+			config.padding_x = 42;
+		});
+		editor.set({ kind: 'theme' });
+		const event = press('z', { metaKey: true });
+		expect(event.defaultPrevented).toBe(false);
 		expect(get(hearthConfig).padding_x).toBe(42);
 	});
 });

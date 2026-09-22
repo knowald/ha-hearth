@@ -33,8 +33,13 @@
 
 		if (!$hearthEditMode || !(event.metaKey || event.ctrlKey)) return;
 		// an open edit sheet owns these: saving would drop its unsubmitted form and
-		// undo would shift the card it is bound to out from under it
-		if ($editor) return;
+		// undo would shift the card it is bound to out from under it. A sheet that
+		// commits on Mod-s handles it before it gets here; otherwise the key still
+		// must not fall through to the browser's own save dialog.
+		if ($editor) {
+			if (event.key === 's') event.preventDefault();
+			return;
+		}
 		if (event.key === 's') {
 			event.preventDefault();
 			void saveWithFeedback();
