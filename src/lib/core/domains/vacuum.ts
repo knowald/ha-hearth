@@ -1,16 +1,13 @@
 import { get } from 'svelte/store';
 import { states } from '../ha/entities';
 import { callEntityService, markPending, service, setControlOverride } from '../ha/commands';
+import { vacuumPrimaryCommand } from '.';
 
 export function toggleVacuum(entity: string) {
 	markPending(entity);
-	const state = get(states)?.[entity]?.state;
-	setControlOverride(`active:${entity}`, state === 'cleaning' || state === 'returning' ? 0 : 1);
-	if (state === 'cleaning' || state === 'returning') {
-		service('vacuum', 'return_to_base', { entity_id: entity });
-	} else {
-		service('vacuum', 'start', { entity_id: entity });
-	}
+	const command = vacuumPrimaryCommand(get(states)?.[entity]?.state);
+	setControlOverride(`active:${entity}`, command === 'return_to_base' ? 0 : 1);
+	service('vacuum', command, { entity_id: entity });
 }
 
 export type VacuumCommand = 'start' | 'pause' | 'stop' | 'clean_spot' | 'locate' | 'return_to_base';

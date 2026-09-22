@@ -81,7 +81,7 @@
 			case 'cleaning':
 			case 'returning':
 				return [
-					{ command: 'pause', label: $lang('pause'), icon: 'pause' },
+					{ command: 'pause', label: $lang('hearth_pause'), icon: 'pause' },
 					{ command: 'return_to_base', label: $lang('hearth_send_home'), icon: 'home' }
 				];
 			case 'paused':

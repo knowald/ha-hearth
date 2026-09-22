@@ -95,8 +95,8 @@
 			}}
 			onkeydown={(event) => event.stopPropagation()}
 		>
-			<Icon name={running ? 'stop' : 'play_arrow'} size={ICON.control} />
-			{running ? 'Stop' : 'Clean'}
+			<Icon name={running ? 'home' : 'play_arrow'} size={ICON.control} />
+			{$lang(running ? 'hearth_send_home' : 'hearth_start')}
 		</button>
 	{/if}
 	<Icon name="chevron_right" size={ICON.control} color="var(--h-icon)" />

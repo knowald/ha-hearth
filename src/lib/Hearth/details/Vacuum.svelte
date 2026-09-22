@@ -33,7 +33,7 @@
 		type="button"
 		class="segment"
 		class:active={vacuumState === 'returning' || vacuumState === 'docked'}
-		onclick={() => vacuumCommand(entity, 'return_to_base')}>{$lang('hearth_return_to_base')}</button
+		onclick={() => vacuumCommand(entity, 'return_to_base')}>{$lang('hearth_send_home')}</button
 	>
 	<button type="button" class="segment" onclick={() => vacuumCommand(entity, 'locate')}
 		>{$lang('hearth_locate')}</button

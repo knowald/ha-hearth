@@ -36,6 +36,14 @@ export interface DomainDescriptor {
 	toggleService?: (entity: HassEntity) => string;
 }
 
+/**
+ * The one primary action for a vacuum on every surface: a running one
+ * (cleaning or heading home) is sent home, anything else starts.
+ */
+export function vacuumPrimaryCommand(state: string | undefined): 'return_to_base' | 'start' {
+	return state === 'cleaning' || state === 'returning' ? 'return_to_base' : 'start';
+}
+
 const openClosed = (): [string, string] => ['open', 'closed'];
 const toggle = (domain: string) => () => `${domain}.toggle`;
 
@@ -112,8 +120,8 @@ const DESCRIPTORS: DomainDescriptor[] = [
 		domain: 'vacuum',
 		icon: 'robot_2',
 		tap: 'toggle',
-		active: (entity) => entity.state === 'cleaning' || entity.state === 'returning',
-		toggleService: (entity) => (entity.state === 'cleaning' ? 'vacuum.pause' : 'vacuum.start')
+		active: (entity) => vacuumPrimaryCommand(entity.state) === 'return_to_base',
+		toggleService: (entity) => `vacuum.${vacuumPrimaryCommand(entity.state)}`
 	},
 	{ domain: 'scene', icon: 'palette', tap: 'toggle', toggleService: () => 'scene.turn_on' },
 	{ domain: 'script', icon: 'description', tap: 'toggle', toggleService: toggle('script') },
