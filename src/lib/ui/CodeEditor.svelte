@@ -21,7 +21,8 @@
 		onsave = undefined,
 		readOnly = false,
 		original = undefined,
-		placeholder = undefined
+		placeholder = undefined,
+		label = undefined
 	}: {
 		type: string;
 		value: string;
@@ -37,6 +38,8 @@
 		original?: string | undefined;
 		/** Sample content shown while the document is empty. */
 		placeholder?: string | undefined;
+		/** Names the editable area for a screen reader, where no dialog title does. */
+		label?: string | undefined;
 	} = $props();
 
 	let editor: HTMLDivElement;
@@ -56,7 +59,7 @@
 	// file for instance. `view` is state so this runs again once CodeMirror has
 	// mounted, rather than being skipped while the module is still loading.
 	$effect(() => {
-		if (view && reloadView && init) {
+		if (view && reloadView && init !== undefined) {
 			// current
 			const { anchor, head } = view.state.selection.main;
 			const scrollTop = view.scrollDOM.scrollTop;
@@ -168,12 +171,15 @@
 			keymap.of([
 				{
 					key: 'Mod-s',
-					preventDefault: true,
-					// applying closes the sheet, which would let the same event reach
-					// the dashboard's own Mod-s and write the file the draft edits
+					// both only apply to the key once this binding has handled it, so a
+					// field with nothing to commit leaves Mod-s to the page, whose own
+					// handler saves the dashboard. Applying here closes the sheet, which
+					// would otherwise let the same event reach that handler and write the
+					// file the draft is still being edited against.
 					stopPropagation: true,
 					run: () => {
-						onsave?.();
+						if (!onsave) return false;
+						onsave();
 						return true;
 					}
 				}
@@ -239,6 +245,9 @@
 			extensions.push(...[StreamLanguage.define(cssModule.css)]);
 		}
 		if (placeholder !== undefined) extensions.push(placeholderText(placeholder));
+		if (label !== undefined) {
+			extensions.push(EditorView.contentAttributes.of({ 'aria-label': label }));
+		}
 		if (readOnly) {
 			extensions.push(EditorState.readOnly.of(true), EditorView.editable.of(false));
 		}

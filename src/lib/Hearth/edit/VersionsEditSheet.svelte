@@ -65,6 +65,8 @@
 
 	async function select(name: string) {
 		selected = name;
+		// a failure belongs to the version it happened on, not to the next one
+		error = null;
 		content = contents[name] ?? null;
 		if (content !== null) return;
 		try {

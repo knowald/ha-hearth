@@ -36,6 +36,7 @@
 		{#await import('$lib/ui/CodeEditor.svelte') then CodeEditor}
 			<CodeEditor.default
 				{value}
+				{label}
 				{placeholder}
 				type={language}
 				transitionend={false}

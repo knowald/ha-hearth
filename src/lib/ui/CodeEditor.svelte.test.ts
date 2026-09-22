@@ -133,4 +133,53 @@ describe('CodeEditor', () => {
 		// the dashboard's own Ctrl-S writes the file; the editor's applies a draft
 		expect(page).not.toHaveBeenCalled();
 	});
+
+	it('leaves the save shortcut to the page when it has nothing to commit', async () => {
+		const page = vi.fn();
+		const { container } = render(CodeEditor, {
+			type: 'text',
+			value: 'a field, not a sheet',
+			transitionend: false
+		});
+		await waitFor(() => expect(container.querySelector('.cm-editor')).toBeTruthy());
+
+		window.addEventListener('keydown', page);
+		try {
+			container
+				.querySelector('.cm-content')!
+				.dispatchEvent(
+					new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true })
+				);
+		} finally {
+			window.removeEventListener('keydown', page);
+		}
+
+		expect(page).toHaveBeenCalled();
+	});
+
+	it('takes in a pushed document that is empty', async () => {
+		const { container, rerender } = render(CodeEditor, {
+			type: 'text',
+			value: 'replaced',
+			init: 'replaced',
+			transitionend: false
+		});
+		await waitFor(() => expect(container.querySelector('.cm-editor')).toBeTruthy());
+
+		await rerender({ init: '', reloadView: true });
+
+		await waitFor(() => expect(container.querySelector('.cm-content')?.textContent).toBe(''));
+	});
+
+	it('names the editable area for a screen reader', async () => {
+		const { container } = render(CodeEditor, {
+			type: 'jinja2',
+			value: '{{ states("sensor.outdoor") }}',
+			label: 'Template',
+			transitionend: false
+		});
+
+		await waitFor(() => expect(container.querySelector('.cm-content')).toBeTruthy());
+		expect(container.querySelector('.cm-content')?.getAttribute('aria-label')).toBe('Template');
+	});
 });
