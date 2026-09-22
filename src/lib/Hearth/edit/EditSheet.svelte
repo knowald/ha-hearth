@@ -28,6 +28,7 @@
 		onback,
 		ondone,
 		doneDisabled = false,
+		doneLabel = undefined,
 		onremove,
 		removeLabel = undefined,
 		onmoveup,
@@ -42,6 +43,7 @@
 		onback?: () => void;
 		ondone: () => void;
 		doneDisabled?: boolean;
+		doneLabel?: string;
 		onremove?: () => void;
 		removeLabel?: string;
 		onmoveup?: () => void;
@@ -192,7 +194,7 @@
 				use:Ripple={PRESS_RIPPLE}
 				onclick={() => !doneDisabled && ondone()}
 			>
-				{$lang('done')}
+				{doneLabel ?? $lang('done')}
 			</button>
 			<button
 				type="button"

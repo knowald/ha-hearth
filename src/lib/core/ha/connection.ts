@@ -88,6 +88,20 @@ const tokenStorage = {
 export const tokenNeeded = writable(false);
 
 /**
+ * Why the latest attempt failed, cleared when a new run starts or a connection
+ * succeeds. invalid_auth covers a rejected token and a failed OAuth exchange;
+ * panel_auth is the HA app iframe still waiting for its parent session.
+ */
+export type ConnectionError =
+	'cannot_connect' | 'https_to_http' | 'invalid_auth' | 'panel_auth' | 'unknown';
+export const connectionError = writable<ConnectionError | undefined>();
+
+/** Failed attempts in a row for the current run; reset when it starts or succeeds. */
+export const failedAttempts = writable(0);
+
+const PANEL_AUTH_PENDING = 'Waiting for Home Assistant panel authentication';
+
+/**
  * HA's /app/<slug> panel embeds this page in a same-origin iframe and exposes
  * the already-authenticated frontend session as window.parent.hassConnection.
  * Reusing that access token skips OAuth, which cannot complete inside the iframe
@@ -153,7 +167,7 @@ export async function authentication(
 				// panel session is ready. OAuth in this frame is rejected with
 				// Invalid redirect URI.
 				health.set('lost');
-				throw new Error('Waiting for Home Assistant panel authentication');
+				throw new Error(PANEL_AUTH_PENDING);
 			} else {
 				// Ingress serves this app under /api/hassio_ingress/<token>/.
 				// Pass that path as redirect_uri so the callback returns to this
@@ -179,6 +193,8 @@ export async function authentication(
 			return;
 		}
 		tokenNeeded.set(false);
+		connectionError.set(undefined);
+		failedAttempts.set(0);
 		connection.set(conn);
 
 		// the lib fires "ready" inside the Connection constructor, before any
@@ -269,7 +285,25 @@ function clearAuthCallback() {
 	history.replaceState(history.state, '', url.pathname + url.search + url.hash);
 }
 
+function errorCode(error: unknown): ConnectionError {
+	switch (error) {
+		case ERR_CANNOT_CONNECT:
+		case ERR_CONNECTION_LOST:
+			return 'cannot_connect';
+		case ERR_INVALID_HTTPS_TO_HTTP:
+			return 'https_to_http';
+		case ERR_INVALID_AUTH:
+		case ERR_INVALID_AUTH_CALLBACK:
+			return 'invalid_auth';
+		default:
+			return error instanceof Error && error.message === PANEL_AUTH_PENDING
+				? 'panel_auth'
+				: 'unknown';
+	}
+}
+
 function handleError(error: unknown) {
+	connectionError.set(errorCode(error));
 	switch (error) {
 		case ERR_INVALID_AUTH:
 			console.error('ERR_INVALID_AUTH');
@@ -297,12 +331,7 @@ function handleError(error: unknown) {
 			console.error('ERR_INVALID_HTTPS_TO_HTTP');
 			break;
 		default:
-			if (
-				error instanceof Error &&
-				error.message === 'Waiting for Home Assistant panel authentication'
-			) {
-				break;
-			}
+			if (error instanceof Error && error.message === PANEL_AUTH_PENDING) break;
 			console.error(error);
 	}
 	throw error;
@@ -321,6 +350,8 @@ let currentRun = 0;
  */
 export function startConnection(configuration: Configuration) {
 	stopConnection();
+	connectionError.set(undefined);
+	failedAttempts.set(0);
 	const run = ++currentRun;
 	let connecting = false;
 	const attempt = async () => {
@@ -334,6 +365,7 @@ export function startConnection(configuration: Configuration) {
 			}
 		} catch {
 			// retried on the interval
+			if (run === currentRun) failedAttempts.update((count) => count + 1);
 		} finally {
 			connecting = false;
 		}

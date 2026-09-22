@@ -5,12 +5,15 @@ import {
 	ERR_INVALID_AUTH_CALLBACK,
 	ERR_CANNOT_CONNECT,
 	ERR_INVALID_AUTH,
+	ERR_INVALID_HTTPS_TO_HTTP,
 	type Connection
 } from 'home-assistant-js-websocket';
 import {
 	authentication,
 	connected,
 	connection,
+	connectionError,
+	failedAttempts,
 	health,
 	startConnection,
 	stopConnection,
@@ -36,6 +39,8 @@ afterEach(() => {
 	Object.defineProperty(window, 'parent', { value: windowParent, configurable: true });
 	localStorage.clear();
 	tokenNeeded.set(false);
+	connectionError.set(undefined);
+	failedAttempts.set(0);
 });
 
 describe('authentication', () => {
@@ -113,6 +118,65 @@ describe('tokenNeeded', () => {
 		vi.mocked(createConnection).mockResolvedValue(socket);
 		await authentication({ hassUrl: 'http://localhost:8123', token: 'new' });
 		expect(get(tokenNeeded)).toBe(false);
+	});
+});
+
+describe('connectionError', () => {
+	const socket = {
+		close: vi.fn(),
+		addEventListener: vi.fn(),
+		subscribeMessage: vi.fn(async () => async () => {})
+	} as unknown as Connection;
+
+	it.each([
+		[ERR_CANNOT_CONNECT, 'cannot_connect'],
+		[ERR_INVALID_HTTPS_TO_HTTP, 'https_to_http'],
+		[ERR_INVALID_AUTH, 'invalid_auth'],
+		[new Error('socket exploded'), 'unknown']
+	])('names the cause of failure %s', async (failure, code) => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.mocked(createConnection).mockRejectedValue(failure);
+		await expect(authentication({ hassUrl: 'http://localhost:8123', token: 'test' })).rejects.toBe(
+			failure
+		);
+		expect(get(connectionError)).toBe(code);
+	});
+
+	it('reports the HA app iframe waiting for its panel session', async () => {
+		Object.defineProperty(window, 'parent', { configurable: true, value: {} });
+		await expect(authentication({ hassUrl: '/' })).rejects.toThrow();
+		expect(get(connectionError)).toBe('panel_auth');
+	});
+
+	it('counts failed attempts and clears both once a retry connects', async () => {
+		vi.useFakeTimers();
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.mocked(createConnection)
+			.mockRejectedValueOnce(ERR_CANNOT_CONNECT)
+			.mockRejectedValueOnce(ERR_CANNOT_CONNECT)
+			.mockResolvedValue(socket);
+		startConnection({ hassUrl: 'http://localhost:8123', token: 'test' });
+		await vi.advanceTimersByTimeAsync(3001);
+		expect(get(failedAttempts)).toBe(2);
+		expect(get(connectionError)).toBe('cannot_connect');
+		await vi.advanceTimersByTimeAsync(3000);
+		expect(get(connected)).toBe(true);
+		expect(get(failedAttempts)).toBe(0);
+		expect(get(connectionError)).toBeUndefined();
+	});
+
+	it('starts a new run with a clean slate', async () => {
+		vi.useFakeTimers();
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.mocked(createConnection).mockRejectedValue(ERR_INVALID_AUTH);
+		startConnection({ hassUrl: 'http://localhost:8123', token: 'old' });
+		await vi.advanceTimersByTimeAsync(0);
+		expect(get(connectionError)).toBe('invalid_auth');
+		expect(get(failedAttempts)).toBe(1);
+		vi.mocked(createConnection).mockReturnValue(new Promise(() => {}));
+		startConnection({ hassUrl: 'http://localhost:8123', token: 'new' });
+		expect(get(connectionError)).toBeUndefined();
+		expect(get(failedAttempts)).toBe(0);
 	});
 });
 

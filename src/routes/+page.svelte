@@ -8,7 +8,13 @@
 	import { configuration } from '$lib/core/app/configuration';
 	import { disposeHaptics, haptics, startPressFeedback } from '$lib/core/app/haptics';
 	import { motion } from '$lib/core/app/motion';
-	import { connected, tokenNeeded } from '$lib/core/ha/connection';
+	import {
+		connected,
+		connectionError,
+		failedAttempts,
+		tokenNeeded,
+		type ConnectionError
+	} from '$lib/core/ha/connection';
 	import { lang, selectedLanguage, translation } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import { startConnection, stopConnection } from '$lib/core/ha/connection';
@@ -36,6 +42,20 @@
 	$effect(() => {
 		if ($tokenNeeded) tokenPromptOpen = true;
 	});
+
+	// attempts run every 3s, so the cause shows after about 6s; that also covers
+	// the HA panel iframe while its parent session is still arriving
+	const STALLED_AFTER_ATTEMPTS = 3;
+	const connectionHints: Record<ConnectionError, string> = {
+		cannot_connect: 'hearth_connection_failed_cannot_connect',
+		https_to_http: 'hearth_connection_failed_https_to_http',
+		panel_auth: 'hearth_connection_failed_panel_auth',
+		invalid_auth: 'hearth_connection_failed_unknown',
+		unknown: 'hearth_connection_failed_unknown'
+	};
+	let stalledError = $derived(
+		$failedAttempts >= STALLED_AFTER_ATTEMPTS ? $connectionError : undefined
+	);
 
 	// one-time store seeding; `data` only changes on a full page load
 	// svelte-ignore state_referenced_locally
@@ -102,16 +122,39 @@
 {:else}
 	<ThemeStyle />
 	{#if $configuration?.hassUrl}
-		<section class="boot" aria-live="polite" aria-busy={!$tokenNeeded}>
-			<div class="boot-mark" aria-hidden="true"></div>
-			<strong>
-				{$lang(
-					$connected ? 'hearth_loading_home_assistant' : 'hearth_connecting_to_home_assistant'
-				)}
-			</strong>
-			<span>{$lang('hearth_appears_after_first_snapshot')}</span>
+		<section class="boot">
+			{#if !$tokenNeeded && !stalledError}
+				<div class="boot-mark" aria-hidden="true"></div>
+			{/if}
+			<div class="boot-status" role="status">
+				{#if $tokenNeeded}
+					<strong>{$lang('hearth_sign_in_required')}</strong>
+					<span>
+						{$lang(
+							$configuration.token ? 'hearth_token_rejected_hint' : 'hearth_sign_in_token_missing'
+						)}
+					</span>
+				{:else if stalledError}
+					<strong>{$lang('hearth_connection_failed')}</strong>
+					<span>{$lang(connectionHints[stalledError])}</span>
+					<span>{$lang('hearth_connection_retrying')}</span>
+				{:else}
+					<strong>
+						{$lang(
+							$connected ? 'hearth_loading_home_assistant' : 'hearth_connecting_to_home_assistant'
+						)}
+					</strong>
+					<span>{$lang('hearth_appears_after_first_snapshot')}</span>
+				{/if}
+			</div>
 			{#if $tokenNeeded}
-				<button type="button" onclick={() => (tokenPromptOpen = true)}>{$lang('login')}</button>
+				<button type="button" onclick={() => (tokenPromptOpen = true)}>
+					{$lang('hearth_sign_in')}
+				</button>
+			{:else if stalledError}
+				<button type="button" onclick={() => startConnection($configuration)}>
+					{$lang('hearth_retry')}
+				</button>
 			{/if}
 		</section>
 	{:else}
@@ -159,6 +202,13 @@
 		border-top-color: #f0a63d; /* literal ok: pre-theme boot splash */
 		border-radius: 50%;
 		animation: spin 900ms linear infinite;
+	}
+
+	.boot-status {
+		display: grid;
+		justify-items: center;
+		gap: 12px; /* literal ok: pre-theme boot splash */
+		max-width: 480px; /* literal ok: pre-theme boot splash */
 	}
 
 	.boot strong {
