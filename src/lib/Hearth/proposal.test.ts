@@ -119,6 +119,23 @@ describe('buildProposal pages', () => {
 		expect(card.entities.map((ref) => ref.name)).toEqual(['Ceiling', 'Counter']);
 	});
 
+	it('keeps a name the area only prefixes as part of a longer word', () => {
+		const named = statesFor(
+			entities,
+			hassStates({
+				'light.kitchen_ceiling': ['on', { friendly_name: 'Kitchenette Lamp' }],
+				'light.kitchen_counter': ['on', { friendly_name: 'Counter' }]
+			})
+		);
+
+		const card = cardOfType(buildProposal(snapshot, named).pages[0], 'entities') as Extract<
+			OverviewCard,
+			{ type: 'entities' }
+		>;
+
+		expect(card.entities.map((ref) => ref.name)).toContain('Kitchenette Lamp');
+	});
+
 	it('skips config, diagnostic, disabled, hidden and orphaned entities', () => {
 		const mixed = [
 			entity('light.kept', { area_id: 'kitchen' }),

@@ -114,17 +114,21 @@ function areaIcon(area: RegistryArea): string {
 /** Drops a redundant room name around an entity name, e.g. "Kitchen Ceiling" -> "Ceiling". */
 function stripRoomName(name: string, roomNames: string[]): string {
 	const trim = (text: string) => text.replace(/^[\s:,-]+|[\s:,-]+$/g, '').trim();
+	// only on a word of its own: "Hall" must not turn "Hallway Light" into "way Light"
+	const separated = /^[\s:,-]/;
 	for (const roomName of roomNames) {
 		if (!roomName) continue;
 		const lowered = name.toLowerCase();
 		const room = roomName.toLowerCase();
 		if (lowered.startsWith(room)) {
-			const stripped = trim(name.slice(roomName.length));
-			if (stripped) return stripped;
+			const rest = name.slice(roomName.length);
+			const stripped = trim(rest);
+			if (stripped && separated.test(rest)) return stripped;
 		}
 		if (lowered.endsWith(room)) {
-			const stripped = trim(name.slice(0, name.length - roomName.length));
-			if (stripped) return stripped;
+			const rest = name.slice(0, name.length - roomName.length);
+			const stripped = trim(rest);
+			if (stripped && separated.test(rest.slice(-1))) return stripped;
 		}
 	}
 	return name;
