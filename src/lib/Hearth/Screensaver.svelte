@@ -48,7 +48,36 @@
 		// swallow so the wake tap/keypress never reaches the dashboard
 		event.preventDefault();
 		event.stopPropagation();
+		if (event.type === 'pointerdown') swallowNextClick();
 		hide();
+	}
+
+	/*
+	 * The overlay is gone by the time the wake tap's click fires (at once when
+	 * motion is off), so that click would land on whatever card sits under the
+	 * finger. Eat it at the window instead. The click follows pointerup almost
+	 * immediately; if none comes (a cancelled or dragged touch), stop waiting.
+	 */
+	function swallowNextClick() {
+		let timer = setTimeout(stop, 5000);
+		const swallow = (event: Event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			stop();
+		};
+		const arm = () => {
+			clearTimeout(timer);
+			timer = setTimeout(stop, 300);
+		};
+		function stop() {
+			clearTimeout(timer);
+			window.removeEventListener('click', swallow, true);
+			window.removeEventListener('pointerup', arm, true);
+			window.removeEventListener('pointercancel', stop, true);
+		}
+		window.addEventListener('click', swallow, true);
+		window.addEventListener('pointerup', arm, true);
+		window.addEventListener('pointercancel', stop, true);
 	}
 
 	$effect(() => {

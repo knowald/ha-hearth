@@ -18,6 +18,9 @@
 	let query = $state('');
 	let activeIndex = $state(0);
 	let rowEls: (HTMLButtonElement | undefined)[] = [];
+	// closing on pointerdown would let the click land on the tile underneath,
+	// and a drag out of the panel must not count as a backdrop tap
+	let pressStartedOnBackdrop = false;
 
 	type Result =
 		| { kind: 'room'; id: string; name: string; icon: string }
@@ -116,7 +119,8 @@
 <div
 	class="overlay"
 	role="presentation"
-	onpointerdown={(event) => event.target === event.currentTarget && onclose()}
+	onpointerdown={(event) => (pressStartedOnBackdrop = event.target === event.currentTarget)}
+	onclick={(event) => event.target === event.currentTarget && pressStartedOnBackdrop && onclose()}
 	use:layer={onclose}
 >
 	<div class="panel" role="dialog" aria-modal="true" aria-label={$lang('search')}>
