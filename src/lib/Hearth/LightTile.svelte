@@ -2,7 +2,7 @@
 	import { ICON } from './iconSizes';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { lang } from '$lib/core/i18n';
-	import { states } from '$lib/core/ha/entities';
+	import { entityControllable, states } from '$lib/core/ha/entities';
 	import type { SliderUpdateMode } from '$lib/core/app/configuration';
 	import { capitalize, PRESS_RIPPLE } from './config';
 	import { horizontalDrag } from './drag';
@@ -37,6 +37,7 @@
 
 	let view = $derived(lightViewFor(entity, $states, $controlOverrides));
 	let available = $derived(view.availability === 'available');
+	let controllable = $derived(entityControllable($states?.[entity]));
 	let availabilityText = $derived(
 		view.availability === 'missing'
 			? $lang('hearth_missing_entity')
@@ -44,14 +45,14 @@
 	);
 	let label = $derived(name || $states?.[entity]?.attributes?.friendly_name || entity);
 	let iconColor = $derived(
-		!available
+		!controllable
 			? 'var(--h-icon-dim)'
 			: view.on
 				? (view.colorCss ?? 'var(--h-accent-icon)')
 				: 'var(--h-icon-dim)'
 	);
 	let pending = $derived($pendingEntities[entity] !== undefined);
-	let interactive = $derived($hearthEditMode || (!readonly && available));
+	let interactive = $derived($hearthEditMode || (!readonly && controllable));
 </script>
 
 <div
@@ -59,7 +60,7 @@
 	class:compact
 	class:pressable={interactive}
 	class:on={view.on}
-	class:unreachable={!available}
+	class:unreachable={!controllable}
 	class:pending
 	data-id={entity}
 	role="button"
@@ -70,7 +71,7 @@
 	onkeydown={(event) =>
 		activateOnKeyboard(event, () => {
 			if ($hearthEditMode) onedit?.();
-			else if (readonly || !available) return;
+			else if (readonly || !controllable) return;
 			else if (event.shiftKey) popup.set({ kind: 'light', entity, name: label, sliderUpdates });
 			else toggleLight(entity);
 		})}
@@ -79,7 +80,7 @@
 		updateMode: sliderUpdates,
 		tap: () => toggleLight(entity),
 		hold: () => popup.set({ kind: 'light', entity, name: label, sliderUpdates }),
-		disabled: $hearthEditMode || readonly || !available,
+		disabled: $hearthEditMode || readonly || !controllable,
 		ignore: '.tune'
 	}}
 >
@@ -95,7 +96,7 @@
 	</div>
 	{#if $hearthEditMode && onedit}
 		<TuneButton icon="edit" onopen={onedit} alignEdge />
-	{:else if showTune && !$hearthEditMode && !readonly && available}
+	{:else if showTune && !$hearthEditMode && !readonly && controllable}
 		<TuneButton
 			alignEdge
 			onopen={() => popup.set({ kind: 'light', entity, name: label, sliderUpdates })}

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
-import { hassEntity } from './testing';
+import { hassEntity } from '$lib/core/ha/testing';
 import LightTile from './LightTile.svelte';
 
 vi.mock('$lib/core/domains/light', async (importOriginal) => ({
@@ -46,6 +46,15 @@ describe('LightTile', () => {
 		states.set({ 'light.desk': hassEntity('light.desk', 'off') });
 		render(LightTile, { entity: 'light.desk' });
 		await fireEvent.keyDown(screen.getByRole('button'), { key: 'Enter' });
+		expect(toggleLight).toHaveBeenCalledWith('light.desk');
+	});
+
+	it('still accepts commands while the light reports unknown', async () => {
+		states.set({ 'light.desk': hassEntity('light.desk', 'unknown') });
+		render(LightTile, { entity: 'light.desk' });
+		const tile = screen.getByRole('button');
+		expect(tile.classList.contains('unreachable')).toBe(false);
+		await fireEvent.keyDown(tile, { key: 'Enter' });
 		expect(toggleLight).toHaveBeenCalledWith('light.desk');
 	});
 

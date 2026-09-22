@@ -884,6 +884,8 @@
 	"hearth_decrease": "Decrease",
 	"hearth_increase": "Increase",
 	"hearth_cover_access_point_confirm": "This cover controls an access point. Confirm before continuing.",
+	"hearth_open_cover_question": "Open {label}?",
+	"hearth_close_cover_question": "Close {label}?",
 	"hearth_unknown_card_type": "Unknown card type {type}",
 	"hearth_unknown_widget_type": "Unknown widget type {type}",
 	"hearth_warm_white": "Warm white",

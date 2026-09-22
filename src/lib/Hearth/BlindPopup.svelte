@@ -9,10 +9,13 @@
 	import {
 		blindPositionFor,
 		blindTiltFor,
+		coverIsAccessPoint,
+		guardCoverMotion,
 		setBlindPosition,
 		setBlindTiltPosition
 	} from '$lib/core/domains/cover';
 	import { callEntityService, controlOverrides } from '$lib/core/ha/commands';
+	import { requestConfirmation } from './store';
 	import PopupSlider from './PopupSlider.svelte';
 
 	let {
@@ -33,6 +36,24 @@
 	);
 
 	let tiltPosition = $derived(blindTiltFor(entity, $states, $controlOverrides));
+	let position = $derived(blindPositionFor(entity, $states, $controlOverrides));
+	let accessPoint = $derived(coverIsAccessPoint($states?.[entity]));
+
+	function moveTo(target: number) {
+		const current = blindPositionFor(entity, $states, {});
+		guardCoverMotion(
+			[entity],
+			target > current,
+			() => setBlindPosition(entity, target),
+			requestConfirmation
+		);
+	}
+
+	// an access point's slider only commits on release, so it asks once per drag
+	function slide(value: number, commit?: boolean) {
+		setBlindPosition(entity, value, false);
+		if (commit) moveTo(value);
+	}
 
 	function callCoverService(service: string, data: Record<string, unknown> = {}) {
 		callEntityService('cover', service, entity, data);
@@ -42,20 +63,20 @@
 <PopupSlider
 	label={$lang('hearth_position')}
 	icon="blinds"
-	value={blindPositionFor(entity, $states, $controlOverrides)}
+	value={position}
 	variant="blue"
-	updateMode={sliderUpdates}
-	onchange={(value, commit) => setBlindPosition(entity, value, commit)}
+	updateMode={accessPoint ? 'release' : sliderUpdates}
+	onchange={slide}
 />
 
 <div class="buttons">
 	<div
 		class="button pressable"
 		use:Ripple={PRESS_RIPPLE}
-		onclick={() => setBlindPosition(entity, 0)}
+		onclick={() => moveTo(0)}
 		role="button"
 		tabindex="0"
-		onkeydown={(event) => activateOnKeyboard(event, () => setBlindPosition(entity, 0))}
+		onkeydown={(event) => activateOnKeyboard(event, () => moveTo(0))}
 	>
 		{$lang('hearth_close')}
 	</div>
@@ -74,10 +95,10 @@
 	<div
 		class="button primary pressable"
 		use:Ripple={PRESS_RIPPLE}
-		onclick={() => setBlindPosition(entity, 100)}
+		onclick={() => moveTo(100)}
 		role="button"
 		tabindex="0"
-		onkeydown={(event) => activateOnKeyboard(event, () => setBlindPosition(entity, 100))}
+		onkeydown={(event) => activateOnKeyboard(event, () => moveTo(100))}
 	>
 		{$lang('hearth_open_fully')}
 	</div>

@@ -10,7 +10,12 @@
 	import { getTogglableService } from '$lib/core/ha/entities';
 	import { hearthEditMode, popup, requestConfirmation } from './store';
 	import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
-	import { entityActiveFor, entityAvailability, sensorNumber } from '$lib/core/ha/entities';
+	import {
+		entityActiveFor,
+		entityAvailability,
+		entityControllable,
+		sensorNumber
+	} from '$lib/core/ha/entities';
 	import { toggleEntity } from '$lib/core/domains/entity';
 	import { openEntityDetail } from '$lib/Hearth/details';
 	import BlindTile from './BlindTile.svelte';
@@ -45,11 +50,12 @@
 	let stateObj = $derived($states?.[entity]);
 	let availability = $derived(entityAvailability(stateObj));
 	let available = $derived(availability === 'available');
+	let controllable = $derived(entityControllable(stateObj));
 	let on = $derived(entityActiveFor(entity, stateObj, $controlOverrides));
 	let pending = $derived($pendingEntities[entity] !== undefined);
 	let label = $derived(name || stateObj?.attributes?.friendly_name || entity);
 	let iconColor = $derived(
-		!available ? 'var(--h-icon-dim)' : on ? 'var(--h-accent-icon)' : 'var(--h-icon-dim)'
+		!controllable ? 'var(--h-icon-dim)' : on ? 'var(--h-accent-icon)' : 'var(--h-icon-dim)'
 	);
 
 	let bareModal = $derived(entityIsReadout(entity, stateObj));
@@ -64,7 +70,9 @@
 					: 'none'
 				: 'modal'
 	);
-	let interactive = $derived($hearthEditMode || (!readonly && available && tapSurface !== 'none'));
+	let interactive = $derived(
+		$hearthEditMode || (!readonly && controllable && tapSurface !== 'none')
+	);
 
 	function handleClick() {
 		if ($hearthEditMode) {
@@ -73,7 +81,7 @@
 			// a readout: no command, and no detail sheet either, since every one of
 			// them offers controls for a controllable domain
 			return;
-		} else if (!available) {
+		} else if (!controllable) {
 			return;
 		} else if (domain === 'lock') {
 			const unlocking = stateObj?.state === 'locked';
@@ -97,7 +105,7 @@
 	}
 
 	function openControls() {
-		if ($hearthEditMode || readonly || !available) return;
+		if ($hearthEditMode || readonly || !controllable) return;
 		if (domain === 'fan') {
 			// the fan sheet exposes speed controls
 			popup.set({ kind: 'fan', entity, name: label });
@@ -118,7 +126,7 @@
 		class="tile"
 		class:compact
 		class:on
-		class:unreachable={!available}
+		class:unreachable={!controllable}
 		class:pending
 		class:pressable={interactive}
 		role="button"
@@ -127,7 +135,7 @@
 		use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
 		use:longPress={{
 			hold: openControls,
-			disabled: $hearthEditMode || readonly || !available
+			disabled: $hearthEditMode || readonly || !controllable
 		}}
 		onclick={handleClick}
 		onkeydown={(event) => activateOnKeyboard(event, event.shiftKey ? openControls : handleClick)}
@@ -149,7 +157,7 @@
 		</div>
 		{#if $hearthEditMode && onedit}
 			<TuneButton icon="edit" onopen={onedit} alignEdge />
-		{:else if showTune && !$hearthEditMode && !readonly && available && tapSurface !== 'none'}
+		{:else if showTune && !$hearthEditMode && !readonly && controllable && tapSurface !== 'none'}
 			<TuneButton alignEdge onopen={openControls} />
 		{/if}
 	</div>

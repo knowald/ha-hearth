@@ -3,7 +3,7 @@ import type { HassEntities } from 'home-assistant-js-websocket';
 import type { RegistryEntity, RegistrySnapshot } from '$lib/core/ha/registry';
 import { buildProposal, type ProposedPage } from './proposal';
 import { isStack, type OverviewCard } from './config';
-import { hassEntity } from './testing';
+import { hassEntity } from '$lib/core/ha/testing';
 
 const EMPTY: RegistrySnapshot = { floors: [], areas: [], devices: [], entities: [] };
 

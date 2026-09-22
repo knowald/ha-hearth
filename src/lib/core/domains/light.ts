@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import type { HassEntities } from 'home-assistant-js-websocket';
 import {
 	entityAvailability,
-	entityAvailable,
+	entityControllable,
 	states,
 	type EntityAvailability
 } from '../ha/entities';
@@ -72,14 +72,14 @@ export function lightViewFor(
 
 export function toggleLight(entityId: string) {
 	const entity = get(states)?.[entityId];
-	if (!entityAvailable(entity)) return;
+	if (!entityControllable(entity)) return;
 	setControlOverride(`active:${entityId}`, entity.state === 'on' ? 0 : 1);
 	markPending(entityId);
 	service('light', 'toggle', { entity_id: entityId });
 }
 
 export function setLightLevel(entityId: string, value: number, commit = true) {
-	if (!entityAvailable(get(states)?.[entityId])) return;
+	if (!entityControllable(get(states)?.[entityId])) return;
 	const level = clamp(Math.max(1, value), 1, 100);
 	setControlOverride(`level:${entityId}`, level);
 	if (!commit) return;
@@ -89,7 +89,7 @@ export function setLightLevel(entityId: string, value: number, commit = true) {
 }
 
 export function setLightTemp(entityId: string, pct: number, commit = true) {
-	if (!entityAvailable(get(states)?.[entityId])) return;
+	if (!entityControllable(get(states)?.[entityId])) return;
 	setControlOverride(`temp:${entityId}`, clamp(pct, 0, 100));
 	if (!commit) return;
 	const attributes = get(states)?.[entityId]?.attributes ?? {};
@@ -102,7 +102,7 @@ export function setLightTemp(entityId: string, pct: number, commit = true) {
 }
 
 export function setLightColor(entityId: string, hex: string) {
-	if (!entityAvailable(get(states)?.[entityId])) return;
+	if (!entityControllable(get(states)?.[entityId])) return;
 	markPending(entityId);
 	service('light', 'turn_on', { entity_id: entityId, rgb_color: hexToRgb(hex) });
 }
@@ -117,12 +117,12 @@ export function hexToRgb(hex: string): [number, number, number] {
 
 /** Header verb for a lights section: everything listed goes off in one call. */
 export function turnAllOff(entityIds: string[]) {
-	const available = entityIds.filter((entityId) => entityAvailable(get(states)?.[entityId]));
-	if (!available.length) return;
-	for (const entityId of available) {
+	const targets = entityIds.filter((entityId) => entityControllable(get(states)?.[entityId]));
+	if (!targets.length) return;
+	for (const entityId of targets) {
 		setControlOverride(`active:${entityId}`, 0);
 		setControlOverride(`level:${entityId}`, 0);
 		markPending(entityId);
 	}
-	service('homeassistant', 'turn_off', { entity_id: available });
+	service('homeassistant', 'turn_off', { entity_id: targets });
 }

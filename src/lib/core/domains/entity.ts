@@ -1,11 +1,11 @@
 import { get } from 'svelte/store';
-import { entityActive, entityAvailable, getTogglableService, states } from '../ha/entities';
+import { entityActive, entityControllable, getTogglableService, states } from '../ha/entities';
 import { markPending, service, setControlOverride } from '../ha/commands';
 
 /** Flips any entity through homeassistant.toggle, with an optimistic active override. */
 export function toggleDevice(entityId: string) {
 	const entity = get(states)?.[entityId];
-	if (!entityAvailable(entity)) return;
+	if (!entityControllable(entity)) return;
 	setControlOverride(`active:${entityId}`, entityActive(entityId, entity) ? 0 : 1);
 	markPending(entityId);
 	service('homeassistant', 'toggle', { entity_id: entityId });
@@ -17,7 +17,7 @@ export function toggleDevice(entityId: string) {
  */
 export function toggleEntity(entityId: string): boolean {
 	const entity = get(states)?.[entityId];
-	if (!entityAvailable(entity)) return false;
+	if (!entityControllable(entity)) return false;
 	const togglable = entity && getTogglableService(entity);
 	if (!togglable) return false;
 	const [domain, name] = togglable.split('.');

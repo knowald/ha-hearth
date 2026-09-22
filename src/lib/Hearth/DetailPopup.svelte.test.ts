@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
-import { hassEntity } from './testing';
+import { hassEntity } from '$lib/core/ha/testing';
 import { dismissConfirmation, requestedConfirmation } from './store';
 import DetailPopup from './DetailPopup.svelte';
 

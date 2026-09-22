@@ -10,7 +10,7 @@ import { isStack, type OverviewCard } from './config';
 import { normalizeHearthConfig } from './normalize';
 import { cardNeedsConfiguration } from './cards';
 import { railWidgetNeedsConfiguration } from './widgets';
-import { hassEntity } from './testing';
+import { hassEntity } from '$lib/core/ha/testing';
 import CardRenderer from './CardRenderer.svelte';
 import RailWidgetRenderer from './RailWidgetRenderer.svelte';
 

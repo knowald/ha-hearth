@@ -12,10 +12,10 @@
 	} from '../../config';
 	import { domainIcon } from '$lib/core/domains';
 	import { getHearthInteractionMode } from '../../interaction';
-	import { hearthEditMode, updateConfig } from '../../store';
+	import { hearthEditMode, requestConfirmation, updateConfig } from '../../store';
 	import { entityGroupSummary } from '$lib/core/ha/entities';
 	import { formatGroupSummary } from '../../groupSummary';
-	import { setAllCovers } from '$lib/core/domains/cover';
+	import { guardCoverMotion, setAllCovers } from '$lib/core/domains/cover';
 	import { turnAllOff } from '$lib/core/domains/light';
 	import AnchoredPopover from '../../AnchoredPopover.svelte';
 	import EntityGrid from '../../EntityGrid.svelte';
@@ -79,6 +79,11 @@
 	let showGroupActions = $derived(
 		card.group_actions !== false && !card.readonly && !$hearthEditMode && !preview
 	);
+
+	function moveAllCovers(open: boolean) {
+		const ids = coverIds;
+		guardCoverMotion(ids, open, () => setAllCovers(ids, open), requestConfirmation);
+	}
 
 	let row = $state<HTMLElement | undefined>();
 	let popoverOpen = $state(false);
@@ -232,7 +237,7 @@
 							type="button"
 							class="group-action pressable"
 							use:Ripple={PRESS_RIPPLE}
-							onclick={() => setAllCovers(coverIds, true)}
+							onclick={() => moveAllCovers(true)}
 						>
 							<Icon name="keyboard_double_arrow_up" size={ICON.inline} />
 							{$lang('hearth_open_all')}
@@ -241,7 +246,7 @@
 							type="button"
 							class="group-action pressable"
 							use:Ripple={PRESS_RIPPLE}
-							onclick={() => setAllCovers(coverIds, false)}
+							onclick={() => moveAllCovers(false)}
 						>
 							<Icon name="keyboard_double_arrow_down" size={ICON.inline} />
 							{$lang('hearth_close_all')}

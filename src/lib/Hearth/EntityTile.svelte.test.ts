@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
-import { hassEntity } from './testing';
+import { hassEntity } from '$lib/core/ha/testing';
 import EntityTile from './EntityTile.svelte';
 
 vi.mock('$lib/core/domains/entity', async (importOriginal) => ({
@@ -49,6 +49,16 @@ describe('EntityTile', () => {
 		expect(screen.getByText('Unavailable')).toBeTruthy();
 		await fireEvent.click(tile);
 		expect(toggleEntity).not.toHaveBeenCalled();
+	});
+
+	it('activates a scene that still reports unknown instead of drawing it offline', async () => {
+		states.set({ 'scene.movie': hassEntity('scene.movie', 'unknown', { friendly_name: 'Movie' }) });
+		render(EntityTile, { entity: 'scene.movie' });
+		const tile = screen.getByRole('button');
+		expect(tile.getAttribute('tabindex')).toBe('0');
+		expect(tile.classList.contains('unreachable')).toBe(false);
+		await fireEvent.click(tile);
+		expect(toggleEntity).toHaveBeenCalledWith('scene.movie');
 	});
 
 	it('keeps a read-only tile out of the tab order and silent on tap', async () => {

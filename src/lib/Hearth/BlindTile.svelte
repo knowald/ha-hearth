@@ -6,9 +6,9 @@
 	import type { SliderUpdateMode } from '$lib/core/app/configuration';
 	import { capitalize, PRESS_RIPPLE } from './config';
 	import { hearthEditMode, popup, requestConfirmation } from './store';
-	import { blindPositionFor, toggleBlind } from '$lib/core/domains/cover';
+	import { blindPositionFor, guardCoverMotion, toggleBlind } from '$lib/core/domains/cover';
 	import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
-	import { entityAvailability } from '$lib/core/ha/entities';
+	import { entityAvailability, entityControllable } from '$lib/core/ha/entities';
 	import Icon from './Icon.svelte';
 	import TuneButton from './TuneButton.svelte';
 	import { activateOnKeyboard, longPress } from './interaction';
@@ -38,6 +38,7 @@
 	let position = $derived(blindPositionFor(entity, $states, $controlOverrides));
 	let availability = $derived(entityAvailability($states?.[entity]));
 	let available = $derived(availability === 'available');
+	let controllable = $derived(entityControllable($states?.[entity]));
 	let open = $derived(position > 0);
 	let label = $derived(name || $states?.[entity]?.attributes?.friendly_name || entity);
 	let stateText = $derived(
@@ -51,27 +52,11 @@
 	);
 
 	let pending = $derived($pendingEntities[entity] !== undefined);
-	let interactive = $derived($hearthEditMode || (!readonly && available));
-	let disruptive = $derived(
-		['door', 'garage', 'garage_door', 'gate'].includes(
-			String($states?.[entity]?.attributes?.device_class ?? '')
-		)
-	);
-
+	let interactive = $derived($hearthEditMode || (!readonly && controllable));
 	function handleClick() {
 		if ($hearthEditMode) return onedit?.();
-		if (readonly || !available) return;
-		if (disruptive) {
-			const action = open ? 'Close' : 'Open';
-			requestConfirmation({
-				title: `${action} ${label}?`,
-				message: $lang('hearth_cover_access_point_confirm'),
-				confirmLabel: action,
-				action: () => toggleBlind(entity)
-			});
-			return;
-		}
-		toggleBlind(entity);
+		if (readonly || !controllable) return;
+		guardCoverMotion([entity], !open, () => toggleBlind(entity), requestConfirmation, label);
 	}
 </script>
 
@@ -80,7 +65,7 @@
 	class:compact
 	class:pressable={interactive}
 	class:open
-	class:unreachable={!available}
+	class:unreachable={!controllable}
 	class:pending
 	data-id={entity}
 	role="button"
@@ -89,12 +74,12 @@
 	use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
 	use:longPress={{
 		hold: () => popup.set({ kind: 'blind', entity, name: label, sliderUpdates }),
-		disabled: $hearthEditMode || readonly || !available
+		disabled: $hearthEditMode || readonly || !controllable
 	}}
 	onclick={handleClick}
 	onkeydown={(event) =>
 		activateOnKeyboard(event, () =>
-			event.shiftKey && available && !readonly && !$hearthEditMode
+			event.shiftKey && controllable && !readonly && !$hearthEditMode
 				? popup.set({ kind: 'blind', entity, name: label, sliderUpdates })
 				: handleClick()
 		)}
@@ -104,7 +89,7 @@
 		<Icon
 			name={icon || 'blinds'}
 			size={ICON.tile}
-			color={!available
+			color={!controllable
 				? 'var(--h-icon-dim)'
 				: open
 					? 'var(--h-accent-dim-text)'
@@ -117,7 +102,7 @@
 	</div>
 	{#if $hearthEditMode && onedit}
 		<TuneButton icon="edit" onopen={onedit} alignEdge />
-	{:else if showTune && !$hearthEditMode && !readonly && available}
+	{:else if showTune && !$hearthEditMode && !readonly && controllable}
 		<TuneButton
 			alignEdge
 			onopen={() => popup.set({ kind: 'blind', entity, name: label, sliderUpdates })}

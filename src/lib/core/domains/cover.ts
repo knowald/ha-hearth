@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
-import type { HassEntities } from 'home-assistant-js-websocket';
-import { entityAvailable, states } from '../ha/entities';
+import type { HassEntities, HassEntity } from 'home-assistant-js-websocket';
+import { entityControllable, states } from '../ha/entities';
+import { fill, lang } from '../i18n';
 import {
 	clamp,
 	controlOverrides,
@@ -23,7 +24,7 @@ export function blindPositionFor(
 }
 
 export function toggleBlind(entityId: string) {
-	if (!entityAvailable(get(states)?.[entityId])) return;
+	if (!entityControllable(get(states)?.[entityId])) return;
 	const open = blindPositionFor(entityId, get(states), get(controlOverrides)) > 0;
 	setControlOverride(`blind:${entityId}`, open ? 0 : 100);
 	markPending(entityId);
@@ -31,7 +32,7 @@ export function toggleBlind(entityId: string) {
 }
 
 export function setBlindPosition(entityId: string, position: number, commit = true) {
-	if (!entityAvailable(get(states)?.[entityId])) return;
+	if (!entityControllable(get(states)?.[entityId])) return;
 	const target = clamp(position, 0, 100);
 	setControlOverride(`blind:${entityId}`, target);
 	if (!commit) return;
@@ -52,7 +53,7 @@ export function blindTiltFor(
 }
 
 export function setBlindTiltPosition(entityId: string, position: number, commit = true) {
-	if (!entityAvailable(get(states)?.[entityId])) return;
+	if (!entityControllable(get(states)?.[entityId])) return;
 	const target = clamp(Math.round(position), 0, 100);
 	setControlOverride(`tilt:${entityId}`, target);
 	if (!commit) return;
@@ -69,11 +70,56 @@ export function setBlindTiltPosition(entityId: string, position: number, commit 
 
 /** Header verb for a blinds section: every cover to fully open or closed. */
 export function setAllCovers(entityIds: string[], open: boolean) {
-	const available = entityIds.filter((entityId) => entityAvailable(get(states)?.[entityId]));
-	if (!available.length) return;
-	for (const entityId of available) {
+	const targets = entityIds.filter((entityId) => entityControllable(get(states)?.[entityId]));
+	if (!targets.length) return;
+	for (const entityId of targets) {
 		setControlOverride(`blind:${entityId}`, open ? 100 : 0);
 		markPending(entityId);
 	}
-	service('cover', open ? 'open_cover' : 'close_cover', { entity_id: available });
+	service('cover', open ? 'open_cover' : 'close_cover', { entity_id: targets });
+}
+
+const ACCESS_DEVICE_CLASSES = ['door', 'garage', 'garage_door', 'gate'];
+
+/** Doors, garage doors and gates: moving one opens the house to the outside. */
+export function coverIsAccessPoint(entity: HassEntity | undefined): boolean {
+	return ACCESS_DEVICE_CLASSES.includes(String(entity?.attributes?.device_class ?? ''));
+}
+
+export interface CoverConfirmation {
+	title: string;
+	message: string;
+	confirmLabel: string;
+	action: () => void;
+}
+
+/**
+ * Runs `action` right away, unless it would move an access-point cover; then
+ * it hands `confirm` a localized request that runs `action` once accepted.
+ * `label` overrides the friendly names in the question.
+ */
+export function guardCoverMotion(
+	entityIds: string[],
+	open: boolean,
+	action: () => void,
+	confirm: (request: CoverConfirmation) => void,
+	label?: string
+) {
+	const $states = get(states);
+	const access = entityIds.filter(
+		(entityId) => entityControllable($states?.[entityId]) && coverIsAccessPoint($states?.[entityId])
+	);
+	if (!access.length) return action();
+	const $lang = get(lang);
+	const names =
+		label ??
+		access.map((entityId) => $states?.[entityId]?.attributes?.friendly_name || entityId).join(', ');
+	confirm({
+		title: fill($lang(open ? 'hearth_open_cover_question' : 'hearth_close_cover_question'), {
+			label: names
+		}),
+		message: $lang('hearth_cover_access_point_confirm'),
+		confirmLabel: $lang(open ? 'hearth_open' : 'hearth_close'),
+		action
+	});
 }
