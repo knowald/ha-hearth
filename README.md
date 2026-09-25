@@ -75,7 +75,7 @@ Custom CSS and opt-in JavaScript are available through application settings. Use
 
 Hearth is served at `/`. `?room=<id>` opens a page, `?theme=<preset>` previews a built-in theme and `?menu=false` hides the edit button. These are presentation options, not access controls.
 
-Cards cover entities, headers, sensors, media, vacuums, cameras, images, climate, scenes, elapsed days and conditional media. Rail widgets include clocks, weather, navigation, search, energy, progress, calendars, status, entities, charts, templates, timers, notifications and web pages.
+Cards cover entities, headers, sensors, media, vacuums, cameras, images, climate, scenes, elapsed days, conditional media and web pages. Rail widgets include clocks, weather, navigation, search, energy, progress, calendars, status, entities, charts, templates, timers, notifications and web pages.
 
 Camera playback supports HLS and WebRTC with a still-image fallback. Calendar widgets show upcoming events. Entity domains without specialized controls use a generic state, attributes and history sheet. Picture-elements editing, calendar editing, todo editing and GPS maps are outside the current feature set.
 

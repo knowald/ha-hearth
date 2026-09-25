@@ -228,6 +228,7 @@ type OverviewCardVariant =
 	| { id: string; type: 'climate'; entity?: string; title?: string }
 	// `bar` renders the persistent scene row: equal-width tiles, active one lit
 	| { id: string; type: 'scenes'; title?: string; style?: 'chips' | 'bar'; scenes: SceneRef[] }
+	| { id: string; type: 'iframe'; url?: string; title?: string; height?: number }
 	// days since an input_datetime was last reset, with a one-tap reset
 	| { id: string; type: 'days_since'; entity?: string; title?: string; icon?: string }
 	// the media card for whichever listed player is active; a paused player
