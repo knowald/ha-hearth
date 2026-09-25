@@ -257,7 +257,10 @@ describe('Ingress authentication', () => {
 		callback.searchParams.set(
 			'state',
 			btoa(
-				JSON.stringify({ hassUrl: 'http://homeassistant.local:8123', clientId: callback.origin + '/' })
+				JSON.stringify({
+					hassUrl: 'http://homeassistant.local:8123',
+					clientId: callback.origin + '/'
+				})
 			)
 		);
 		vi.stubGlobal('location', callback);
