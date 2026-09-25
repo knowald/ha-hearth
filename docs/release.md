@@ -2,7 +2,7 @@
 
 Hearth uses semantic versions, starting at `0.1.0`. Package versions and release tags match and have no `v` prefix. During `0.x`, a minor release may change configuration or product behavior; describe any breaking changes in its release notes. The document format version is independent of the package version.
 
-1. Run all checks listed in the README, including the production build and browser suite. Review the screenshot matrix and complete the relevant real-device checks.
+1. Run all checks listed in [development](development.md#checks), including the production build and browser suite. Review the screenshot matrix and complete the relevant real-device checks.
 2. Bump the version in `package.json` and add a matching entry to `CHANGELOG.md` listing the user-facing changes.
 3. Prepare a commit using the `hearth` scope. Obtain confirmation before pushing or publishing.
 4. Once authorized, push the commit and create a GitHub release with the matching tag and changelog notes.
