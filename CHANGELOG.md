@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2026-09-25
+
+### Fixed
+
+- Play WebRTC-only cameras, such as Ring live view, instead of requesting an HLS stream they reject; Hearth now asks Home Assistant which stream types a camera supports ([`19b4bd7`](https://github.com/knowald/ha-hearth/commit/19b4bd7))
+
 ## [0.3.0] - 2026-09-23
 
 ### Changed
@@ -140,6 +146,7 @@
 
 - Keep the standard `backdrop-filter` in the built stylesheet; writing the `-webkit-` prefix by hand made the minifier drop it, so no blur in the application took effect
 
+[0.3.1]: https://github.com/knowald/ha-hearth/releases/tag/0.3.1
 [0.3.0]: https://github.com/knowald/ha-hearth/releases/tag/0.3.0
 [0.2.0]: https://github.com/knowald/ha-hearth/releases/tag/0.2.0
 [0.1.3]: https://github.com/knowald/ha-hearth/releases/tag/0.1.3
