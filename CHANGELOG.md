@@ -5,6 +5,7 @@
 ### Fixed
 
 - Play WebRTC-only cameras, such as Ring live view, instead of requesting an HLS stream they reject; Hearth now asks Home Assistant which stream types a camera supports ([`19b4bd7`](https://github.com/knowald/ha-hearth/commit/19b4bd7))
+- Keep showing the snapshot of a camera that has no live stream instead of offering a Retry that cannot work ([`75799d8`](https://github.com/knowald/ha-hearth/commit/75799d8))
 
 ## [0.3.0] - 2026-09-23
 
