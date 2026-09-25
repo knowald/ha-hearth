@@ -6,6 +6,7 @@
 
 - Play WebRTC-only cameras, such as Ring live view, instead of requesting an HLS stream they reject; Hearth now asks Home Assistant which stream types a camera supports ([`19b4bd7`](https://github.com/knowald/ha-hearth/commit/19b4bd7))
 - Keep showing the snapshot of a camera that has no live stream instead of offering a Retry that cannot work ([`75799d8`](https://github.com/knowald/ha-hearth/commit/75799d8))
+- Load behind an nginx reverse proxy in front of Home Assistant, which rejected the page with a 502 because its preload `Link` header exceeded the default 4k proxy buffer ([`c9eee00`](https://github.com/knowald/ha-hearth/commit/c9eee00))
 
 ## [0.3.0] - 2026-09-23
 
