@@ -241,6 +241,7 @@ test.describe('camera playback', () => {
           title: Front camera
           stream: true
 `
+			)
 		);
 		await page.reload();
 		await expect(page.getByText('Door camera')).toBeVisible();
