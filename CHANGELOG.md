@@ -1,6 +1,11 @@
 # Changelog
 
-## [0.3.1] - 2026-09-25
+## [0.4.0] - 2026-09-26
+
+### Added
+
+- Embed a web page as a card on any page, such as the Music Assistant interface, filling its column unless a height is set ([`e2b1748`](https://github.com/knowald/ha-hearth/commit/e2b1748))
+- Set a background image on header cards and the theme, from a URL or an image uploaded to Hearth, and manage uploaded images from the image field ([`6324403`](https://github.com/knowald/ha-hearth/commit/6324403))
 
 ### Fixed
 
@@ -148,7 +153,7 @@
 
 - Keep the standard `backdrop-filter` in the built stylesheet; writing the `-webkit-` prefix by hand made the minifier drop it, so no blur in the application took effect
 
-[0.3.1]: https://github.com/knowald/ha-hearth/releases/tag/0.3.1
+[0.4.0]: https://github.com/knowald/ha-hearth/releases/tag/0.4.0
 [0.3.0]: https://github.com/knowald/ha-hearth/releases/tag/0.3.0
 [0.2.0]: https://github.com/knowald/ha-hearth/releases/tag/0.2.0
 [0.1.3]: https://github.com/knowald/ha-hearth/releases/tag/0.1.3
