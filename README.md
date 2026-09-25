@@ -57,7 +57,7 @@ docker compose --env-file .env.docker up -d --build
 
 The container listens on port 5050 and stores configuration under `/app/data`. Compose mounts `./data` by default; `DATA_PATH` changes that location. Use `docker compose logs` to inspect server logs.
 
-The publishing workflow targets `ghcr.io/knowald/ha-hearth` when a release is published. Local builds do not depend on an image already existing in the registry.
+The publishing workflow pushes three moving tags to `ghcr.io/knowald/ha-hearth`: `latest` follows stable releases, `beta` follows prereleases, and `edge` follows `master`. Local builds do not depend on an image already existing in the registry.
 
 ## Configuration
 
