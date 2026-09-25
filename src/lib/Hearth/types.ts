@@ -146,6 +146,8 @@ type OverviewCardVariant =
 			icon?: string;
 			temp_entity?: string;
 			humidity_entity?: string;
+			/** A URL, or `hearth-images/<file>` for an uploaded image. */
+			background_image?: string;
 	  }
 	// height fixes the card in px; without it the card fills its column
 	| {

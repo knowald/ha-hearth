@@ -32,6 +32,7 @@
 	import EditSheet from './EditSheet.svelte';
 	import ColorField from './ColorField.svelte';
 	import EntityField from './EntityField.svelte';
+	import ImageField from './ImageField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
 	import Icon from '../Icon.svelte';
@@ -470,8 +471,8 @@
 		/>
 	</div>
 
-	<TextField
-		label={$lang('hearth_background_image_url')}
+	<ImageField
+		label={$lang('hearth_background_image')}
 		bind:value={backgroundImageUrl}
 		placeholder={$lang('hearth_example_background_image')}
 		onchange={applyBackgroundImage}

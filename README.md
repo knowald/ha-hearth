@@ -64,6 +64,7 @@ The publishing workflow pushes three moving tags to `ghcr.io/knowald/ha-hearth`:
 - `data/hearth.yaml`: pages, cards, rail widgets, themes and tablet settings.
 - `data/configuration.yaml`: language, motion, touch feedback, optional access token and custom JavaScript setting.
 - `data/hearth-themes/`: saved Hearth theme presets.
+- `data/hearth-images/`: images uploaded for header cards and theme backgrounds, referenced from `hearth.yaml` as `hearth-images/<file>`. Uploads are scaled to at most 2560 px and re-encoded in the browser; the server accepts PNG, JPEG, GIF, WebP and AVIF up to 15 MB. Set `BODY_SIZE_LIMIT` to change the request size limit (default `16M`).
 - `data/backups/`: the ten most recent revisions of each saved configuration document.
 
 Persisted dashboard documents declare `version: 5`. Other versions are rejected with a visible load error; they are not automatically converted. A failed load locks dashboard editing to protect the source file. Save requests must include the revision that the client loaded. Conflicts require an explicit choice in the editor.
