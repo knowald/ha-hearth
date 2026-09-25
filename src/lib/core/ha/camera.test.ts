@@ -16,14 +16,22 @@ function videoElement() {
 	} as unknown as HTMLVideoElement;
 }
 
+function capabilities(types: string[], respond: (message: { type: string }) => Promise<unknown>) {
+	return vi.fn(async (message: { type: string }) =>
+		message.type === 'camera/capabilities' ? { frontend_stream_types: types } : respond(message)
+	);
+}
+
 describe('camera session ownership', () => {
 	it('disposes native HLS playback once when its owner aborts', async () => {
-		const sendMessagePromise = vi.fn(async () => ({ url: '/api/hls/stream.m3u8' }));
+		const sendMessagePromise = capabilities(['hls'], async () => ({
+			url: '/api/hls/stream.m3u8'
+		}));
 		const connection = { sendMessagePromise } as unknown as Connection;
 		const controller = new AbortController();
 		const video = videoElement();
 		const onError = vi.fn();
-		await playCamera(connection, video, 'camera.door', 'hls', controller.signal, onError);
+		await playCamera(connection, video, 'camera.door', controller.signal, onError);
 		expect(video.src).toBe('/api/hls/stream.m3u8');
 		controller.abort();
 		controller.abort();
@@ -35,11 +43,12 @@ describe('camera session ownership', () => {
 	it('cannot attach a stream returned after cancellation', async () => {
 		let resolve!: (value: { url: string }) => void;
 		const connection = {
-			sendMessagePromise: () => new Promise((r) => (resolve = r))
+			sendMessagePromise: capabilities(['hls'], () => new Promise((r) => (resolve = r)))
 		} as unknown as Connection;
 		const controller = new AbortController();
 		const video = videoElement();
-		const loading = playCamera(connection, video, 'camera.door', 'hls', controller.signal, vi.fn());
+		const loading = playCamera(connection, video, 'camera.door', controller.signal, vi.fn());
+		await vi.waitFor(() => expect(resolve).toBeDefined());
 		controller.abort();
 		resolve({ url: '/late.m3u8' });
 		await loading;
@@ -49,18 +58,13 @@ describe('camera session ownership', () => {
 
 	it('reports a failed stream request and releases the media element', async () => {
 		const connection = {
-			sendMessagePromise: vi.fn().mockRejectedValue(new Error('offline'))
+			sendMessagePromise: capabilities(['hls'], async () => {
+				throw new Error('offline');
+			})
 		} as unknown as Connection;
 		const video = videoElement();
 		const onError = vi.fn();
-		await playCamera(
-			connection,
-			video,
-			'camera.door',
-			'hls',
-			new AbortController().signal,
-			onError
-		);
+		await playCamera(connection, video, 'camera.door', new AbortController().signal, onError);
 		expect(onError).toHaveBeenCalledTimes(1);
 		expect(video.pause).toHaveBeenCalledTimes(1);
 	});
@@ -89,19 +93,12 @@ describe('camera session ownership', () => {
 		let resolve!: (stop: () => Promise<void>) => void;
 		const subscribeMessage = vi.fn(() => new Promise((r) => (resolve = r)));
 		const connection = {
-			sendMessagePromise: vi.fn(async () => ({})),
+			sendMessagePromise: capabilities(['web_rtc', 'hls'], async () => ({})),
 			subscribeMessage
 		} as unknown as Connection;
 		const video = videoElement(),
 			controller = new AbortController();
-		const loading = playCamera(
-			connection,
-			video,
-			'camera.door',
-			'web_rtc',
-			controller.signal,
-			vi.fn()
-		);
+		const loading = playCamera(connection, video, 'camera.door', controller.signal, vi.fn());
 		await vi.waitFor(() => expect(subscribeMessage).toHaveBeenCalledOnce());
 		controller.abort();
 		resolve(unsubscribe);
@@ -110,5 +107,47 @@ describe('camera session ownership', () => {
 		expect(stopTrack).toHaveBeenCalledOnce();
 		expect(unsubscribe).toHaveBeenCalledOnce();
 		expect(video.srcObject).toBeNull();
+	});
+	it('does not request an HLS stream from a WebRTC-only camera', async () => {
+		vi.stubGlobal(
+			'RTCPeerConnection',
+			class {
+				addTransceiver = vi.fn();
+				createOffer = vi.fn(async () => ({ sdp: 'offer' }));
+				setLocalDescription = vi.fn(async () => {});
+				close = vi.fn();
+			}
+		);
+		vi.stubGlobal('MediaStream', class {});
+		const sendMessagePromise = capabilities(['web_rtc'], async () => ({}));
+		const subscribeMessage = vi.fn(async () => async () => {});
+		const connection = { sendMessagePromise, subscribeMessage } as unknown as Connection;
+		const onError = vi.fn();
+		await playCamera(
+			connection,
+			videoElement(),
+			'camera.door',
+			new AbortController().signal,
+			onError
+		);
+		const types = sendMessagePromise.mock.calls.map(([message]) => message.type);
+		expect(types).not.toContain('camera/stream');
+		expect(subscribeMessage).toHaveBeenCalledOnce();
+		expect(onError).not.toHaveBeenCalled();
+	});
+
+	it('reports a camera without stream types instead of requesting a stream', async () => {
+		const sendMessagePromise = capabilities([], async () => ({ url: '/stream.m3u8' }));
+		const connection = { sendMessagePromise } as unknown as Connection;
+		const onError = vi.fn();
+		await playCamera(
+			connection,
+			videoElement(),
+			'camera.door',
+			new AbortController().signal,
+			onError
+		);
+		expect(sendMessagePromise).toHaveBeenCalledOnce();
+		expect(onError).toHaveBeenCalledOnce();
 	});
 });

@@ -12,7 +12,6 @@ export async function playCamera(
 	connection: Connection,
 	video: HTMLVideoElement,
 	entity: string,
-	streamType: string | undefined,
 	signal: AbortSignal,
 	onError: () => void
 ): Promise<void> {
@@ -43,7 +42,14 @@ export async function playCamera(
 	};
 	signal.addEventListener('abort', dispose, { once: true });
 	try {
-		if (streamType !== 'web_rtc') {
+		// Home Assistant reports stream types through this command; the old
+		// frontend_stream_type state attribute is gone.
+		const { frontend_stream_types: types = [] } = await connection.sendMessagePromise<{
+			frontend_stream_types?: string[];
+		}>({ type: 'camera/capabilities', entity_id: entity });
+		if (closed) return;
+		if (!types.includes('web_rtc')) {
+			if (!types.includes('hls')) throw new Error('Camera does not support streaming');
 			const response = await connection.sendMessagePromise<{ url?: string }>({
 				type: 'camera/stream',
 				entity_id: entity
