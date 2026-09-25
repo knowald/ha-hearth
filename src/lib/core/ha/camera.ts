@@ -49,7 +49,11 @@ export async function playCamera(
 		}>({ type: 'camera/capabilities', entity_id: entity });
 		if (closed) return;
 		if (!types.includes('web_rtc')) {
-			if (!types.includes('hls')) throw new Error('Camera does not support streaming');
+			// A camera without a stream keeps showing its snapshot; retrying cannot help.
+			if (!types.includes('hls')) {
+				dispose();
+				return;
+			}
 			const response = await connection.sendMessagePromise<{ url?: string }>({
 				type: 'camera/stream',
 				entity_id: entity

@@ -203,3 +203,47 @@ test.describe('saving', () => {
 		await expect(page.getByText('Mine')).toBeVisible();
 	});
 });
+
+test.describe('camera playback', () => {
+	test.afterEach(() => writeFileSync(HEARTH_FILE, HEARTH_FIXTURE));
+
+	test('streams a WebRTC-only camera over WebRTC and leaves a snapshot camera alone', async ({
+		page,
+		request
+	}) => {
+		writeFileSync(
+			HEARTH_FILE,
+			`${HEARTH_FIXTURE}      - - id: door-camera
+          type: camera
+          entity: camera.door
+          title: Door camera
+          stream: true
+        - id: front-camera
+          type: camera
+          entity: camera.front
+          title: Front camera
+          stream: true
+`
+		);
+		await page.reload();
+		await expect(page.getByText('Door camera')).toBeVisible();
+		const requests = async () =>
+			(await (await request.get(`${FAKE_HASS}/_test/camera`)).json()) as {
+				type: string;
+				entity_id: string;
+			}[];
+		await expect
+			.poll(async () =>
+				(await requests())
+					.filter((message) => message.entity_id === 'camera.door')
+					.map((message) => message.type)
+			)
+			.toEqual(['camera/capabilities', 'camera/webrtc/get_client_config', 'camera/webrtc/offer']);
+		expect(
+			(await requests())
+				.filter((message) => message.entity_id === 'camera.front')
+				.map((message) => message.type)
+		).toEqual(['camera/capabilities']);
+		await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0);
+	});
+});

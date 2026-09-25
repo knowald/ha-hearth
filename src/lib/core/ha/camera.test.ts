@@ -136,7 +136,7 @@ describe('camera session ownership', () => {
 		expect(onError).not.toHaveBeenCalled();
 	});
 
-	it('reports a camera without stream types instead of requesting a stream', async () => {
+	it('leaves a camera without stream types on its snapshot without requesting a stream', async () => {
 		const sendMessagePromise = capabilities([], async () => ({ url: '/stream.m3u8' }));
 		const connection = { sendMessagePromise } as unknown as Connection;
 		const onError = vi.fn();
@@ -148,6 +148,6 @@ describe('camera session ownership', () => {
 			onError
 		);
 		expect(sendMessagePromise).toHaveBeenCalledOnce();
-		expect(onError).toHaveBeenCalledOnce();
+		expect(onError).not.toHaveBeenCalled();
 	});
 });

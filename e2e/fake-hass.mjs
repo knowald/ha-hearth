@@ -7,7 +7,9 @@ import { WebSocketServer } from 'ws';
  * lives in memory and every connected client receives the same entity stream.
  * Recorder statistics, state history, calendar events, template renders and
  * weather forecasts are synthesized so data-driven widgets have something to
- * draw. Test endpoints: GET /_test/calls lists received service calls,
+ * draw. Camera capabilities and WebRTC signaling are answered without media.
+ * Test endpoints: GET /_test/calls lists received service calls,
+ * GET /_test/camera lists received camera/* messages,
  * POST /_test/reset restores the initial states and clears the call log,
  * POST /_test/state with { entity_id, state, attributes } patches one entity.
  */
@@ -259,6 +261,10 @@ function initialStates() {
 			s: 'idle',
 			a: { friendly_name: 'Front camera', supported_features: 0 }
 		},
+		'camera.door': {
+			s: 'idle',
+			a: { friendly_name: 'Door camera', supported_features: 2 }
+		},
 		'image.floorplan': { s: '2026-09-01T00:00:00+00:00', a: { friendly_name: 'Floor plan' } },
 		'person.kevin': { s: 'home', a: { friendly_name: 'Kevin' } },
 		'device_tracker.phone': {
@@ -284,6 +290,10 @@ function initialStates() {
 
 let states = initialStates();
 let calls = [];
+let cameraRequests = [];
+// Stream types as Home Assistant reports them through camera/capabilities; the
+// door camera is WebRTC-only, like Ring live view.
+const cameraStreamTypes = { 'camera.front': [], 'camera.door': ['web_rtc'] };
 const entitySubscribers = new Map();
 
 function now() {
@@ -671,6 +681,40 @@ function handleMessage(socket, message) {
 				listeners: {}
 			});
 			return;
+		case 'camera/capabilities':
+			cameraRequests.push({ type: message.type, entity_id: message.entity_id });
+			reply({ frontend_stream_types: cameraStreamTypes[message.entity_id] ?? [] });
+			return;
+		case 'camera/stream':
+			cameraRequests.push({ type: message.type, entity_id: message.entity_id });
+			if (!cameraStreamTypes[message.entity_id]?.includes('hls')) {
+				socket.send(
+					JSON.stringify({
+						id: message.id,
+						type: 'result',
+						success: false,
+						error: {
+							code: 'home_assistant_error',
+							message: `${message.entity_id} does not support play stream service`
+						}
+					})
+				);
+				return;
+			}
+			reply({ url: '/api/hls/stream.m3u8' });
+			return;
+		case 'camera/webrtc/get_client_config':
+			cameraRequests.push({ type: message.type, entity_id: message.entity_id });
+			reply({ configuration: { iceServers: [] } });
+			return;
+		case 'camera/webrtc/offer':
+			cameraRequests.push({ type: message.type, entity_id: message.entity_id });
+			reply(null);
+			event({ type: 'session', session_id: 'session' });
+			return;
+		case 'camera/webrtc/candidate':
+			reply(null);
+			return;
 		case 'weather/subscribe_forecast':
 			reply(null);
 			event({ forecast: forecast() });
@@ -696,9 +740,15 @@ const http = createServer(async (request, response) => {
 		response.end(JSON.stringify(calls));
 		return;
 	}
+	if (request.url === '/_test/camera') {
+		response.setHeader('Content-Type', 'application/json');
+		response.end(JSON.stringify(cameraRequests));
+		return;
+	}
 	if (request.url === '/_test/reset' && request.method === 'POST') {
 		states = initialStates();
 		calls = [];
+		cameraRequests = [];
 		for (const entityId of Object.keys(states)) pushChange(entityId);
 		response.end('ok');
 		return;
