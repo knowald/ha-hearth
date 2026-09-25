@@ -227,7 +227,10 @@ test.describe('camera playback', () => {
 	}) => {
 		writeFileSync(
 			HEARTH_FILE,
-			`${HEARTH_FIXTURE}      - - id: door-camera
+			HEARTH_FIXTURE.replace(
+				'            - entity: sensor.temperature\n',
+				`            - entity: sensor.temperature
+      - - id: door-camera
           type: camera
           entity: camera.door
           title: Door camera
