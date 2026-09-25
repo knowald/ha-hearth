@@ -55,6 +55,20 @@ test('serves Hearth branding at the root and has no alternate dashboard route', 
 	for (const icon of manifest.icons) expect((await request.get(icon.src)).status()).toBe(200);
 });
 
+test('keeps page response headers under the 4k nginx proxy buffer', async ({ request }) => {
+	const response = await request.get('/');
+	const headers = response.headersArray();
+	expect(headers.find(({ name }) => name.toLowerCase() === 'link')).toBeUndefined();
+	const size = headers.reduce(
+		(total, { name, value }) => total + name.length + value.length + 4,
+		0
+	);
+	expect(size).toBeLessThan(2048);
+	const head = (await response.text()).split('</head>')[0];
+	expect(head).toMatch(/<link href="[^"]+\.js" rel="modulepreload">/);
+	expect(head).toMatch(/<link href="[^"]+\.css" rel="preload" as="style">/);
+});
+
 test('boots against the entity snapshot and shows live state', async ({ page }) => {
 	await expect(page.getByRole('button', { name: /Ceiling fan/ })).toHaveAttribute(
 		'aria-pressed',
