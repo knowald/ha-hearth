@@ -303,6 +303,21 @@ export interface AlertRule {
 	entity?: string;
 }
 
+export type ScreensaverBackground = 'none' | 'image' | 'radar';
+export type ScreensaverClockSize = 'small' | 'medium' | 'large';
+
+/** The radar map's view; the location falls back to the Home Assistant home. */
+export interface ScreensaverRadar {
+	latitude?: number;
+	longitude?: number;
+	zoom?: number;
+	basemap?: 'dark' | 'light';
+	/** Leaflet tile URL template replacing the OpenStreetMap basemap. */
+	tile_url?: string;
+	/** Plain-text credit for tile_url's provider. */
+	attribution?: string;
+}
+
 export interface HearthConfig {
 	theme?: HearthTheme;
 	// full replacement for theme while day_night resolves to night
@@ -318,6 +333,15 @@ export interface HearthConfig {
 	screensaver_drift?: boolean;
 	/** Clock brightness from 10 to 100 percent. */
 	screensaver_brightness?: number;
+	// what fills the screen behind the clock; plain black when unset
+	screensaver_background?: ScreensaverBackground;
+	/** A URL or `hearth-images/<file>`, shown when the background is `image`. */
+	screensaver_image?: string;
+	screensaver_radar?: ScreensaverRadar;
+	screensaver_show_date?: boolean;
+	screensaver_clock_size?: ScreensaverClockSize;
+	/** Weather entity whose condition and temperature show under the clock. */
+	screensaver_weather_entity?: string;
 	keep_screen_on?: boolean;
 	// progressive blur where a scroll container cuts content off; costs a
 	// backdrop pass per layer, so weak tablets can turn it off

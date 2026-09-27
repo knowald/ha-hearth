@@ -323,6 +323,17 @@ export function moveItem<T>(list: T[], index: number, delta: number) {
 	list.splice(target, 0, item);
 }
 
+/**
+ * Map zoom range for the sleep screen radar. RainViewer serves radar tiles up
+ * to zoom 7, and nothing below 3 shows weather at a useful scale.
+ */
+export const RADAR_ZOOM = { min: 3, max: 7, fallback: 6 } as const;
+
+/** A Leaflet raster tile template: http(s) with {z}, {x} and {y} placeholders. */
+export function isTileUrl(value: string): boolean {
+	return /^https?:\/\//.test(value) && ['{z}', '{x}', '{y}'].every((part) => value.includes(part));
+}
+
 export const PRESS_RIPPLE = {
 	color: 'rgb(var(--h-line-rgb) / calc(0.12 * var(--h-line-scale)))'
 };

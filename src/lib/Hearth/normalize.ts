@@ -7,9 +7,17 @@ import type {
 	OverviewItem,
 	OverviewStack,
 	RailPosition,
-	RailWidget
+	RailWidget,
+	ScreensaverRadar
 } from './types';
-import { DEFAULT_HEARTH_CONFIG, normalizeVisibility, resizeCardColumns, uniqueId } from './config';
+import {
+	DEFAULT_HEARTH_CONFIG,
+	normalizeVisibility,
+	isTileUrl,
+	RADAR_ZOOM,
+	resizeCardColumns,
+	uniqueId
+} from './config';
 import {
 	isRecord,
 	normalizeFill,
@@ -66,6 +74,34 @@ function normalizeTheme(raw: unknown): HearthTheme | undefined {
 	return Object.fromEntries(
 		Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string')
 	);
+}
+
+const SCREENSAVER_CLOCK_SIZES = new Set<unknown>(['small', 'medium', 'large']);
+
+function coordinate(raw: unknown, limit: number): number | undefined {
+	return typeof raw === 'number' && Number.isFinite(raw) && Math.abs(raw) <= limit
+		? raw
+		: undefined;
+}
+
+/** Out-of-range zoom is clamped; unusable coordinates fall back to the home location. */
+function normalizeScreensaverRadar(raw: unknown): ScreensaverRadar | undefined {
+	if (!isRecord(raw)) return undefined;
+	const radar: ScreensaverRadar = {
+		latitude: coordinate(raw.latitude, 90),
+		longitude: coordinate(raw.longitude, 180),
+		zoom:
+			typeof raw.zoom === 'number' && Number.isFinite(raw.zoom)
+				? Math.min(RADAR_ZOOM.max, Math.max(RADAR_ZOOM.min, Math.round(raw.zoom)))
+				: undefined,
+		basemap: raw.basemap === 'light' || raw.basemap === 'dark' ? raw.basemap : undefined,
+		tile_url:
+			typeof raw.tile_url === 'string' && isTileUrl(raw.tile_url.trim())
+				? raw.tile_url.trim()
+				: undefined,
+		attribution: trimmedOrUndefined(raw.attribution)
+	};
+	return Object.values(radar).some((value) => value !== undefined) ? radar : undefined;
 }
 
 export function hearthConfigIssues(raw: unknown): string[] {
@@ -330,6 +366,12 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'screensaver_minutes',
 		'screensaver_drift',
 		'screensaver_brightness',
+		'screensaver_background',
+		'screensaver_image',
+		'screensaver_radar',
+		'screensaver_show_date',
+		'screensaver_clock_size',
+		'screensaver_weather_entity',
 		'keep_screen_on',
 		'scroll_edge_blur',
 		'swipe_navigation_mobile',
@@ -356,6 +398,18 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 			Number.isFinite(config.screensaver_brightness)
 				? Math.min(100, Math.max(10, Math.round(config.screensaver_brightness)))
 				: undefined,
+		screensaver_background:
+			config.screensaver_background === 'image' || config.screensaver_background === 'radar'
+				? config.screensaver_background
+				: undefined,
+		screensaver_image: trimmedOrUndefined(config.screensaver_image),
+		screensaver_radar: normalizeScreensaverRadar(config.screensaver_radar),
+		screensaver_show_date:
+			typeof config.screensaver_show_date === 'boolean' ? config.screensaver_show_date : undefined,
+		screensaver_clock_size: SCREENSAVER_CLOCK_SIZES.has(config.screensaver_clock_size)
+			? config.screensaver_clock_size
+			: undefined,
+		screensaver_weather_entity: trimmedOrUndefined(config.screensaver_weather_entity),
 		keep_screen_on: typeof config.keep_screen_on === 'boolean' ? config.keep_screen_on : undefined,
 		scroll_edge_blur:
 			typeof config.scroll_edge_blur === 'boolean' ? config.scroll_edge_blur : undefined,

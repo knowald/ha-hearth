@@ -341,6 +341,86 @@ describe('wall tablet settings', () => {
 	});
 });
 
+describe('sleep screen settings', () => {
+	const base = { rail: [], rooms: [{ id: 'home', cards: [[]] }] };
+
+	it('keeps valid sleep screen options', () => {
+		expect(
+			normalizeHearthConfig({
+				...base,
+				screensaver_background: 'radar',
+				screensaver_image: ' hearth-images/a.png ',
+				screensaver_radar: { latitude: 52.2, longitude: 21, zoom: 5, basemap: 'light' },
+				screensaver_show_date: false,
+				screensaver_clock_size: 'large',
+				screensaver_weather_entity: ' weather.home '
+			})
+		).toMatchObject({
+			screensaver_background: 'radar',
+			screensaver_image: 'hearth-images/a.png',
+			screensaver_radar: { latitude: 52.2, longitude: 21, zoom: 5, basemap: 'light' },
+			screensaver_show_date: false,
+			screensaver_clock_size: 'large',
+			screensaver_weather_entity: 'weather.home'
+		});
+	});
+
+	it('drops unusable options and clamps the radar zoom to what RainViewer serves', () => {
+		const config = normalizeHearthConfig({
+			...base,
+			screensaver_background: 'none',
+			screensaver_image: '  ',
+			screensaver_radar: { latitude: 120, longitude: 'east', zoom: 12, basemap: 'sepia' },
+			screensaver_show_date: 'no',
+			screensaver_clock_size: 'huge'
+		});
+		expect(config.screensaver_background).toBeUndefined();
+		expect(config.screensaver_image).toBeUndefined();
+		expect(config.screensaver_radar).toEqual({ zoom: 7 });
+		expect(config.screensaver_show_date).toBeUndefined();
+		expect(config.screensaver_clock_size).toBeUndefined();
+		expect(normalizeHearthConfig({ ...base, screensaver_radar: { zoom: 0 } })).toMatchObject({
+			screensaver_radar: { zoom: 3 }
+		});
+		expect(
+			normalizeHearthConfig({ ...base, screensaver_radar: { basemap: 1 } }).screensaver_radar
+		).toBeUndefined();
+	});
+
+	it('keeps a custom basemap only when it is a tile template', () => {
+		const radar = (tile_url: string) =>
+			normalizeHearthConfig({ ...base, screensaver_radar: { tile_url, attribution: ' Me ' } })
+				.screensaver_radar;
+		expect(radar(' https://tiles.example/{z}/{x}/{y}.png ')).toEqual({
+			tile_url: 'https://tiles.example/{z}/{x}/{y}.png',
+			attribution: 'Me'
+		});
+		expect(radar('javascript:alert(1)/{z}/{x}/{y}')).toEqual({ attribution: 'Me' });
+		expect(
+			hearthConfigIssues({ ...base, screensaver_radar: { tile_url: 'https://x/{z}.png' } })
+		).toEqual(['screensaver_radar.tile_url must be an http(s) URL with {z}, {x} and {y}']);
+	});
+
+	it('reports sleep screen values the normalizer would discard', () => {
+		expect(
+			hearthConfigIssues({
+				...base,
+				screensaver_background: 'video',
+				screensaver_radar: { latitude: 91, zoom: 9, basemap: 'sepia' },
+				screensaver_clock_size: 'huge',
+				screensaver_weather_entity: ''
+			})
+		).toEqual([
+			'screensaver_background must be none, image or radar',
+			'screensaver_radar.latitude must be -90 to 90',
+			'screensaver_radar.zoom must be 3 to 7',
+			'screensaver_radar.basemap must be dark or light',
+			'screensaver_clock_size must be small, medium or large',
+			'screensaver_weather_entity must be a non-empty string'
+		]);
+	});
+});
+
 describe('foldedTopCount', () => {
 	const rail = [
 		{ id: 'nav', type: 'nav' },

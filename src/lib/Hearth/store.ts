@@ -33,6 +33,9 @@ export const configurationLoadError = writable<string | null>(null);
 
 export const setupWizardOpen = writable(false);
 
+// shows the sleep screen at once, even with the idle timeout off
+export const screensaverPreview = writable(false);
+
 // server-managed save counter for conflict detection between tabs
 export const hearthRevision = writable(0);
 

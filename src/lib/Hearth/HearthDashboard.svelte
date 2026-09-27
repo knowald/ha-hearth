@@ -9,6 +9,7 @@
 		hearthEditMode,
 		hearthLoadError,
 		hearthNeedsSetup,
+		screensaverPreview,
 		setupWizardOpen
 	} from './store';
 	import {
@@ -28,7 +29,6 @@
 	import EmptyState from './EmptyState.svelte';
 	import Rail from './Rail.svelte';
 	import RoomDetail from './RoomDetail.svelte';
-	import Screensaver from './Screensaver.svelte';
 	import SearchOverlay from './SearchOverlay.svelte';
 	import SetupWizard from './SetupWizard.svelte';
 	import ConfirmDialog from './shell/ConfirmDialog.svelte';
@@ -48,6 +48,15 @@
 	import { neighborRoom, swipeNav, type SwipeDirection } from './swipeNav';
 
 	let showSearch = $state(false);
+
+	// a preview that cannot load must not stay pending, or the next one is a no-op
+	function loadScreensaver() {
+		return import('./Screensaver.svelte').catch((error) => {
+			console.warn('screensaver unavailable', error);
+			screensaverPreview.set(false);
+			throw error;
+		});
+	}
 
 	// search belongs to the running dashboard; every way of asking for it
 	// (rail widget, page switcher, f key) goes through here
@@ -355,8 +364,13 @@
 	{#if showSearch}
 		<SearchOverlay onclose={() => (showSearch = false)} />
 	{/if}
-	{#if ($hearthConfig.screensaver_minutes ?? 0) > 0}
-		<Screensaver minutes={$hearthConfig.screensaver_minutes} />
+	{#if ($hearthConfig.screensaver_minutes ?? 0) > 0 || $screensaverPreview}
+		<!-- loads once armed; the dashboard never waits on it -->
+		{#await loadScreensaver() then Screensaver}
+			<Screensaver.default minutes={$hearthConfig.screensaver_minutes} />
+		{:catch}
+			<!-- offline or a stale deploy: no screensaver, tried again on the next mount -->
+		{/await}
 	{/if}
 	{#if $setupWizardOpen}
 		<SetupWizard firstRun={$hearthNeedsSetup} onclose={() => setupWizardOpen.set(false)} />
