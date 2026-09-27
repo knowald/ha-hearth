@@ -3,13 +3,7 @@
 	import { base } from '$app/paths';
 	import { configuration } from '$lib/core/app/configuration';
 	import { deviceName, saveDeviceName } from '$lib/core/app/device';
-	import {
-		hapticCapabilities,
-		haptics,
-		hapticsSupported,
-		sampleVibration,
-		vibrate
-	} from '$lib/core/app/haptics';
+	import { haptics, hapticsSupported, sampleVibration, vibrate } from '$lib/core/app/haptics';
 	import { motion } from '$lib/core/app/motion';
 	import { MOTION } from '$lib/core/theme';
 	import { lang, selectedLanguage, translation } from '$lib/core/i18n';
@@ -24,7 +18,6 @@
 	let reduceMotion = $state($motion === 0);
 	let touchFeedback = $state($haptics);
 	let feedbackSupported = $state(true);
-	let feedbackNeedsHttps = $state(false);
 	let token = $state($configuration?.token ?? '');
 	let customJs = $state($configuration?.custom_js ?? false);
 	// may come from a ?device= override, which is not this browser's to keep
@@ -41,13 +34,7 @@
 	}
 
 	let touchFeedbackSub = $derived(
-		$lang(
-			feedbackSupported
-				? 'hearth_touch_feedback_sub'
-				: feedbackNeedsHttps
-					? 'hearth_touch_feedback_needs_https'
-					: 'hearth_touch_feedback_unsupported'
-		)
+		$lang(feedbackSupported ? 'hearth_touch_feedback_sub' : 'hearth_touch_feedback_unsupported')
 	);
 
 	const initial = JSON.stringify(staged());
@@ -55,7 +42,6 @@
 
 	onMount(async () => {
 		feedbackSupported = hapticsSupported();
-		feedbackNeedsHttps = !feedbackSupported && !hapticCapabilities().secureContext;
 		try {
 			const [languageResponse, versionResponse] = await Promise.all([
 				fetch(`${base}/_api/list_languages`),
