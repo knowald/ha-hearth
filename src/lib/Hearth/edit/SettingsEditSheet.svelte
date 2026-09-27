@@ -17,6 +17,8 @@
 	let keepScreenOn = $derived($hearthConfig.keep_screen_on ?? true);
 	let scrollEdgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
 	let railPosition = $derived(railPositionOf($hearthConfig));
+	let swipeMobile = $derived($hearthConfig.swipe_navigation_mobile ?? false);
+	let swipeDesktop = $derived($hearthConfig.swipe_navigation_desktop ?? false);
 	let paddingX = $derived($hearthConfig.padding_x ?? 0);
 	let paddingY = $derived($hearthConfig.padding_y ?? 0);
 
@@ -78,6 +80,12 @@
 	function setScrollEdgeBlur(enabled: boolean) {
 		updateConfig((config) => {
 			config.scroll_edge_blur = enabled ? undefined : false;
+		});
+	}
+
+	function setSwipe(key: 'swipe_navigation_mobile' | 'swipe_navigation_desktop', enabled: boolean) {
+		updateConfig((config) => {
+			config[key] = enabled ? true : undefined;
 		});
 	}
 
@@ -180,6 +188,26 @@
 						value={railPosition}
 						options={RAIL_POSITION_OPTIONS}
 						onchange={setRailPosition}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={$lang('hearth_swipe_between_pages_on_phones')}
+					sub={$lang('hearth_swipe_sideways_over_the_page')}
+				>
+					<Switch
+						checked={swipeMobile}
+						label={$lang('hearth_swipe_between_pages_on_phones')}
+						onchange={(enabled) => setSwipe('swipe_navigation_mobile', enabled)}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={$lang('hearth_swipe_between_pages_on_wide_screens')}
+					sub={$lang('hearth_drag_sideways_over_the_page')}
+				>
+					<Switch
+						checked={swipeDesktop}
+						label={$lang('hearth_swipe_between_pages_on_wide_screens')}
+						onchange={(enabled) => setSwipe('swipe_navigation_desktop', enabled)}
 					/>
 				</SettingsRow>
 				<SettingsRow

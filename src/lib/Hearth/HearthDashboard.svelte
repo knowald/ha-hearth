@@ -40,6 +40,8 @@
 	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
 	import { mediaQuery } from '$lib/ui/mediaQuery';
 	import { FOLD_QUERY, SHORT_QUERY } from './breakpoints';
+	import { layerDepth } from '$lib/ui/layers';
+	import { neighborRoom, swipeNav, type SwipeDirection } from './swipeNav';
 
 	let showSearch = $state(false);
 
@@ -91,6 +93,21 @@
 	);
 
 	let activeRoom = $derived($hearthConfig.rooms.find((room) => room.id === activeRoomId));
+
+	// sideways swipes walk the pages in rail order; each layout has its own
+	// setting, since a mouse drag on a wall tablet is a different habit
+	let swipeEnabled = $derived(
+		($narrow ? $hearthConfig.swipe_navigation_mobile : $hearthConfig.swipe_navigation_desktop) ===
+			true &&
+			!$hearthEditMode &&
+			$layerDepth === 0
+	);
+	let activeIndex = $derived($hearthConfig.rooms.findIndex((room) => room.id === activeRoomId));
+
+	function swipeTo(direction: SwipeDirection) {
+		const roomId = neighborRoom($hearthConfig.rooms, activeRoomId, direction);
+		if (roomId) currentRoom.set(roomId);
+	}
 
 	// a fill page clips whatever does not fit, which is invisible until you walk
 	// to the tablet - so while editing, measure and say by how much
@@ -236,6 +253,12 @@
 			class:fill={activeRoom?.fill_screen}
 			bind:this={mainElement}
 			use:scrollEdges={{ report: (edges) => (mainCut = edges) }}
+			use:swipeNav={{
+				enabled: swipeEnabled,
+				hasPrevious: activeIndex > 0,
+				hasNext: activeIndex >= 0 && activeIndex < $hearthConfig.rooms.length - 1,
+				onswipe: swipeTo
+			}}
 		>
 			{#if $hearthNeedsSetup && !$hearthLoadError && !$hearthEditMode && !$setupWizardOpen}
 				<div class="setup-prompt">
@@ -457,6 +480,12 @@
 		min-width: 0;
 		min-height: 0;
 		margin: -32px;
+	}
+
+	/* the page slides sideways during a swipe; past the column it would pass
+	   over the rail. The box matches the one .main already clips at. */
+	.layout:not(.narrow) .main-wrap {
+		overflow: clip;
 	}
 
 	.main {

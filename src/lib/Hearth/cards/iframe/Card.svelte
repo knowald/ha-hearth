@@ -5,7 +5,7 @@
 	let { card }: { card: IframeCard } = $props();
 </script>
 
-<div class="section">
+<div class="section" data-no-swipe>
 	{#if card.title}
 		<div class="section-title">{card.title}</div>
 	{/if}

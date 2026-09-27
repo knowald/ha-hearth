@@ -1,6 +1,7 @@
 import type { Action } from 'svelte/action';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import { vibrate } from '$lib/core/app/haptics';
+import { claimGesture } from '$lib/ui/gestures';
 
 interface DragOptions {
 	/** Updates the preview. `commit` says whether device state should also be sent. */
@@ -76,6 +77,7 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 	function handleDown(event: PointerEvent) {
 		if (current.disabled) return;
 		if (current.ignore && (event.target as Element).closest?.(current.ignore)) return;
+		claimGesture(event);
 		try {
 			node.setPointerCapture(event.pointerId);
 		} catch {

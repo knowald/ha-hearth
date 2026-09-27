@@ -46,7 +46,8 @@
 	});
 </script>
 
-<div class="player">
+<!-- video controls scrub sideways; a page swipe must not start here -->
+<div class="player" data-no-swipe>
 	{#if poster && !playing}<img src={poster} alt="" />{/if}
 	<video
 		bind:this={video}
