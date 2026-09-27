@@ -19,7 +19,11 @@
 		type RailPosition,
 		type RailSide
 	} from './config';
-	import { mediaQueriesIn, railWidgetShown } from './visibility';
+	import { conditionsHold, mediaQueriesIn, railWidgetShown } from './visibility';
+	import type { AlertHost } from './alertEngine';
+	import { openEntityDetail } from './details';
+	import { loadMarkdownRenderer } from './markdown';
+	import { layer } from '$lib/ui/layers';
 	import ControlPopup from './ControlPopup.svelte';
 	import EmptyState from './EmptyState.svelte';
 	import Rail from './Rail.svelte';
@@ -234,6 +238,14 @@
 		roomParamRead = true;
 	});
 
+	// see AlertHost in alertEngine.ts for why these are handed over
+	const alertHost: AlertHost = {
+		openDetail: openEntityDetail,
+		holds: conditionsHold,
+		layer,
+		loadMarkdown: loadMarkdownRenderer
+	};
+
 	// search only opens outside edit mode (see openSearch); should edit mode
 	// start while it is open anyway, it closes rather than staying stranded
 	// above the edit bar
@@ -349,6 +361,10 @@
 	{#if $setupWizardOpen}
 		<SetupWizard firstRun={$hearthNeedsSetup} onclose={() => setupWizardOpen.set(false)} />
 	{/if}
+	<!-- alerts are not needed to draw the first frame; the layer loads after it -->
+	{#await import('./AlertLayer.svelte') then AlertLayer}
+		<AlertLayer.default host={alertHost} />
+	{/await}
 	<ConfirmDialog />
 	<Toasts {overflowBy} />
 	<EditBar {hideEditToggle} />

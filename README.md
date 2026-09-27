@@ -81,6 +81,58 @@ Camera playback supports HLS and WebRTC with a still-image fallback. Calendar wi
 
 Touch feedback is off by default and vibrates on presses, long presses, slider steps, saves and failed commands. It needs both a browser that implements the Vibration API and a secure origin: Chrome on Android over https or localhost works, and the same page over plain http does not vibrate at all even though the call reports success. Firefox for Android does not provide the API. iOS Safari 18 has no Vibration API either and is driven through a switch toggle instead, which the browser only honors during the gesture that triggered it.
 
+## Alerts
+
+Alerts pop up over the dashboard, wake the screensaver and are listed by the notifications rail widget together with Home Assistant's persistent notifications. Dismissing an alert hides it on that screen only. Dismissing a persistent notification dismisses it in Home Assistant, for every screen.
+
+### Rules
+
+Rules are edited under Settings > Alerts and stored in `hearth.yaml`. Each screen checks them in the browser against live entity states. A rule raises its alert once all of its conditions (the same conditions as card visibility) have held for `for_seconds`, and clears it when they stop holding. Use rules for alerts that follow a state, such as a door left open:
+
+```yaml
+alerts:
+  - id: fridge_door
+    title: Fridge door open
+    message: The fridge door has been open for 2 minutes.
+    severity: warning # info (default), warning or critical
+    for_seconds: 120 # 0 to 86400
+    conditions:
+      - entity: binary_sensor.fridge_door
+        state: 'on'
+    # popup: false        only list it in the notifications widget
+    # auto_close: false   keep it until dismissed after the door closes
+    # entity: binary_sensor.fridge_door   open this entity's popup instead of an alert card
+```
+
+A dismissed rule stays quiet until its conditions stop holding, then arms again.
+
+### Home Assistant events
+
+Automations can raise alerts and open or close popups by firing a `HEARTH` event. Event alerts live in the browser's memory only: a reload clears them, and a `dismiss_alert` sent while a screen was disconnected never reaches it. Use events for one-shot notices and rules for anything that follows a state.
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id: sensor.washer_status
+    to: finished
+actions:
+  - event: HEARTH
+    event_data:
+      action: alert
+      tag: washer
+      title: Washer finished
+      message: Move the laundry to the dryer.
+```
+
+| `action`        | Fields                                                                                                                                   |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `alert`         | `title`, optional `tag` (defaults to the title), `message`, `icon`, `severity` (`info`, `warning`, `critical`), `popup: false`, `entity` |
+| `dismiss_alert` | `tag`                                                                                                                                    |
+| `open_popup`    | `entity`, optional `name`                                                                                                                |
+| `close_popup`   | optional `entity`: only that entity's popup closes                                                                                       |
+
+Every action accepts `device`, a name or a list of names. A screen acts on the event only when its own device name, set in the application settings or with `?device=<name>` in the URL, is among them. `event: refresh` still reloads every screen.
+
 ## Development
 
 ```sh

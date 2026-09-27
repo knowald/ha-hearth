@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import { configuration } from '$lib/core/app/configuration';
+	import { deviceName, saveDeviceName } from '$lib/core/app/device';
 	import {
 		hapticCapabilities,
 		haptics,
@@ -26,6 +27,9 @@
 	let feedbackNeedsHttps = $state(false);
 	let token = $state($configuration?.token ?? '');
 	let customJs = $state($configuration?.custom_js ?? false);
+	// may come from a ?device= override, which is not this browser's to keep
+	const shownDevice = $deviceName;
+	let device = $state(shownDevice);
 	let installedVersion = $state<string>();
 	let saveError = $state<string | null>(null);
 	// the revision the server holds after another session saved first
@@ -33,7 +37,7 @@
 	let saving = $state(false);
 
 	function staged() {
-		return { locale, reduceMotion, touchFeedback, token, customJs };
+		return { locale, reduceMotion, touchFeedback, token, customJs, device };
 	}
 
 	let touchFeedbackSub = $derived(
@@ -130,6 +134,7 @@
 			$selectedLanguage = locale;
 			$motion = reduceMotion ? 0 : MOTION.base;
 			$haptics = touchFeedback;
+			if (device !== shownDevice) saveDeviceName(device);
 			vibrate('success');
 			document.documentElement.lang = locale || 'en';
 
@@ -220,6 +225,17 @@
 					spellcheck="false"
 					onfocus={handleKeyFocus}
 					onblur={handleKeyFocus}
+				/>
+			</SettingsRow>
+			<SettingsRow label={$lang('hearth_device_name')} sub={$lang('hearth_device_name_sub')}>
+				<input
+					class="inline-text"
+					type="text"
+					aria-label={$lang('hearth_device_name')}
+					bind:value={device}
+					placeholder="kitchen"
+					autocomplete="off"
+					spellcheck="false"
 				/>
 			</SettingsRow>
 			<SettingsRow label={$lang('hearth_custom_js')} sub={$lang('hearth_custom_js_sub')}>

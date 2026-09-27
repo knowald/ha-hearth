@@ -278,6 +278,31 @@ export interface OverviewStack {
 /** Anything that can occupy a top-level slot in an overview column. */
 export type OverviewItem = OverviewCard | OverviewStack;
 
+export type AlertSeverity = 'info' | 'warning' | 'critical';
+
+/**
+ * An alert raised from entity states: it fires once every condition has held
+ * for for_seconds and clears when they stop holding. Home Assistant can raise
+ * alerts too, through the HEARTH event; those are not configured here.
+ */
+export interface AlertRule {
+	id: string;
+	title: string;
+	message?: string;
+	icon?: string;
+	severity: AlertSeverity;
+	conditions: VisibilityCondition[];
+	for_seconds?: number;
+	// unset means true: the alert pops up over the dashboard, not only in the
+	// notifications widget
+	popup?: boolean;
+	// unset means true: the alert and its popup go away once the conditions
+	// stop holding; false keeps it until someone dismisses it
+	auto_close?: boolean;
+	// pops up this entity's detail popup instead of an alert card
+	entity?: string;
+}
+
 export interface HearthConfig {
 	theme?: HearthTheme;
 	// full replacement for theme while day_night resolves to night
@@ -304,4 +329,5 @@ export interface HearthConfig {
 	// extra edge padding in px, for kiosks whose frame covers screen edges
 	padding_x?: number;
 	padding_y?: number;
+	alerts?: AlertRule[];
 }

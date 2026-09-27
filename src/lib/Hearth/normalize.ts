@@ -25,6 +25,7 @@ import {
 	widgetDefinition
 } from './model/registry';
 import { currentHearthConfig } from './format';
+import { AlertRuleSchema, normalizeAlertRules } from './model/alerts';
 import * as v from 'valibot';
 import {
 	CardSharedSchema,
@@ -124,6 +125,22 @@ export function hearthConfigIssues(raw: unknown): string[] {
 			report(WidgetSharedSchema, widget, path);
 			report(widgetDefinition(widget.type)!.schema, widget, path);
 		});
+	}
+
+	if (raw.alerts !== undefined && raw.alerts !== null) {
+		if (!Array.isArray(raw.alerts)) issues.push('alerts must be a list');
+		else {
+			const alertIds = new Map<string, string>();
+			raw.alerts.forEach((rule, index) => {
+				const path = `alerts[${index}]`;
+				if (!isRecord(rule)) {
+					issues.push(`${path} must be an alert mapping`);
+					return;
+				}
+				checkId(rule.id, path, alertIds);
+				report(AlertRuleSchema, rule, path);
+			});
+		}
 	}
 
 	if (!Array.isArray(raw.rooms)) issues.push('rooms must be a list');
@@ -318,7 +335,8 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'swipe_navigation_mobile',
 		'swipe_navigation_desktop',
 		'padding_x',
-		'padding_y'
+		'padding_y',
+		'alerts'
 	]) {
 		delete extensions[key];
 	}
@@ -344,6 +362,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		swipe_navigation_mobile: config.swipe_navigation_mobile === true ? true : undefined,
 		swipe_navigation_desktop: config.swipe_navigation_desktop === true ? true : undefined,
 		padding_x: normalizeWholeNumber(config.padding_x, 0),
-		padding_y: normalizeWholeNumber(config.padding_y, 0)
+		padding_y: normalizeWholeNumber(config.padding_y, 0),
+		alerts: normalizeAlertRules(config.alerts)
 	};
 }

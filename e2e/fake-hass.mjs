@@ -11,7 +11,9 @@ import { WebSocketServer } from 'ws';
  * Test endpoints: GET /_test/calls lists received service calls,
  * GET /_test/camera lists received camera/* messages,
  * POST /_test/reset restores the initial states and clears the call log,
- * POST /_test/state with { entity_id, state, attributes } patches one entity.
+ * POST /_test/state with { entity_id, state, attributes } patches one entity,
+ * POST /_test/fire_event with an event data object fires a HEARTH event at
+ * every subscribe_trigger subscription listening for it.
  */
 
 const PORT = Number(process.env.FAKE_HASS_PORT ?? 8124);
@@ -295,6 +297,8 @@ let cameraRequests = [];
 // door camera is WebRTC-only, like Ring live view.
 const cameraStreamTypes = { 'camera.front': [], 'camera.door': ['web_rtc'] };
 const entitySubscribers = new Map();
+// socket -> subscription ids of subscribe_trigger messages for HEARTH events
+const triggerSubscribers = new Map();
 
 function now() {
 	return Math.floor(Date.now() / 1000);
@@ -719,9 +723,16 @@ function handleMessage(socket, message) {
 			reply(null);
 			event({ forecast: forecast() });
 			return;
+		case 'subscribe_trigger':
+			if (message.trigger?.platform === 'event' && message.trigger?.event_type === 'HEARTH') {
+				if (!triggerSubscribers.has(socket)) triggerSubscribers.set(socket, new Set());
+				triggerSubscribers.get(socket).add(message.id);
+			}
+			reply(null);
+			return;
 		default:
-			// subscribe_events, subscribe_trigger and anything else the dashboard
-			// opens are accepted and never fire
+			// subscribe_events and anything else the dashboard opens are
+			// accepted and never fire
 			reply(null);
 	}
 }
@@ -774,9 +785,49 @@ const http = createServer(async (request, response) => {
 		response.end('ok');
 		return;
 	}
+	if (request.url === '/_test/fire_event' && request.method === 'POST') {
+		let data;
+		try {
+			data = JSON.parse((await readBody(request)) || '{}');
+		} catch {
+			response.statusCode = 400;
+			response.end('invalid JSON');
+			return;
+		}
+		fireHearthEvent(data);
+		response.end('ok');
+		return;
+	}
 	response.statusCode = 404;
 	response.end();
 });
+
+// the shape Home Assistant sends for a subscribe_trigger event trigger
+function fireHearthEvent(data) {
+	const context = { id: 'ctx', parent_id: null, user_id: null };
+	const trigger = {
+		id: '0',
+		idx: '0',
+		alias: null,
+		platform: 'event',
+		event: {
+			event_type: 'HEARTH',
+			data,
+			origin: 'LOCAL',
+			time_fired: new Date().toISOString(),
+			context
+		},
+		description: 'event HEARTH'
+	};
+	for (const [socket, ids] of triggerSubscribers) {
+		if (socket.readyState !== socket.OPEN) continue;
+		for (const id of ids) {
+			socket.send(
+				JSON.stringify({ id, type: 'event', event: { variables: { trigger }, context } })
+			);
+		}
+	}
+}
 
 const wss = new WebSocketServer({ server: http, path: '/api/websocket' });
 
@@ -795,7 +846,10 @@ wss.on('connection', (socket) => {
 		}
 		handleMessage(socket, message);
 	});
-	socket.on('close', () => entitySubscribers.delete(socket));
+	socket.on('close', () => {
+		entitySubscribers.delete(socket);
+		triggerSubscribers.delete(socket);
+	});
 });
 
 http.listen(PORT, '127.0.0.1', () => {

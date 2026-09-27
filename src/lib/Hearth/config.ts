@@ -194,6 +194,9 @@ export function wildcardEntityIds(pattern: string | undefined, entityIds: string
 }
 
 /** Card types that take a share of the leftover height unless told otherwise. */
+/** The longest an alert rule may wait, one day; longer waits belong in Home Assistant. */
+export const MAX_ALERT_SECONDS = 86_400;
+
 export const DEFAULT_HEARTH_CONFIG: HearthConfig = {
 	// sun.sun is part of a standard Home Assistant installation; without a
 	// configured night theme this switch is inert.

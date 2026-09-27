@@ -4,7 +4,8 @@
 	import { motion } from '$lib/core/app/motion';
 	import { MOTION } from '$lib/core/theme';
 	import { lang, selectedLanguage } from '$lib/core/i18n';
-	import { displayTimeZone, hearthConfig } from './store';
+	import { derived } from 'svelte/store';
+	import { activeAlerts, displayTimeZone, hearthConfig, hearthEditMode, wakeScreen } from './store';
 	import { clockTimeOptions } from './clock';
 	import { timer } from '$lib/core/app/clock';
 	import { layer } from '$lib/ui/layers';
@@ -16,10 +17,12 @@
 
 	let lastActivity = Date.now();
 	let idleTimer: ReturnType<typeof setTimeout>;
+	// an alert card on screen must stay readable, so the idle clock waits for it
+	let alertShowing = false;
 
 	function scheduleIdle() {
 		clearTimeout(idleTimer);
-		if (active) return;
+		if (active || alertShowing) return;
 		const remaining = Math.max(0, minutes * 60_000 - (Date.now() - lastActivity));
 		idleTimer = setTimeout(() => (active = true), remaining);
 	}
@@ -56,6 +59,26 @@
 			clearTimeout(idleTimer);
 		};
 	});
+
+	// an alert or a popup Home Assistant opened must be seen, so it wakes the
+	// screen; the store's current value at subscribe time is not a request
+	$effect(() => {
+		let initial = true;
+		return wakeScreen.subscribe(() => {
+			if (!initial) hide();
+			initial = false;
+		});
+	});
+
+	$effect(() =>
+		derived(
+			[activeAlerts, hearthEditMode],
+			([$alerts, $editing]) => !$editing && $alerts.some((alert) => alert.popup)
+		).subscribe((showing) => {
+			alertShowing = showing;
+			scheduleIdle();
+		})
+	);
 
 	let configuredClock = $derived($hearthConfig.rail.find((widget) => widget.type === 'clock'));
 	let activeTimezone = $derived($displayTimeZone);

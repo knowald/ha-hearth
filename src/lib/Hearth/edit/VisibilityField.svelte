@@ -12,15 +12,21 @@
 
 	let {
 		value = $bindable([]),
-		nested = false
-	}: { value?: VisibilityCondition[]; nested?: boolean } = $props();
+		nested = false,
+		media = true
+	}: {
+		value?: VisibilityCondition[];
+		nested?: boolean;
+		/** False leaves out media query conditions, for rules checked outside the page layout. */
+		media?: boolean;
+	} = $props();
 
 	type RowType = 'entity' | 'numeric' | 'media' | 'or';
 
 	let TYPE_OPTIONS = $derived([
 		{ value: 'entity', label: $lang('hearth_entity_state') },
 		{ value: 'numeric', label: $lang('hearth_numeric_state') },
-		{ value: 'media', label: $lang('hearth_media_query') },
+		...(media ? [{ value: 'media', label: $lang('hearth_media_query') }] : []),
 		// an or-group inside an or-group adds nothing; keep the tree one level deep
 		...(nested ? [] : [{ value: 'or', label: $lang('hearth_any_of') }])
 	]);
@@ -175,7 +181,7 @@
 				/>
 			{:else if rowType(condition) === 'or' && 'or' in condition}
 				<div class="hint">{$lang('hearth_any_of_hint')}</div>
-				<VisibilityField bind:value={condition.or} nested />
+				<VisibilityField bind:value={condition.or} nested {media} />
 			{:else}
 				<TextField
 					label={$lang('hearth_media_query')}

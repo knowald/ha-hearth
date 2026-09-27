@@ -279,6 +279,26 @@
 		</section>
 
 		<section>
+			<div class="section-title">{$lang('hearth_alerts')}</div>
+			<div class="rows">
+				{#each $hearthConfig.alerts ?? [] as rule, index (rule.id)}
+					<SettingsRow
+						icon={rule.icon || 'notifications_active'}
+						label={rule.title}
+						sub={rule.message}
+						onclick={() => editor.set({ kind: 'alert', index })}
+					/>
+				{/each}
+				<SettingsRow
+					icon="add"
+					label={$lang('hearth_add_alert')}
+					sub={$lang('hearth_alerts_sub')}
+					onclick={() => editor.set({ kind: 'alert', index: null })}
+				/>
+			</div>
+		</section>
+
+		<section>
 			<div class="section-title">{$lang('hearth_advanced')}</div>
 			<div class="rows">
 				<SettingsRow

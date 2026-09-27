@@ -3,6 +3,7 @@ import { tick } from 'svelte';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { motion } from '$lib/core/app/motion';
 import Screensaver from './Screensaver.svelte';
+import { activeAlerts, requestWake } from './store';
 
 async function showScreensaver() {
 	const view = render(Screensaver, { minutes: 1 });
@@ -37,6 +38,25 @@ describe('Screensaver', () => {
 		vi.useRealTimers();
 		motion.set(190);
 		document.body.innerHTML = '';
+	});
+
+	it('stays away while an alert card is on screen', async () => {
+		activeAlerts.set([{ key: 'event:a', title: 'A', severity: 'info', popup: true, since: 1 }]);
+		const { container } = render(Screensaver, { minutes: 1 });
+		vi.advanceTimersByTime(5 * 60_000);
+		await tick();
+		expect(container.querySelector('.screensaver')).toBeNull();
+		activeAlerts.set([]);
+		vi.advanceTimersByTime(60_000);
+		await tick();
+		expect(container.querySelector('.screensaver')).not.toBeNull();
+	});
+
+	it('steps aside when something asks to be seen', async () => {
+		const { container } = await showScreensaver();
+		requestWake();
+		await tick();
+		expect(container.querySelector('.screensaver')).toBeNull();
 	});
 
 	it('keeps the click of the wake tap from reaching the card underneath', async () => {
