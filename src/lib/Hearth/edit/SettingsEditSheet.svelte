@@ -313,8 +313,10 @@
 		cursor: pointer;
 	}
 
-	.step:hover {
-		color: var(--h-accent-text);
+	@media (hover: hover) {
+		.step:hover {
+			color: var(--h-accent-text);
+		}
 	}
 
 	.unit-input input {

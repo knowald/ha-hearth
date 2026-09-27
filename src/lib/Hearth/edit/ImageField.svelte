@@ -301,9 +301,14 @@
 		cursor: pointer;
 	}
 
-	.action:hover,
 	.action.active {
 		color: var(--h-text-3);
+	}
+
+	@media (hover: hover) {
+		.action:hover {
+			color: var(--h-text-3);
+		}
 	}
 
 	.action:disabled {
@@ -371,8 +376,10 @@
 		cursor: pointer;
 	}
 
-	.remove:hover {
-		color: var(--h-bad-text);
+	@media (hover: hover) {
+		.remove:hover {
+			color: var(--h-bad-text);
+		}
 	}
 
 	.empty {

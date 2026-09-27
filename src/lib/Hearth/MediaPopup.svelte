@@ -724,8 +724,10 @@
 		cursor: pointer;
 	}
 
-	.row:hover {
-		background: var(--h-on-art-fill);
+	@media (hover: hover) {
+		.row:hover {
+			background: var(--h-on-art-fill);
+		}
 	}
 
 	.row-art {

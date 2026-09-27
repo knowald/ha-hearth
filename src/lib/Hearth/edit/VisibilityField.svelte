@@ -252,8 +252,10 @@
 		margin-top: 32px;
 	}
 
-	.remove:hover {
-		color: var(--h-bad-text);
+	@media (hover: hover) {
+		.remove:hover {
+			color: var(--h-bad-text);
+		}
 	}
 
 	.add-row {
@@ -269,7 +271,9 @@
 		cursor: pointer;
 	}
 
-	.add-row:hover {
-		color: var(--h-text-4);
+	@media (hover: hover) {
+		.add-row:hover {
+			color: var(--h-text-4);
+		}
 	}
 </style>

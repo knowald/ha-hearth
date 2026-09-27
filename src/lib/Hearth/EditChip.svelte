@@ -61,8 +61,10 @@
 		display: inline-flex;
 	}
 
-	.pencil:hover {
-		color: var(--h-accent-text);
+	@media (hover: hover) {
+		.pencil:hover {
+			color: var(--h-accent-text);
+		}
 	}
 
 	@media (max-width: 900px) {

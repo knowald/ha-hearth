@@ -147,7 +147,9 @@
 		cursor: pointer;
 	}
 
-	.search:hover {
-		color: var(--h-text-3);
+	@media (hover: hover) {
+		.search:hover {
+			color: var(--h-text-3);
+		}
 	}
 </style>

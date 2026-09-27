@@ -180,8 +180,10 @@
 		cursor: pointer;
 	}
 
-	.row:hover {
-		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+	@media (hover: hover) {
+		.row:hover {
+			background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+		}
 	}
 
 	.row-icon {

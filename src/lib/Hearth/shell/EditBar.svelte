@@ -187,10 +187,12 @@
 		font-family: inherit;
 	}
 
-	.edit-toggle:hover {
-		opacity: 1;
-		color: var(--h-text-3);
-		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+	@media (hover: hover) {
+		.edit-toggle:hover {
+			opacity: 1;
+			color: var(--h-text-3);
+			background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+		}
 	}
 
 	.edit-bar {

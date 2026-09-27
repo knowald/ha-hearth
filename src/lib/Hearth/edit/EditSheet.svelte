@@ -316,8 +316,10 @@
 		transform: scale(0.9);
 	}
 
-	.icon-button:hover {
-		color: var(--h-text-3);
+	@media (hover: hover) {
+		.icon-button:hover {
+			color: var(--h-text-3);
+		}
 	}
 
 	.body-wrap {

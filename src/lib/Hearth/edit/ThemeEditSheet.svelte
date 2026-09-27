@@ -642,8 +642,10 @@
 		cursor: pointer;
 	}
 
-	.reset:hover {
-		color: var(--h-text-3);
+	@media (hover: hover) {
+		.reset:hover {
+			color: var(--h-text-3);
+		}
 	}
 
 	.save-row {
@@ -770,8 +772,10 @@
 		cursor: pointer;
 	}
 
-	.icon-button:hover {
-		color: var(--h-bad-text);
+	@media (hover: hover) {
+		.icon-button:hover {
+			color: var(--h-bad-text);
+		}
 	}
 
 	.error {
