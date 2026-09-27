@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.5.0] - 2026-09-28
+
+### Changed
+
+- Show the notifications widget as one button with a count badge and the newest title, opening a list of alerts and Home Assistant notifications ([`2f6f489`](https://github.com/knowald/ha-hearth/commit/2f6f489))
+- Group the screensaver settings in their own Sleep screen section, with a button to preview it ([`2a5d6dd`](https://github.com/knowald/ha-hearth/commit/2a5d6dd))
+- Stop showing the https note under touch feedback in App settings ([`bbf9636`](https://github.com/knowald/ha-hearth/commit/bbf9636))
+
+### Added
+
+- Place the sidebar on the left, on the right, on both sides or hide it, and pick a side for each widget when there are two ([`80deda2`](https://github.com/knowald/ha-hearth/commit/80deda2))
+- Swipe sideways between pages, on phones and on wider screens where a mouse drag works like a finger, each with its own setting ([`9c54527`](https://github.com/knowald/ha-hearth/commit/9c54527))
+- Raise alerts from dashboard rules, such as a fridge door left open for two minutes, and close them again when the condition clears ([`2f6f489`](https://github.com/knowald/ha-hearth/commit/2f6f489))
+- Raise, dismiss and target alerts from Home Assistant automations through the `HEARTH` event, and open or close an entity popup the same way ([`2f6f489`](https://github.com/knowald/ha-hearth/commit/2f6f489))
+- Name each screen in App settings or with `?device=`, so an automation can send an alert to one screen ([`2f6f489`](https://github.com/knowald/ha-hearth/commit/2f6f489))
+- Wake the sleep screen when an alert pops up, and keep it awake while the alert shows ([`2f6f489`](https://github.com/knowald/ha-hearth/commit/2f6f489))
+- Show an image or a live weather radar map of the home location, or any other location, behind the sleep screen clock ([`2a5d6dd`](https://github.com/knowald/ha-hearth/commit/2a5d6dd))
+- Set the sleep screen clock size, show or hide the date, and show the current weather under the clock ([`2a5d6dd`](https://github.com/knowald/ha-hearth/commit/2a5d6dd))
+
+### Fixed
+
+- Stop the browser's own grey tap highlight, long-press menu and hover state that stayed on after a tap on touch screens, leaving only Hearth's press feedback ([`4ed7ae9`](https://github.com/knowald/ha-hearth/commit/4ed7ae9))
+
 ## [0.4.0] - 2026-09-26
 
 ### Added
@@ -153,6 +176,7 @@
 
 - Keep the standard `backdrop-filter` in the built stylesheet; writing the `-webkit-` prefix by hand made the minifier drop it, so no blur in the application took effect
 
+[0.5.0]: https://github.com/knowald/ha-hearth/releases/tag/0.5.0
 [0.4.0]: https://github.com/knowald/ha-hearth/releases/tag/0.4.0
 [0.3.0]: https://github.com/knowald/ha-hearth/releases/tag/0.3.0
 [0.2.0]: https://github.com/knowald/ha-hearth/releases/tag/0.2.0
