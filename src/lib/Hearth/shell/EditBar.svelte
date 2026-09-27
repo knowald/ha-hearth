@@ -2,7 +2,7 @@
 	import { ICON } from '../iconSizes';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { lang } from '$lib/core/i18n';
-	import { PRESS_RIPPLE } from '../config';
+	import { PRESS_RIPPLE, railPositionOf } from '../config';
 	import {
 		cancelEdit,
 		canRedo,
@@ -24,6 +24,9 @@
 	import Icon from '../Icon.svelte';
 
 	let { hideEditToggle = false }: { hideEditToggle?: boolean } = $props();
+
+	// the toggle sits at the rail's foot, so a lone right rail takes it along
+	let toggleRight = $derived(railPositionOf($hearthConfig) === 'right');
 
 	// The YAML serializer pulls in js-yaml, which stays out of the eager bundle.
 	// Loading starts with the bar so the copy click does not wait on the
@@ -158,6 +161,7 @@
 	<button
 		type="button"
 		class="edit-toggle pressable"
+		class:right={toggleRight}
 		aria-label={$lang('hearth_edit_configuration')}
 		onclick={enterEditMode}
 	>
@@ -185,6 +189,14 @@
 		border: 0;
 		background: rgb(var(--h-surface-rgb) / calc(0.035 * var(--h-fill-scale)));
 		font-family: inherit;
+	}
+
+	/* see breakpoints.ts: folded, there is no rail column to follow */
+	@media (min-width: 901px) {
+		.edit-toggle.right {
+			left: auto;
+			right: calc(14px + var(--h-pad-x));
+		}
 	}
 
 	@media (hover: hover) {

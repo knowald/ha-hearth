@@ -3,7 +3,7 @@ import { base } from '$app/paths';
 import { validTimeZone } from './clock';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import { vibrate } from '$lib/core/app/haptics';
-import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from './config';
+import { DEFAULT_HEARTH_CONFIG, type HearthConfig, type RailSide } from './config';
 
 /* configuration */
 
@@ -83,7 +83,8 @@ export type Editor =
 	| { kind: 'card'; roomId: string; id: string | null; column?: number; stackId?: string }
 	// a null index is a new stack, appended to the column on Done
 	| { kind: 'stack'; roomId: string; column: number; index: number | null }
-	| { kind: 'railWidget'; index: number | null }
+	// side is the rail a new widget was added from, while there are two
+	| { kind: 'railWidget'; index: number | null; side?: RailSide }
 	| { kind: 'theme' }
 	| { kind: 'settings' }
 	| { kind: 'appSettings' }

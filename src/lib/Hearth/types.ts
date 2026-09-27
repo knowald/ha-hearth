@@ -124,6 +124,12 @@ type RailWidgetVariant =
 /** Where a widget goes once the rail folds under the page. */
 export type MobileSlot = 'top' | 'bottom' | 'hidden';
 
+/** Where the rail sits beside the page on a wide screen, if anywhere. */
+export type RailPosition = 'left' | 'right' | 'both' | 'none';
+
+/** Which of the two rails a widget belongs to when there are two. */
+export type RailSide = 'left' | 'right';
+
 export type RailWidget = RailWidgetVariant & {
 	/*
 	 * Unset takes the slot from the rail's own shape: everything before the
@@ -133,6 +139,8 @@ export type RailWidget = RailWidgetVariant & {
 	mobile?: MobileSlot;
 	/** Superseded by `mobile: 'hidden'`, still read from configs that set it. */
 	hide_mobile?: boolean;
+	/** Only read while `rail_position` is `both`; unset is the left rail. */
+	side?: RailSide;
 	visibility?: VisibilityCondition[];
 };
 
@@ -275,6 +283,8 @@ export interface HearthConfig {
 	// full replacement for theme while day_night resolves to night
 	theme_night?: HearthTheme;
 	day_night?: DayNightSwitch;
+	// unset is a single rail on the left
+	rail_position?: RailPosition;
 	rail: RailWidget[];
 	// every page, Home included; the first one is where the dashboard opens
 	rooms: HearthRoom[];

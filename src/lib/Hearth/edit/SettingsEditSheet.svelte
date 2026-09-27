@@ -2,6 +2,7 @@
 	import { integerFromInput } from './numbers';
 	import { ICON } from '../iconSizes';
 	import { lang } from '$lib/core/i18n';
+	import { railPositionOf, type RailPosition } from '../config';
 	import { editor, hearthConfig, setupWizardOpen, updateConfig } from '../store';
 	import EditSheet from './EditSheet.svelte';
 	import Icon from '../Icon.svelte';
@@ -15,6 +16,7 @@
 	let screensaverBrightness = $derived(String($hearthConfig.screensaver_brightness ?? 32));
 	let keepScreenOn = $derived($hearthConfig.keep_screen_on ?? true);
 	let scrollEdgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
+	let railPosition = $derived(railPositionOf($hearthConfig));
 	let paddingX = $derived($hearthConfig.padding_x ?? 0);
 	let paddingY = $derived($hearthConfig.padding_y ?? 0);
 
@@ -33,6 +35,19 @@
 		{ value: '50', label: $lang('fan_speed_medium') },
 		{ value: '75', label: $lang('hearth_bright') }
 	]);
+
+	let RAIL_POSITION_OPTIONS = $derived([
+		{ value: 'left', label: $lang('hearth_sidebar_left') },
+		{ value: 'right', label: $lang('hearth_sidebar_right') },
+		{ value: 'both', label: $lang('hearth_sidebar_both') },
+		{ value: 'none', label: $lang('hearth_sidebar_none') }
+	]);
+
+	function setRailPosition(value: string) {
+		updateConfig((config) => {
+			config.rail_position = value === 'left' ? undefined : (value as RailPosition);
+		});
+	}
 
 	function setScreensaver(value: string) {
 		const minutes = integerFromInput(value);
@@ -149,6 +164,22 @@
 						checked={scrollEdgeBlur}
 						label={$lang('hearth_scroll_edge_blur')}
 						onchange={setScrollEdgeBlur}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={$lang('hearth_sidebar')}
+					sub={$lang(
+						railPosition === 'none'
+							? 'hearth_sidebar_widgets_hidden_but_kept'
+							: 'hearth_where_widgets_sit_on_wide_screens'
+					)}
+				>
+					<SelectField
+						inline
+						label={$lang('hearth_sidebar')}
+						value={railPosition}
+						options={RAIL_POSITION_OPTIONS}
+						onchange={setRailPosition}
 					/>
 				</SettingsRow>
 				<SettingsRow

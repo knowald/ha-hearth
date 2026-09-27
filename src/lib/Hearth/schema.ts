@@ -155,6 +155,7 @@ export const CardSharedSchema = v.looseObject({
 export const WidgetSharedSchema = v.looseObject({
 	mobile: v.optional(v.picklist(['top', 'bottom', 'hidden'], 'must be top, bottom or hidden')),
 	hide_mobile: OptionalFlag,
+	side: v.optional(v.picklist(['left', 'right'], 'must be left or right')),
 	visibility: VisibilityListSchema
 });
 
@@ -196,6 +197,9 @@ export const RootSettingsSchema = v.looseObject({
 	theme: v.optional(ThemeSchema),
 	theme_night: v.optional(ThemeSchema),
 	day_night: v.optional(DayNightSwitchSchema),
+	rail_position: v.optional(
+		v.picklist(['left', 'right', 'both', 'none'], 'must be left, right, both or none')
+	),
 	screensaver_minutes: optionalNumberAtLeast(1),
 	screensaver_drift: OptionalFlag,
 	screensaver_brightness: v.optional(

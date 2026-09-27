@@ -6,6 +6,7 @@ import type {
 	OverviewCard,
 	OverviewItem,
 	OverviewStack,
+	RailPosition,
 	RailWidget
 } from './types';
 import { DEFAULT_HEARTH_CONFIG, normalizeVisibility, resizeCardColumns, uniqueId } from './config';
@@ -48,6 +49,9 @@ const VALID_WIDGET_DEFINITIONS = new Set<string>(WIDGET_DEFINITIONS.map(({ type 
  * cannot silently remove a card, widget or entity reference.
  */
 const MOBILE_SLOTS = new Set<MobileSlot>(['top', 'bottom', 'hidden']);
+
+// left is the default, so it is stored as unset
+const RAIL_POSITIONS = new Set<RailPosition>(['right', 'both', 'none']);
 
 /** `mobile` if it names a slot, otherwise the slot the older `hide_mobile` meant. */
 function normalizeMobileSlot(widget: any): MobileSlot | undefined {
@@ -292,6 +296,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 			mobile: normalizeMobileSlot(widget),
 			// folded into `mobile` above; dropped so only one field decides
 			hide_mobile: undefined,
+			side: widget.side === 'right' ? 'right' : undefined,
 			visibility: normalizeVisibility(widget.visibility)
 		})) as RailWidget[];
 
@@ -302,6 +307,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'theme',
 		'theme_night',
 		'day_night',
+		'rail_position',
 		'rail',
 		'rooms',
 		'screensaver_minutes',
@@ -320,6 +326,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		theme: normalizeTheme(config.theme),
 		theme_night: normalizeTheme(config.theme_night),
 		day_night: dayNight,
+		rail_position: RAIL_POSITIONS.has(config.rail_position) ? config.rail_position : undefined,
 		rail,
 		rooms,
 		screensaver_minutes: normalizeWholeNumber(config.screensaver_minutes, 1),

@@ -6,14 +6,23 @@ import {
 	findOverviewCard,
 	findOverviewItemList,
 	isStack,
-	placeInSlot,
+	foldedRail,
 	foldedTopCount,
+	railDividerIndex,
+	railSides,
 	railSlots,
-	reorderSlot,
 	wildcardEntityIds,
 	type RailWidget
 } from './config';
 import { hearthConfigIssues, normalizeHearthConfig } from './normalize';
+import {
+	moveRailWidget,
+	moveToSide,
+	placeInSide,
+	placeInSlot,
+	reorderSide,
+	reorderSlot
+} from './model/railMoves';
 
 describe('normalizeHearthConfig', () => {
 	it('uses a generic, entity-free first-run fallback', () => {
@@ -514,5 +523,156 @@ describe('moving a widget between folded runs', () => {
 	it('ignores a drop of a widget that is no longer there', () => {
 		const start = rail();
 		expect(placeInSlot(start, 'gone', 'top', 0)).toBe(start);
+	});
+});
+
+describe('sidebar position', () => {
+	const rail = () =>
+		[
+			{ id: 'clock', type: 'clock' },
+			{ id: 'energy', type: 'energy', side: 'right' },
+			{ id: 'nav', type: 'nav' },
+			{ id: 'weather', type: 'weather', side: 'right' }
+		] as RailWidget[];
+
+	const ids = (widgets: RailWidget[]) => widgets.map((widget) => widget.id);
+
+	it('splits the widgets by side only when there are two rails', () => {
+		expect(ids(railSides(rail(), 'both').left)).toEqual(['clock', 'nav']);
+		expect(ids(railSides(rail(), 'both').right)).toEqual(['energy', 'weather']);
+		expect(ids(railSides(rail(), 'left').left)).toEqual(['clock', 'energy', 'nav', 'weather']);
+		expect(railSides(rail(), 'left').right).toEqual([]);
+		expect(ids(railSides(rail(), 'right').right)).toEqual(['clock', 'energy', 'nav', 'weather']);
+		expect(railSides(rail(), 'right').left).toEqual([]);
+		expect(railSides(rail(), 'none')).toEqual({ left: [], right: [] });
+	});
+
+	it('folds both rails in stored order, and no rail to nothing', () => {
+		expect(ids(foldedRail(rail(), 'both'))).toEqual(['clock', 'energy', 'nav', 'weather']);
+		expect(ids(foldedRail(rail(), 'right'))).toEqual(['clock', 'energy', 'nav', 'weather']);
+		expect(foldedRail(rail(), 'none')).toEqual([]);
+	});
+
+	it('reorders one rail and leaves the other alone', () => {
+		const next = reorderSide(rail(), 'right', [rail()[3], rail()[1]]);
+		expect(ids(railSides(next, 'both').right)).toEqual(['weather', 'energy']);
+		expect(ids(railSides(next, 'both').left)).toEqual(['clock', 'nav']);
+	});
+
+	it('moves a widget to the rail it is dropped on', () => {
+		const next = placeInSide(rail(), 'nav', 'right', 1);
+		expect(ids(railSides(next, 'both').right)).toEqual(['energy', 'nav', 'weather']);
+		expect(ids(railSides(next, 'both').left)).toEqual(['clock']);
+		expect(next.find((widget) => widget.id === 'nav')?.side).toBe('right');
+
+		const back = placeInSide(next, 'nav', 'left', 0);
+		expect(ids(railSides(back, 'both').left)).toEqual(['nav', 'clock']);
+		expect(back.find((widget) => widget.id === 'nav')?.side).toBeUndefined();
+	});
+
+	it('copies instead of moving when asked', () => {
+		const next = placeInSide(rail(), 'clock', 'right', 0, { copy: true });
+		expect(ids(railSides(next, 'both').left)).toEqual(['clock', 'nav']);
+		expect(ids(railSides(next, 'both').right)).toEqual(['clock-2', 'energy', 'weather']);
+	});
+
+	it('moves past the next widget on the same side when there are two rails', () => {
+		const both = rail();
+		moveRailWidget(both, 0, 1, 'both');
+		expect(ids(both)).toEqual(['energy', 'nav', 'clock', 'weather']);
+		const single = rail();
+		moveRailWidget(single, 0, 1, 'left');
+		expect(ids(single)).toEqual(['energy', 'clock', 'nav', 'weather']);
+		const edge = rail();
+		moveRailWidget(edge, 2, 1, 'both');
+		expect(ids(edge)).toEqual(ids(rail()));
+	});
+
+	it('normalizes the position and each widget side', () => {
+		const config = normalizeHearthConfig({
+			rail_position: 'both',
+			rail: [
+				{ id: 'a', type: 'clock', side: 'right' },
+				{ id: 'b', type: 'clock', side: 'left' },
+				{ id: 'c', type: 'clock', side: 'middle' }
+			],
+			rooms: []
+		});
+		expect(config.rail_position).toBe('both');
+		expect(config.rail.map((widget) => widget.side)).toEqual(['right', undefined, undefined]);
+		expect(
+			normalizeHearthConfig({ rail_position: 'left', rail: [] }).rail_position
+		).toBeUndefined();
+		expect(normalizeHearthConfig({ rail_position: 'top', rail: [] }).rail_position).toBeUndefined();
+		expect(normalizeHearthConfig({ rail_position: 'none', rail: [] }).rail_position).toBe('none');
+	});
+
+	it('reports a position or side it does not know', () => {
+		const issues = hearthConfigIssues({
+			rail_position: 'top',
+			rail: [{ id: 'a', type: 'clock', side: 'middle' }],
+			rooms: [{ id: 'home', cards: [[]] }]
+		});
+		expect(issues.join('\n')).toMatch(/rail_position/);
+		expect(issues.join('\n')).toMatch(/side/);
+	});
+
+	it('keeps a folded drag across sides in the order it was dropped', () => {
+		const start = [
+			{ id: 'clock', type: 'clock' },
+			{ id: 'nav', type: 'nav' },
+			{ id: 'weather', type: 'weather', side: 'right' }
+		] as RailWidget[];
+		const top = railSlots(foldedRail(start, 'both'), { position: 'both' }).top;
+		expect(ids(top)).toEqual(['clock', 'weather']);
+		const next = reorderSlot(start, 'top', [top[1], top[0]]);
+		expect(ids(railSlots(foldedRail(next, 'both'), { position: 'both' }).top)).toEqual([
+			'weather',
+			'clock'
+		]);
+		expect(ids(railSides(next, 'both').right)).toEqual(['weather']);
+	});
+
+	it('does not divide at a gap that ends its own rail', () => {
+		const gapLast = [
+			{ id: 'clock', type: 'clock' },
+			{ id: 'weather', type: 'weather', side: 'right' },
+			{ id: 'lights', type: 'entity' },
+			{ id: 'gap', type: 'spacer' }
+		] as RailWidget[];
+		expect(railDividerIndex(gapLast, 'both')).toBe(-1);
+
+		const rightAfterGap = [
+			{ id: 'clock', type: 'clock' },
+			{ id: 'lights', type: 'entity' },
+			{ id: 'gap', type: 'spacer' },
+			{ id: 'weather', type: 'weather', side: 'right' }
+		] as RailWidget[];
+		expect(railDividerIndex(rightAfterGap, 'both')).toBe(-1);
+		expect(railDividerIndex(rightAfterGap, 'left')).toBe(2);
+		expect(ids(railSlots(rightAfterGap, { position: 'both' }).top)).toEqual(['clock', 'weather']);
+
+		const dividing = [...rightAfterGap, { id: 'energy', type: 'energy' }] as RailWidget[];
+		expect(railDividerIndex(dividing, 'both')).toBe(2);
+	});
+
+	it('sends a widget to the end of the rail it is moved to', () => {
+		const toRight = moveToSide(rail(), 'clock', 'right');
+		expect(ids(toRight)).toEqual(['energy', 'nav', 'weather', 'clock']);
+		expect(toRight.at(-1)?.side).toBe('right');
+
+		const toLeft = moveToSide(rail(), 'weather', 'left');
+		expect(ids(toLeft)).toEqual(['clock', 'energy', 'nav', 'weather']);
+		expect(toLeft.find((widget) => widget.id === 'weather')?.side).toBeUndefined();
+
+		const emptyLeft = moveToSide(
+			[
+				{ id: 'a', type: 'clock', side: 'right' },
+				{ id: 'b', type: 'clock', side: 'right' }
+			] as RailWidget[],
+			'b',
+			'left'
+		);
+		expect(ids(emptyLeft)).toEqual(['b', 'a']);
 	});
 });
