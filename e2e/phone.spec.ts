@@ -134,10 +134,12 @@ test.describe('the shared fixture', () => {
 	}) => {
 		const tile = page.getByRole('button', { name: /Desk lamp/ });
 		const box = (await tile.boundingBox())!;
-		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-		await page.mouse.down();
+		const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+		const session = await page.context().newCDPSession(page);
+		await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
 		await page.waitForTimeout(700);
-		await page.mouse.up();
+		await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+		await session.detach();
 		const toggle = page.getByRole('switch', { name: 'Toggle light' });
 		await expect(toggle).toBeVisible();
 		const sheetBox = (await page.locator('.sheet').first().boundingBox())!;

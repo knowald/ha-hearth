@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 /* Touch gestures on the phone layout: tiles, popup sliders and pinch zoom. */
 
@@ -13,30 +13,53 @@ async function deskCalls(request: APIRequestContext) {
 	return calls.filter((call) => call.data.entity_id === 'light.desk');
 }
 
+/* A real touch through the DevTools protocol, so the browser's own pan-y handling runs. */
+async function touchDrag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
+	const session = await page.context().newCDPSession(page);
+	await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
+	const steps = 12;
+	for (let step = 1; step <= steps; step += 1) {
+		const x = from.x + ((to.x - from.x) * step) / steps;
+		const y = from.y + ((to.y - from.y) * step) / steps;
+		await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] });
+	}
+	await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+	await session.detach();
+}
+
 test.beforeEach(async ({ page, request }) => {
 	await request.post(`${FAKE_HASS}/_test/reset`);
 	await page.goto('/');
 	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
 });
 
-test('a vertical drag across a slider tile neither toggles nor holds', async ({
-	page,
-	request
-}) => {
-	const tile = page.getByRole('button', { name: /Desk lamp/ });
-	const box = (await tile.boundingBox())!;
-	const x = box.x + box.width / 2;
-	await page.mouse.move(x, box.y + 4);
-	await page.mouse.down();
-	for (let step = 1; step <= 6; step += 1) await page.mouse.move(x, box.y + 4 + step * 8);
-	// past the hold delay, which the abandoned gesture must not reach
-	await page.waitForTimeout(700);
-	await page.mouse.up();
+test.describe('on a page with room to scroll', () => {
+	test.use({ viewport: { width: 390, height: 500 } });
 
-	await expect(page.getByRole('slider', { name: 'Brightness' })).toHaveCount(0);
-	await page.waitForTimeout(300);
-	expect(await deskCalls(request)).toEqual([]);
-	await expect(tile).toHaveAttribute('aria-pressed', 'false');
+	test('a vertical drag across a slider tile scrolls instead of toggling or holding', async ({
+		page,
+		request
+	}) => {
+		const tile = page.getByRole('button', { name: /Desk lamp/ });
+		const box = (await tile.boundingBox())!;
+		await tile.evaluate((element) => {
+			element.addEventListener('pointercancel', () => (element.dataset.cancelled = 'yes'));
+		});
+		const x = box.x + box.width / 2;
+		const y = box.y + box.height / 2;
+		await touchDrag(page, { x, y }, { x, y: y - 200 });
+		// past the hold delay, which the handed-over gesture must not reach
+		await page.waitForTimeout(700);
+
+		// pan-y hands the drag to scrolling, and the tile cleans up on the cancel
+		expect(
+			await page.evaluate(() => (document.querySelector('.layout') as HTMLElement).scrollTop)
+		).toBeGreaterThan(0);
+		await expect(tile).toHaveAttribute('data-cancelled', 'yes');
+		await expect(page.getByRole('slider', { name: 'Brightness' })).toHaveCount(0);
+		expect(await deskCalls(request)).toEqual([]);
+		await expect(tile).toHaveAttribute('aria-pressed', 'false');
+	});
 });
 
 test('tapping a spot on a popup slider sets that value', async ({ page, request }) => {
