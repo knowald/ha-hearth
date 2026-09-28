@@ -13,6 +13,9 @@
 	:global(html) {
 		box-sizing: border-box;
 		font-size: 100%;
+		/* iOS would otherwise inflate text after a rotation to landscape */
+		-webkit-text-size-adjust: 100%;
+		text-size-adjust: 100%;
 		/* press feedback is ours (.pressable, ripple); inherited by everything */
 		-webkit-tap-highlight-color: transparent;
 	}

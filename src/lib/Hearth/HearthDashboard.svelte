@@ -463,6 +463,7 @@
 		/* theme tokens are injected on:root via svelte:head (see rootCss) so
 		   portaled modals resolve them too */
 		width: 100%;
+		height: 100vh;
 		height: 100dvh;
 		position: relative;
 		overflow: hidden;
@@ -481,7 +482,12 @@
 		display: grid;
 		grid-template-columns: 300px 1fr;
 		gap: 32px;
-		padding: calc(40px + var(--h-pad-y)) calc(40px + var(--h-pad-x));
+		/* a phone held sideways can be wider than the fold (see breakpoints.ts),
+		   so the wide layout keeps clear of a landscape notch too */
+		padding: calc(40px + var(--h-pad-y) + env(safe-area-inset-top))
+			calc(40px + var(--h-pad-x) + env(safe-area-inset-right))
+			calc(40px + var(--h-pad-y) + env(safe-area-inset-bottom))
+			calc(40px + var(--h-pad-x) + env(safe-area-inset-left));
 		height: 100%;
 	}
 
