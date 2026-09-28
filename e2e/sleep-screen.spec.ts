@@ -51,7 +51,7 @@ async function previewRadar(page: Page) {
 	const sheet = page.getByRole('dialog', { name: 'Settings' });
 	await sheet.getByLabel('Background', { exact: true }).selectOption('radar');
 	await sheet.getByRole('button', { name: 'Preview sleep screen' }).click();
-	return { sheet, screensaver: page.getByRole('button', { name: 'Dismiss screensaver' }) };
+	return { sheet, screensaver: page.getByRole('button', { name: 'Dismiss sleep screen' }) };
 }
 
 test.afterEach(() => {
@@ -74,7 +74,7 @@ test('previews the sleep screen over a weather radar map and wakes on a tap', as
 	await expect(sheet.getByRole('switch', { name: 'Use home location' })).toBeChecked();
 	await sheet.getByRole('button', { name: 'Preview sleep screen' }).click();
 
-	const screensaver = page.getByRole('button', { name: 'Dismiss screensaver' });
+	const screensaver = page.getByRole('button', { name: 'Dismiss sleep screen' });
 	await expect(screensaver).toBeVisible();
 	const map = screensaver.getByTestId('radar-map');
 	await expect(screensaver.locator('.radar')).toHaveClass(/ready/);
@@ -108,7 +108,7 @@ test('an alert from Home Assistant wakes the radar sleep screen', async ({ page,
 	await page.reload();
 	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
 	await page.clock.fastForward('01:05');
-	const screensaver = page.getByRole('button', { name: 'Dismiss screensaver' });
+	const screensaver = page.getByRole('button', { name: 'Dismiss sleep screen' });
 	await expect(screensaver).toBeVisible();
 	await expect(screensaver.getByTestId('radar-map')).toBeAttached();
 	await request.post(`${FAKE_HASS}/_test/fire_event`, {
@@ -127,7 +127,7 @@ test('falls back to a plain sleep screen when the radar is unreachable', async (
 	await sheet.getByLabel('Background', { exact: true }).selectOption('radar');
 	await sheet.getByRole('button', { name: 'Preview sleep screen' }).click();
 
-	const screensaver = page.getByRole('button', { name: 'Dismiss screensaver' });
+	const screensaver = page.getByRole('button', { name: 'Dismiss sleep screen' });
 	await expect(screensaver).toBeVisible();
 	await expect(screensaver.locator('.radar')).not.toHaveClass(/ready/);
 	await expect(screensaver.locator('.radar')).toHaveCSS('opacity', '0');
