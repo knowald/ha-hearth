@@ -65,7 +65,7 @@ test('the media sheet gives the track the full width and stacks the queue under 
 	// a finger landing just off the thin bar still scrubs
 	const progress = (await sheet.locator('.progress').boundingBox())!;
 	const hit = await page.evaluate(
-		({ x, y }) => document.elementFromPoint(x, y)?.closest('.progress') !== null,
+		({ x, y }) => Boolean(document.elementFromPoint(x, y)?.closest('.progress')),
 		{ x: progress.x + progress.width / 2, y: progress.y - 10 }
 	);
 	expect(hit).toBe(true);
@@ -119,7 +119,7 @@ test('text inputs are large enough that iOS does not zoom into them', async ({ p
 	).toBeGreaterThanOrEqual(16);
 });
 
-test('the viewport shrinks with an on-screen keyboard', async ({ page }) => {
+test('the viewport meta asks the keyboard to resize the page', async ({ page }) => {
 	await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(
 		'content',
 		/interactive-widget=resizes-content/
