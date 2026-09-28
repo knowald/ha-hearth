@@ -599,8 +599,8 @@
 	   last widget so nothing hides behind it */
 	.layout.narrow.editing {
 		padding-bottom: calc(
-			112px + var(--h-pad-y) + env(safe-area-inset-bottom)
-		); /* literal ok: edit bar height plus margin */
+			var(--h-edit-bar-height, 60px) + 52px + var(--h-pad-y) + env(safe-area-inset-bottom)
+		); /* literal ok: margin around the measured edit bar */
 	}
 
 	/* the glow bleed shrinks to the layout's own padding so the columns end
