@@ -70,6 +70,28 @@
 		});
 	}
 
+	/*
+	 * The bar wraps onto a second row on a phone when the save error and its
+	 * actions join it. Its height goes to the shared parent as
+	 * --h-edit-bar-height so the toasts above it can follow.
+	 */
+	let bar = $state<HTMLElement | null>(null);
+
+	$effect(() => {
+		const host = bar?.parentElement;
+		if (!bar || !host) return;
+		const element = bar;
+		const measure = () =>
+			host.style.setProperty('--h-edit-bar-height', `${element.offsetHeight}px`);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(element);
+		return () => {
+			observer.disconnect();
+			host.style.removeProperty('--h-edit-bar-height');
+		};
+	});
+
 	function confirmOverwrite() {
 		requestConfirmation({
 			title: $lang('hearth_overwrite_newer_hearth_configuration'),
@@ -81,7 +103,7 @@
 </script>
 
 {#if $hearthEditMode}
-	<div class="edit-bar">
+	<div class="edit-bar" bind:this={bar}>
 		{#if $saveState === 'conflict'}
 			<span class="save-error">{$lang('hearth_config_changed')}</span>
 			<button
@@ -174,8 +196,9 @@
 	/* a labeled row at the rail's foot rather than an anonymous floating pencil */
 	.edit-toggle {
 		position: absolute;
-		left: calc(14px + var(--h-pad-x));
-		bottom: calc(14px + var(--h-pad-y));
+		/* the insets clear an installed app's home indicator and a landscape cutout */
+		left: calc(14px + var(--h-pad-x) + env(safe-area-inset-left));
+		bottom: calc(14px + var(--h-pad-y) + env(safe-area-inset-bottom));
 		z-index: var(--h-layer-bar);
 		display: flex;
 		align-items: center;
@@ -195,7 +218,7 @@
 	@media (min-width: 901px) {
 		.edit-toggle.right {
 			left: auto;
-			right: calc(14px + var(--h-pad-x));
+			right: calc(14px + var(--h-pad-x) + env(safe-area-inset-right));
 		}
 	}
 
