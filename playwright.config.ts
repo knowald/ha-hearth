@@ -12,8 +12,8 @@ const APP_PORT = 5099;
 export default defineConfig({
 	testDir: './e2e',
 	testMatch: '**/*.spec.ts',
-	// the screenshot matrix has its own config and fixture
-	testIgnore: '**/matrix/**',
+	// the screenshot matrix and the README image have their own configs and fixtures
+	testIgnore: ['**/matrix/**', '**/readme/**'],
 	fullyParallel: false,
 	workers: 1,
 	retries: process.env.CI ? 1 : 0,
