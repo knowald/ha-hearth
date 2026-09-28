@@ -4,7 +4,7 @@ Most configuration happens in the editor. This page covers the files behind it, 
 
 ## Data directory
 
-Hearth stores everything in one data directory. The Node server uses `./data` under the directory it starts from. The container uses `/app/data`, which Docker Compose mounts from `DATA_PATH` (default `./data`). The add-on uses its own volume.
+Hearth stores everything in one data directory. The Node server uses `./data` under the directory it starts from. The container uses `/app/data`, which Docker Compose mounts from `DATA_PATH` (default `./data`). The Home Assistant app uses its own volume.
 
 | Path                   | Contents                                                                                                                    |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -50,7 +50,7 @@ When Hearth is served over HTTPS, `HASS_PUBLIC_URL` must be HTTPS too. Browsers 
 
 Docker Compose passes `HASS_URL`, `HASS_PUBLIC_URL` and `TZ` from `.env.docker` to the container. `EXPOSED_PORT` sets the host port and `DATA_PATH` the data folder. See `.env.docker.example`.
 
-The add-on sets `HASS_URL` itself. For direct-port access, set its Home Assistant URL for direct access option (`hass_public_url`) instead of `HASS_PUBLIC_URL`.
+The Home Assistant app sets `HASS_URL` itself. For direct-port access, set its Home Assistant URL for direct access option (`hass_public_url`) instead of `HASS_PUBLIC_URL`.
 
 ## URL options
 
