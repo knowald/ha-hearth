@@ -174,8 +174,8 @@ test.describe('the shared fixture', () => {
 		const button = await touchStyle('Edit Hearth configuration');
 		expect(tile.highlight).toBe('rgba(0, 0, 0, 0)');
 		expect(button.highlight).toBe('rgba(0, 0, 0, 0)');
-		// tiles keep their vertical-only panning; plain buttons lose the double-tap zoom
-		expect(tile.touchAction).toBe('pan-y');
+		// tiles keep vertical panning and pinch zoom; plain buttons lose the double-tap zoom
+		expect(tile.touchAction).toBe('pan-y pinch-zoom');
 		expect(button.touchAction).toBe('manipulation');
 		expect(button.userSelect).toBe('none');
 	});
