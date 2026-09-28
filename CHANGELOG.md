@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.1] - 2026-09-29
+
+### Fixed
+
+- Stack the media popup's queue under the player on phones, so the title, progress bar and playback buttons get the full width ([#19](https://github.com/knowald/ha-hearth/pull/19))
+- Keep a card's column count to at most two on phones, and show one tile per row while editing there ([#19](https://github.com/knowald/ha-hearth/pull/19))
+- Stop a vertical drag or a second finger on a light or blind tile from toggling it or opening its popup ([#19](https://github.com/knowald/ha-hearth/pull/19))
+- Set the value where you tap on a popup slider, and ignore right and middle clicks on sliders ([#19](https://github.com/knowald/ha-hearth/pull/19))
+- Allow pinch zoom to start on light and blind tiles ([#19](https://github.com/knowald/ha-hearth/pull/19))
+- Keep edit sheets, the entity picker, toasts, the edit button and the wide layout clear of the notch and the home indicator ([#19](https://github.com/knowald/ha-hearth/pull/19))
+- Stop iOS zooming in when a text field in the editor or search gets focus ([#19](https://github.com/knowald/ha-hearth/pull/19))
+- Truncate long edit sheet titles instead of pushing the close button off screen ([#19](https://github.com/knowald/ha-hearth/pull/19))
+- Keep toasts and the last widget clear of the edit bar when it wraps onto two rows ([#19](https://github.com/knowald/ha-hearth/pull/19))
+- Give drag handles, progress bars and volume bars a finger-sized touch area ([#19](https://github.com/knowald/ha-hearth/pull/19))
+- Shrink search and edit sheets with the on-screen keyboard on Android ([#19](https://github.com/knowald/ha-hearth/pull/19))
+
 ## [0.5.0] - 2026-09-28
 
 ### Changed
@@ -176,6 +192,7 @@
 
 - Keep the standard `backdrop-filter` in the built stylesheet; writing the `-webkit-` prefix by hand made the minifier drop it, so no blur in the application took effect
 
+[0.5.1]: https://github.com/knowald/ha-hearth/releases/tag/0.5.1
 [0.5.0]: https://github.com/knowald/ha-hearth/releases/tag/0.5.0
 [0.4.0]: https://github.com/knowald/ha-hearth/releases/tag/0.4.0
 [0.3.0]: https://github.com/knowald/ha-hearth/releases/tag/0.3.0
