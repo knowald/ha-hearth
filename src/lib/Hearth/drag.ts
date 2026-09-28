@@ -88,6 +88,8 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 		// A second finger, or another pointer while one is already dragging.
 		// A repeat of the tracked pointer means its release was lost, so restart.
 		if (event.isPrimary === false) return;
+		// a right or middle click, or a pen's barrel button, is not a drag or a tap
+		if (event.button > 0) return;
 		if (tracking && tracking.pointerId !== event.pointerId) return;
 		if (current.ignore && (event.target as Element).closest?.(current.ignore)) return;
 		claimGesture(event);

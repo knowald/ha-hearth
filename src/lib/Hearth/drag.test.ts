@@ -253,6 +253,18 @@ describe('horizontalDrag tapSets', () => {
 		expect(end).toHaveBeenCalledWith(26);
 	});
 
+	it('ignores a right click', () => {
+		const node = new TestNode();
+		const set = vi.fn();
+		horizontalDrag(node as unknown as HTMLElement, { set, tapSets: true });
+
+		const down = pointer('pointerdown', 60);
+		Object.defineProperty(down, 'button', { value: 2 });
+		node.dispatchEvent(down);
+		node.dispatchEvent(pointer('pointerup', 60));
+		expect(set).not.toHaveBeenCalled();
+	});
+
 	it('leaves a stationary tap alone without the option', () => {
 		const node = new TestNode();
 		const set = vi.fn();
