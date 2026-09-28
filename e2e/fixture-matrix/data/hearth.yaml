@@ -19,6 +19,7 @@ padding_y: 0
 rail:
   - id: clock
     type: clock
+    hour_format: '24'
   - id: weather
     type: weather
     entity: weather.home

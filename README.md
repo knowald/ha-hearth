@@ -21,13 +21,13 @@ Hearth is pre-1.0. The configuration format and features can still change betwee
 - Sleep screen with a clock, the current weather and an image or live weather radar map behind it.
 - Search across pages and entities, and a detail sheet with state, attributes and history for any entity.
 
-| Editor                               | Phone                                  |
-| ------------------------------------ | -------------------------------------- |
-| ![Edit mode](docs/images/editor.png) | ![Phone layout](docs/images/phone.png) |
+![Hearth on a tablet at night and on a phone by day](docs/images/devices.png)
 
-| Light controls                              | Themes                                    |
-| ------------------------------------------- | ----------------------------------------- |
-| ![Light popup](docs/images/light-popup.png) | ![Theme settings](docs/images/themes.png) |
+<p>
+  <img src="docs/images/editor.png" width="32%" alt="Edit mode">
+  <img src="docs/images/light-popup.png" width="32%" alt="Light popup">
+  <img src="docs/images/themes.png" width="32%" alt="Theme settings">
+</p>
 
 ## Not supported yet
 

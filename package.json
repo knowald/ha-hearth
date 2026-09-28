@@ -20,6 +20,7 @@
 		"lint": "prettier --check . && eslint . --max-warnings 59",
 		"format": "prettier --write .",
 		"matrix": "playwright test --config playwright.matrix.config.ts",
+		"readme:image": "playwright test --config playwright.readme.config.ts",
 		"style:inventory": "node scripts/style-inventory.mjs",
 		"check:style": "node scripts/check-style-tokens.mjs"
 	},

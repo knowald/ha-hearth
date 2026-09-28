@@ -31,8 +31,9 @@ To develop in Docker, copy `.env.docker.example` to `.env.docker`, set `HASS_URL
 | `pnpm check:bundle`      | Bundle size budget.                                                                                                                    |
 | `pnpm test:e2e`          | Browser tests with Playwright.                                                                                                         |
 | `pnpm matrix`            | Screenshots of each scene at phone, portrait and tablet sizes in day and night themes. Open `matrix-output/index.html` to review them. |
+| `pnpm readme:image`      | Rebuilds the README device image, `docs/images/devices.png`, from the matrix fixture.                                                  |
 
-`pnpm test:e2e`, `pnpm matrix` and `pnpm check:bundle` use the production build. Run `pnpm build` first.
+`pnpm test:e2e`, `pnpm matrix`, `pnpm readme:image` and `pnpm check:bundle` use the production build. Run `pnpm build` first.
 
 Browser tests and the matrix run against a fake Home Assistant with fixture data. Test cameras and device behavior against a real Home Assistant before a release.
 
