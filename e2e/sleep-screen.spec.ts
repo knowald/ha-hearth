@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-const FAKE_HASS = 'http://127.0.0.1:8124';
+const FAKE_HASS = `http://127.0.0.1:${process.env.E2E_HASS_PORT ?? 8124}`;
 const SETTINGS_FILE = new URL('./fixture/data/configuration.yaml', import.meta.url);
 const SETTINGS_FIXTURE = readFileSync(SETTINGS_FILE, 'utf8');
 const HEARTH_FILE = new URL('./fixture/data/hearth.yaml', import.meta.url);

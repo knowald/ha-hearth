@@ -67,6 +67,7 @@
 		}
 	}
 
+	/* see breakpoints.ts */
 	@media (max-width: 900px) {
 		.chip {
 			top: -10px;

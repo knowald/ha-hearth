@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { load as parseYaml } from 'js-yaml';
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 
-const FAKE_HASS = 'http://127.0.0.1:8124';
+const FAKE_HASS = `http://127.0.0.1:${process.env.E2E_HASS_PORT ?? 8124}`;
 const HEARTH_FILE = new URL('./fixture/data/hearth.yaml', import.meta.url);
 const HEARTH_FIXTURE = readFileSync(HEARTH_FILE, 'utf8');
 
