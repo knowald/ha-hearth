@@ -1,3 +1,5 @@
+<img src="static/hearth.svg" width="72" alt="Hearth logo">
+
 # Hearth
 
 Hearth is a Home Assistant dashboard for wall tablets, phones and desktops. It shows your rooms, devices and daily information in a layout you arrange with a visual editor. A day and a night theme switch with an entity such as `sun.sun`.
@@ -6,7 +8,7 @@ I built Hearth for the tablet on my wall.
 
 Hearth is pre-1.0. The configuration format and features can still change between minor releases; breaking changes are listed in the [changelog](CHANGELOG.md).
 
-![Hearth dashboard on a wall tablet](preview.jpg)
+![Hearth on a tablet at night and on a phone by day](docs/images/devices.png)
 
 ## Features
 
@@ -20,14 +22,6 @@ Hearth is pre-1.0. The configuration format and features can still change betwee
 - Alerts from dashboard rules or Home Assistant automations, shown as popups and in the notifications widget.
 - Sleep screen with a clock, the current weather and an image or live weather radar map behind it.
 - Search across pages and entities, and a detail sheet with state, attributes and history for any entity.
-
-![Hearth on a tablet at night and on a phone by day](docs/images/devices.png)
-
-<p>
-  <img src="docs/images/editor.png" width="32%" alt="Edit mode">
-  <img src="docs/images/light-popup.png" width="32%" alt="Light popup">
-  <img src="docs/images/themes.png" width="32%" alt="Theme settings">
-</p>
 
 ## Not supported yet
 
