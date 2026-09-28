@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const FAKE_HASS_PORT = 8124;
-const APP_PORT = 5099;
+// overridable so several checkouts can run the suite side by side
+const FAKE_HASS_PORT = Number(process.env.E2E_HASS_PORT ?? 8124);
+const APP_PORT = Number(process.env.E2E_APP_PORT ?? 5099);
 
 /*
  * Browser smoke tests run the production build (node server.js) from the

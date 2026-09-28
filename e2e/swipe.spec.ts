@@ -3,7 +3,7 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 
 /* Sideways swipes over the page move between pages when a layout allows it. */
 
-const FAKE_HASS = 'http://127.0.0.1:8124';
+const FAKE_HASS = `http://127.0.0.1:${process.env.E2E_HASS_PORT ?? 8124}`;
 const HEARTH_FILE = new URL('./fixture/data/hearth.yaml', import.meta.url);
 const HEARTH_FIXTURE = readFileSync(HEARTH_FILE, 'utf8');
 
