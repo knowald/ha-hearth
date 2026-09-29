@@ -68,6 +68,10 @@ export const EntityRefSchema = v.object({
 	// display-only tile, for entities whose integration exposes no working
 	// toggle (a PlayStation media_player, a read-only sensor)
 	readonly: v.optional(v.boolean('must be true or false')),
+	// An optional second entity can drive the tile's active styling while the
+	// primary entity continues to supply its label, state and detail view.
+	active_entity: OptionalEntityId,
+	active_states: v.optional(v.array(v.string('must be text'), 'must be a list')),
 	// overrides the containing entities card's slider update behavior
 	slider_updates: v.optional(
 		v.picklist(['continuous', 'release'], 'must be continuous or release')

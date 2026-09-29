@@ -77,6 +77,27 @@ describe('EntityTile', () => {
 		expect(toggleEntity).not.toHaveBeenCalled();
 	});
 
+	it('highlights from a separate status entity while keeping the displayed state', async () => {
+		states.set({
+			'sensor.washer_display': hassEntity('sensor.washer_display', 'Running · 2h 4m left'),
+			'sensor.washer_status': hassEntity('sensor.washer_status', 'running')
+		});
+		render(EntityTile, {
+			entity: 'sensor.washer_display',
+			activeEntity: 'sensor.washer_status',
+			activeStates: ['running', 'rinsing', 'spinning']
+		});
+		const tile = screen.getByRole('button');
+		expect(screen.getByText('Running · 2h 4m left')).toBeTruthy();
+		expect(tile.classList.contains('on')).toBe(true);
+		states.set({
+			'sensor.washer_display': hassEntity('sensor.washer_display', 'Finished'),
+			'sensor.washer_status': hassEntity('sensor.washer_status', 'end')
+		});
+		await screen.findByText('Finished');
+		expect(tile.classList.contains('on')).toBe(false);
+	});
+
 	it('delegates lights and covers to their own tiles', () => {
 		states.set({
 			'light.desk': hassEntity('light.desk', 'on', { brightness: 255 }),
