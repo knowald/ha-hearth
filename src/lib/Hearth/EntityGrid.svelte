@@ -88,6 +88,8 @@
 					name={ref.name}
 					icon={ref.icon}
 					readonly={ref.readonly ?? readonly}
+					activeEntity={ref.active_entity}
+					activeStates={ref.active_states}
 					sliderUpdates={ref.slider_updates ?? sliderUpdates}
 					showTune={tuneButton}
 					{compact}

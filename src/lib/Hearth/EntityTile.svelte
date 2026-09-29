@@ -31,6 +31,8 @@
 		icon = undefined,
 		compact = false,
 		readonly = false,
+		activeEntity = undefined,
+		activeStates = undefined,
 		sliderUpdates = 'continuous',
 		showTune = false,
 		onedit = undefined
@@ -41,6 +43,8 @@
 		compact?: boolean;
 		/** display only: taps never send a command */
 		readonly?: boolean;
+		activeEntity?: string;
+		activeStates?: string[];
 		sliderUpdates?: SliderUpdateMode;
 		/** restores the controls glyph beside the long-press gesture */
 		showTune?: boolean;
@@ -52,7 +56,15 @@
 	let availability = $derived(entityAvailability(stateObj));
 	let available = $derived(availability === 'available');
 	let controllable = $derived(entityControllable(stateObj));
-	let on = $derived(entityActiveFor(entity, stateObj, $controlOverrides));
+	let highlightEntity = $derived(activeEntity || entity);
+	let highlightState = $derived($states?.[highlightEntity]);
+	let on = $derived(
+		available &&
+			(activeStates?.length
+				? entityAvailability(highlightState) === 'available' &&
+					activeStates.includes(highlightState!.state)
+				: entityActiveFor(highlightEntity, highlightState, $controlOverrides))
+	);
 	let pending = $derived($pendingEntities[entity] !== undefined);
 	let label = $derived(name || stateObj?.attributes?.friendly_name || entity);
 	let iconColor = $derived(

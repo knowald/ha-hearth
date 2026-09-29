@@ -27,6 +27,8 @@
 		icon: string;
 		display: string;
 		readonly: boolean;
+		active_entity: string;
+		active_states: string;
 		slider_updates: string;
 		// YAML-only field with no form control; carried so edits don't drop it
 		verdict?: EntityRef['verdict'];
@@ -39,6 +41,8 @@
 			icon: ref.icon ?? '',
 			display: ref.display ?? '',
 			readonly: ref.readonly ?? false,
+			active_entity: ref.active_entity ?? '',
+			active_states: ref.active_states?.join(', ') ?? '',
 			slider_updates: ref.slider_updates ?? '',
 			verdict: ref.verdict
 		};
@@ -101,6 +105,8 @@
 			icon: '',
 			display: '',
 			readonly: false,
+			active_entity: '',
+			active_states: '',
 			slider_updates: ''
 		});
 		entitiesOpen = true;
@@ -135,6 +141,13 @@
 						icon: ref.icon.trim() || undefined,
 						display: ref.display === 'stat' || ref.display === 'tile' ? ref.display : undefined,
 						readonly: ref.readonly || undefined,
+						active_entity: ref.active_entity.trim() || undefined,
+						active_states: ref.active_states.trim()
+							? ref.active_states
+									.split(',')
+									.map((state) => state.trim())
+									.filter(Boolean)
+							: undefined,
 						slider_updates:
 							ref.slider_updates === 'continuous' || ref.slider_updates === 'release'
 								? ref.slider_updates
@@ -290,6 +303,17 @@
 						<EntityField label={$lang('entity')} bind:value={ref.entity} />
 						<TextField label={$lang('hearth_name_optional')} bind:value={ref.name} />
 						<IconField label={$lang('hearth_icon_optional')} bind:value={ref.icon} />
+						{#if !['light', 'cover'].includes(ref.entity.split('.')[0])}
+							<EntityField
+								label={$lang('hearth_active_while_entity_optional')}
+								bind:value={ref.active_entity}
+							/>
+							<TextField
+								label={$lang('hearth_active_states_optional')}
+								bind:value={ref.active_states}
+								placeholder="running, rinsing, spinning"
+							/>
+						{/if}
 						<SelectField
 							label={$lang('hearth_display')}
 							bind:value={ref.display}
