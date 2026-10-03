@@ -299,7 +299,9 @@
 	): StepperRow {
 		return {
 			...labels,
-			sub: zoomSupported ? labels.sub : 'hearth_scale_unsupported',
+			// the mobile row's hint is the only place that explains the mobile rows,
+			// so the unsupported note goes on the main row alone
+			sub: zoomSupported || key === 'mobile_scale' ? labels.sub : 'hearth_scale_unsupported',
 			value,
 			step: 5,
 			min: 50,

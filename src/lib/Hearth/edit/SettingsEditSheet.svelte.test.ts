@@ -57,6 +57,12 @@ describe('SettingsEditSheet', () => {
 		expect(get(editor)).toEqual({ kind, from: { kind: 'settings' } });
 	});
 
+	it('keeps the mobile rows explained where the browser cannot scale', () => {
+		render(SettingsEditSheet);
+		expect(screen.getAllByText(en.hearth_scale_unsupported)).toHaveLength(1);
+		expect(screen.getByText(en.hearth_for_phone_width_screens)).toBeTruthy();
+	});
+
 	it('previews the sleep screen', async () => {
 		render(SettingsEditSheet);
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_preview_sleep_screen }));
