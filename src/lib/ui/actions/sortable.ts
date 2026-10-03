@@ -108,6 +108,25 @@ function revertToOrigin(draggedEl: Element) {
 	);
 }
 
+/**
+ * SortableJS sizes and moves the touch-drag ghost in screen pixels, which
+ * only works while the ghost renders at zoom 1, but the ghost's own padding,
+ * border and gap should keep the page zoom. So the ghost becomes a bare shell
+ * at zoom 1 (ZOOM_GHOST_SHELL, styled by the Hearth theme) and its content
+ * moves into a copy of the element that takes the zoom back.
+ */
+export const ZOOM_GHOST_SHELL = 'sortable-zoom-shell';
+
+// the `.sortable-zoom-shell` rules live in DRAG_GHOST_CSS in Hearth's shell/ThemeStyle.svelte
+export function nestZoomedGhost(ghost: HTMLElement, item: HTMLElement) {
+	const inner = ghost.cloneNode(false) as HTMLElement;
+	inner.style.cssText = item.style.cssText;
+	inner.classList.remove('sortable-fallback');
+	inner.append(...ghost.childNodes);
+	ghost.className = `sortable-fallback ${ZOOM_GHOST_SHELL}`;
+	ghost.append(inner);
+}
+
 export function sortable<T>(
 	node: HTMLElement,
 	options: DndOptions<T>
@@ -138,6 +157,9 @@ export function sortable<T>(
 					parent: evt.item.parentNode as Node,
 					next: evt.item.nextSibling
 				});
+				if (Sortable.ghost && (node.currentCSSZoom ?? 1) !== 1) {
+					nestZoomedGhost(Sortable.ghost, evt.item);
+				}
 				options.onStart?.(evt);
 			},
 
@@ -213,6 +235,20 @@ export function sortable<T>(
 	}
 
 	const instance = Sortable.create(node, buildSortableOptions());
+
+	// SortableJS animates siblings by diffing screen-pixel rects and then
+	// translating in CSS pixels, so under a root zoom every move overshoots by
+	// the zoom factor. Sortable reads this option each time it animates, and
+	// the zoom can change at runtime, so skip the animation while zoomed.
+	let animation = instance.options.animation;
+	Object.defineProperty(instance.options, 'animation', {
+		configurable: true,
+		enumerable: true,
+		get: () => ((node.currentCSSZoom ?? 1) === 1 ? animation : 0),
+		set: (value: number | undefined) => {
+			animation = value;
+		}
+	});
 
 	return {
 		update(newOptions: DndOptions<T>) {

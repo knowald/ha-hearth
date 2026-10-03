@@ -98,8 +98,10 @@
 		if (settleFrame !== undefined) cancelAnimationFrame(settleFrame);
 		settleFrame = requestAnimationFrame(() => {
 			if (!floats || !sheet) return;
-			const size = sheet.getBoundingClientRect();
-			const viewport = { width: window.innerWidth, height: window.innerHeight };
+			// window size in the sheet's CSS pixels, which differ under the interface scale
+			const zoom = sheet.currentCSSZoom ?? 1;
+			const size = { width: sheet.offsetWidth, height: sheet.offsetHeight };
+			const viewport = { width: window.innerWidth / zoom, height: window.innerHeight / zoom };
 			// first open parks it against the right edge, clear of the rail
 			place(
 				clampToViewport(
@@ -258,8 +260,8 @@
 	}
 
 	.sheet {
-		width: min(760px, calc(100vw - 32px));
-		height: min(760px, calc(100dvh - 48px));
+		width: min(760px, calc(100 * var(--h-vw) - 32px));
+		height: min(760px, calc(100 * var(--h-dvh) - 48px));
 		display: flex;
 		flex-direction: column;
 		background: radial-gradient(680px 440px at 25% -10%, var(--h-sheet-0), var(--h-sheet-1) 60%);
@@ -272,7 +274,7 @@
 	}
 
 	.sheet.wide {
-		width: min(1120px, calc(100vw - 32px));
+		width: min(1120px, calc(100 * var(--h-vw) - 32px));
 	}
 
 	.header {
@@ -409,8 +411,8 @@
 		position: absolute;
 		top: 0;
 		left: 0;
-		width: min(420px, calc(100vw - 32px));
-		height: min(680px, calc(100dvh - 64px));
+		width: min(420px, calc(100 * var(--h-vw) - 32px));
+		height: min(680px, calc(100 * var(--h-dvh) - 64px));
 		box-shadow: var(--h-shadow-layer);
 	}
 
@@ -445,8 +447,8 @@
 			align-items: stretch;
 			/* the insets keep an installed app's status bar, home indicator and a
 			   landscape cutout off the sheet's edges */
-			padding: calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right))
-				calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
+			padding: calc(8px + var(--h-safe-top)) calc(8px + var(--h-safe-right))
+				calc(8px + var(--h-safe-bottom)) calc(8px + var(--h-safe-left));
 		}
 
 		/* stretched rather than sized from the viewport, so it follows the

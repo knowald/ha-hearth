@@ -480,8 +480,8 @@
 
 <style>
 	.sheet {
-		width: min(880px, calc(100vw - 48px));
-		height: 420px;
+		width: min(880px, calc(100 * var(--h-vw) - 48px));
+		height: min(420px, calc(100 * var(--h-dvh) - 48px));
 		border-radius: var(--h-radius-xl);
 		position: relative;
 		overflow: hidden;
@@ -525,6 +525,10 @@
 		padding: 28px 32px;
 		display: flex;
 		gap: 22px;
+		/* the sheet's height is capped to the screen, so a large interface scale
+		   can leave less room than the controls need */
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 
 	.stage {
@@ -903,7 +907,7 @@
 		.sheet {
 			/* the overlay's own padding already keeps a landscape cutout off the art */
 			width: 100%;
-			height: min(560px, calc(100dvh - 24px));
+			height: min(560px, calc(100 * var(--h-dvh) - 24px));
 			border-radius: var(--h-radius-xl) var(--h-radius-xl) 0 0;
 			align-self: flex-end;
 		}
@@ -913,13 +917,11 @@
 		}
 
 		/* no room for the panel beside the stage: it stacks under it and the
-		   sheet scrolls when the two do not fit */
+		   content scrolls when the two do not fit */
 		.content {
 			flex-direction: column;
 			gap: 18px;
-			padding: 22px 20px calc(20px + env(safe-area-inset-bottom));
-			overflow-y: auto;
-			overscroll-behavior: contain;
+			padding: 22px 20px calc(20px + var(--h-safe-bottom));
 		}
 
 		.stage {

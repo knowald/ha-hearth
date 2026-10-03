@@ -247,7 +247,11 @@ export const RootSettingsSchema = v.looseObject({
 	swipe_navigation_desktop: OptionalFlag,
 	phone_clock: OptionalFlag,
 	padding_x: optionalNumberAtLeast(0),
-	padding_y: optionalNumberAtLeast(0)
+	padding_y: optionalNumberAtLeast(0),
+	mobile_padding_x: optionalNumberAtLeast(0),
+	mobile_padding_y: optionalNumberAtLeast(0),
+	scale: optionalNumberInRange(50, 200),
+	mobile_scale: optionalNumberInRange(50, 200)
 });
 
 /**

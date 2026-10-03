@@ -269,6 +269,50 @@ describe('swipeGesture', () => {
 		await vi.waitFor(() => expect(node.style.transform).toBe(''));
 	});
 
+	it.each([
+		[0.5, 8, false, 'translateX(-120px)'],
+		[2, 12, true, 'translateX(-30px)']
+	])(
+		'at zoom %d locks after the same screen distance and keeps the page under the finger',
+		(zoom, nudge, locks, transform) => {
+			const { node, tile } = setup();
+			Object.defineProperty(node, 'currentCSSZoom', { value: zoom });
+			tile.dispatchEvent(pointer('pointerdown', 200, 100));
+			tile.dispatchEvent(pointer('pointermove', 200 - nudge, 100));
+			expect(node.setPointerCapture).toHaveBeenCalledTimes(locks ? 1 : 0);
+			tile.dispatchEvent(pointer('pointermove', 140, 100));
+			expect(node.style.transform).toBe(transform);
+		}
+	);
+
+	it('measures a fling in screen pixels at an interface scale', async () => {
+		const { node, onswipe, drag } = setup();
+		Object.defineProperty(node, 'currentCSSZoom', { value: 2 });
+		// 40px over 64ms is a fling on screen, but only half that speed in CSS pixels
+		drag([
+			[190, 100],
+			[180, 100],
+			[170, 100],
+			[160, 100]
+		]);
+		await vi.waitFor(() => expect(onswipe).toHaveBeenCalledWith('next'));
+	});
+
+	it('measures the commit distance against the page width on screen', async () => {
+		const { node, onswipe, drag } = setup();
+		Object.defineProperty(node, 'currentCSSZoom', { value: 2 });
+		drag(
+			[
+				[190, 100],
+				[50, 100]
+			],
+			'pointerup',
+			STALE_SAMPLE_MS + 50
+		);
+		await vi.waitFor(() => expect(node.style.transform).toBe(''));
+		expect(onswipe).not.toHaveBeenCalled();
+	});
+
 	it('leaves a tap and a vertical scroll alone', () => {
 		const { node, onswipe, drag } = setup();
 		drag([[203, 102]]);

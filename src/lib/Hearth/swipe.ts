@@ -253,7 +253,10 @@ export const swipeGesture: Action<HTMLElement, SwipeGestureOptions> = (node, opt
 		) {
 			active.samples.shift();
 		}
-		place(resistedOffset(active.dx, current.hasPrevious, current.hasNext));
+		// thresholds stay in screen pixels like every other gesture; only the
+		// page moves in its own CSS pixels, which differ under the interface scale
+		const zoom = node.currentCSSZoom ?? 1;
+		place(resistedOffset(active.dx, current.hasPrevious, current.hasNext) / zoom);
 	}
 
 	function release(event: PointerEvent) {
@@ -274,7 +277,7 @@ export const swipeGesture: Action<HTMLElement, SwipeGestureOptions> = (node, opt
 						dx: ended.dx,
 						dy: ended.dy,
 						velocity: releaseVelocity(ended.samples, event.timeStamp),
-						width: node.clientWidth,
+						width: node.clientWidth * (node.currentCSSZoom ?? 1),
 						hasPrevious: current.hasPrevious,
 						hasNext: current.hasNext
 					})

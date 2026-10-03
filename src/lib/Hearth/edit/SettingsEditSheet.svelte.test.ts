@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import en from '../../../../static/translations/en.json';
 import type { HassConfig } from 'home-assistant-js-websocket';
 import { config as haConfig } from '$lib/core/ha/connection';
@@ -8,12 +8,16 @@ import { DEFAULT_HEARTH_CONFIG } from '../config';
 import { editor, hearthConfig, screensaverPreview, setupWizardOpen } from '../store';
 import SettingsEditSheet from './SettingsEditSheet.svelte';
 
+const zoom = vi.hoisted(() => ({ zoomSupported: false }));
+vi.mock('../zoom', () => zoom);
+
 describe('SettingsEditSheet', () => {
 	afterEach(() => {
 		editor.set(null);
 		setupWizardOpen.set(false);
 		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
 		screensaverPreview.set(false);
+		zoom.zoomSupported = false;
 	});
 
 	it('lists the alert rules and opens one, or a new one, in the alert editor', async () => {
@@ -55,6 +59,20 @@ describe('SettingsEditSheet', () => {
 		render(SettingsEditSheet);
 		await fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }));
 		expect(get(editor)).toEqual({ kind, from: { kind: 'settings' } });
+	});
+
+	it('explains the scale rows where the browser can scale', () => {
+		zoom.zoomSupported = true;
+		render(SettingsEditSheet);
+		expect(screen.queryByText(en.hearth_scale_unsupported)).toBeNull();
+		expect(screen.getByText(en.hearth_size_of_text_and_controls)).toBeTruthy();
+		expect(screen.getByText(en.hearth_for_phone_width_screens)).toBeTruthy();
+	});
+
+	it('keeps the mobile rows explained where the browser cannot scale', () => {
+		render(SettingsEditSheet);
+		expect(screen.getAllByText(en.hearth_scale_unsupported)).toHaveLength(1);
+		expect(screen.getByText(en.hearth_for_phone_width_screens)).toBeTruthy();
 	});
 
 	it('previews the sleep screen', async () => {
@@ -117,5 +135,66 @@ describe('SettingsEditSheet', () => {
 			tile_url: 'https://tiles.example/{z}/{x}/{y}.png'
 		});
 		expect(screen.getByLabelText(en.hearth_sleep_tile_attribution)).toBeTruthy();
+	});
+
+	it('shows the clamped value when the typed one clamps to the stored scale', async () => {
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), scale: 200 });
+		render(SettingsEditSheet);
+		const input = screen.getByRole('spinbutton', { name: en.hearth_interface_scale });
+		await fireEvent.change(input, { target: { value: '250' } });
+		expect(get(hearthConfig).scale).toBe(200);
+		await waitFor(() => expect((input as HTMLInputElement).value).toBe('200'));
+	});
+
+	it('follows the tablet scale again when a mobile field is cleared', async () => {
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), scale: 200, mobile_scale: 80 });
+		render(SettingsEditSheet);
+		const input = screen.getByRole('spinbutton', {
+			name: en.hearth_mobile_interface_scale
+		}) as HTMLInputElement;
+		expect(input.value).toBe('80');
+		await fireEvent.change(input, { target: { value: '' } });
+		expect(get(hearthConfig).mobile_scale).toBeUndefined();
+		await waitFor(() => expect(input.value).toBe('200'));
+	});
+
+	it('keeps a mobile padding of zero and drops a desktop one', async () => {
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), padding_x: 24 });
+		render(SettingsEditSheet);
+		await fireEvent.change(
+			screen.getByRole('spinbutton', { name: en.hearth_mobile_side_padding }),
+			{
+				target: { value: '0' }
+			}
+		);
+		expect(get(hearthConfig).mobile_padding_x).toBe(0);
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_decrease_side_padding }));
+		expect(get(hearthConfig).padding_x).toBe(20);
+		await fireEvent.change(screen.getByRole('spinbutton', { name: en.hearth_side_padding }), {
+			target: { value: '0' }
+		});
+		expect(get(hearthConfig).padding_x).toBeUndefined();
+	});
+
+	it('leaves a mobile row unset when a press clamps to the value it inherits', async () => {
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), scale: 200 });
+		const before = get(hearthConfig);
+		render(SettingsEditSheet);
+		await fireEvent.click(
+			screen.getByRole('button', { name: en.hearth_decrease_mobile_side_padding })
+		);
+		await fireEvent.click(
+			screen.getByRole('button', { name: en.hearth_increase_mobile_interface_scale })
+		);
+		expect(get(hearthConfig)).toBe(before);
+
+		await fireEvent.click(
+			screen.getByRole('button', { name: en.hearth_increase_mobile_side_padding })
+		);
+		expect(get(hearthConfig).mobile_padding_x).toBe(4);
+		await fireEvent.click(
+			screen.getByRole('button', { name: en.hearth_decrease_mobile_side_padding })
+		);
+		expect(get(hearthConfig).mobile_padding_x).toBe(0);
 	});
 });

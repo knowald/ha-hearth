@@ -186,13 +186,13 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: center;
-		padding-top: 12dvh;
+		padding-top: calc(12 * var(--h-dvh));
 	}
 
 	.panel {
 		width: 480px;
-		max-width: calc(100vw - 40px);
-		max-height: calc(100dvh - 80px);
+		max-width: calc(100 * var(--h-vw) - 40px);
+		max-height: calc(100 * var(--h-dvh) - 80px);
 		display: flex;
 		flex-direction: column;
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
@@ -319,7 +319,7 @@
 	 */
 	@media (max-width: 900px) {
 		.overlay {
-			padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
+			padding: 0 var(--h-safe-right) 0 var(--h-safe-left);
 		}
 
 		.panel {
@@ -330,7 +330,7 @@
 			max-height: 100%;
 			border-top: 0;
 			border-radius: 0 0 var(--h-radius-xl) var(--h-radius-xl);
-			padding-top: calc(16px + env(safe-area-inset-top));
+			padding-top: calc(16px + var(--h-safe-top));
 		}
 	}
 </style>

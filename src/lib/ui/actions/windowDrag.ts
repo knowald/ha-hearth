@@ -43,15 +43,19 @@ export const windowDrag: Action<HTMLElement, WindowDragOptions> = (node, options
 	let current = options;
 	let tracking: { pointerId: number; offsetX: number; offsetY: number } | null = null;
 
+	// the pointer and the window size are in screen pixels, the position in
+	// the window's CSS pixels, which differ under a CSS zoom
+	function pointer(event: PointerEvent) {
+		const zoom = node.currentCSSZoom ?? 1;
+		return { x: event.clientX / zoom, y: event.clientY / zoom };
+	}
+
 	function handleDown(event: PointerEvent) {
 		if (current.disabled || event.button !== 0) return;
 		if (current.ignore && (event.target as Element).closest?.(current.ignore)) return;
 		const start = current.position();
-		tracking = {
-			pointerId: event.pointerId,
-			offsetX: event.clientX - start.x,
-			offsetY: event.clientY - start.y
-		};
+		const { x, y } = pointer(event);
+		tracking = { pointerId: event.pointerId, offsetX: x - start.x, offsetY: y - start.y };
 		try {
 			node.setPointerCapture(event.pointerId);
 		} catch {
@@ -62,12 +66,13 @@ export const windowDrag: Action<HTMLElement, WindowDragOptions> = (node, options
 
 	function handleMove(event: PointerEvent) {
 		if (!tracking || event.pointerId !== tracking.pointerId) return;
+		const { x, y } = pointer(event);
+		const zoom = node.currentCSSZoom ?? 1;
 		current.move(
-			clampToViewport(
-				{ x: event.clientX - tracking.offsetX, y: event.clientY - tracking.offsetY },
-				current.size(),
-				{ width: window.innerWidth, height: window.innerHeight }
-			)
+			clampToViewport({ x: x - tracking.offsetX, y: y - tracking.offsetY }, current.size(), {
+				width: window.innerWidth / zoom,
+				height: window.innerHeight / zoom
+			})
 		);
 	}
 
