@@ -11,6 +11,7 @@ import {
 	enterEditMode,
 	hearthConfig,
 	hearthEditMode,
+	hearthRevision,
 	requestedConfirmation,
 	saveState,
 	updateConfig
@@ -102,6 +103,69 @@ describe('EditBar', () => {
 			await waitFor(() => expect(get(copyState)).toBe('failed'));
 			expect(get(saveState)).toBe('conflict');
 			expect(screen.queryByText(en.hearth_save_failed)).toBeNull();
+		});
+	});
+
+	it('asks before the conflict Reload drops the session edits', async () => {
+		saveState.set('conflict');
+		updateConfig((config) => {
+			config.rooms[0].name = 'Renamed';
+		});
+		renderBar();
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_reload }));
+		expect(get(requestedConfirmation)).toMatchObject({
+			title: en.hearth_reload_discard_title,
+			confirmLabel: en.hearth_reload
+		});
+	});
+
+	describe('starting a session', () => {
+		beforeEach(() => {
+			cancelEdit();
+			hearthRevision.set(3);
+		});
+
+		function serverAt(revision: number | null) {
+			vi.stubGlobal(
+				'fetch',
+				revision === null
+					? vi.fn().mockRejectedValue(new Error('offline'))
+					: vi.fn().mockResolvedValue({ ok: true, json: async () => ({ revision }) })
+			);
+		}
+
+		async function startEditing() {
+			renderBar();
+			await fireEvent.click(screen.getByRole('button', { name: en.hearth_edit_configuration }));
+		}
+
+		it('edits at once when the page holds the latest revision', async () => {
+			serverAt(3);
+			await startEditing();
+			await waitFor(() => expect(get(hearthEditMode)).toBe(true));
+			expect(get(requestedConfirmation)).toBeNull();
+		});
+
+		it('edits at once when the server cannot say', async () => {
+			serverAt(null);
+			await startEditing();
+			await waitFor(() => expect(get(hearthEditMode)).toBe(true));
+		});
+
+		it('offers to reload first when another screen saved since the page loaded', async () => {
+			serverAt(4);
+			await startEditing();
+			await waitFor(() =>
+				expect(get(requestedConfirmation)).toMatchObject({
+					title: en.hearth_newer_config_title,
+					confirmLabel: en.hearth_reload,
+					cancelLabel: en.hearth_edit_anyway
+				})
+			);
+			expect(get(hearthEditMode)).toBe(false);
+			// declining the reload edits the loaded revision anyway
+			dismissConfirmation();
+			expect(get(hearthEditMode)).toBe(true);
 		});
 	});
 });

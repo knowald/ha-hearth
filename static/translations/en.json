@@ -1149,5 +1149,12 @@
 	"hearth_alert_open": "Open",
 	"hearth_notifications_count": "Notifications ({count})",
 	"hearth_device_name": "Device name",
-	"hearth_device_name_sub": "Home Assistant events that name a device only reach screens with that name. Stored in this browser."
+	"hearth_device_name_sub": "Home Assistant events that name a device only reach screens with that name. Stored in this browser.",
+	"hearth_discard_sheet_title": "Discard changes?",
+	"hearth_discard_sheet_message": "Leaving this editor drops the changes made in it.",
+	"hearth_newer_config_title": "Newer configuration saved",
+	"hearth_newer_config_message": "Another screen saved the dashboard after this page loaded. Reload to edit the current version; edits to this one end in a conflict on save.",
+	"hearth_edit_anyway": "Edit anyway",
+	"hearth_reload_discard_title": "Reload and drop your edits?",
+	"hearth_reload_discard_message": "Reloading shows the version saved elsewhere and drops every change made in this session. Copy edits first to keep them."
 }

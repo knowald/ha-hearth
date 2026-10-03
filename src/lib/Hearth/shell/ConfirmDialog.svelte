@@ -29,7 +29,7 @@
 			<!-- cancel comes first, so the safe action is the one that takes focus -->
 			<div class="confirm-actions">
 				<button type="button" class="hearth-button secondary" onclick={dismissConfirmation}>
-					{$lang('cancel')}
+					{$requestedConfirmation.cancelLabel ?? $lang('cancel')}
 				</button>
 				<button type="button" class="hearth-button danger" onclick={confirmRequestedAction}>
 					{$requestedConfirmation.confirmLabel}

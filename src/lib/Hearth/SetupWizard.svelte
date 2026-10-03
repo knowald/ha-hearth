@@ -12,6 +12,7 @@
 	import './buttons.css';
 	import { applyImport, existingPageNames, pageNameKey, type ImportMode } from './importPlan';
 	import { buildProposal, type HearthProposal, type ProposedPage } from './proposal';
+	import type { HearthConfig } from './types';
 	import { fetchRegistry } from '$lib/core/ha/registry';
 	import {
 		editor,
@@ -116,6 +117,7 @@
 		// every later mutation and proxies cannot be structured-cloned
 		const plain = $state.snapshot(proposal) as HearthProposal;
 		const chosen = plain.pages.filter((page) => included[page.room.id]);
+		const before = get(hearthConfig);
 		updateConfig((config) =>
 			applyImport(config, {
 				pages: chosen,
@@ -126,17 +128,18 @@
 		hearthNeedsSetup.set(false);
 		// outside edit mode nothing else would persist the import, and a reload
 		// would silently drop it
-		if (!get(hearthEditMode)) void persist();
+		if (!get(hearthEditMode)) void persist(before);
 		// opened from the settings sheet, which would otherwise cover the new pages
 		editor.set(null);
 		onclose();
 	}
 
-	async function persist() {
+	async function persist(before: HearthConfig) {
 		await saveWithFeedback();
 		// only the edit bar reports a failed or conflicting save, and it is the
-		// only way to retry one - so hand the still-unsaved import over to it
-		if (get(saveState) !== 'saved') enterEditMode();
+		// only way to retry one - so hand the still-unsaved import over to it,
+		// with Cancel going back to the dashboard from before the import
+		if (get(saveState) !== 'saved') enterEditMode(before);
 	}
 
 	function apply() {

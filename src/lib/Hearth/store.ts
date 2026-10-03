@@ -3,6 +3,7 @@ import { base } from '$app/paths';
 import { validTimeZone } from './clock';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import { vibrate } from '$lib/core/app/haptics';
+import { holdReloads } from '$lib/core/app/reload';
 import {
 	DEFAULT_HEARTH_CONFIG,
 	type AlertSeverity,
@@ -82,6 +83,9 @@ export function redoConfig() {
 
 export const hearthEditMode = writable(false);
 
+// a reload Home Assistant asks for mid-edit would drop the draft, so it waits for Save or Cancel
+hearthEditMode.subscribe(holdReloads);
+
 // edit mode arranges layout; taps there must never fire real device commands
 
 export type Editor =
@@ -112,11 +116,16 @@ export const editedThemeSlot = writable<'day' | 'night'>('day');
 
 let editSnapshot: HearthConfig | null = null;
 
-export function enterEditMode() {
-	editSnapshot = structuredClone(get(hearthConfig));
+/**
+ * `unsaved` hands over a change that was applied and failed to save outside
+ * edit mode: Cancel returns to `unsaved`, and the failure stays on the bar.
+ */
+export function enterEditMode(unsaved?: HearthConfig) {
+	editSnapshot = structuredClone(unsaved ?? get(hearthConfig));
 	undoStack.length = 0;
 	redoStack.length = 0;
 	syncHistoryFlags();
+	if (!unsaved) clearSaveFeedback();
 	hearthEditMode.set(true);
 }
 
@@ -126,8 +135,21 @@ export function cancelEdit() {
 	undoStack.length = 0;
 	redoStack.length = 0;
 	syncHistoryFlags();
+	clearSaveFeedback();
 	editor.set(null);
 	hearthEditMode.set(false);
+}
+
+/** The revision the server holds now, or undefined when it cannot say. */
+export async function fetchServerRevision(): Promise<number | undefined> {
+	try {
+		const response = await fetch(`${base}/_api/hearth_versions`, { cache: 'no-store' });
+		if (!response.ok) return undefined;
+		const { revision } = await response.json();
+		return Number.isInteger(revision) ? revision : undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 /** True when the draft differs from what edit mode started with or last saved. */
@@ -145,6 +167,29 @@ saveState.subscribe((state) => {
 /** Why the last save failed, from the server when it said. */
 export const saveFailure = writable<string | null>(null);
 let savedToastTimer: ReturnType<typeof setTimeout>;
+
+// an old failure or conflict belongs to the session that hit it
+function clearSaveFeedback() {
+	clearTimeout(savedToastTimer);
+	saveState.set('idle');
+	saveFailure.set(null);
+}
+
+let unloadAllowed = false;
+
+/** beforeunload handler: the browser asks before a reload or a close drops unsaved edits. */
+export function guardUnload(event: BeforeUnloadEvent) {
+	if (unloadAllowed || !hasUnsavedEdits()) return;
+	event.preventDefault();
+	// older WebViews on wall tablets only ask when returnValue is set
+	event.returnValue = '';
+}
+
+/** Reload once the user agreed to drop the edits, without the browser asking again. */
+export function reloadDiscardingEdits() {
+	unloadAllowed = true;
+	location.reload();
+}
 
 /** Save and surface the outcome through saveState instead of throwing. */
 export async function saveWithFeedback(force = false): Promise<void> {
@@ -263,6 +308,10 @@ export interface RequestedConfirmation {
 	message: string;
 	confirmLabel: string;
 	action: () => void;
+	/** Names the dismiss button when dismissing does more than nothing. */
+	cancelLabel?: string;
+	/** Runs on every dismissal: the button, Escape, back or a backdrop tap. */
+	cancel?: () => void;
 }
 
 export const requestedConfirmation = writable<RequestedConfirmation | null>(null);
@@ -272,7 +321,9 @@ export function requestConfirmation(request: RequestedConfirmation) {
 }
 
 export function dismissConfirmation() {
+	const request = get(requestedConfirmation);
 	requestedConfirmation.set(null);
+	request?.cancel?.();
 }
 
 export function confirmRequestedAction() {

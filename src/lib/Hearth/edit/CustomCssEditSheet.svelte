@@ -8,6 +8,7 @@
 	import EditSheet from './EditSheet.svelte';
 
 	let value = $state('');
+	let saved = $state('');
 	let loaded = $state(false);
 	let saving = $state(false);
 	let error = $state<string | null>(null);
@@ -16,7 +17,7 @@
 		try {
 			const response = await fetch(`${base}/_api/custom_css`);
 			if (!response.ok) throw new Error(`${response.status}`);
-			value = await response.json();
+			value = saved = await response.json();
 			// saving stays disabled unless the current file was read, so a failed
 			// load can never be replaced by an empty one
 			loaded = true;
@@ -25,6 +26,8 @@
 			error = $lang('hearth_could_not_load_file');
 		}
 	});
+
+	let dirty = $derived(loaded && value !== saved);
 
 	function back() {
 		editor.set({ kind: 'appSettings' });
@@ -61,6 +64,7 @@
 	onclose={() => editor.set(null)}
 	onback={back}
 	ondone={save}
+	{dirty}
 	doneLabel={$lang('save')}
 	doneDisabled={!loaded || saving}
 >

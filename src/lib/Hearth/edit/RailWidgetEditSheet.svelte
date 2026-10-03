@@ -2,6 +2,7 @@
 	import { ICON } from '../iconSizes';
 	import { lang } from '$lib/core/i18n';
 	import { get } from 'svelte/store';
+	import { untrack } from 'svelte';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { activateOnKeyboard } from '../interaction';
 	import type { MobileSlot, RailSide, RailWidget, VisibilityCondition } from '../types';
@@ -86,6 +87,30 @@
 
 	let previewWidget = $derived.by(() => buildWidget('preview'));
 
+	/*
+	 * An options editor loads on demand and reports its fields once on mount,
+	 * before any input, so that first report is its untouched form. A new
+	 * widget starts over with each type picked; an existing one counts a type
+	 * switch as a change.
+	 */
+	function placement() {
+		return JSON.stringify({ mobile, side, visibility });
+	}
+	const untouchedPlacement = placement();
+	let untouchedType = $state(initial?.type ?? 'status');
+	let untouchedFields = $state<string>();
+	let dirty = $derived(
+		type !== untouchedType ||
+			placement() !== untouchedPlacement ||
+			(untouchedFields !== undefined && JSON.stringify(draft.fields) !== untouchedFields)
+	);
+
+	function report(next: WidgetDraft<RailWidget>) {
+		draft = next;
+		// runs inside the editor's effect, which must not come to depend on the sheet's state
+		untrack(() => (untouchedFields ??= JSON.stringify(next.fields)));
+	}
+
 	// moving the widget shifts its index, so later writes find it by id
 	function widgetIndex(rail: RailWidget[]) {
 		return initial ? rail.findIndex((widget) => widget.id === initial.id) : -1;
@@ -131,6 +156,7 @@
 	title={$lang(index !== null ? 'hearth_edit_widget' : 'hearth_add_widget')}
 	onclose={close}
 	ondone={done}
+	{dirty}
 	doneDisabled={typeOpen || draft.valid === false}
 	onremove={initial ? remove : undefined}
 	onmoveup={initial ? () => move(-1) : undefined}
@@ -145,6 +171,10 @@
 		noMatch={$lang('hearth_no_widgets_match')}
 		bind:open={typeOpen}
 		onselect={(value) => {
+			if (index === null && value !== type) {
+				untouchedType = value as RailWidget['type'];
+				untouchedFields = undefined;
+			}
 			type = value as RailWidget['type'];
 			// option-free types have no editor to replace a stale draft
 			draft = { fields: {} as WidgetDraft<RailWidget>['fields'] };
@@ -155,7 +185,7 @@
 			{#key type}
 				{#if descriptor.editor}
 					{#await descriptor.editor() then Editor}
-						<Editor.default initial={editorInitial} onchange={(next) => (draft = next)} />
+						<Editor.default initial={editorInitial} onchange={report} />
 					{:catch}
 						<div class="field-error">{$lang('hearth_could_not_load_component')}</div>
 					{/await}

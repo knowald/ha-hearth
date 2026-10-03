@@ -29,6 +29,23 @@
 	let popup = $state(initial?.popup !== false);
 	let autoClose = $state(initial?.auto_close !== false);
 
+	function staged() {
+		return {
+			title,
+			message,
+			icon,
+			severity,
+			conditions,
+			seconds,
+			entity,
+			popup,
+			autoClose
+		};
+	}
+
+	const untouched = JSON.stringify(staged());
+	let dirty = $derived(JSON.stringify(staged()) !== untouched);
+
 	let SEVERITY_OPTIONS = $derived([
 		{ value: 'info', label: $lang('hearth_alert_severity_info') },
 		{ value: 'warning', label: $lang('hearth_alert_severity_warning') },
@@ -102,6 +119,7 @@
 	onclose={close}
 	onback={back}
 	ondone={done}
+	{dirty}
 	doneDisabled={!valid}
 	onremove={initial ? remove : undefined}
 >

@@ -24,7 +24,9 @@ Keep this directory private. `configuration.yaml` may hold a Home Assistant acce
 
 ### Saving
 
-Every save carries the revision the browser loaded. If another browser saved in the meantime, the edit bar reports the conflict and offers to copy your edits, overwrite the newer version or reload. The previous content goes to `backups/` before the file is replaced.
+Every save carries the revision the browser loaded. If another browser saved in the meantime, the edit bar reports the conflict and offers to copy your edits, overwrite the newer version or reload. The previous content goes to `backups/` before the file is replaced. Entering edit mode checks for a newer revision first and offers to reload before you edit an old one.
+
+Closing an editor sheet with changes in it (backdrop tap, close button, Escape or back) asks before dropping them, and the browser asks before a reload or a closed tab drops unsaved edits.
 
 To go back, open Settings > Versions, compare an earlier version with the open dashboard and restore it as an edit you can still undo.
 
@@ -65,7 +67,7 @@ These change presentation only. They are not access controls.
 
 ## Sleep screen
 
-Settings > Sleep screen turns it on after a set number of minutes and sets its background. The weather radar background loads radar images from RainViewer and map tiles from OpenStreetMap in the browser, so the screen needs internet access for it. Set Map tiles to use another tile server.
+Settings > Sleep screen turns it on after a set number of minutes and sets its background. It does not come on in edit mode; the minutes count again from when editing ends. The weather radar background loads radar images from RainViewer and map tiles from OpenStreetMap in the browser, so the screen needs internet access for it. Set Map tiles to use another tile server.
 
 ## Phone page strip
 

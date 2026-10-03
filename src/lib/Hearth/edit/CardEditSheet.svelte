@@ -2,6 +2,7 @@
 	import { integerFromInput } from './numbers';
 	import { lang } from '$lib/core/i18n';
 	import { get } from 'svelte/store';
+	import { untrack } from 'svelte';
 	import type {
 		EntityRef,
 		HearthConfig,
@@ -111,6 +112,30 @@
 
 	let previewCard = $derived.by(() => buildCard('preview'));
 
+	/*
+	 * The per-type editor loads on demand and reports its fields once on
+	 * mount, before any input, so that first report is its untouched form. A
+	 * new card starts over with each type picked; an existing one counts a type
+	 * switch as a change.
+	 */
+	function layout() {
+		return JSON.stringify({ fill, height, visibility });
+	}
+	const untouchedLayout = layout();
+	let untouchedType = $state(initial?.type ?? 'entities');
+	let untouchedFields = $state<string>();
+	let dirty = $derived(
+		type !== untouchedType ||
+			layout() !== untouchedLayout ||
+			(untouchedFields !== undefined && JSON.stringify(draft.fields) !== untouchedFields)
+	);
+
+	function report(next: CardDraft<OverviewCard>) {
+		draft = next;
+		// runs inside the editor's effect, which must not come to depend on the sheet's state
+		untrack(() => (untouchedFields ??= JSON.stringify(next.fields)));
+	}
+
 	function close() {
 		editor.set(null);
 	}
@@ -156,6 +181,10 @@
 	}
 
 	function selectType(value: string) {
+		if (id === null && value !== type) {
+			untouchedType = value as OverviewCard['type'];
+			untouchedFields = undefined;
+		}
 		type = value as OverviewCard['type'];
 		// the previous type's fields must not leak into the preview or the save
 		draft = { fields: {} as CardDraft<OverviewCard>['fields'] };
@@ -166,6 +195,7 @@
 	title={$lang(id !== null ? 'hearth_edit_card' : 'hearth_add_card')}
 	onclose={close}
 	ondone={done}
+	{dirty}
 	doneDisabled={typeOpen || draft.valid === false}
 	onremove={id !== null ? remove : undefined}
 	onmoveup={id !== null ? () => move(-1) : undefined}
@@ -186,11 +216,7 @@
 			<!-- keyed so a type switch mounts a fresh editor with fresh field state -->
 			{#key type}
 				{#await descriptor.editor() then Editor}
-					<Editor.default
-						bind:this={editorRef}
-						initial={editorInitial}
-						onchange={(next) => (draft = next)}
-					/>
+					<Editor.default bind:this={editorRef} initial={editorInitial} onchange={report} />
 				{:catch}
 					<div class="field-error">{$lang('hearth_could_not_load_component')}</div>
 				{/await}
