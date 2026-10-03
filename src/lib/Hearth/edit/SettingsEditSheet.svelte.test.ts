@@ -157,4 +157,26 @@ describe('SettingsEditSheet', () => {
 		});
 		expect(get(hearthConfig).padding_x).toBeUndefined();
 	});
+
+	it('leaves a mobile row unset when a press clamps to the value it inherits', async () => {
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), scale: 200 });
+		const before = get(hearthConfig);
+		render(SettingsEditSheet);
+		await fireEvent.click(
+			screen.getByRole('button', { name: en.hearth_decrease_mobile_side_padding })
+		);
+		await fireEvent.click(
+			screen.getByRole('button', { name: en.hearth_increase_mobile_interface_scale })
+		);
+		expect(get(hearthConfig)).toBe(before);
+
+		await fireEvent.click(
+			screen.getByRole('button', { name: en.hearth_increase_mobile_side_padding })
+		);
+		expect(get(hearthConfig).mobile_padding_x).toBe(4);
+		await fireEvent.click(
+			screen.getByRole('button', { name: en.hearth_decrease_mobile_side_padding })
+		);
+		expect(get(hearthConfig).mobile_padding_x).toBe(0);
+	});
 });

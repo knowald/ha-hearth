@@ -222,31 +222,44 @@
 
 	type PaddingKey = 'padding_x' | 'padding_y' | 'mobile_padding_x' | 'mobile_padding_y';
 
-	function setPadding(axis: PaddingKey, value: string) {
+	function setPadding(axis: PaddingKey, value: string, shown: number) {
 		const pixels = integerFromInput(value);
-		updateConfig((config) => {
-			if (!Number.isFinite(pixels)) {
-				config[axis] = undefined;
-				return;
-			}
-			const clamped = Math.min(300, Math.max(0, pixels));
-			// mobile 0 is kept: it overrides a nonzero desktop padding
-			config[axis] = clamped === 0 && !axis.startsWith('mobile_') ? undefined : clamped;
-		});
+		storeStepper(
+			axis,
+			Number.isFinite(pixels) ? Math.min(300, Math.max(0, pixels)) : undefined,
+			0,
+			shown
+		);
 	}
 
 	type ScaleKey = 'scale' | 'mobile_scale';
 
-	function setScale(key: ScaleKey, value: string) {
+	function setScale(key: ScaleKey, value: string, shown: number) {
 		const percent = integerFromInput(value);
+		storeStepper(
+			key,
+			Number.isFinite(percent) ? Math.min(200, Math.max(50, percent)) : undefined,
+			100,
+			shown
+		);
+	}
+
+	/**
+	 * Undefined clears the key. Tablet rows drop their default; mobile rows keep
+	 * any value, since even the default overrides a different tablet value. A
+	 * mobile row still following the tablet one stays unset when the press or
+	 * typed value lands on the number it already shows.
+	 */
+	function storeStepper(
+		key: PaddingKey | ScaleKey,
+		next: number | undefined,
+		fallback: number,
+		shown: number
+	) {
+		const mobile = key.startsWith('mobile_');
+		if (mobile && $hearthConfig[key] === undefined && next === shown) return;
 		updateConfig((config) => {
-			if (!Number.isFinite(percent)) {
-				config[key] = undefined;
-				return;
-			}
-			const clamped = Math.min(200, Math.max(50, percent));
-			// mobile 100 is kept: it overrides a non-default tablet scale
-			config[key] = clamped === 100 && key === 'scale' ? undefined : clamped;
+			config[key] = next === undefined || (!mobile && next === fallback) ? undefined : next;
 		});
 	}
 
@@ -275,7 +288,7 @@
 			min: 0,
 			max: 300,
 			unit: 'px',
-			set: (input) => setPadding(key, input)
+			set: (input) => setPadding(key, input, value)
 		};
 	}
 
@@ -292,7 +305,7 @@
 			min: 50,
 			max: 200,
 			unit: '%',
-			set: (input) => setScale(key, input)
+			set: (input) => setScale(key, input, value)
 		};
 	}
 
