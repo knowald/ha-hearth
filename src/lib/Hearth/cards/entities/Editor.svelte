@@ -2,6 +2,7 @@
 	import { integerFromInput } from '../../edit/numbers';
 	import { ICON } from '../../iconSizes';
 	import { lang } from '$lib/core/i18n';
+	import { domainDescriptor } from '$lib/core/domains';
 	import type { EntityRef } from '../../types';
 	import { moveItem } from '../../config';
 	import { activateOnKeyboard } from '../../interaction';
@@ -80,6 +81,21 @@
 		expandedRows = [];
 	}
 
+	// light and cover tiles light from their own state, and stat boxes have no
+	// highlight, so neither offers the highlight fields
+	function highlightable(ref: EditableRef): boolean {
+		const domain = ref.entity.trim().split('.')[0];
+		return !domainDescriptor(domain).tile && (ref.display || style) !== 'stat';
+	}
+
+	function stateList(text: string): string[] | undefined {
+		const states = text
+			.split(',')
+			.map((state) => state.trim())
+			.filter(Boolean);
+		return states.length ? states : undefined;
+	}
+
 	function toggleRow(index: number) {
 		expandedRows = expandedRows.includes(index)
 			? expandedRows.filter((entry) => entry !== index)
@@ -141,13 +157,8 @@
 						icon: ref.icon.trim() || undefined,
 						display: ref.display === 'stat' || ref.display === 'tile' ? ref.display : undefined,
 						readonly: ref.readonly || undefined,
-						active_entity: ref.active_entity.trim() || undefined,
-						active_states: ref.active_states.trim()
-							? ref.active_states
-									.split(',')
-									.map((state) => state.trim())
-									.filter(Boolean)
-							: undefined,
+						active_entity: highlightable(ref) ? ref.active_entity.trim() || undefined : undefined,
+						active_states: highlightable(ref) ? stateList(ref.active_states) : undefined,
 						slider_updates:
 							ref.slider_updates === 'continuous' || ref.slider_updates === 'release'
 								? ref.slider_updates
@@ -303,7 +314,7 @@
 						<EntityField label={$lang('entity')} bind:value={ref.entity} />
 						<TextField label={$lang('hearth_name_optional')} bind:value={ref.name} />
 						<IconField label={$lang('hearth_icon_optional')} bind:value={ref.icon} />
-						{#if !['light', 'cover'].includes(ref.entity.split('.')[0])}
+						{#if highlightable(ref)}
 							<EntityField
 								label={$lang('hearth_active_while_entity_optional')}
 								bind:value={ref.active_entity}
