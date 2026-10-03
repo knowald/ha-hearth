@@ -6,6 +6,9 @@
 	import { currentRoom, hearthConfig, hearthEditMode } from '../store';
 	import { searchAvailable } from '../visibility';
 	import Icon from '../Icon.svelte';
+	import PhoneClock from './PhoneClock.svelte';
+	import { mediaQuery } from '$lib/ui/mediaQuery';
+	import { FOLD_QUERY } from '../breakpoints';
 
 	/**
 	 * Page switcher for narrow viewports, where the rail folds under the page
@@ -20,6 +23,10 @@
 	// With no rail nothing folds, so hidden on mobile does not count.
 	let hasSearch = $derived(searchAvailable($hearthConfig.rail, $states, !always));
 
+	// the strip is display:none above the fold, where a mounted clock would
+	// still tick every second
+	const narrow = mediaQuery(FOLD_QUERY);
+
 	// a page picked from search or a ?room= link can sit past the strip's edge
 	let pills: Record<string, HTMLButtonElement | undefined> = {};
 	$effect(() => {
@@ -32,6 +39,9 @@
 </script>
 
 <nav class="phone-nav" class:always aria-label={$lang('hearth_pages')}>
+	{#if $hearthConfig.phone_clock && (always || $narrow)}
+		<PhoneClock />
+	{/if}
 	<div class="pages">
 		{#each $hearthConfig.rooms as room (room.id)}
 			<button

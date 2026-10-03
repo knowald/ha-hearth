@@ -11,14 +11,16 @@ const HEARTH_FIXTURE = readFileSync(HEARTH_FILE, 'utf8');
  * document of its own rather than an edit of the shared one: other specs
  * save into that file.
  */
-function writeFixture() {
+function writeFixture(settings: { phoneClock?: boolean } = {}) {
 	writeFileSync(
 		HEARTH_FILE,
 		`version: 5
 revision: 1
+phone_clock: ${settings.phoneClock === true}
 rail:
   - id: clock
     type: clock
+    hour_format: '24'
   - id: nav
     type: nav
 rooms:
@@ -312,6 +314,57 @@ test.describe('held sideways', () => {
 		const label = (await kitchen.getByText('Kitchen', { exact: true }).boundingBox())!;
 		expect(label.width).toBeLessThanOrEqual(1);
 		expect(await sidewaysOverflow(page)).toEqual({ cut: 0, past: 0 });
+	});
+});
+
+test.describe('the page strip clock', () => {
+	test.beforeEach(async ({ page }) => {
+		writeFixture({ phoneClock: true });
+		await open(page);
+	});
+
+	async function expectClockFits(page: Page) {
+		const strip = page.getByRole('navigation', { name: 'Pages' });
+		const clock = strip.locator('time');
+		await expect(clock).toBeVisible();
+		await expect(clock).toHaveText(/\d{2}:\d{2}/);
+		// the strip keeps the height its pills give it
+		const office = (await strip.getByRole('button', { name: /Office/ }).boundingBox())!;
+		const box = (await clock.boundingBox())!;
+		expect(box.height).toBeLessThanOrEqual(office.height);
+		expect(box.x + box.width).toBeLessThanOrEqual(office.x);
+		expect(await sidewaysOverflow(page)).toEqual({ cut: 0, past: 0 });
+	}
+
+	test('sits before the pages without growing the strip', async ({ page }) => {
+		await expectClockFits(page);
+	});
+
+	test.describe('at 320 wide', () => {
+		test.use({ viewport: { width: 320, height: 568 } });
+
+		test('still fits', async ({ page }) => {
+			await expectClockFits(page);
+		});
+	});
+
+	test.describe('held sideways', () => {
+		test.use({ viewport: { width: 844, height: 390 } });
+
+		test('still fits', async ({ page }) => {
+			await expectClockFits(page);
+		});
+	});
+});
+
+test.describe('without the strip clock', () => {
+	test.beforeEach(async ({ page }) => {
+		writeFixture();
+		await open(page);
+	});
+
+	test('the strip has no clock', async ({ page }) => {
+		await expect(page.getByRole('navigation', { name: 'Pages' }).locator('time')).toHaveCount(0);
 	});
 });
 

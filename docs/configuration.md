@@ -67,6 +67,10 @@ These change presentation only. They are not access controls.
 
 Settings > Sleep screen turns it on after a set number of minutes and sets its background. The weather radar background loads radar images from RainViewer and map tiles from OpenStreetMap in the browser, so the screen needs internet access for it. Set Map tiles to use another tile server.
 
+## Phone page strip
+
+On phones, and on any screen with the sidebar set to None, page buttons run along the top of the page. Settings > Display > Clock in the phone page strip adds the time and a short date at the start of that strip, for small screens that have no room for a clock widget. In YAML it is `phone_clock: true`. It uses the time zone and hour format of the first clock widget in the sidebar, or the browser's when there is none.
+
 ## Custom CSS and JavaScript
 
 Edit custom CSS under Settings > Application settings > Custom CSS. Style against the `--h-*` tokens, not internal class names, which can change between releases.

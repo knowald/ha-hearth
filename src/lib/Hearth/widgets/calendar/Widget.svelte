@@ -9,7 +9,7 @@
 	import { PRESS_RIPPLE, type RailWidget } from '../../config';
 	import { clockTimeOptions } from '../../clock';
 	import { fetchCalendarEvents, startDataRefresh, type CalendarEvent } from '$lib/core/ha/history';
-	import { displayTimeZone, hearthConfig, hearthEditMode } from '../../store';
+	import { displayTimeZone, hearthEditMode, railClock } from '../../store';
 	import { sensorNumber } from '$lib/core/ha/entities';
 	import { openEntityDetail } from '$lib/Hearth/details';
 	import Icon from '../../Icon.svelte';
@@ -70,12 +70,10 @@
 
 	// event times follow the rail clock's hour format, so 17:00 on the clock is
 	// never "5:00 PM" one widget below it
-	let configuredClock = $derived($hearthConfig.rail.find((widget) => widget.type === 'clock'));
-
 	function clockTime(date: Date) {
 		return date.toLocaleTimeString(
 			$selectedLanguage,
-			clockTimeOptions($displayTimeZone, configuredClock?.hour_format)
+			clockTimeOptions($displayTimeZone, $railClock?.hour_format)
 		);
 	}
 

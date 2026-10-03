@@ -344,6 +344,18 @@ describe('wall tablet settings', () => {
 		expect(config.theme).toBeUndefined();
 		expect(config.theme_night).toEqual({ accent: '#fff' });
 	});
+
+	it('keeps the phone strip clock only when turned on', () => {
+		const base = { rail: [], rooms: [] };
+		expect(normalizeHearthConfig({ ...base, phone_clock: true }).phone_clock).toBe(true);
+		expect(normalizeHearthConfig({ ...base, phone_clock: false }).phone_clock).toBeUndefined();
+		expect(normalizeHearthConfig({ ...base, phone_clock: 'yes' }).phone_clock).toBeUndefined();
+		expect(normalizeHearthConfig(base)).not.toHaveProperty('phone_clock', expect.anything());
+		expect(hearthConfigIssues({ ...base, phone_clock: true })).toEqual([]);
+		expect(hearthConfigIssues({ ...base, phone_clock: 'yes' })).toEqual([
+			'phone_clock must be true or false'
+		]);
+	});
 });
 
 describe('sleep screen settings', () => {

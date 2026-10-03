@@ -48,6 +48,7 @@
 	let railPosition = $derived(railPositionOf($hearthConfig));
 	let swipeMobile = $derived($hearthConfig.swipe_navigation_mobile ?? false);
 	let swipeDesktop = $derived($hearthConfig.swipe_navigation_desktop ?? false);
+	let phoneClock = $derived($hearthConfig.phone_clock ?? false);
 	let paddingX = $derived($hearthConfig.padding_x ?? 0);
 	let paddingY = $derived($hearthConfig.padding_y ?? 0);
 
@@ -204,6 +205,12 @@
 	function setSwipe(key: 'swipe_navigation_mobile' | 'swipe_navigation_desktop', enabled: boolean) {
 		updateConfig((config) => {
 			config[key] = enabled ? true : undefined;
+		});
+	}
+
+	function setPhoneClock(enabled: boolean) {
+		updateConfig((config) => {
+			config.phone_clock = enabled ? true : undefined;
 		});
 	}
 
@@ -455,6 +462,16 @@
 						checked={swipeDesktop}
 						label={$lang('hearth_swipe_between_pages_on_wide_screens')}
 						onchange={(enabled) => setSwipe('swipe_navigation_desktop', enabled)}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={$lang('hearth_clock_in_the_phone_page_strip')}
+					sub={$lang('hearth_shows_the_time_and_date_beside')}
+				>
+					<Switch
+						checked={phoneClock}
+						label={$lang('hearth_clock_in_the_phone_page_strip')}
+						onchange={setPhoneClock}
 					/>
 				</SettingsRow>
 				<SettingsRow
