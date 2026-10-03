@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.0] - 2026-10-03
+
+### Added
+
+- Scale the whole interface from 50 to 200 percent in Settings > Display, with a separate scale for phone-width screens ([#27](https://github.com/knowald/ha-hearth/pull/27))
+- Set separate side and top/bottom padding for phone-width screens ([#27](https://github.com/knowald/ha-hearth/pull/27))
+- Show a small clock with the date at the start of the phone page strip, following the sidebar clock's time zone and hour format ([#28](https://github.com/knowald/ha-hearth/pull/28))
+- Highlight an entity tile from another entity or a list of states while it keeps showing its own state, for example a washer tile lit while its status sensor reads `running` ([#20](https://github.com/knowald/ha-hearth/pull/20), [#29](https://github.com/knowald/ha-hearth/pull/29))
+
 ## [0.5.1] - 2026-09-29
 
 ### Fixed
@@ -192,6 +201,7 @@
 
 - Keep the standard `backdrop-filter` in the built stylesheet; writing the `-webkit-` prefix by hand made the minifier drop it, so no blur in the application took effect
 
+[0.6.0]: https://github.com/knowald/ha-hearth/releases/tag/0.6.0
 [0.5.1]: https://github.com/knowald/ha-hearth/releases/tag/0.5.1
 [0.5.0]: https://github.com/knowald/ha-hearth/releases/tag/0.5.0
 [0.4.0]: https://github.com/knowald/ha-hearth/releases/tag/0.4.0
