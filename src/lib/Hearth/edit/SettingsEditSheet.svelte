@@ -9,6 +9,7 @@
 	import EditSheet from './EditSheet.svelte';
 	import Icon from '../Icon.svelte';
 	import { wakeLockState } from '../wakeLock';
+	import { zoomSupported } from '../zoom';
 
 	let screensaver = $derived(String($hearthConfig.screensaver_minutes ?? 0));
 	let screensaverDrift = $derived($hearthConfig.screensaver_drift ?? false);
@@ -16,6 +17,10 @@
 	let keepScreenOn = $derived($hearthConfig.keep_screen_on ?? true);
 	let paddingX = $derived($hearthConfig.padding_x ?? 0);
 	let paddingY = $derived($hearthConfig.padding_y ?? 0);
+	let mobilePaddingX = $derived($hearthConfig.mobile_padding_x ?? paddingX);
+	let mobilePaddingY = $derived($hearthConfig.mobile_padding_y ?? paddingY);
+	let scale = $derived($hearthConfig.scale ?? 100);
+	let mobileScale = $derived($hearthConfig.mobile_scale ?? scale);
 
 	let SCREENSAVER_OPTIONS = $derived([
 		{ value: '0', label: $lang('off') },
@@ -59,17 +64,135 @@
 		});
 	}
 
-	function setPadding(axis: 'padding_x' | 'padding_y', value: string) {
+	type PaddingKey = 'padding_x' | 'padding_y' | 'mobile_padding_x' | 'mobile_padding_y';
+
+	function setPadding(axis: PaddingKey, value: string) {
 		const pixels = integerFromInput(value);
 		updateConfig((config) => {
-			config[axis] = Number.isFinite(pixels) && pixels > 0 ? Math.min(pixels, 300) : undefined;
+			if (!Number.isFinite(pixels)) {
+				config[axis] = undefined;
+				return;
+			}
+			const clamped = Math.min(300, Math.max(0, pixels));
+			// mobile 0 is kept: it overrides a nonzero desktop padding
+			config[axis] = clamped === 0 && !axis.startsWith('mobile_') ? undefined : clamped;
 		});
 	}
+
+	type ScaleKey = 'scale' | 'mobile_scale';
+
+	function setScale(key: ScaleKey, value: string) {
+		const percent = integerFromInput(value);
+		updateConfig((config) => {
+			if (!Number.isFinite(percent)) {
+				config[key] = undefined;
+				return;
+			}
+			const clamped = Math.min(200, Math.max(50, percent));
+			// mobile 100 is kept: it overrides a non-default tablet scale
+			config[key] = clamped === 100 && key === 'scale' ? undefined : clamped;
+		});
+	}
+
+	interface StepperRow {
+		label: string;
+		sub?: string;
+		value: number;
+		step: number;
+		min: number;
+		max: number;
+		unit: string;
+		set: (value: string) => void;
+	}
+
+	function paddingRow(label: string, key: PaddingKey, value: number, sub?: string): StepperRow {
+		return {
+			label,
+			sub,
+			value,
+			step: 4,
+			min: 0,
+			max: 300,
+			unit: 'px',
+			set: (input) => setPadding(key, input)
+		};
+	}
+
+	function scaleRow(label: string, key: ScaleKey, value: number, sub?: string): StepperRow {
+		return {
+			label,
+			sub: zoomSupported ? sub : 'hearth_scale_unsupported',
+			value,
+			step: 5,
+			min: 50,
+			max: 200,
+			unit: '%',
+			set: (input) => setScale(key, input)
+		};
+	}
+
+	// mobile rows follow the tablet ones; their hint reads "instead of the values above"
+	let displayRows = $derived([
+		scaleRow('hearth_interface_scale', 'scale', scale, 'hearth_size_of_text_and_controls'),
+		paddingRow(
+			'hearth_side_padding',
+			'padding_x',
+			paddingX,
+			'hearth_for_screens_whose_frame_covers_the'
+		),
+		paddingRow('hearth_top_bottom_padding', 'padding_y', paddingY),
+		scaleRow(
+			'hearth_mobile_interface_scale',
+			'mobile_scale',
+			mobileScale,
+			'hearth_for_phone_width_screens'
+		),
+		paddingRow('hearth_mobile_side_padding', 'mobile_padding_x', mobilePaddingX),
+		paddingRow('hearth_mobile_top_bottom_padding', 'mobile_padding_y', mobilePaddingY)
+	]);
 
 	function close() {
 		editor.set(null);
 	}
 </script>
+
+{#snippet stepperRow(row: StepperRow)}
+	<div class="row">
+		<div class="row-main">
+			<div class="row-label">{$lang(row.label)}</div>
+			{#if row.sub}<div class="row-sub">{$lang(row.sub)}</div>{/if}
+		</div>
+		<span class="unit-input">
+			<span class="stepper">
+				<button
+					type="button"
+					class="step"
+					aria-label={`${$lang('hearth_decrease')} ${$lang(row.label).toLowerCase()}`}
+					onclick={() => row.set(String(row.value - row.step))}
+				>
+					<Icon name="remove" size={ICON.inline} />
+				</button>
+				<input
+					type="number"
+					aria-label={$lang(row.label)}
+					min={row.min}
+					max={row.max}
+					value={row.value}
+					onchange={(event) => row.set(event.currentTarget.value)}
+				/>
+				<button
+					type="button"
+					class="step"
+					aria-label={`${$lang('hearth_increase')} ${$lang(row.label).toLowerCase()}`}
+					onclick={() => row.set(String(row.value + row.step))}
+				>
+					<Icon name="add" size={ICON.inline} />
+				</button>
+			</span>
+			<span class="unit">{row.unit}</span>
+		</span>
+	</div>
+{/snippet}
 
 <EditSheet title={$lang('settings')} onclose={close} ondone={close}>
 	<div class="settings">
@@ -153,75 +276,9 @@
 						</span>
 					</div>
 				{/if}
-				<div class="row">
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_side_padding')}</div>
-						<div class="row-sub">{$lang('hearth_for_screens_whose_frame_covers_the')}</div>
-					</div>
-					<span class="unit-input">
-						<span class="stepper">
-							<button
-								type="button"
-								class="step"
-								aria-label={`${$lang('hearth_decrease')} ${$lang('hearth_side_padding').toLowerCase()}`}
-								onclick={() => setPadding('padding_x', String(paddingX - 4))}
-							>
-								<Icon name="remove" size={ICON.inline} />
-							</button>
-							<input
-								type="number"
-								aria-label={$lang('hearth_side_padding')}
-								min="0"
-								max="300"
-								value={paddingX}
-								onchange={(event) => setPadding('padding_x', event.currentTarget.value)}
-							/>
-							<button
-								type="button"
-								class="step"
-								aria-label={`${$lang('hearth_increase')} ${$lang('hearth_side_padding').toLowerCase()}`}
-								onclick={() => setPadding('padding_x', String(paddingX + 4))}
-							>
-								<Icon name="add" size={ICON.inline} />
-							</button>
-						</span>
-						<span class="unit">px</span>
-					</span>
-				</div>
-				<div class="row">
-					<div class="row-main">
-						<div class="row-label">{$lang('hearth_top_bottom_padding')}</div>
-					</div>
-					<span class="unit-input">
-						<span class="stepper">
-							<button
-								type="button"
-								class="step"
-								aria-label={`${$lang('hearth_decrease')} ${$lang('hearth_top_bottom_padding').toLowerCase()}`}
-								onclick={() => setPadding('padding_y', String(paddingY - 4))}
-							>
-								<Icon name="remove" size={ICON.inline} />
-							</button>
-							<input
-								type="number"
-								aria-label={$lang('hearth_top_bottom_padding')}
-								min="0"
-								max="300"
-								value={paddingY}
-								onchange={(event) => setPadding('padding_y', event.currentTarget.value)}
-							/>
-							<button
-								type="button"
-								class="step"
-								aria-label={`${$lang('hearth_increase')} ${$lang('hearth_top_bottom_padding').toLowerCase()}`}
-								onclick={() => setPadding('padding_y', String(paddingY + 4))}
-							>
-								<Icon name="add" size={ICON.inline} />
-							</button>
-						</span>
-						<span class="unit">px</span>
-					</span>
-				</div>
+				{#each displayRows as row (row.label)}
+					{@render stepperRow(row)}
+				{/each}
 			</div>
 		</section>
 
@@ -372,7 +429,9 @@
 		flex: none;
 	}
 
+	/* px and % differ in width; a fixed slot keeps the steppers aligned */
 	.unit {
+		min-width: 2ch;
 		font-size: var(--h-type-secondary);
 		color: var(--h-text-6);
 	}

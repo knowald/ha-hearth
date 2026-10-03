@@ -20,10 +20,13 @@ export default function Ripple(node: HTMLElement, options: RippleOptions = {}) {
 	let opts = { ...defaults, ...options };
 
 	function handlePointerDown(event: PointerEvent) {
+		// pointer and rect are in screen pixels; the ripple is placed in the
+		// node's CSS pixels, which differ under a CSS zoom
+		const zoom = node.currentCSSZoom ?? 1;
 		const rect = node.getBoundingClientRect();
-		const x = event.clientX - rect.left;
-		const y = event.clientY - rect.top;
-		const size = Math.max(rect.width, rect.height) * 2;
+		const x = (event.clientX - rect.left) / zoom;
+		const y = (event.clientY - rect.top) / zoom;
+		const size = (Math.max(rect.width, rect.height) * 2) / zoom;
 
 		const ripple = document.createElement('span');
 		ripple.style.cssText = `

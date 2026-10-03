@@ -141,8 +141,8 @@
 	}
 
 	.sheet {
-		width: min(760px, calc(100vw - 32px));
-		height: min(760px, calc(100dvh - 48px));
+		width: min(760px, calc(100 * var(--h-vw) - 32px));
+		height: min(760px, calc(100 * var(--h-dvh) - 48px));
 		display: flex;
 		flex-direction: column;
 		background: radial-gradient(680px 440px at 25% -10%, var(--h-sheet-0), var(--h-sheet-1) 60%);
@@ -153,7 +153,7 @@
 	}
 
 	.sheet.wide {
-		width: min(1120px, calc(100vw - 32px));
+		width: min(1120px, calc(100 * var(--h-vw) - 32px));
 	}
 
 	.header {
@@ -297,7 +297,7 @@
 
 		.sheet {
 			width: 100%;
-			height: calc(100dvh - 16px);
+			height: calc(100 * var(--h-dvh) - 16px);
 			border-radius: var(--h-radius-md);
 		}
 

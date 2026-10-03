@@ -109,7 +109,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 10px;
-		width: min(620px, calc(100vw - 32px));
+		width: min(620px, calc(100 * var(--h-vw) - 32px));
 		padding: 14px 16px;
 		border-radius: var(--h-radius-md);
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
@@ -162,7 +162,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 10px;
-		width: min(560px, calc(100vw - 32px));
+		width: min(560px, calc(100 * var(--h-vw) - 32px));
 		padding: 12px 12px;
 		border-radius: var(--h-radius-md);
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));

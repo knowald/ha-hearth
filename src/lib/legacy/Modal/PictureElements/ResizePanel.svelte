@@ -17,9 +17,11 @@
 	function handlePointermove(event: PointerEvent) {
 		if (!resizing) return;
 
+		// rect and pointer are in screen pixels; panelsWidth is in zoomed CSS pixels
+		const zoom = container.currentCSSZoom ?? 1;
 		const containerRect = container.getBoundingClientRect();
-		const maxWidth = containerRect.width - minWidth * 2;
-		const newWidth = containerRect.right - event.clientX;
+		const maxWidth = containerRect.width / zoom - minWidth * 2;
+		const newWidth = (containerRect.right - event.clientX) / zoom;
 		panelsWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
 	}
 </script>

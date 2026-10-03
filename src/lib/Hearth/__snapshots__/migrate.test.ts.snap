@@ -6,6 +6,9 @@ exports[`migrateHearthConfig > lifts a 2026.7 preview file to the current format
     "entity": "sun.sun",
   },
   "keep_screen_on": undefined,
+  "mobile_padding_x": undefined,
+  "mobile_padding_y": undefined,
+  "mobile_scale": undefined,
   "padding_x": undefined,
   "padding_y": undefined,
   "rail": [
@@ -286,6 +289,7 @@ exports[`migrateHearthConfig > lifts a 2026.7 preview file to the current format
       "temp_entity": undefined,
     },
   ],
+  "scale": undefined,
   "screensaver_brightness": undefined,
   "screensaver_drift": undefined,
   "screensaver_minutes": undefined,

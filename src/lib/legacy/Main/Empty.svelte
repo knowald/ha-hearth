@@ -37,7 +37,7 @@
 	/* Phone and Tablet (portrait) */
 	@media all and (max-width: 768px) {
 		.container {
-			width: calc(50vw - 1.45rem);
+			width: calc(50 * var(--h-vw, 1vw) - 1.45rem);
 		}
 	}
 </style>

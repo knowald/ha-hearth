@@ -235,6 +235,12 @@ function normalizeRoom(raw: any, index: number, taken: string[], takenItems: str
 	};
 }
 
+/** An interface zoom percent, clamped to 50-200. */
+function normalizeScale(raw: unknown): number | undefined {
+	if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
+	return Math.min(200, Math.max(50, Math.round(raw)));
+}
+
 /**
  * Accepts any hearth.yaml ever written (older shapes are lifted by
  * migrateHearthConfig first) and garbage. Anything unusable falls back to
@@ -292,7 +298,11 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'screensaver_brightness',
 		'keep_screen_on',
 		'padding_x',
-		'padding_y'
+		'padding_y',
+		'mobile_padding_x',
+		'mobile_padding_y',
+		'scale',
+		'mobile_scale'
 	]) {
 		delete extensions[key];
 	}
@@ -313,6 +323,10 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 				: undefined,
 		keep_screen_on: typeof config.keep_screen_on === 'boolean' ? config.keep_screen_on : undefined,
 		padding_x: normalizeWholeNumber(config.padding_x, 0),
-		padding_y: normalizeWholeNumber(config.padding_y, 0)
+		padding_y: normalizeWholeNumber(config.padding_y, 0),
+		mobile_padding_x: normalizeWholeNumber(config.mobile_padding_x, 0),
+		mobile_padding_y: normalizeWholeNumber(config.mobile_padding_y, 0),
+		scale: normalizeScale(config.scale),
+		mobile_scale: normalizeScale(config.mobile_scale)
 	};
 }

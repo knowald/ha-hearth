@@ -97,7 +97,14 @@ detection.
 `cards` as an array of columns), the `theme` and `theme_night` token maps, the
 `day_night` switch, and wall-tablet options (`screensaver_minutes`,
 `screensaver_drift`, `screensaver_brightness`, `keep_screen_on`, `padding_x`,
-`padding_y`).
+`padding_y`, and the phone-width overrides `mobile_padding_x` and
+`mobile_padding_y`, and `scale` and `mobile_scale`, the interface zoom in
+percent).
+
+The scale is a CSS `zoom` on the root and needs Chromium 128 or Firefox 126;
+older engines stay at 100%. Layout breakpoints follow the physical screen, not
+the scaled one, so a large `scale` on a narrow tablet keeps the wide layout in
+less room.
 
 A page is called a room in the type and YAML key, and a page in the UI. These
 mean the same thing. Home Assistant areas are only the starting point the

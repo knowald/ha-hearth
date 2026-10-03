@@ -170,7 +170,7 @@
 	.modal-layout {
 		display: grid;
 		grid-template-rows: 1fr auto;
-		height: 75vh;
+		height: calc(75 * var(--h-vh, 1vh));
 	}
 
 	.container {

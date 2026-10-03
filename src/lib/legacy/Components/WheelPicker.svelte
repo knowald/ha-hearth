@@ -123,7 +123,8 @@
 		if (!pointerDown) return;
 		await tick();
 		const y = event.pageY - container.getBoundingClientRect().top;
-		const walk = y - startY;
+		// pointer distance is in screen pixels, scrollTop in zoomed CSS pixels
+		const walk = (y - startY) / (container.currentCSSZoom ?? 1);
 		container.scrollTop = scrollY - walk;
 	}
 	/**
@@ -131,7 +132,8 @@
 	 * to the vertical middle of the container
 	 */
 	function getClosestChild() {
-		const containerMiddleY = container.getBoundingClientRect().top + container.clientHeight / 2;
+		const containerRect = container.getBoundingClientRect();
+		const containerMiddleY = containerRect.top + containerRect.height / 2;
 		return Array.from(container.children).reduce((closestChild: any, child) => {
 			const childRect = child.getBoundingClientRect();
 			const childMiddleY = childRect.top + childRect.height / 2;

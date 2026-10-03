@@ -215,7 +215,7 @@
 		/* theme tokens are injected on:root via svelte:head (see rootCss) so
 		   portaled modals resolve them too */
 		width: 100%;
-		height: 100dvh;
+		height: calc(100 * var(--h-dvh));
 		position: relative;
 		overflow: hidden;
 		background:

@@ -279,7 +279,7 @@
 		font-size: var(--h-type-emphasis);
 	}
 	:global(.cm-scroller) {
-		max-height: 69vh !important;
+		max-height: calc(69 * var(--h-vh, 1vh)) !important;
 	}
 	:global(.cm-tooltip) {
 		overflow: hidden !important;

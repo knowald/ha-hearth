@@ -86,7 +86,7 @@
 	}
 
 	.preview {
-		max-height: calc(100dvh - 210px);
+		max-height: calc(100 * var(--h-dvh) - 210px);
 		padding: 14px;
 		margin-bottom: 14px;
 		overflow: auto;
@@ -117,7 +117,7 @@
 		}
 
 		.preview {
-			max-height: 30dvh;
+			max-height: calc(30 * var(--h-dvh));
 			margin-bottom: 0;
 		}
 	}
