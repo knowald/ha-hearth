@@ -460,6 +460,7 @@
 	"hearth_caption_optional": "Caption (optional)",
 	"hearth_active_while_entity_optional": "Active while entity (optional)",
 	"hearth_is_in_state_optional": "...is in state (optional)",
+	"hearth_active_states_optional": "Highlight states, separated by commas (optional)",
 	"hearth_equal_width_tiles_on_one_row": "Equal-width tiles on one row, the active scene lit. Keep it to four scenes so the row never scrolls.",
 	"hearth_scenes": "Scenes",
 	"hearth_without_an_indicator_entity_the_most": "Without an indicator entity, the most recently applied scene entity counts as active. Scripts always need one, since a script has no activation timestamp.",
