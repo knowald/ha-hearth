@@ -64,12 +64,12 @@
 		if (!available) return false;
 		if (!activeStates?.length)
 			return entityActiveFor(highlightEntity, highlightState, $controlOverrides);
-		// a tap on the tile flips its own entity before HA confirms; a separate
-		// highlight entity never receives that command
-		const override = highlightEntity === entity ? $controlOverrides[`active:${entity}`] : undefined;
-		if (override !== undefined) return override > 0;
+		// no optimistic override here: it predicts the domain's on/off, which a
+		// custom state list need not follow
 		return entityAvailable(highlightState) && activeStates.includes(highlightState!.state);
 	});
+	// the toggle a tap sends acts on the tile's own entity, whatever lights it
+	let pressed = $derived(available && entityActiveFor(entity, stateObj, $controlOverrides));
 	let pending = $derived($pendingEntities[entity] !== undefined);
 	let label = $derived(name || stateObj?.attributes?.friendly_name || entity);
 	let iconColor = $derived(
@@ -144,7 +144,7 @@
 		class:pressable={interactive}
 		role="button"
 		tabindex={interactive ? 0 : -1}
-		aria-pressed={on}
+		aria-pressed={pressed}
 		use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
 		use:longPress={{
 			hold: openControls,

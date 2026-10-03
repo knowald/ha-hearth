@@ -93,10 +93,7 @@ export const SceneRefSchema = v.object({
 	// omitted); without it activity comes from which listed scene was applied
 	// most recently
 	active_entity: OptionalEntityId,
-	active_state: TextFromScalar,
-	// unknown keys are dropped silently, but the tile's plural spelling is an
-	// easy slip for active_state
-	active_states: v.optional(v.never('is not a scene field, use active_state'))
+	active_state: TextFromScalar
 });
 
 export const VacuumModeRefSchema = v.object({

@@ -65,6 +65,6 @@ describe('normalizeEntityRef tile highlight', () => {
 			active_states: ['on']
 		});
 		expect(scene?.active_entity).toBe('input_boolean.a');
-		expect(scene?.active_states).toBeUndefined();
+		expect(scene).not.toHaveProperty('active_states');
 	});
 });

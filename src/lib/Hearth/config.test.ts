@@ -320,30 +320,6 @@ describe('hearthConfigIssues', () => {
 		).toEqual([]);
 	});
 
-	it('flags the tile highlight list on a scene, which uses active_state', () => {
-		expect(
-			hearthConfigIssues({
-				rail: [],
-				rooms: [
-					{
-						id: 'home',
-						cards: [
-							[
-								{
-									id: 's',
-									type: 'scenes',
-									scenes: [{ entity: 'scene.a', active_states: ['on'] }]
-								}
-							]
-						]
-					}
-				]
-			})
-		).toEqual([
-			'rooms[0].cards[0][0].scenes[0].active_states is not a scene field, use active_state'
-		]);
-	});
-
 	it('finds nothing wrong with the matrix fixture, before and after normalization', () => {
 		const raw = load(readFileSync('e2e/fixture-matrix/data/hearth.yaml', 'utf8'));
 		expect(hearthConfigIssues(raw)).toEqual([]);

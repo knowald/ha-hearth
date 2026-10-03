@@ -52,8 +52,12 @@ function normalizeRefFields(raw: any): RefFields | null {
 	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
 	const entity = trimmedOrUndefined(raw.entity);
 	if (!entity) return null;
+	// the tile highlight fields are typed per ref kind by its own normalizer
+	const rest = { ...raw };
+	delete rest.active_entity;
+	delete rest.active_states;
 	return {
-		...raw,
+		...rest,
 		entity,
 		name: trimmedOrUndefined(raw.name),
 		icon: trimmedOrUndefined(raw.icon),
@@ -122,8 +126,7 @@ export function normalizeSceneRef(raw: any): SceneRef | null {
 		caption: trimmedOrUndefined(raw?.caption),
 		active_entity: trimmedOrUndefined(raw?.active_entity),
 		// an empty state is meaningless, but a whitespace one is a legal HA state
-		active_state: typeof activeState === 'string' && activeState !== '' ? activeState : undefined,
-		active_states: undefined
+		active_state: typeof activeState === 'string' && activeState !== '' ? activeState : undefined
 	};
 }
 

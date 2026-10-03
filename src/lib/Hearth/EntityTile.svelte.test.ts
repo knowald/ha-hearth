@@ -159,14 +159,15 @@ describe('EntityTile', () => {
 		expect(tile.classList.contains('on')).toBe(false);
 	});
 
-	it('follows an optimistic toggle of its own entity while states are listed', async () => {
+	it('keeps listed states over an optimistic toggle of its own entity', async () => {
 		states.set({ 'switch.fan': hassEntity('switch.fan', 'off') });
-		render(EntityTile, { entity: 'switch.fan', activeStates: ['on'] });
+		render(EntityTile, { entity: 'switch.fan', activeStates: ['off'] });
 		const tile = screen.getByRole('button');
-		expect(tile.classList.contains('on')).toBe(false);
+		expect(tile.classList.contains('on')).toBe(true);
 		controlOverrides.set({ 'active:switch.fan': 1 });
 		await tick();
 		expect(tile.classList.contains('on')).toBe(true);
+		expect(tile.getAttribute('aria-pressed')).toBe('true');
 	});
 
 	it('ignores an optimistic toggle of its own entity when another entity highlights it', async () => {
@@ -181,7 +182,10 @@ describe('EntityTile', () => {
 		});
 		controlOverrides.set({ 'active:switch.fan': 1 });
 		await tick();
-		expect(screen.getByRole('button').classList.contains('on')).toBe(false);
+		const tile = screen.getByRole('button');
+		expect(tile.classList.contains('on')).toBe(false);
+		// the tap toggled the switch, so its pressed state follows the switch
+		expect(tile.getAttribute('aria-pressed')).toBe('true');
 	});
 
 	it('delegates lights and covers to their own tiles', () => {
