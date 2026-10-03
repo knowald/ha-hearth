@@ -525,6 +525,10 @@
 		padding: 28px 32px;
 		display: flex;
 		gap: 22px;
+		/* the sheet's height is capped to the screen, so a large interface scale
+		   can leave less room than the controls need */
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 
 	.stage {
@@ -913,13 +917,11 @@
 		}
 
 		/* no room for the panel beside the stage: it stacks under it and the
-		   sheet scrolls when the two do not fit */
+		   content scrolls when the two do not fit */
 		.content {
 			flex-direction: column;
 			gap: 18px;
 			padding: 22px 20px calc(20px + var(--h-safe-bottom));
-			overflow-y: auto;
-			overscroll-behavior: contain;
 		}
 
 		.stage {
