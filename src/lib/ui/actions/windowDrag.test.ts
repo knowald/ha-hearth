@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { clampToViewport } from './windowDrag';
+import { describe, expect, it, vi } from 'vitest';
+import { clampToViewport, windowDrag, type WindowPosition } from './windowDrag';
 
 const SIZE = { width: 420, height: 680 };
 const VIEWPORT = { width: 1280, height: 800 };
@@ -23,5 +23,26 @@ describe('clampToViewport', () => {
 			x: 576,
 			y: 32
 		});
+	});
+});
+
+describe('windowDrag', () => {
+	it('moves the window in its own CSS pixels under a zoom', () => {
+		const handle = document.createElement('div');
+		Object.defineProperty(handle, 'currentCSSZoom', { value: 2 });
+		const move = vi.fn<(position: WindowPosition) => void>();
+		const action = windowDrag(handle, {
+			position: () => ({ x: 100, y: 50 }),
+			size: () => ({ width: 200, height: 100 }),
+			move
+		});
+		const pointer = (type: string, x: number, y: number) =>
+			handle.dispatchEvent(
+				new PointerEvent(type, { pointerId: 1, button: 0, clientX: x, clientY: y })
+			);
+		pointer('pointerdown', 220, 120);
+		pointer('pointermove', 420, 220);
+		expect(move).toHaveBeenLastCalledWith({ x: 200, y: 100 });
+		action?.destroy?.();
 	});
 });

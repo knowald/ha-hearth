@@ -773,3 +773,42 @@ describe('sidebar position', () => {
 		expect(ids(emptyLeft)).toEqual(['b', 'a']);
 	});
 });
+
+describe('mobile padding overrides', () => {
+	it('keeps an explicit zero and drops unusable values', () => {
+		const config = normalizeHearthConfig({
+			rail: [],
+			rooms: [],
+			mobile_padding_x: 0,
+			mobile_padding_y: -2
+		});
+		expect(config.mobile_padding_x).toBe(0);
+		expect(config.mobile_padding_y).toBeUndefined();
+	});
+
+	it('reports a non-numeric value', () => {
+		expect(hearthConfigIssues({ rail: [], rooms: [], mobile_padding_x: '8' })).toContain(
+			'mobile_padding_x must be a number'
+		);
+	});
+});
+
+describe('interface scale', () => {
+	it('rounds and clamps into 50-200', () => {
+		const config = normalizeHearthConfig({
+			rail: [],
+			rooms: [],
+			scale: 312,
+			mobile_scale: 87.4
+		});
+		expect(config.scale).toBe(200);
+		expect(config.mobile_scale).toBe(87);
+		expect(normalizeHearthConfig({ rail: [], rooms: [], scale: 'big' }).scale).toBeUndefined();
+	});
+
+	it('reports a value out of range', () => {
+		expect(hearthConfigIssues({ rail: [], rooms: [], mobile_scale: 20 })).toContain(
+			'mobile_scale must be 50 to 200'
+		);
+	});
+});

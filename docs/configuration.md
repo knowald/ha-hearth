@@ -71,6 +71,12 @@ Settings > Sleep screen turns it on after a set number of minutes and sets its b
 
 On phones, and on any screen with the sidebar set to None, page buttons run along the top of the page. Settings > Display > Clock in the phone page strip adds the time and a short date at the start of that strip, for small screens that have no room for a clock widget. In YAML it is `phone_clock: true`. It uses the time zone and hour format of the first clock widget in the sidebar, or the browser's when there is none.
 
+## Interface scale and padding
+
+Settings > Display sets the interface scale (`scale` in `hearth.yaml`, 50 to 200 percent) and the side and top/bottom padding (`padding_x`, `padding_y`). The mobile rows (`mobile_scale`, `mobile_padding_x`, `mobile_padding_y`) apply at 900 px wide and below. While a mobile value is unset, phones use the main one.
+
+The scale is a CSS `zoom` on the page and needs Chromium 128 or Firefox 126. Older browsers stay at 100%, and Settings says so. Layout breakpoints follow the physical screen, not the scaled one, so a large scale on a narrow tablet keeps the wide layout in less room.
+
 ## Custom CSS and JavaScript
 
 Edit custom CSS under Settings > Application settings > Custom CSS. Style against the `--h-*` tokens, not internal class names, which can change between releases.

@@ -193,7 +193,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
-		width: min(620px, calc(100vw - 32px));
+		width: min(620px, calc(100 * var(--h-vw) - 32px));
 	}
 
 	.load-error {
@@ -276,7 +276,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 10px;
-		width: min(560px, calc(100vw - 32px));
+		width: min(560px, calc(100 * var(--h-vw) - 32px));
 		padding: 12px;
 		border-radius: var(--h-radius-md);
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
@@ -311,7 +311,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 10px;
-		width: min(560px, calc(100vw - 32px));
+		width: min(560px, calc(100 * var(--h-vw) - 32px));
 		padding: 12px 12px;
 		border-radius: var(--h-radius-md);
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
@@ -381,14 +381,14 @@
 		.load-errors,
 		.save-alert,
 		.overflow-toast {
-			top: calc(72px + env(safe-area-inset-top)); /* literal ok: page switcher height plus margin */
+			top: calc(72px + var(--h-safe-top)); /* literal ok: page switcher height plus margin */
 		}
 
 		/* the folded edit bar hugs the bottom edge above the home indicator */
 		.save-toast.editing,
 		.command-error.editing {
 			bottom: calc(
-				8px + env(safe-area-inset-bottom) + var(--h-edit-bar-height, 60px) + 16px
+				8px + var(--h-safe-bottom) + var(--h-edit-bar-height, 60px) + 16px
 			); /* literal ok: fallback until the bar is measured */
 		}
 	}

@@ -66,7 +66,7 @@
 		display: block;
 		width: 100%;
 		height: auto;
-		max-height: 60dvh;
+		max-height: calc(60 * var(--h-dvh));
 		object-fit: contain;
 	}
 </style>

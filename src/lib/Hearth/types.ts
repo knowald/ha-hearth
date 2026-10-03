@@ -355,5 +355,11 @@ export interface HearthConfig {
 	// extra edge padding in px, for kiosks whose frame covers screen edges
 	padding_x?: number;
 	padding_y?: number;
+	// phone-width overrides for the two paddings; the plain values apply when unset
+	mobile_padding_x?: number;
+	mobile_padding_y?: number;
+	/** Whole-interface zoom in percent, 50 to 200; the mobile value applies on phone-width screens. */
+	scale?: number;
+	mobile_scale?: number;
 	alerts?: AlertRule[];
 }

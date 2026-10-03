@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, describe, expect, it } from 'vitest';
 import en from '../../../../static/translations/en.json';
@@ -117,5 +117,44 @@ describe('SettingsEditSheet', () => {
 			tile_url: 'https://tiles.example/{z}/{x}/{y}.png'
 		});
 		expect(screen.getByLabelText(en.hearth_sleep_tile_attribution)).toBeTruthy();
+	});
+
+	it('shows the clamped value when the typed one clamps to the stored scale', async () => {
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), scale: 200 });
+		render(SettingsEditSheet);
+		const input = screen.getByRole('spinbutton', { name: en.hearth_interface_scale });
+		await fireEvent.change(input, { target: { value: '250' } });
+		expect(get(hearthConfig).scale).toBe(200);
+		await waitFor(() => expect((input as HTMLInputElement).value).toBe('200'));
+	});
+
+	it('follows the tablet scale again when a mobile field is cleared', async () => {
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), scale: 200, mobile_scale: 80 });
+		render(SettingsEditSheet);
+		const input = screen.getByRole('spinbutton', {
+			name: en.hearth_mobile_interface_scale
+		}) as HTMLInputElement;
+		expect(input.value).toBe('80');
+		await fireEvent.change(input, { target: { value: '' } });
+		expect(get(hearthConfig).mobile_scale).toBeUndefined();
+		await waitFor(() => expect(input.value).toBe('200'));
+	});
+
+	it('keeps a mobile padding of zero and drops a desktop one', async () => {
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), padding_x: 24 });
+		render(SettingsEditSheet);
+		await fireEvent.change(
+			screen.getByRole('spinbutton', { name: en.hearth_mobile_side_padding }),
+			{
+				target: { value: '0' }
+			}
+		);
+		expect(get(hearthConfig).mobile_padding_x).toBe(0);
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_decrease_side_padding }));
+		expect(get(hearthConfig).padding_x).toBe(20);
+		await fireEvent.change(screen.getByRole('spinbutton', { name: en.hearth_side_padding }), {
+			target: { value: '0' }
+		});
+		expect(get(hearthConfig).padding_x).toBeUndefined();
 	});
 });

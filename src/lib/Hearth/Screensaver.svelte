@@ -259,7 +259,11 @@
 	}
 
 	.clock {
-		font-size: clamp(var(--h-type-clock), 14vw, 160px); /* literal ok: scales with the screen */
+		font-size: clamp(
+			var(--h-type-clock),
+			calc(14 * var(--h-vw)),
+			160px
+		); /* literal ok: scales with the screen */
 		font-weight: 600;
 		line-height: 1;
 		letter-spacing: -4px;
@@ -267,12 +271,20 @@
 	}
 
 	.clock-small .clock {
-		font-size: clamp(var(--h-type-hero), 9vw, 104px); /* literal ok: scales with the screen */
+		font-size: clamp(
+			var(--h-type-hero),
+			calc(9 * var(--h-vw)),
+			104px
+		); /* literal ok: scales with the screen */
 		letter-spacing: -2px;
 	}
 
 	.clock-large .clock {
-		font-size: clamp(var(--h-type-clock), 22vw, 260px); /* literal ok: scales with the screen */
+		font-size: clamp(
+			var(--h-type-clock),
+			calc(22 * var(--h-vw)),
+			260px
+		); /* literal ok: scales with the screen */
 		letter-spacing: -6px;
 	}
 
@@ -294,16 +306,16 @@
 
 	@keyframes screensaver-drift {
 		0% {
-			transform: translate(-7vw, -5vh);
+			transform: translate(calc(-7 * var(--h-vw)), calc(-5 * var(--h-vh)));
 		}
 		33% {
-			transform: translate(6vw, -2vh);
+			transform: translate(calc(6 * var(--h-vw)), calc(-2 * var(--h-vh)));
 		}
 		66% {
-			transform: translate(-3vw, 6vh);
+			transform: translate(calc(-3 * var(--h-vw)), calc(6 * var(--h-vh)));
 		}
 		100% {
-			transform: translate(7vw, 4vh);
+			transform: translate(calc(7 * var(--h-vw)), calc(4 * var(--h-vh)));
 		}
 	}
 </style>

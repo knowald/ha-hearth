@@ -269,6 +269,15 @@ describe('swipeGesture', () => {
 		await vi.waitFor(() => expect(node.style.transform).toBe(''));
 	});
 
+	it('keeps the page under the finger at an interface scale', () => {
+		const { node, tile } = setup();
+		Object.defineProperty(node, 'currentCSSZoom', { value: 2 });
+		tile.dispatchEvent(pointer('pointerdown', 200, 100));
+		tile.dispatchEvent(pointer('pointermove', 180, 100));
+		tile.dispatchEvent(pointer('pointermove', 140, 100));
+		expect(node.style.transform).toBe('translateX(-30px)');
+	});
+
 	it('leaves a tap and a vertical scroll alone', () => {
 		const { node, onswipe, drag } = setup();
 		drag([[203, 102]]);

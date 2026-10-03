@@ -40,7 +40,8 @@ describe('SearchOverlay', () => {
 			new RegExp(`@media \\(max-width: ${FOLD_WIDTH}px\\) \\{([\\s\\S]*?)\\n\\t\\}`)
 		)?.[1];
 		expect(sheet).toMatch(/\.panel \{[^}]*width: 100%;/);
-		expect(sheet).toMatch(/safe-area-inset-top/);
+		expect(sheet).toMatch(/--h-safe-top/);
 		expect(overlaySource).not.toMatch(/\d+vh\b/);
+		expect(overlaySource).toMatch(/var\(--h-dvh\)/);
 	});
 });

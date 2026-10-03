@@ -307,6 +307,12 @@ function normalizeRoom(raw: any, index: number, taken: string[], takenItems: str
 	};
 }
 
+/** An interface zoom percent, clamped to 50-200. */
+function normalizeScale(raw: unknown): number | undefined {
+	if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
+	return Math.min(200, Math.max(50, Math.round(raw)));
+}
+
 /**
  * Normalizes a current Hearth configuration or an incomplete editor draft.
  */
@@ -379,6 +385,10 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'phone_clock',
 		'padding_x',
 		'padding_y',
+		'mobile_padding_x',
+		'mobile_padding_y',
+		'scale',
+		'mobile_scale',
 		'alerts'
 	]) {
 		delete extensions[key];
@@ -419,6 +429,10 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		phone_clock: config.phone_clock === true ? true : undefined,
 		padding_x: normalizeWholeNumber(config.padding_x, 0),
 		padding_y: normalizeWholeNumber(config.padding_y, 0),
+		mobile_padding_x: normalizeWholeNumber(config.mobile_padding_x, 0),
+		mobile_padding_y: normalizeWholeNumber(config.mobile_padding_y, 0),
+		scale: normalizeScale(config.scale),
+		mobile_scale: normalizeScale(config.mobile_scale),
 		alerts: normalizeAlertRules(config.alerts)
 	};
 }

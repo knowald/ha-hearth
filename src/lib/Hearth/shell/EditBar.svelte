@@ -197,8 +197,8 @@
 	.edit-toggle {
 		position: absolute;
 		/* the insets clear an installed app's home indicator and a landscape cutout */
-		left: calc(14px + var(--h-pad-x) + env(safe-area-inset-left));
-		bottom: calc(14px + var(--h-pad-y) + env(safe-area-inset-bottom));
+		left: calc(14px + var(--h-pad-x) + var(--h-safe-left));
+		bottom: calc(14px + var(--h-pad-y) + var(--h-safe-bottom));
 		z-index: var(--h-layer-bar);
 		display: flex;
 		align-items: center;
@@ -218,7 +218,7 @@
 	@media (min-width: 901px) {
 		.edit-toggle.right {
 			left: auto;
-			right: calc(14px + var(--h-pad-x) + env(safe-area-inset-right));
+			right: calc(14px + var(--h-pad-x) + var(--h-safe-right));
 		}
 	}
 
@@ -294,9 +294,9 @@
 	/* see breakpoints.ts */
 	@media (max-width: 900px) {
 		.edit-bar {
-			left: calc(8px + env(safe-area-inset-left));
-			right: calc(8px + env(safe-area-inset-right));
-			bottom: calc(8px + env(safe-area-inset-bottom));
+			left: calc(8px + var(--h-safe-left));
+			right: calc(8px + var(--h-safe-right));
+			bottom: calc(8px + var(--h-safe-bottom));
 			transform: none;
 			gap: 6px;
 			padding: 8px;

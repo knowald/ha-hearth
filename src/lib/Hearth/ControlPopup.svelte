@@ -124,7 +124,7 @@
 	.sheet {
 		box-sizing: border-box;
 		width: min(440px, 100%);
-		max-height: calc(100dvh - 32px);
+		max-height: calc(100 * var(--h-dvh) - 32px);
 		overflow-y: auto;
 		overscroll-behavior: contain;
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
@@ -170,15 +170,15 @@
 		.overlay {
 			align-items: flex-end;
 			/* a landscape cutout overlaps the edge a full-width sheet reaches to */
-			padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
+			padding: 0 var(--h-safe-right) 0 var(--h-safe-left);
 		}
 
 		.sheet {
 			width: 100%;
-			max-height: calc(100dvh - 24px);
+			max-height: calc(100 * var(--h-dvh) - 24px);
 			border-radius: var(--h-radius-xl) var(--h-radius-xl) 0 0;
 			border-bottom: 0;
-			padding: 22px 20px calc(24px + env(safe-area-inset-bottom));
+			padding: 22px 20px calc(24px + var(--h-safe-bottom));
 		}
 	}
 </style>

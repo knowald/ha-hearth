@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { integerFromInput, numberFromInput } from './numbers';
 	import { ICON } from '../iconSizes';
 	import { fill, lang } from '$lib/core/i18n';
@@ -26,6 +27,7 @@
 	import TextField from './TextField.svelte';
 	import Switch from '../Switch.svelte';
 	import { wakeLockState } from '../wakeLock';
+	import { zoomSupported } from '../zoom';
 
 	let screensaver = $derived(String($hearthConfig.screensaver_minutes ?? 0));
 	let screensaverDrift = $derived($hearthConfig.screensaver_drift ?? false);
@@ -51,6 +53,10 @@
 	let phoneClock = $derived($hearthConfig.phone_clock ?? false);
 	let paddingX = $derived($hearthConfig.padding_x ?? 0);
 	let paddingY = $derived($hearthConfig.padding_y ?? 0);
+	let mobilePaddingX = $derived($hearthConfig.mobile_padding_x ?? paddingX);
+	let mobilePaddingY = $derived($hearthConfig.mobile_padding_y ?? paddingY);
+	let scale = $derived($hearthConfig.scale ?? 100);
+	let mobileScale = $derived($hearthConfig.mobile_scale ?? scale);
 
 	let SCREENSAVER_OPTIONS = $derived([
 		{ value: '0', label: $lang('off') },
@@ -214,17 +220,166 @@
 		});
 	}
 
-	function setPadding(axis: 'padding_x' | 'padding_y', value: string) {
+	type PaddingKey = 'padding_x' | 'padding_y' | 'mobile_padding_x' | 'mobile_padding_y';
+
+	function setPadding(axis: PaddingKey, value: string) {
 		const pixels = integerFromInput(value);
 		updateConfig((config) => {
-			config[axis] = Number.isFinite(pixels) && pixels > 0 ? Math.min(pixels, 300) : undefined;
+			if (!Number.isFinite(pixels)) {
+				config[axis] = undefined;
+				return;
+			}
+			const clamped = Math.min(300, Math.max(0, pixels));
+			// mobile 0 is kept: it overrides a nonzero desktop padding
+			config[axis] = clamped === 0 && !axis.startsWith('mobile_') ? undefined : clamped;
 		});
+	}
+
+	type ScaleKey = 'scale' | 'mobile_scale';
+
+	function setScale(key: ScaleKey, value: string) {
+		const percent = integerFromInput(value);
+		updateConfig((config) => {
+			if (!Number.isFinite(percent)) {
+				config[key] = undefined;
+				return;
+			}
+			const clamped = Math.min(200, Math.max(50, percent));
+			// mobile 100 is kept: it overrides a non-default tablet scale
+			config[key] = clamped === 100 && key === 'scale' ? undefined : clamped;
+		});
+	}
+
+	interface StepperRow {
+		label: string;
+		decrease: string;
+		increase: string;
+		sub?: string;
+		value: number;
+		step: number;
+		min: number;
+		max: number;
+		unit: string;
+		set: (value: string) => void;
+	}
+
+	function paddingRow(
+		key: PaddingKey,
+		value: number,
+		labels: Pick<StepperRow, 'label' | 'decrease' | 'increase' | 'sub'>
+	): StepperRow {
+		return {
+			...labels,
+			value,
+			step: 4,
+			min: 0,
+			max: 300,
+			unit: 'px',
+			set: (input) => setPadding(key, input)
+		};
+	}
+
+	function scaleRow(
+		key: ScaleKey,
+		value: number,
+		labels: Pick<StepperRow, 'label' | 'decrease' | 'increase' | 'sub'>
+	): StepperRow {
+		return {
+			...labels,
+			sub: zoomSupported ? labels.sub : 'hearth_scale_unsupported',
+			value,
+			step: 5,
+			min: 50,
+			max: 200,
+			unit: '%',
+			set: (input) => setScale(key, input)
+		};
+	}
+
+	// mobile rows follow the tablet ones; their hint reads "instead of the values above"
+	let displayRows = $derived([
+		scaleRow('scale', scale, {
+			label: 'hearth_interface_scale',
+			decrease: 'hearth_decrease_interface_scale',
+			increase: 'hearth_increase_interface_scale',
+			sub: 'hearth_size_of_text_and_controls'
+		}),
+		paddingRow('padding_x', paddingX, {
+			label: 'hearth_side_padding',
+			decrease: 'hearth_decrease_side_padding',
+			increase: 'hearth_increase_side_padding',
+			sub: 'hearth_for_screens_whose_frame_covers_the'
+		}),
+		paddingRow('padding_y', paddingY, {
+			label: 'hearth_top_bottom_padding',
+			decrease: 'hearth_decrease_top_bottom_padding',
+			increase: 'hearth_increase_top_bottom_padding'
+		}),
+		scaleRow('mobile_scale', mobileScale, {
+			label: 'hearth_mobile_interface_scale',
+			decrease: 'hearth_decrease_mobile_interface_scale',
+			increase: 'hearth_increase_mobile_interface_scale',
+			sub: 'hearth_for_phone_width_screens'
+		}),
+		paddingRow('mobile_padding_x', mobilePaddingX, {
+			label: 'hearth_mobile_side_padding',
+			decrease: 'hearth_decrease_mobile_side_padding',
+			increase: 'hearth_increase_mobile_side_padding'
+		}),
+		paddingRow('mobile_padding_y', mobilePaddingY, {
+			label: 'hearth_mobile_top_bottom_padding',
+			decrease: 'hearth_decrease_mobile_top_bottom_padding',
+			increase: 'hearth_increase_mobile_top_bottom_padding'
+		})
+	]);
+
+	// A typed value that clamps to the stored one changes nothing, so the field
+	// would keep showing the typed text; write the effective value back. The
+	// row is read through a getter because the object passed in goes stale.
+	async function commitInput(input: HTMLInputElement, row: () => StepperRow) {
+		row().set(input.value);
+		await tick();
+		input.value = String(row().value);
 	}
 
 	function close() {
 		editor.set(null);
 	}
 </script>
+
+{#snippet stepperRow(row: StepperRow)}
+	<SettingsRow label={$lang(row.label)} sub={row.sub && $lang(row.sub)}>
+		<span class="unit-input">
+			<span class="stepper field-frame">
+				<button
+					type="button"
+					class="step"
+					aria-label={$lang(row.decrease)}
+					onclick={() => row.set(String(row.value - row.step))}
+				>
+					<Icon name="remove" size={ICON.inline} />
+				</button>
+				<input
+					type="number"
+					aria-label={$lang(row.label)}
+					min={row.min}
+					max={row.max}
+					value={row.value}
+					onchange={(event) => commitInput(event.currentTarget, () => row)}
+				/>
+				<button
+					type="button"
+					class="step"
+					aria-label={$lang(row.increase)}
+					onclick={() => row.set(String(row.value + row.step))}
+				>
+					<Icon name="add" size={ICON.inline} />
+				</button>
+			</span>
+			<span class="unit">{row.unit}</span>
+		</span>
+	</SettingsRow>
+{/snippet}
 
 <!-- every row applies as it changes, so the header action only closes -->
 <EditSheet
@@ -474,71 +629,9 @@
 						onchange={setPhoneClock}
 					/>
 				</SettingsRow>
-				<SettingsRow
-					label={$lang('hearth_side_padding')}
-					sub={$lang('hearth_for_screens_whose_frame_covers_the')}
-				>
-					<span class="unit-input">
-						<span class="stepper field-frame">
-							<button
-								type="button"
-								class="step"
-								aria-label={$lang('hearth_decrease_side_padding')}
-								onclick={() => setPadding('padding_x', String(paddingX - 4))}
-							>
-								<Icon name="remove" size={ICON.inline} />
-							</button>
-							<input
-								type="number"
-								aria-label={$lang('hearth_side_padding')}
-								min="0"
-								max="300"
-								value={paddingX}
-								onchange={(event) => setPadding('padding_x', event.currentTarget.value)}
-							/>
-							<button
-								type="button"
-								class="step"
-								aria-label={$lang('hearth_increase_side_padding')}
-								onclick={() => setPadding('padding_x', String(paddingX + 4))}
-							>
-								<Icon name="add" size={ICON.inline} />
-							</button>
-						</span>
-						<span class="unit">px</span>
-					</span>
-				</SettingsRow>
-				<SettingsRow label={$lang('hearth_top_bottom_padding')}>
-					<span class="unit-input">
-						<span class="stepper field-frame">
-							<button
-								type="button"
-								class="step"
-								aria-label={$lang('hearth_decrease_top_bottom_padding')}
-								onclick={() => setPadding('padding_y', String(paddingY - 4))}
-							>
-								<Icon name="remove" size={ICON.inline} />
-							</button>
-							<input
-								type="number"
-								aria-label={$lang('hearth_top_bottom_padding')}
-								min="0"
-								max="300"
-								value={paddingY}
-								onchange={(event) => setPadding('padding_y', event.currentTarget.value)}
-							/>
-							<button
-								type="button"
-								class="step"
-								aria-label={$lang('hearth_increase_top_bottom_padding')}
-								onclick={() => setPadding('padding_y', String(paddingY + 4))}
-							>
-								<Icon name="add" size={ICON.inline} />
-							</button>
-						</span>
-						<span class="unit">px</span>
-					</span>
-				</SettingsRow>
+				{#each displayRows as row (row.label)}
+					{@render stepperRow(row)}
+				{/each}
 			</div>
 		</section>
 
@@ -637,7 +730,9 @@
 		flex: none;
 	}
 
+	/* px and % differ in width; a fixed slot keeps the steppers aligned */
 	.unit {
+		min-width: 2ch;
 		font-size: var(--h-type-secondary);
 		color: var(--h-text-6);
 	}

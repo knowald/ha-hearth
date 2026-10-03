@@ -120,8 +120,8 @@
 	}
 
 	.panel {
-		width: min(720px, calc(100vw - 32px));
-		height: min(720px, calc(100dvh - 48px));
+		width: min(720px, calc(100 * var(--h-vw) - 32px));
+		height: min(720px, calc(100 * var(--h-dvh) - 48px));
 		display: flex;
 		flex-direction: column;
 		background: radial-gradient(620px 420px at 25% -10%, var(--h-sheet-0), var(--h-sheet-1) 60%);
@@ -245,8 +245,8 @@
 			align-items: stretch;
 			/* the insets keep an installed app's status bar, home indicator and a
 			   landscape cutout off the panel's edges */
-			padding: calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right))
-				calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
+			padding: calc(8px + var(--h-safe-top)) calc(8px + var(--h-safe-right))
+				calc(8px + var(--h-safe-bottom)) calc(8px + var(--h-safe-left));
 		}
 
 		/* stretched rather than sized from the viewport, so it follows the

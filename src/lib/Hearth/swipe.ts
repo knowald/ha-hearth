@@ -141,6 +141,13 @@ export const swipeGesture: Action<HTMLElement, SwipeGestureOptions> = (node, opt
 		node.style.touchAction = current.enabled && !zoomedIn() ? 'pan-y pinch-zoom' : '';
 	}
 
+	// the pointer is in screen pixels, the page moves in its CSS pixels, which
+	// differ under the interface scale
+	function point(event: PointerEvent) {
+		const zoom = node.currentCSSZoom ?? 1;
+		return { x: event.clientX / zoom, y: event.clientY / zoom };
+	}
+
 	function place(offset: number) {
 		node.style.transform = offset ? `translateX(${offset}px)` : '';
 	}
@@ -208,14 +215,15 @@ export const swipeGesture: Action<HTMLElement, SwipeGestureOptions> = (node, opt
 		if (event.pointerType === 'mouse' && event.button !== 0) return;
 		if (!(event.target instanceof Element)) return;
 		if (current.claimed(event) || ownedBelow(event.target, node)) return;
+		const { x, y } = point(event);
 		gesture = {
 			pointerId: event.pointerId,
-			startX: event.clientX,
-			startY: event.clientY,
+			startX: x,
+			startY: y,
 			dx: 0,
 			dy: 0,
 			locked: false,
-			samples: [{ x: event.clientX, time: event.timeStamp }]
+			samples: [{ x, time: event.timeStamp }]
 		};
 	}
 
@@ -227,8 +235,9 @@ export const swipeGesture: Action<HTMLElement, SwipeGestureOptions> = (node, opt
 			release(event);
 			return;
 		}
-		active.dx = event.clientX - active.startX;
-		active.dy = event.clientY - active.startY;
+		const { x, y } = point(event);
+		active.dx = x - active.startX;
+		active.dy = y - active.startY;
 		if (!active.locked) {
 			const axis = lockAxis(active.dx, active.dy);
 			if (axis === 'y') gesture = null;
@@ -246,7 +255,7 @@ export const swipeGesture: Action<HTMLElement, SwipeGestureOptions> = (node, opt
 			node.style.userSelect = 'none';
 			node.style.transition = 'none';
 		}
-		active.samples.push({ x: event.clientX, time: event.timeStamp });
+		active.samples.push({ x, time: event.timeStamp });
 		while (
 			active.samples.length > 2 &&
 			event.timeStamp - active.samples[0].time > VELOCITY_WINDOW_MS

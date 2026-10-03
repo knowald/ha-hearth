@@ -480,8 +480,8 @@
 
 <style>
 	.sheet {
-		width: min(880px, calc(100vw - 48px));
-		height: 420px;
+		width: min(880px, calc(100 * var(--h-vw) - 48px));
+		height: min(420px, calc(100 * var(--h-dvh) - 48px));
 		border-radius: var(--h-radius-xl);
 		position: relative;
 		overflow: hidden;
@@ -903,7 +903,7 @@
 		.sheet {
 			/* the overlay's own padding already keeps a landscape cutout off the art */
 			width: 100%;
-			height: min(560px, calc(100dvh - 24px));
+			height: min(560px, calc(100 * var(--h-dvh) - 24px));
 			border-radius: var(--h-radius-xl) var(--h-radius-xl) 0 0;
 			align-self: flex-end;
 		}
@@ -917,7 +917,7 @@
 		.content {
 			flex-direction: column;
 			gap: 18px;
-			padding: 22px 20px calc(20px + env(safe-area-inset-bottom));
+			padding: 22px 20px calc(20px + var(--h-safe-bottom));
 			overflow-y: auto;
 			overscroll-behavior: contain;
 		}

@@ -463,8 +463,7 @@
 		/* theme tokens are injected on:root via svelte:head (see rootCss) so
 		   portaled modals resolve them too */
 		width: 100%;
-		height: 100vh;
-		height: 100dvh;
+		height: calc(100 * var(--h-dvh));
 		position: relative;
 		overflow: hidden;
 		background:
@@ -484,10 +483,10 @@
 		gap: 32px;
 		/* a phone held sideways can be wider than the fold (see breakpoints.ts),
 		   so the wide layout keeps clear of a landscape notch too */
-		padding: calc(40px + var(--h-pad-y) + env(safe-area-inset-top))
-			calc(40px + var(--h-pad-x) + env(safe-area-inset-right))
-			calc(40px + var(--h-pad-y) + env(safe-area-inset-bottom))
-			calc(40px + var(--h-pad-x) + env(safe-area-inset-left));
+		padding: calc(40px + var(--h-pad-y) + var(--h-safe-top))
+			calc(40px + var(--h-pad-x) + var(--h-safe-right))
+			calc(40px + var(--h-pad-y) + var(--h-safe-bottom))
+			calc(40px + var(--h-pad-x) + var(--h-safe-left));
 		height: 100%;
 	}
 
@@ -573,12 +572,12 @@
 		   padding adds to, plus the device's safe area, which a landscape notch
 		   makes a horizontal concern too. Published so the page switcher can
 		   bleed back out to the screen edge. */
-		--h-fold-pad-left: calc(16px + var(--h-pad-x) + env(safe-area-inset-left));
-		--h-fold-pad-right: calc(16px + var(--h-pad-x) + env(safe-area-inset-right));
+		--h-fold-pad-left: calc(16px + var(--h-pad-x) + var(--h-safe-left));
+		--h-fold-pad-right: calc(16px + var(--h-pad-x) + var(--h-safe-right));
 		/* no padding above: the page switcher pins to the very top of this
 		   scroller and carries the top inset itself, so nothing can scroll
 		   through the strip of screen above it */
-		padding: 0 var(--h-fold-pad-right) calc(16px + var(--h-pad-y) + env(safe-area-inset-bottom))
+		padding: 0 var(--h-fold-pad-right) calc(16px + var(--h-pad-y) + var(--h-safe-bottom))
 			var(--h-fold-pad-left);
 		gap: 24px;
 		overflow-y: auto;
@@ -588,7 +587,7 @@
 		/* the page switcher is sticky over this box; anything scrolled to would
 		   otherwise land underneath it */
 		scroll-padding-top: calc(
-			72px + env(safe-area-inset-top)
+			72px + var(--h-safe-top)
 		); /* literal ok: page switcher height plus margin */
 		/* inside the Home Assistant app this scroller sits in a webview that
 		   scrolls too - keep the rubber band here */
@@ -599,7 +598,7 @@
 	   last widget so nothing hides behind it */
 	.layout.narrow.editing {
 		padding-bottom: calc(
-			var(--h-edit-bar-height, 60px) + 52px + var(--h-pad-y) + env(safe-area-inset-bottom)
+			var(--h-edit-bar-height, 60px) + 52px + var(--h-pad-y) + var(--h-safe-bottom)
 		); /* literal ok: margin around the measured edit bar */
 	}
 
