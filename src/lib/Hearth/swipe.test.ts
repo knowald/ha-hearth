@@ -285,6 +285,19 @@ describe('swipeGesture', () => {
 		}
 	);
 
+	it('measures a fling in screen pixels at an interface scale', async () => {
+		const { node, onswipe, drag } = setup();
+		Object.defineProperty(node, 'currentCSSZoom', { value: 2 });
+		// 40px over 64ms is a fling on screen, but only half that speed in CSS pixels
+		drag([
+			[190, 100],
+			[180, 100],
+			[170, 100],
+			[160, 100]
+		]);
+		await vi.waitFor(() => expect(onswipe).toHaveBeenCalledWith('next'));
+	});
+
 	it('measures the commit distance against the page width on screen', async () => {
 		const { node, onswipe, drag } = setup();
 		Object.defineProperty(node, 'currentCSSZoom', { value: 2 });
