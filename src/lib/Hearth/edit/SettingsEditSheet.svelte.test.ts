@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import en from '../../../../static/translations/en.json';
 import type { HassConfig } from 'home-assistant-js-websocket';
 import { config as haConfig } from '$lib/core/ha/connection';
@@ -8,12 +8,16 @@ import { DEFAULT_HEARTH_CONFIG } from '../config';
 import { editor, hearthConfig, screensaverPreview, setupWizardOpen } from '../store';
 import SettingsEditSheet from './SettingsEditSheet.svelte';
 
+const zoom = vi.hoisted(() => ({ zoomSupported: false }));
+vi.mock('../zoom', () => zoom);
+
 describe('SettingsEditSheet', () => {
 	afterEach(() => {
 		editor.set(null);
 		setupWizardOpen.set(false);
 		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
 		screensaverPreview.set(false);
+		zoom.zoomSupported = false;
 	});
 
 	it('lists the alert rules and opens one, or a new one, in the alert editor', async () => {
@@ -55,6 +59,14 @@ describe('SettingsEditSheet', () => {
 		render(SettingsEditSheet);
 		await fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }));
 		expect(get(editor)).toEqual({ kind, from: { kind: 'settings' } });
+	});
+
+	it('explains the scale rows where the browser can scale', () => {
+		zoom.zoomSupported = true;
+		render(SettingsEditSheet);
+		expect(screen.queryByText(en.hearth_scale_unsupported)).toBeNull();
+		expect(screen.getByText(en.hearth_size_of_text_and_controls)).toBeTruthy();
+		expect(screen.getByText(en.hearth_for_phone_width_screens)).toBeTruthy();
 	});
 
 	it('keeps the mobile rows explained where the browser cannot scale', () => {
