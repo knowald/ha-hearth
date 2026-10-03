@@ -350,6 +350,8 @@ export interface HearthConfig {
 	// set apart for the folded (phone) and wide layouts
 	swipe_navigation_mobile?: boolean;
 	swipe_navigation_desktop?: boolean;
+	// a small time and date at the start of the phone page strip
+	phone_clock?: boolean;
 	// extra edge padding in px, for kiosks whose frame covers screen edges
 	padding_x?: number;
 	padding_y?: number;

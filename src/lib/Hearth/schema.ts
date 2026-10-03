@@ -238,6 +238,7 @@ export const RootSettingsSchema = v.looseObject({
 	scroll_edge_blur: OptionalFlag,
 	swipe_navigation_mobile: OptionalFlag,
 	swipe_navigation_desktop: OptionalFlag,
+	phone_clock: OptionalFlag,
 	padding_x: optionalNumberAtLeast(0),
 	padding_y: optionalNumberAtLeast(0)
 });

@@ -6,6 +6,7 @@
 	import { currentRoom, hearthConfig, hearthEditMode } from '../store';
 	import { searchAvailable } from '../visibility';
 	import Icon from '../Icon.svelte';
+	import PhoneClock from './PhoneClock.svelte';
 
 	/**
 	 * Page switcher for narrow viewports, where the rail folds under the page
@@ -32,6 +33,9 @@
 </script>
 
 <nav class="phone-nav" class:always aria-label={$lang('hearth_pages')}>
+	{#if $hearthConfig.phone_clock}
+		<PhoneClock />
+	{/if}
 	<div class="pages">
 		{#each $hearthConfig.rooms as room (room.id)}
 			<button

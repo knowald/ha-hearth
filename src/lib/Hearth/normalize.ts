@@ -376,6 +376,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'scroll_edge_blur',
 		'swipe_navigation_mobile',
 		'swipe_navigation_desktop',
+		'phone_clock',
 		'padding_x',
 		'padding_y',
 		'alerts'
@@ -415,6 +416,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 			typeof config.scroll_edge_blur === 'boolean' ? config.scroll_edge_blur : undefined,
 		swipe_navigation_mobile: config.swipe_navigation_mobile === true ? true : undefined,
 		swipe_navigation_desktop: config.swipe_navigation_desktop === true ? true : undefined,
+		phone_clock: config.phone_clock === true ? true : undefined,
 		padding_x: normalizeWholeNumber(config.padding_x, 0),
 		padding_y: normalizeWholeNumber(config.padding_y, 0),
 		alerts: normalizeAlertRules(config.alerts)
