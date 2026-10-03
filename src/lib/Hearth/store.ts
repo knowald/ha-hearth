@@ -230,14 +230,17 @@ async function performSave(force: boolean): Promise<boolean> {
 	return true;
 }
 
+/** The first clock widget in the rail, whose zone and hour format other surfaces follow. */
+export const railClock = derived(hearthConfig, ($config) =>
+	$config.rail.find((widget) => widget.type === 'clock')
+);
+
 /**
  * The zone times are shown in: the rail clock's configured zone when it has
  * one, else the browser's. Every surface that formats a wall-clock time
- * (clock, screensaver, calendar) reads it here.
+ * (clock, screensaver, calendar, phone strip) reads it here.
  */
-export const displayTimeZone = derived(hearthConfig, ($config) =>
-	validTimeZone($config.rail.find((widget) => widget.type === 'clock')?.timezone)
-);
+export const displayTimeZone = derived(railClock, ($clock) => validTimeZone($clock?.timezone));
 
 /* navigation & popups */
 

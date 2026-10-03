@@ -2,17 +2,17 @@
 	import { timer } from '$lib/core/app/clock';
 	import { selectedLanguage } from '$lib/core/i18n';
 	import { clockTimeOptions } from '../clock';
-	import { displayTimeZone, hearthConfig } from '../store';
+	import { displayTimeZone, railClock } from '../store';
 
-	// reads like the rail clock it stands in for: same zone, same hour format
-	let configuredClock = $derived($hearthConfig.rail.find((widget) => widget.type === 'clock'));
 	let now = $derived($timer);
 	let time = $derived(
 		now.toLocaleTimeString(
 			$selectedLanguage,
-			clockTimeOptions($displayTimeZone, configuredClock?.hour_format)
+			clockTimeOptions($displayTimeZone, $railClock?.hour_format)
 		)
 	);
+	// to the minute, matching what the strip shows
+	let stamp = $derived(now.toISOString().slice(0, 16) + 'Z');
 	let date = $derived(
 		now.toLocaleDateString($selectedLanguage, {
 			weekday: 'short',
@@ -23,7 +23,7 @@
 	);
 </script>
 
-<time class="clock" datetime={now.toISOString()}>
+<time class="clock" datetime={stamp}>
 	<span class="time">{time}</span>
 	<span class="date">{date}</span>
 </time>

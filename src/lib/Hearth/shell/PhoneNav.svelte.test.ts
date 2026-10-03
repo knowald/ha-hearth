@@ -92,10 +92,16 @@ describe('PhoneNav', () => {
 			expect(clock()).toBeNull();
 		});
 
+		it('stays unmounted while the strip is hidden on a wide screen', () => {
+			configure([], { phone_clock: true });
+			render(PhoneNav, { onsearch: () => {} });
+			expect(clock()).toBeNull();
+		});
+
 		it('shows the time over a short date when turned on', () => {
 			configure([{ id: 'clock', type: 'clock', timezone: 'UTC' }], { phone_clock: true });
-			render(PhoneNav, { onsearch: () => {} });
-			expect(clock()?.getAttribute('datetime')).toBe('2026-03-05T17:04:00.000Z');
+			render(PhoneNav, { onsearch: () => {}, always: true });
+			expect(clock()?.getAttribute('datetime')).toBe('2026-03-05T17:04Z');
 			expect(clock()?.textContent).toContain('Thu, Mar 5');
 			expect(screen.queryByRole('button', { name: /Thu/ })).toBeNull();
 		});
@@ -104,7 +110,7 @@ describe('PhoneNav', () => {
 			configure([{ id: 'clock', type: 'clock', timezone: 'UTC', hour_format: '24' }], {
 				phone_clock: true
 			});
-			render(PhoneNav, { onsearch: () => {} });
+			render(PhoneNav, { onsearch: () => {}, always: true });
 			expect(clock()?.textContent).toContain('17:04');
 
 			await act(() =>

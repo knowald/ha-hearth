@@ -12,6 +12,7 @@
 		displayTimeZone,
 		hearthConfig,
 		hearthEditMode,
+		railClock,
 		screensaverPreview,
 		wakeScreen
 	} from './store';
@@ -101,7 +102,6 @@
 		})
 	);
 
-	let configuredClock = $derived($hearthConfig.rail.find((widget) => widget.type === 'clock'));
 	let activeTimezone = $derived($displayTimeZone);
 	let now = $derived($timer);
 	let drift = $derived($hearthConfig.screensaver_drift ?? false);
@@ -148,7 +148,7 @@
 	let time = $derived(
 		now.toLocaleTimeString(
 			$selectedLanguage,
-			clockTimeOptions(activeTimezone, configuredClock?.hour_format)
+			clockTimeOptions(activeTimezone, $railClock?.hour_format)
 		)
 	);
 	let date = $derived(

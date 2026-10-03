@@ -578,7 +578,7 @@
 	"hearth_swipe_between_pages_on_wide_screens": "Swipe between pages on wide screens",
 	"hearth_swipe_sideways_over_the_page": "Swipe sideways over the page to move to the next or previous one",
 	"hearth_clock_in_the_phone_page_strip": "Clock in the phone page strip",
-	"hearth_shows_the_time_and_date_beside": "Shows the time and date beside the page buttons on phones",
+	"hearth_shows_the_time_and_date_beside": "Shows the time and date beside the page buttons when they run along the top",
 	"hearth_drag_sideways_over_the_page": "Drag sideways over the page with a finger or the mouse to move to the next or previous one",
 	"hearth_side_padding": "Side padding",
 	"hearth_for_screens_whose_frame_covers_the": "For screens whose frame covers the edges",
