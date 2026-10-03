@@ -46,7 +46,9 @@ export function normalizeVerdict(raw: unknown): false | VerdictBands | undefined
 	return undefined;
 }
 
-export function normalizeEntityRef(raw: any): EntityRef | null {
+type RefFields = Omit<EntityRef, 'active_entity' | 'active_states'>;
+
+function normalizeRefFields(raw: any): RefFields | null {
 	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
 	const entity = trimmedOrUndefined(raw.entity);
 	if (!entity) return null;
@@ -67,6 +69,29 @@ export function normalizeEntityRef(raw: any): EntityRef | null {
 	};
 }
 
+export function normalizeEntityRef(raw: unknown): EntityRef | null {
+	const ref = normalizeRefFields(raw);
+	if (!ref || !isRecord(raw)) return null;
+	return {
+		...ref,
+		active_entity: trimmedOrUndefined(raw.active_entity),
+		active_states: normalizeStateList(raw.active_states)
+	};
+}
+
+/** A list of HA states; YAML scalars such as `on` or `22` count as their text. */
+function normalizeStateList(raw: unknown): string[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const states = raw
+		.map((state) =>
+			typeof state === 'string' || typeof state === 'number' || typeof state === 'boolean'
+				? String(state).trim()
+				: ''
+		)
+		.filter(Boolean);
+	return states.length ? states : undefined;
+}
+
 export function trimmedOrUndefined(value: unknown): string | undefined {
 	return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
@@ -84,7 +109,7 @@ export function normalizeEmbedUrl(value: unknown): string | undefined {
 }
 
 export function normalizeSceneRef(raw: any): SceneRef | null {
-	const entity = normalizeEntityRef(raw);
+	const entity = normalizeRefFields(raw);
 	if (!entity) return null;
 	// YAML resolves `active_state: on` to a boolean and `active_state: 22` to a
 	// number; both are legal HA states once stringified
@@ -97,12 +122,13 @@ export function normalizeSceneRef(raw: any): SceneRef | null {
 		caption: trimmedOrUndefined(raw?.caption),
 		active_entity: trimmedOrUndefined(raw?.active_entity),
 		// an empty state is meaningless, but a whitespace one is a legal HA state
-		active_state: typeof activeState === 'string' && activeState !== '' ? activeState : undefined
+		active_state: typeof activeState === 'string' && activeState !== '' ? activeState : undefined,
+		active_states: undefined
 	};
 }
 
 export function normalizeVacuumModeRef(raw: any): VacuumModeRef | null {
-	const entity = normalizeEntityRef(raw);
+	const entity = normalizeRefFields(raw);
 	if (!entity) return null;
 	// YAML resolves `duration: 48` to a number, which is still a usable caption
 	const duration = typeof raw?.duration === 'number' ? String(raw.duration) : raw?.duration;

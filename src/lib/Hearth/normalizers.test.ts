@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeEmbedUrl, normalizeWholeNumber } from './normalizers';
+import {
+	normalizeEmbedUrl,
+	normalizeEntityRef,
+	normalizeSceneRef,
+	normalizeWholeNumber
+} from './normalizers';
 
 describe('normalizeEmbedUrl', () => {
 	it('keeps http(s) addresses and same-host paths', () => {
@@ -31,5 +36,35 @@ describe('normalizeWholeNumber', () => {
 		for (const raw of [-1, NaN, Infinity, -Infinity, '12', null, [], {}]) {
 			expect(normalizeWholeNumber(raw, 0)).toBeUndefined();
 		}
+	});
+});
+
+describe('normalizeEntityRef tile highlight', () => {
+	it('trims the highlight entity and stringifies, trims and filters the states', () => {
+		const ref = normalizeEntityRef({
+			entity: 'sensor.washer',
+			active_entity: '  sensor.washer_status ',
+			active_states: [' running ', true, 22, '', '   ', null, {}]
+		});
+		expect(ref?.active_entity).toBe('sensor.washer_status');
+		expect(ref?.active_states).toEqual(['running', 'true', '22']);
+	});
+
+	it('drops blank entities and empty or non-list states', () => {
+		for (const active_states of [[], ['', ' '], 'running', 3, null]) {
+			const ref = normalizeEntityRef({ entity: 'sensor.a', active_entity: '  ', active_states });
+			expect(ref?.active_entity).toBeUndefined();
+			expect(ref?.active_states).toBeUndefined();
+		}
+	});
+
+	it('keeps the highlight list off scene refs', () => {
+		const scene = normalizeSceneRef({
+			entity: 'scene.a',
+			active_entity: 'input_boolean.a',
+			active_states: ['on']
+		});
+		expect(scene?.active_entity).toBe('input_boolean.a');
+		expect(scene?.active_states).toBeUndefined();
 	});
 });

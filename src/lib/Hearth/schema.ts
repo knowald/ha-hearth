@@ -38,12 +38,11 @@ export function optionalNumberInRange(min: number, max: number) {
 export const HeightSchema = optionalNumberAtLeast(40);
 
 /** YAML reads `active_state: on` as a boolean and `duration: 48` as a number; both are text here. */
-const TextFromScalar = v.optional(
-	v.pipe(
-		v.union([v.string(), v.number(), v.boolean()], 'must be text'),
-		v.transform((value) => String(value))
-	)
+const ScalarText = v.pipe(
+	v.union([v.string(), v.number(), v.boolean()], 'must be text'),
+	v.transform((value) => String(value))
 );
+const TextFromScalar = v.optional(ScalarText);
 
 /**
  * Ascending comfort thresholds for a numeric sensor: below `good` reads GOOD,
@@ -68,10 +67,11 @@ export const EntityRefSchema = v.object({
 	// display-only tile, for entities whose integration exposes no working
 	// toggle (a PlayStation media_player, a read-only sensor)
 	readonly: v.optional(v.boolean('must be true or false')),
-	// An optional second entity can drive the tile's active styling while the
-	// primary entity continues to supply its label, state and detail view.
+	// tile highlight: lit while active_entity (the tile's own entity when
+	// omitted) holds one of active_states; the tile keeps its own label, state
+	// and detail view
 	active_entity: OptionalEntityId,
-	active_states: v.optional(v.array(v.string('must be text'), 'must be a list')),
+	active_states: v.optional(v.array(ScalarText, 'must be a list')),
 	// overrides the containing entities card's slider update behavior
 	slider_updates: v.optional(
 		v.picklist(['continuous', 'release'], 'must be continuous or release')
@@ -81,8 +81,11 @@ export const EntityRefSchema = v.object({
 	verdict: v.optional(v.union([v.literal(false), VerdictBandsSchema], 'must be false or bands'))
 });
 
+// the tile highlight fields mean something else on scenes and nothing on modes
+const RefSchema = v.omit(EntityRefSchema, ['active_entity', 'active_states']);
+
 export const SceneRefSchema = v.object({
-	...EntityRefSchema.entries,
+	...RefSchema.entries,
 	// small caption under the name in the scene bar, replaced by "active" while
 	// this scene is the active one
 	caption: OptionalText,
@@ -90,11 +93,14 @@ export const SceneRefSchema = v.object({
 	// omitted); without it activity comes from which listed scene was applied
 	// most recently
 	active_entity: OptionalEntityId,
-	active_state: TextFromScalar
+	active_state: TextFromScalar,
+	// unknown keys are dropped silently, but the tile's plural spelling is an
+	// easy slip for active_state
+	active_states: v.optional(v.never('is not a scene field, use active_state'))
 });
 
 export const VacuumModeRefSchema = v.object({
-	...EntityRefSchema.entries,
+	...RefSchema.entries,
 	// what the mode covers, so a one-tap run is safe to commit to without
 	// opening the vacuum app first
 	detail: OptionalText,

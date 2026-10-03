@@ -306,13 +306,42 @@ describe('hearthConfigIssues', () => {
 						cards: [
 							[
 								{ id: 's', type: 'scenes', scenes: [{ entity: 'scene.a', active_state: 22 }] },
-								{ id: 'v', type: 'vacuum', modes: [{ entity: 'vacuum.a', duration: 48 }] }
+								{ id: 'v', type: 'vacuum', modes: [{ entity: 'vacuum.a', duration: 48 }] },
+								{
+									id: 'e',
+									type: 'entities',
+									entities: [{ entity: 'sensor.a', active_states: ['running', 22, true] }]
+								}
 							]
 						]
 					}
 				]
 			})
 		).toEqual([]);
+	});
+
+	it('flags the tile highlight list on a scene, which uses active_state', () => {
+		expect(
+			hearthConfigIssues({
+				rail: [],
+				rooms: [
+					{
+						id: 'home',
+						cards: [
+							[
+								{
+									id: 's',
+									type: 'scenes',
+									scenes: [{ entity: 'scene.a', active_states: ['on'] }]
+								}
+							]
+						]
+					}
+				]
+			})
+		).toEqual([
+			'rooms[0].cards[0][0].scenes[0].active_states is not a scene field, use active_state'
+		]);
 	});
 
 	it('finds nothing wrong with the matrix fixture, before and after normalization', () => {
