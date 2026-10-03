@@ -3,6 +3,7 @@ import {
 	normalizeEmbedUrl,
 	normalizeEntityRef,
 	normalizeSceneRef,
+	normalizeVacuumModeRef,
 	normalizeWholeNumber
 } from './normalizers';
 
@@ -66,5 +67,16 @@ describe('normalizeEntityRef tile highlight', () => {
 		});
 		expect(scene?.active_entity).toBe('input_boolean.a');
 		expect(scene).not.toHaveProperty('active_states');
+	});
+
+	it('keeps the highlight fields off vacuum modes', () => {
+		const mode = normalizeVacuumModeRef({
+			entity: 'script.vacuum_kitchen',
+			active_entity: 'sensor.a',
+			active_states: ['on']
+		});
+		expect(mode?.entity).toBe('script.vacuum_kitchen');
+		expect(mode).not.toHaveProperty('active_entity');
+		expect(mode).not.toHaveProperty('active_states');
 	});
 });
