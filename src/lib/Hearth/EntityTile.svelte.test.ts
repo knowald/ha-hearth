@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import { get } from 'svelte/store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
@@ -13,7 +14,7 @@ vi.mock('$lib/core/ha/commands', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/core/ha/commands')>()),
 	callEntityService: vi.fn()
 }));
-import { callEntityService } from '$lib/core/ha/commands';
+import { callEntityService, controlOverrides } from '$lib/core/ha/commands';
 import { dismissConfirmation, popup, requestedConfirmation } from './store';
 import { toggleEntity } from '$lib/core/domains/entity';
 
@@ -23,6 +24,7 @@ describe('EntityTile', () => {
 		vi.mocked(callEntityService).mockClear();
 		dismissConfirmation();
 		popup.set(null);
+		controlOverrides.set({});
 	});
 
 	it('toggles a switch on tap', async () => {
@@ -96,6 +98,94 @@ describe('EntityTile', () => {
 		});
 		await screen.findByText('Finished');
 		expect(tile.classList.contains('on')).toBe(false);
+	});
+
+	it('highlights from a separate entity by its own on state when no states are listed', async () => {
+		states.set({
+			'sensor.washer_display': hassEntity('sensor.washer_display', 'Running'),
+			'binary_sensor.washer_running': hassEntity('binary_sensor.washer_running', 'on')
+		});
+		render(EntityTile, {
+			entity: 'sensor.washer_display',
+			activeEntity: 'binary_sensor.washer_running'
+		});
+		const tile = screen.getByRole('button');
+		expect(tile.classList.contains('on')).toBe(true);
+		states.set({
+			'sensor.washer_display': hassEntity('sensor.washer_display', 'Idle'),
+			'binary_sensor.washer_running': hassEntity('binary_sensor.washer_running', 'off')
+		});
+		await screen.findByText('Idle');
+		expect(tile.classList.contains('on')).toBe(false);
+	});
+
+	it('stays dim while the highlight entity is unavailable or missing', async () => {
+		states.set({
+			'sensor.washer_display': hassEntity('sensor.washer_display', 'Running'),
+			'sensor.washer_status': hassEntity('sensor.washer_status', 'unavailable')
+		});
+		render(EntityTile, {
+			entity: 'sensor.washer_display',
+			activeEntity: 'sensor.washer_status',
+			activeStates: ['running', 'unavailable']
+		});
+		const tile = screen.getByRole('button');
+		expect(tile.classList.contains('on')).toBe(false);
+		states.set({ 'sensor.washer_display': hassEntity('sensor.washer_display', 'Spinning') });
+		await screen.findByText('Spinning');
+		expect(tile.classList.contains('on')).toBe(false);
+	});
+
+	it('stays dim while its own entity is unavailable, whatever the highlight entity says', () => {
+		states.set({
+			'sensor.washer_display': hassEntity('sensor.washer_display', 'unavailable'),
+			'sensor.washer_status': hassEntity('sensor.washer_status', 'running')
+		});
+		render(EntityTile, {
+			entity: 'sensor.washer_display',
+			activeEntity: 'sensor.washer_status',
+			activeStates: ['running']
+		});
+		expect(screen.getByRole('button').classList.contains('on')).toBe(false);
+	});
+
+	it('matches the listed states against its own entity when no highlight entity is set', async () => {
+		states.set({ 'sensor.washer': hassEntity('sensor.washer', 'rinsing') });
+		render(EntityTile, { entity: 'sensor.washer', activeStates: ['running', 'rinsing'] });
+		const tile = screen.getByRole('button');
+		expect(tile.classList.contains('on')).toBe(true);
+		states.set({ 'sensor.washer': hassEntity('sensor.washer', 'idle') });
+		await screen.findByText('Idle');
+		expect(tile.classList.contains('on')).toBe(false);
+	});
+
+	it('keeps listed states over an optimistic toggle of its own entity', async () => {
+		states.set({ 'switch.fan': hassEntity('switch.fan', 'off') });
+		render(EntityTile, { entity: 'switch.fan', activeStates: ['off'] });
+		const tile = screen.getByRole('button');
+		expect(tile.classList.contains('on')).toBe(true);
+		controlOverrides.set({ 'active:switch.fan': 1 });
+		await tick();
+		expect(tile.classList.contains('on')).toBe(true);
+		expect(tile.getAttribute('aria-pressed')).toBe('true');
+	});
+
+	it('ignores an optimistic toggle of its own entity when another entity highlights it', async () => {
+		states.set({
+			'switch.fan': hassEntity('switch.fan', 'off'),
+			'sensor.fan_mode': hassEntity('sensor.fan_mode', 'idle')
+		});
+		render(EntityTile, {
+			entity: 'switch.fan',
+			activeEntity: 'sensor.fan_mode',
+			activeStates: ['boost']
+		});
+		controlOverrides.set({ 'active:switch.fan': 1 });
+		await tick();
+		const tile = screen.getByRole('button');
+		expect(tile.classList.contains('on')).toBe(false);
+		// the tap toggled the switch, so its pressed state follows the switch
+		expect(tile.getAttribute('aria-pressed')).toBe('true');
 	});
 
 	it('delegates lights and covers to their own tiles', () => {

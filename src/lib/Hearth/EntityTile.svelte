@@ -13,6 +13,7 @@
 	import {
 		entityActiveFor,
 		entityAvailability,
+		entityAvailable,
 		entityControllable,
 		sensorNumber
 	} from '$lib/core/ha/entities';
@@ -58,13 +59,17 @@
 	let controllable = $derived(entityControllable(stateObj));
 	let highlightEntity = $derived(activeEntity || entity);
 	let highlightState = $derived($states?.[highlightEntity]);
-	let on = $derived(
-		available &&
-			(activeStates?.length
-				? entityAvailability(highlightState) === 'available' &&
-					activeStates.includes(highlightState!.state)
-				: entityActiveFor(highlightEntity, highlightState, $controlOverrides))
-	);
+	let on = $derived.by(() => {
+		// an unavailable tile stays dim even while its highlight entity is active
+		if (!available) return false;
+		if (!activeStates?.length)
+			return entityActiveFor(highlightEntity, highlightState, $controlOverrides);
+		// no optimistic override here: it predicts the domain's on/off, which a
+		// custom state list need not follow
+		return entityAvailable(highlightState) && activeStates.includes(highlightState!.state);
+	});
+	// the toggle a tap sends acts on the tile's own entity, whatever lights it
+	let pressed = $derived(available && entityActiveFor(entity, stateObj, $controlOverrides));
 	let pending = $derived($pendingEntities[entity] !== undefined);
 	let label = $derived(name || stateObj?.attributes?.friendly_name || entity);
 	let iconColor = $derived(
@@ -139,7 +144,7 @@
 		class:pressable={interactive}
 		role="button"
 		tabindex={interactive ? 0 : -1}
-		aria-pressed={on}
+		aria-pressed={pressed}
 		use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
 		use:longPress={{
 			hold: openControls,

@@ -306,7 +306,12 @@ describe('hearthConfigIssues', () => {
 						cards: [
 							[
 								{ id: 's', type: 'scenes', scenes: [{ entity: 'scene.a', active_state: 22 }] },
-								{ id: 'v', type: 'vacuum', modes: [{ entity: 'vacuum.a', duration: 48 }] }
+								{ id: 'v', type: 'vacuum', modes: [{ entity: 'vacuum.a', duration: 48 }] },
+								{
+									id: 'e',
+									type: 'entities',
+									entities: [{ entity: 'sensor.a', active_states: ['running', 22, true] }]
+								}
 							]
 						]
 					}
