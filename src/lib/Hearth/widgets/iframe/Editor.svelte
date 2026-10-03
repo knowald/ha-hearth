@@ -29,6 +29,15 @@
 	});
 </script>
 
-<TextField label={$lang('hearth_url')} bind:value={url} placeholder="https://" />
-{#if !urlValid}<div class="field-error">{$lang('hearth_embed_url_hint')}</div>{/if}
-<TextField label={$lang('hearth_height_px')} bind:value={height} placeholder="150" />
+<TextField
+	label={$lang('hearth_url')}
+	bind:value={url}
+	placeholder="https://"
+	error={urlValid ? undefined : $lang('hearth_embed_url_hint')}
+/>
+<TextField
+	label={$lang('hearth_height_px')}
+	bind:value={height}
+	placeholder="150"
+	inputmode="numeric"
+/>

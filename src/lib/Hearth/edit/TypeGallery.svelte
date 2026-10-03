@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
+	import { autofocus } from '$lib/ui/actions/autofocus';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { layer } from '$lib/ui/layers';
 	import { PRESS_RIPPLE } from '../config';
@@ -58,10 +59,6 @@
 		open = false;
 		search = '';
 	}
-
-	function focusOnMount(node: HTMLInputElement) {
-		node.focus();
-	}
 </script>
 
 <div class="type-gallery" class:open>
@@ -71,10 +68,11 @@
 				<Icon name="search" size={ICON.inline} />
 				<input
 					type="text"
+					aria-label={searchPlaceholder}
 					bind:value={search}
 					placeholder={searchPlaceholder}
 					spellcheck="false"
-					use:focusOnMount
+					use:autofocus
 				/>
 				{#if current}
 					<button

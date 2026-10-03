@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
-	import { lang } from '$lib/core/i18n';
+	import { fill, lang } from '$lib/core/i18n';
 	import { commandFailure } from '$lib/core/ha/commands';
 	import { sortable } from '$lib/ui/actions/sortable';
 	import { onDndReceive, type DndReceiveDetail } from './drag';
@@ -17,6 +17,7 @@
 		type RailWidget
 	} from './config';
 	import { editor, hearthConfig, hearthEditMode, updateConfig } from './store';
+	import { widgetDescriptor } from './widgets';
 	import AddControl from './AddControl.svelte';
 	import EditChip from './EditChip.svelte';
 	import RailWidgetRenderer from './RailWidgetRenderer.svelte';
@@ -157,6 +158,9 @@
 					>
 						{#if $hearthEditMode}
 							<EditChip
+								label={fill($lang('hearth_edit_named'), {
+									name: $lang(widgetDescriptor(widget.type).name)
+								})}
 								onedit={() => editor.set({ kind: 'railWidget', index: railIndex(widget) })}
 							/>
 						{/if}

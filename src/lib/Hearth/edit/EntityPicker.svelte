@@ -3,6 +3,7 @@
 	import { lang, fill } from '$lib/core/i18n';
 	import { activateOnKeyboard } from '../interaction';
 	import { states } from '$lib/core/ha/entities';
+	import { autofocus, finePointer } from '$lib/ui/actions/autofocus';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from '../config';
 	import { domainIcon } from '$lib/core/domains';
@@ -20,9 +21,13 @@
 		onclose: () => void;
 	} = $props();
 
+	const uid = $props.id();
 	const MAX_ROWS = 100;
 
 	let query = $state('');
+	// the row Enter picks, moved with the arrow keys while focus stays in the search
+	let active = $state(0);
+	let listbox = $state<HTMLElement>();
 
 	let matches = $derived.by(() => {
 		const needle = query.trim().toLowerCase();
@@ -42,13 +47,27 @@
 			.sort((a, b) => a.name.localeCompare(b.name));
 	});
 
+	let visible = $derived(matches.slice(0, MAX_ROWS));
+	let activeIndex = $derived(Math.min(active, visible.length - 1));
+
+	$effect(() => {
+		listbox?.children[activeIndex]?.scrollIntoView?.({ block: 'nearest' });
+	});
+
 	function pick(entityId: string) {
 		onselect(entityId);
 		onclose();
 	}
 
-	function focusOnMount(node: HTMLInputElement) {
-		node.focus();
+	function navigate(event: KeyboardEvent) {
+		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			const step = event.key === 'ArrowDown' ? 1 : -1;
+			active = Math.max(0, Math.min(visible.length - 1, activeIndex + step));
+		} else if (event.key === 'Enter' && visible[activeIndex]) {
+			event.preventDefault();
+			pick(visible[activeIndex].entityId);
+		}
 	}
 </script>
 
@@ -56,7 +75,12 @@
 	class="overlay"
 	onclick={(event) => event.target === event.currentTarget && onclose()}
 	role="presentation"
-	use:layer={{ close: onclose, trap: true }}
+	use:layer={{
+		close: onclose,
+		trap: true,
+		// without the search taking focus on a touch screen, the dialog itself does
+		initialFocus: (node) => (finePointer() ? null : node.querySelector<HTMLElement>('.panel'))
+	}}
 >
 	<div
 		class="panel"
@@ -69,35 +93,54 @@
 			<Icon name="search" size={ICON.control} />
 			<input
 				type="text"
+				role="combobox"
+				aria-label={$lang('hearth_search_entities')}
+				aria-expanded="true"
+				aria-controls="{uid}-list"
+				aria-autocomplete="list"
+				aria-activedescendant={visible.length ? `${uid}-option-${activeIndex}` : undefined}
 				bind:value={query}
 				placeholder={$lang('hearth_search_entities')}
 				spellcheck="false"
-				use:focusOnMount
+				oninput={() => (active = 0)}
+				onkeydown={navigate}
+				use:autofocus
 			/>
 			<CloseButton onclick={onclose} />
 		</div>
 		<div class="list">
-			{#each matches.slice(0, MAX_ROWS) as entry (entry.entityId)}
-				<div
-					class="row pressable"
-					use:Ripple={PRESS_RIPPLE}
-					onclick={() => pick(entry.entityId)}
-					role="button"
-					tabindex="0"
-					onkeydown={(event) => activateOnKeyboard(event, () => pick(entry.entityId))}
-				>
-					<span class="row-icon"
-						><Icon name={domainIcon(entry.entityId)} size={ICON.control} /></span
+			<div
+				id="{uid}-list"
+				role="listbox"
+				aria-label={$lang('hearth_choose_entity')}
+				bind:this={listbox}
+			>
+				{#each visible as entry, index (entry.entityId)}
+					<div
+						id="{uid}-option-{index}"
+						class="row pressable"
+						class:active={index === activeIndex}
+						use:Ripple={PRESS_RIPPLE}
+						onclick={() => pick(entry.entityId)}
+						role="option"
+						aria-selected={index === activeIndex}
+						tabindex="-1"
+						onkeydown={(event) => activateOnKeyboard(event, () => pick(entry.entityId))}
 					>
-					<span class="row-text">
-						<span class="row-name">{entry.name}</span>
-						<span class="row-id">{entry.entityId}</span>
-					</span>
-					<span class="row-state">{entry.state}</span>
-				</div>
-			{:else}
+						<span class="row-icon"
+							><Icon name={domainIcon(entry.entityId)} size={ICON.control} /></span
+						>
+						<span class="row-text">
+							<span class="row-name">{entry.name}</span>
+							<span class="row-id">{entry.entityId}</span>
+						</span>
+						<span class="row-state">{entry.state}</span>
+					</div>
+				{/each}
+			</div>
+			{#if !visible.length}
 				<div class="hint">{$lang('hearth_no_matching_entities')}</div>
-			{/each}
+			{/if}
 			{#if matches.length > MAX_ROWS}
 				<div class="hint">
 					{fill($lang('hearth_more_matches'), { count: matches.length - MAX_ROWS })}
@@ -187,6 +230,10 @@
 		cursor: pointer;
 	}
 
+	.row.active {
+		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+	}
+
 	@media (hover: hover) {
 		.row:hover {
 			background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
@@ -235,7 +282,7 @@
 	.hint {
 		padding: 12px 10px;
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		text-align: center;
 	}
 

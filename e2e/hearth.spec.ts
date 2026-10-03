@@ -154,6 +154,33 @@ async function openCardEditor(page: Page, title: string) {
 	return page.getByRole('dialog', { name: 'Edit card' });
 }
 
+test('the edit chip names the card it opens', async ({ page }) => {
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await page.getByRole('button', { name: 'Edit Readings', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'Edit card' });
+	await expect(sheet.getByLabel('Title')).toHaveValue('Readings');
+});
+
+test('the entity picker is driven from the keyboard', async ({ page }) => {
+	const sheet = await openCardEditor(page, 'Lights');
+	await sheet.getByRole('button', { name: 'Add entity' }).click();
+	// the new row's own entity field comes before its highlight entity field
+	await sheet.getByRole('button', { name: 'Choose an entity' }).first().click();
+	const picker = page.getByRole('dialog', { name: 'Choose an entity' });
+	const search = picker.getByRole('combobox', { name: 'Search entities' });
+	await expect(search).toBeFocused();
+	await search.fill('fan');
+	// sorted by name, so the first match is highlighted until the arrows move it
+	await expect(picker.getByRole('option', { selected: true })).toContainText('Bedroom fan');
+	await search.press('ArrowDown');
+	await expect(picker.getByRole('option', { selected: true })).toContainText('Ceiling fan');
+	await search.press('Enter');
+	await expect(picker).toBeHidden();
+	await expect(sheet.getByRole('combobox', { name: 'Entity', exact: true })).toHaveValue(
+		'switch.fan'
+	);
+});
+
 test('adds a card and a widget from the galleries', async ({ page }) => {
 	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
 	await page.getByRole('button', { name: 'Add card' }).click();

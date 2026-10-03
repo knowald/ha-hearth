@@ -95,7 +95,7 @@
 	</div>
 {/if}
 {#if $saveState === 'saved'}
-	<div class="save-toast" transition:fade={{ duration: $motion ? MOTION.slow : 0 }}>
+	<div class="save-toast" role="status" transition:fade={{ duration: $motion ? MOTION.slow : 0 }}>
 		<Icon name="check_circle" size={ICON.control} />
 		{$lang('saved')}
 	</div>

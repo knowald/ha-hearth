@@ -32,5 +32,9 @@
 	bind:value={title}
 	placeholder={$lang('hearth_example_web_page_title')}
 />
-<TextField label={$lang('hearth_url')} bind:value={url} placeholder="https://" />
-{#if !urlValid}<div class="field-error">{$lang('hearth_embed_url_hint')}</div>{/if}
+<TextField
+	label={$lang('hearth_url')}
+	bind:value={url}
+	placeholder="https://"
+	error={urlValid ? undefined : $lang('hearth_embed_url_hint')}
+/>

@@ -35,7 +35,12 @@
 	bind:value={entity}
 	domains={['sensor']}
 />
-<TextField label={$lang('hearth_price_per_kwh_optional')} bind:value={price} placeholder="0.72" />
+<TextField
+	label={$lang('hearth_price_per_kwh_optional')}
+	bind:value={price}
+	placeholder="0.72"
+	inputmode="decimal"
+/>
 <EntityField
 	label={$lang('hearth_price_entity_optional_overrides_static_price')}
 	bind:value={priceEntity}

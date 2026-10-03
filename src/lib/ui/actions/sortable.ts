@@ -85,6 +85,19 @@ export interface DndOptions<T = unknown> {
 	cloneItem?: (item: T) => T;
 }
 
+/**
+ * Native HTML5 drag and drop does not start from a touch in most mobile
+ * webviews. Sortable switches to its pointer-driven fallback on iOS by user
+ * agent, but iPadOS reports a desktop Mac one, so a coarse pointer decides.
+ */
+export function coarsePointer(): boolean {
+	return (
+		typeof window !== 'undefined' &&
+		typeof window.matchMedia === 'function' &&
+		window.matchMedia('(pointer: coarse)').matches
+	);
+}
+
 function getItemId(el: Element, idAttr: string): string {
 	return el.getAttribute(idAttr) ?? '';
 }
@@ -149,6 +162,7 @@ export function sortable<T>(
 			handle: options.handle,
 			filter: options.filter,
 			fallbackOnBody: options.fallbackOnBody ?? true,
+			forceFallback: coarsePointer(),
 			swapThreshold: options.swapThreshold ?? 0.65,
 			direction: options.direction,
 

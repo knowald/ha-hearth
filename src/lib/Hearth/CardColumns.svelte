@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { lang } from '$lib/core/i18n';
+	import { fill as fillText, lang } from '$lib/core/i18n';
 	import { sortable } from '$lib/ui/actions/sortable';
 	import {
 		cloneOverviewItem,
@@ -121,6 +121,11 @@
 		editor.set({ kind: 'stack', roomId, column, index: null });
 	}
 
+	function cardName(card: OverviewCard): string {
+		const title = 'title' in card && typeof card.title === 'string' ? card.title.trim() : '';
+		return title || $lang(cardDescriptor(card.type).name);
+	}
+
 	// a stack's own sortable container refuses drops of another stack (no
 	// nesting); everything else in the shared group is welcome
 	const stackGroup = $derived({
@@ -145,7 +150,10 @@
 					class:visibility-dimmed={$hearthEditMode && !visible}
 				>
 					{#if $hearthEditMode}
-						<EditChip onedit={() => editor.set(target)} />
+						<EditChip
+							label={fillText($lang('hearth_edit_named'), { name: cardName(card) })}
+							onedit={() => editor.set(target)}
+						/>
 					{/if}
 					<CardRenderer {card} />
 				</div>
@@ -187,6 +195,9 @@
 					>
 						{#if $hearthEditMode}
 							<EditChip
+								label={item.title?.trim()
+									? fillText($lang('hearth_edit_named'), { name: item.title.trim() })
+									: $lang('hearth_edit_stack')}
 								onedit={() => editor.set({ kind: 'stack', column: columnIndex, index, roomId })}
 							/>
 						{/if}

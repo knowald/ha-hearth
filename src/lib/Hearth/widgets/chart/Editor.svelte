@@ -68,5 +68,6 @@
 		label={$lang('hearth_stroke_width')}
 		bind:value={stroke}
 		placeholder={style === 'radial' ? '9' : '2'}
+		inputmode="numeric"
 	/>
 {/if}

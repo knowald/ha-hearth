@@ -2,6 +2,7 @@
 	import { lang } from '$lib/core/i18n';
 	import type { CardEditorProps } from '../types';
 	import type { TemperatureCard } from './descriptor';
+	import CheckField from '../../edit/CheckField.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
 	import TextField from '../../edit/TextField.svelte';
 
@@ -46,10 +47,7 @@
 	domains={['climate']}
 />
 <div class="hint">{$lang('hearth_adds_a_target_readout_with_controls')}</div>
-<label class="check">
-	<input type="checkbox" bind:checked={verdict} />
-	<span>{$lang('hearth_verdict_pill_for_air_sensors_good')}</span>
-</label>
+<CheckField label={$lang('hearth_verdict_pill_for_air_sensors_good')} bind:checked={verdict} />
 <div class="hint">
 	{$lang('hearth_judged_by_device_class_custom_thresholds')}
 </div>

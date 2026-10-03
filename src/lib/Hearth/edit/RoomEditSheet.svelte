@@ -4,6 +4,7 @@
 	import { get } from 'svelte/store';
 	import { moveItem, resizeCardColumns, slugify, uniqueId } from '../config';
 	import { currentRoom, editor, hearthConfig, updateConfig } from '../store';
+	import CheckField from './CheckField.svelte';
 	import EditSheet from './EditSheet.svelte';
 	import EntityField from './EntityField.svelte';
 	import IconField from './IconField.svelte';
@@ -151,10 +152,7 @@
 		]}
 	/>
 
-	<label class="check">
-		<input type="checkbox" bind:checked={hideHeader} />
-		<span>{$lang('hearth_hide_page_header')}</span>
-	</label>
+	<CheckField label={$lang('hearth_hide_page_header')} bind:checked={hideHeader} />
 	<div class="field-hint">
 		{$lang('hearth_everything_on_the_page_is_a')}
 		{#if id && $hearthConfig.rooms.length === 1}
@@ -162,21 +160,3 @@
 		{/if}
 	</div>
 </EditSheet>
-
-<style>
-	.check {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		font-size: var(--h-type-body);
-		color: var(--h-text-3);
-		padding: 6px 0;
-		cursor: pointer;
-	}
-
-	.check input {
-		accent-color: var(--h-accent-deep);
-		width: 16px;
-		height: 16px;
-	}
-</style>

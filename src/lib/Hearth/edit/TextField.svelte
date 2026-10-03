@@ -10,6 +10,7 @@
 		value = $bindable(''),
 		placeholder = '',
 		type = 'text',
+		inputmode = undefined,
 		autocomplete = undefined,
 		autofocus = false,
 		hint = undefined,
@@ -20,6 +21,11 @@
 		value?: string;
 		placeholder?: string;
 		type?: 'text' | 'password';
+		/**
+		 * The on-screen keyboard for a number field. The input stays type text so
+		 * partial entries such as "-" or "20." survive until the number is whole.
+		 */
+		inputmode?: 'numeric' | 'decimal';
 		autocomplete?: FullAutoFill;
 		/** Ask the surrounding sheet to focus this field when it opens. */
 		autofocus?: boolean;
@@ -36,6 +42,7 @@
 		<span class="field-label">{label}</span>
 		<input
 			{type}
+			{inputmode}
 			{autocomplete}
 			data-autofocus={autofocus || undefined}
 			bind:value

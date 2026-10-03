@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ICON } from '../iconSizes';
-	import { activateOnKeyboard } from '../interaction';
+	import { lang } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from '../config';
@@ -37,47 +37,34 @@
 </script>
 
 <div class="field">
-	<label>
-		<span class="field-label">{label}</span>
-		<span class="input-wrap">
-			<input
-				type="text"
-				bind:value
-				list="entities-{uid}"
-				placeholder="entity_id"
-				spellcheck="false"
-				onchange={() => onchange?.(value)}
-				aria-invalid={error ? true : undefined}
-				aria-describedby={describedBy(uid, hint, error)}
-			/>
-			<span
-				class="search pressable"
-				use:Ripple={PRESS_RIPPLE}
-				onclick={(event) => {
-					// prevent the label from bouncing focus back to the input
-					event.preventDefault();
-					pickerOpen = true;
-				}}
-				role="button"
-				tabindex="0"
-				onkeydown={(event) =>
-					activateOnKeyboard(event, () =>
-						((event) => {
-							// prevent the label from bouncing focus back to the input
-							event.preventDefault();
-							pickerOpen = true;
-						})(event)
-					)}
-			>
-				<Icon name="search" size={ICON.control} />
-			</span>
-		</span>
-		<datalist id="entities-{uid}">
-			{#each options as option (option)}
-				<option value={option}>{$states?.[option]?.attributes?.friendly_name ?? ''}</option>
-			{/each}
-		</datalist>
-	</label>
+	<label class="field-label" for="{uid}-input">{label}</label>
+	<span class="input-wrap">
+		<input
+			id="{uid}-input"
+			type="text"
+			bind:value
+			list="entities-{uid}"
+			placeholder="entity_id"
+			spellcheck="false"
+			onchange={() => onchange?.(value)}
+			aria-invalid={error ? true : undefined}
+			aria-describedby={describedBy(uid, hint, error)}
+		/>
+		<button
+			type="button"
+			class="search pressable"
+			aria-label={$lang('hearth_choose_entity')}
+			use:Ripple={PRESS_RIPPLE}
+			onclick={() => (pickerOpen = true)}
+		>
+			<Icon name="search" size={ICON.control} />
+		</button>
+	</span>
+	<datalist id="entities-{uid}">
+		{#each options as option (option)}
+			<option value={option}>{$states?.[option]?.attributes?.friendly_name ?? ''}</option>
+		{/each}
+	</datalist>
 	<FieldMessages id={uid} {hint} {error} />
 </div>
 
@@ -96,10 +83,6 @@
 	.field {
 		display: block;
 		margin-bottom: 14px;
-	}
-
-	label {
-		display: block;
 	}
 
 	.field-label {
@@ -129,6 +112,13 @@
 		outline: none;
 	}
 
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		input {
+			font-size: max(16px, var(--h-type-secondary)); /* literal ok: the iOS no-zoom floor */
+		}
+	}
+
 	input:focus {
 		border-color: rgb(var(--h-accent-rgb) / calc(0.4 * var(--h-accent-scale)));
 	}
@@ -149,9 +139,25 @@
 		display: flex;
 		align-items: center;
 		padding: 6px;
+		border: 0;
 		border-radius: var(--h-radius-xs);
+		background: none;
 		color: var(--h-icon);
 		cursor: pointer;
+	}
+
+	/* a finger-sized button; the input's right padding keeps text clear of it */
+	@media (pointer: coarse) {
+		.search {
+			right: 0;
+			height: auto;
+			min-width: var(--h-touch-target);
+			justify-content: center;
+		}
+
+		input {
+			padding-right: var(--h-touch-target);
+		}
 	}
 
 	@media (hover: hover) {

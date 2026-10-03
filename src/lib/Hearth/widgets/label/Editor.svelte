@@ -2,6 +2,7 @@
 	import { lang } from '$lib/core/i18n';
 	import type { WidgetEditorProps } from '../types';
 	import type { LabelWidget } from './descriptor';
+	import CheckField from '../../edit/CheckField.svelte';
 	import TextField from '../../edit/TextField.svelte';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<LabelWidget> = $props();
@@ -23,7 +24,4 @@
 	bind:value={text}
 	placeholder={$lang('hearth_example_label_text')}
 />
-<label class="check">
-	<input type="checkbox" bind:checked={divider} />
-	<span>{$lang('hearth_divider_line')}</span>
-</label>
+<CheckField label={$lang('hearth_divider_line')} bind:checked={divider} />

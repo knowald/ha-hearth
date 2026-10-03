@@ -1,3 +1,6 @@
+import { get } from 'svelte/store';
+import { motion } from '$lib/core/app/motion';
+
 interface RippleOptions {
 	color?: string;
 	opacity?: number;
@@ -20,6 +23,9 @@ export default function Ripple(node: HTMLElement, options: RippleOptions = {}) {
 	let opts = { ...defaults, ...options };
 
 	function handlePointerDown(event: PointerEvent) {
+		// reduced motion (configuration or OS) zeroes the store; the press
+		// itself still shows through the element's own :active style
+		if (!get(motion)) return;
 		// pointer and rect are in screen pixels; the ripple is placed in the
 		// node's CSS pixels, which differ under a CSS zoom
 		const zoom = node.currentCSSZoom ?? 1;

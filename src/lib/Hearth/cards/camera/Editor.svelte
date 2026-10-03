@@ -2,6 +2,7 @@
 	import { lang } from '$lib/core/i18n';
 	import type { CardEditorProps } from '../types';
 	import type { CameraCard } from './descriptor';
+	import CheckField from '../../edit/CheckField.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
 	import TextField from '../../edit/TextField.svelte';
 
@@ -32,7 +33,4 @@
 	placeholder={$lang('hearth_example_camera_title')}
 />
 <EntityField label={$lang('entity')} bind:value={entity} domains={['camera']} />
-<label class="check">
-	<input type="checkbox" bind:checked={stream} />
-	<span>{$lang('hearth_live_stream')}</span>
-</label>
+<CheckField label={$lang('hearth_live_stream')} bind:checked={stream} />

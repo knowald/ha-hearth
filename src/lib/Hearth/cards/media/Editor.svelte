@@ -73,15 +73,14 @@
 				placeholder="https://"
 			/>
 		</div>
-		<span
+		<button
+			type="button"
 			class="remove"
-			role="button"
-			tabindex="0"
+			aria-label={$lang('hearth_remove_shortcut')}
 			onclick={() => shortcuts.splice(index, 1)}
-			onkeydown={(event) => activateOnKeyboard(event, () => shortcuts.splice(index, 1))}
 		>
 			<Icon name="delete" size={ICON.control} />
-		</span>
+		</button>
 	</div>
 {/each}
 <div

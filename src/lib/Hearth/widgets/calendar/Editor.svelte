@@ -47,4 +47,5 @@
 	label={$lang('hearth_look_ahead_hours_default_24')}
 	bind:value={lookaheadHours}
 	placeholder="24"
+	inputmode="decimal"
 />

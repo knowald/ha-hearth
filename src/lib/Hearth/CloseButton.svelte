@@ -47,6 +47,14 @@
 		}
 	}
 
+	/* the interface scale must not shrink it under a finger */
+	@media (pointer: coarse) {
+		.close-button {
+			width: var(--h-touch-target);
+			height: var(--h-touch-target);
+		}
+	}
+
 	.close-button:active {
 		transform: scale(0.9);
 	}

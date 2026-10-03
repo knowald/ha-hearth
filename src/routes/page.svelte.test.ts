@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { tick } from 'svelte';
+import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import translations from '../../static/translations/en.json';
 import {
@@ -8,6 +9,8 @@ import {
 	startConnection,
 	tokenNeeded
 } from '$lib/core/ha/connection';
+import { motion } from '$lib/core/app/motion';
+import { MOTION } from '$lib/core/theme';
 import Page from './+page.svelte';
 
 vi.mock('$lib/core/ha/connection', async (importOriginal) => ({
@@ -22,13 +25,44 @@ const data = {
 } as unknown as Parameters<typeof Page>[1]['data'];
 
 describe('boot screen', () => {
-	beforeEach(() => vi.stubGlobal('matchMedia', () => ({ matches: false })));
+	beforeEach(() =>
+		vi.stubGlobal('matchMedia', () => ({
+			matches: false,
+			addEventListener: () => {},
+			removeEventListener: () => {}
+		}))
+	);
 	afterEach(() => {
 		tokenNeeded.set(false);
 		connectionError.set(undefined);
 		failedAttempts.set(0);
 		vi.unstubAllGlobals();
 		vi.clearAllMocks();
+		motion.set(MOTION.base);
+	});
+
+	it('follows the OS reduced-motion setting while the page is open', async () => {
+		let reduced = false;
+		let notify = () => {};
+		vi.stubGlobal('matchMedia', (query: string) => ({
+			get matches() {
+				return reduced && query === '(prefers-reduced-motion: reduce)';
+			},
+			addEventListener: (_type: string, listener: () => void) => {
+				if (query === '(prefers-reduced-motion: reduce)') notify = listener;
+			},
+			removeEventListener: () => {}
+		}));
+		render(Page, { data });
+		expect(get(motion)).toBe(MOTION.base);
+		reduced = true;
+		notify();
+		await tick();
+		expect(get(motion)).toBe(0);
+		reduced = false;
+		notify();
+		await tick();
+		expect(get(motion)).toBe(MOTION.base);
 	});
 
 	it('offers no login while authentication can proceed on its own', () => {

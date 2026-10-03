@@ -1,5 +1,5 @@
 import Sortable from 'sortablejs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nestZoomedGhost, sortable, ZOOM_GHOST_SHELL } from './sortable';
 
 function mount(zoom: number) {
@@ -38,6 +38,27 @@ describe('sortable animation under zoom', () => {
 		const { instance, action } = mount(1);
 		action.update?.({ group: 'test', items: [], animation: 300, onFinalize: () => {} });
 		expect(instance.options.animation).toBe(300);
+		action.destroy?.();
+	});
+});
+
+describe('sortable on touch screens', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		document.body.replaceChildren();
+	});
+
+	it('drives the drag itself under a coarse pointer, whatever the user agent says', () => {
+		vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(pointer: coarse)' }));
+		const { instance, action } = mount(1);
+		expect(instance.options.forceFallback).toBe(true);
+		action.destroy?.();
+	});
+
+	it('keeps native drag and drop for a mouse', () => {
+		vi.stubGlobal('matchMedia', () => ({ matches: false }));
+		const { instance, action } = mount(1);
+		expect(instance.options.forceFallback).toBe(false);
 		action.destroy?.();
 	});
 });
