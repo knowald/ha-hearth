@@ -110,7 +110,8 @@
 		justify-items: center;
 		gap: 12px;
 		width: 100%;
-		height: 100dvh;
+		/* tokens do not exist yet, but the zoom may already apply */
+		height: calc(100dvh / var(--h-zoom, 1));
 		padding: 24px;
 		/* the boot splash shows before ThemeStyle mounts, so no tokens exist yet */
 		background: #16110c; /* literal ok: pre-theme boot splash */

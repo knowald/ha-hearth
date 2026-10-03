@@ -207,8 +207,8 @@
 
 	.panel {
 		width: 480px;
-		max-width: calc(100vw - 40px);
-		max-height: calc(100vh - 80px);
+		max-width: calc(100 * var(--h-vw) - 40px);
+		max-height: calc(100 * var(--h-vh) - 80px);
 		display: flex;
 		flex-direction: column;
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));

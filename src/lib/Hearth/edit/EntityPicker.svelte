@@ -148,8 +148,8 @@
 	}
 
 	.panel {
-		width: min(720px, calc(100vw - 32px));
-		height: min(720px, calc(100dvh - 48px));
+		width: min(720px, calc(100 * var(--h-vw) - 32px));
+		height: min(720px, calc(100 * var(--h-dvh) - 48px));
 		display: flex;
 		flex-direction: column;
 		background: radial-gradient(620px 420px at 25% -10%, var(--h-sheet-0), var(--h-sheet-1) 60%);
@@ -276,7 +276,7 @@
 
 		.panel {
 			width: 100%;
-			height: calc(100dvh - 16px);
+			height: calc(100 * var(--h-dvh) - 16px);
 			padding: 16px;
 			border-radius: var(--h-radius-md);
 		}

@@ -37,27 +37,38 @@
 	 */
 	function position() {
 		if (!card) return;
-		const rect = anchor.getBoundingClientRect();
+		// rects and the window size are in screen pixels, but the card is laid
+		// out in the interface scale's zoomed pixels; work in the latter
+		const zoom = card.currentCSSZoom ?? 1;
+		const zoomed = anchor.getBoundingClientRect();
+		const rect = {
+			top: zoomed.top / zoom,
+			bottom: zoomed.bottom / zoom,
+			left: zoomed.left / zoom,
+			right: zoomed.right / zoom
+		};
+		const viewportWidth = window.innerWidth / zoom;
+		const viewportHeight = window.innerHeight / zoom;
 		// the anchor left the viewport on either axis - nothing left to point at
 		if (
 			rect.bottom < 0 ||
-			rect.top > window.innerHeight ||
+			rect.top > viewportHeight ||
 			rect.right < 0 ||
-			rect.left > window.innerWidth
+			rect.left > viewportWidth
 		) {
 			onclose();
 			return;
 		}
 		const { offsetWidth: width, offsetHeight: height } = card;
-		const left = clamp(rect.left, MARGIN, Math.max(MARGIN, window.innerWidth - width - MARGIN));
-		const spaceBelow = window.innerHeight - rect.bottom - GAP - MARGIN;
+		const left = clamp(rect.left, MARGIN, Math.max(MARGIN, viewportWidth - width - MARGIN));
+		const spaceBelow = viewportHeight - rect.bottom - GAP - MARGIN;
 		const spaceAbove = rect.top - GAP - MARGIN;
 		// below unless it does not fit there and above is roomier
 		const above = height > spaceBelow && spaceAbove > spaceBelow;
 		const top = clamp(
 			above ? rect.top - GAP - height : rect.bottom + GAP,
 			MARGIN,
-			Math.max(MARGIN, window.innerHeight - height - MARGIN)
+			Math.max(MARGIN, viewportHeight - height - MARGIN)
 		);
 		placement = {
 			left,
@@ -138,7 +149,7 @@
 	.card {
 		position: fixed;
 		z-index: calc(var(--h-layer-popover) + 1);
-		width: min(420px, calc(100vw - 28px));
+		width: min(420px, calc(100 * var(--h-vw) - 28px));
 		padding: 16px;
 		border-radius: var(--h-radius-card);
 		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
@@ -148,10 +159,7 @@
 
 	/* the tail sits on .card, so scrolling belongs to an inner element */
 	.scroll {
-		/* vh first: a kiosk webview without dynamic viewport units would drop the
-		   whole declaration and let the card outgrow the screen */
-		max-height: min(72vh, 620px);
-		max-height: min(72dvh, 620px);
+		max-height: min(calc(72 * var(--h-dvh)), 620px);
 		overflow: auto;
 		scrollbar-width: none;
 		/* tiles set touch-action: none for their drag gestures, which would

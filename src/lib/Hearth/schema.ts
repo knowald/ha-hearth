@@ -190,6 +190,11 @@ const ThemeSchema = v.pipe(
 	v.record(v.string(), v.string('must be text'))
 );
 
+const optionalScale = () =>
+	v.optional(
+		v.pipe(FiniteNumber, v.minValue(50, 'must be 50 to 200'), v.maxValue(200, 'must be 50 to 200'))
+	);
+
 /** Root settings; `rail` and `rooms` are walked item by item by the issue checker. */
 export const RootSettingsSchema = v.looseObject({
 	theme: v.optional(ThemeSchema),
@@ -202,7 +207,11 @@ export const RootSettingsSchema = v.looseObject({
 	),
 	keep_screen_on: OptionalFlag,
 	padding_x: optionalNumberAtLeast(0),
-	padding_y: optionalNumberAtLeast(0)
+	padding_y: optionalNumberAtLeast(0),
+	mobile_padding_x: optionalNumberAtLeast(0),
+	mobile_padding_y: optionalNumberAtLeast(0),
+	scale: optionalScale(),
+	mobile_scale: optionalScale()
 });
 
 /**

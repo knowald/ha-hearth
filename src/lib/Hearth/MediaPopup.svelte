@@ -485,7 +485,7 @@
 
 <style>
 	.sheet {
-		width: min(880px, calc(100vw - 48px));
+		width: min(880px, calc(100 * var(--h-vw) - 48px));
 		height: 420px;
 		border-radius: var(--h-radius-xl);
 		position: relative;
@@ -895,7 +895,7 @@
 	@media (max-width: 700px) {
 		.sheet {
 			width: 100%;
-			height: min(560px, calc(100dvh - 24px));
+			height: min(560px, calc(100 * var(--h-dvh) - 24px));
 			border-radius: var(--h-radius-xl) var(--h-radius-xl) 0 0;
 			align-self: flex-end;
 		}

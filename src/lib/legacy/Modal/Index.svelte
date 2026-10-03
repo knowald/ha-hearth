@@ -28,7 +28,10 @@
 	let contents: HTMLDivElement | null = $state(null);
 	let opacityValue = $state(1);
 	let draggingModal = $state(false);
+	// top, the dismiss threshold and the backdrop fade work in screen pixels,
+	// like the pointer; only the transform converts to zoomed CSS pixels
 	let top = $state(0);
+	const zoom = document.documentElement.currentCSSZoom ?? 1;
 	let startTop = $state(0);
 	let threshold = window.innerHeight * 0.15;
 
@@ -191,12 +194,12 @@
 	<div
 		id="modal"
 		onpointerdown={handlePointerDown}
-		style:transform="translateY({top}px)"
+		style:transform="translateY({top / zoom}px)"
 		style:transition={!draggingModal ? `transform ${$motion}ms ease-out` : 'none'}
 		use:trapFocus
 	>
 		<div
-			style:width={size === 'large' ? '80vw' : '40rem'}
+			style:width={size === 'large' ? 'calc(80 * var(--h-vw, 1vw))' : '40rem'}
 			class="contents"
 			bind:this={contents}
 			class:warning={!backdropImage}
@@ -268,8 +271,8 @@
 		display: flex;
 		flex-direction: column;
 		pointer-events: auto;
-		max-height: 85vh;
-		max-width: 85vw;
+		max-height: calc(85 * var(--h-vh, 1vh));
+		max-width: calc(85 * var(--h-vw, 1vw));
 		border-radius: 1.2rem;
 		position: relative;
 		box-shadow: rgba(0, 0, 0, 0.56) 0px 22px 70px 4px;
