@@ -269,13 +269,35 @@ describe('swipeGesture', () => {
 		await vi.waitFor(() => expect(node.style.transform).toBe(''));
 	});
 
-	it('keeps the page under the finger at an interface scale', () => {
-		const { node, tile } = setup();
+	it.each([
+		[0.5, 8, false, 'translateX(-120px)'],
+		[2, 12, true, 'translateX(-30px)']
+	])(
+		'at zoom %d locks after the same screen distance and keeps the page under the finger',
+		(zoom, nudge, locks, transform) => {
+			const { node, tile } = setup();
+			Object.defineProperty(node, 'currentCSSZoom', { value: zoom });
+			tile.dispatchEvent(pointer('pointerdown', 200, 100));
+			tile.dispatchEvent(pointer('pointermove', 200 - nudge, 100));
+			expect(node.setPointerCapture).toHaveBeenCalledTimes(locks ? 1 : 0);
+			tile.dispatchEvent(pointer('pointermove', 140, 100));
+			expect(node.style.transform).toBe(transform);
+		}
+	);
+
+	it('measures the commit distance against the page width on screen', async () => {
+		const { node, onswipe, drag } = setup();
 		Object.defineProperty(node, 'currentCSSZoom', { value: 2 });
-		tile.dispatchEvent(pointer('pointerdown', 200, 100));
-		tile.dispatchEvent(pointer('pointermove', 180, 100));
-		tile.dispatchEvent(pointer('pointermove', 140, 100));
-		expect(node.style.transform).toBe('translateX(-30px)');
+		drag(
+			[
+				[190, 100],
+				[50, 100]
+			],
+			'pointerup',
+			STALE_SAMPLE_MS + 50
+		);
+		await vi.waitFor(() => expect(node.style.transform).toBe(''));
+		expect(onswipe).not.toHaveBeenCalled();
 	});
 
 	it('leaves a tap and a vertical scroll alone', () => {
