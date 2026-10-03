@@ -117,6 +117,7 @@ function revertToOrigin(draggedEl: Element) {
  */
 export const ZOOM_GHOST_SHELL = 'sortable-zoom-shell';
 
+// the `.sortable-zoom-shell` rules live in DRAG_GHOST_CSS in Hearth's shell/ThemeStyle.svelte
 export function nestZoomedGhost(ghost: HTMLElement, item: HTMLElement) {
 	const inner = ghost.cloneNode(false) as HTMLElement;
 	inner.style.cssText = item.style.cssText;
