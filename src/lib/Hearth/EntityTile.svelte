@@ -13,6 +13,7 @@
 	import {
 		entityActiveFor,
 		entityAvailability,
+		entityAvailable,
 		entityControllable,
 		sensorNumber
 	} from '$lib/core/ha/entities';
@@ -58,13 +59,17 @@
 	let controllable = $derived(entityControllable(stateObj));
 	let highlightEntity = $derived(activeEntity || entity);
 	let highlightState = $derived($states?.[highlightEntity]);
-	let on = $derived(
-		available &&
-			(activeStates?.length
-				? entityAvailability(highlightState) === 'available' &&
-					activeStates.includes(highlightState!.state)
-				: entityActiveFor(highlightEntity, highlightState, $controlOverrides))
-	);
+	let on = $derived.by(() => {
+		// an unavailable tile stays dim even while its highlight entity is active
+		if (!available) return false;
+		if (!activeStates?.length)
+			return entityActiveFor(highlightEntity, highlightState, $controlOverrides);
+		// a tap on the tile flips its own entity before HA confirms; a separate
+		// highlight entity never receives that command
+		const override = highlightEntity === entity ? $controlOverrides[`active:${entity}`] : undefined;
+		if (override !== undefined) return override > 0;
+		return entityAvailable(highlightState) && activeStates.includes(highlightState!.state);
+	});
 	let pending = $derived($pendingEntities[entity] !== undefined);
 	let label = $derived(name || stateObj?.attributes?.friendly_name || entity);
 	let iconColor = $derived(
