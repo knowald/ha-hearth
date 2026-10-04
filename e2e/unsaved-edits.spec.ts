@@ -148,3 +148,23 @@ test('offers a reload before editing a configuration saved elsewhere', async ({ 
 	await confirm.getByRole('button', { name: 'Edit anyway' }).click();
 	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 });
+
+test('Reload in the newer-configuration prompt reloads the page every time', async ({ page }) => {
+	await open(page);
+	writeFileSync(HEARTH_FILE, HEARTH_FIXTURE.replace('revision: 1', 'revision: 9'));
+	// the closing prompt takes its history entry back with history.back(),
+	// which used to abort the reload and leave this page in place
+	for (let attempt = 0; attempt < 3; attempt++) {
+		await page.evaluate(() => ((window as unknown as { stale: boolean }).stale = true));
+		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		const confirm = page.getByRole('alertdialog');
+		await expect(confirm).toContainText('Newer configuration saved');
+		await confirm.getByRole('button', { name: 'Reload' }).click();
+		await page.waitForFunction(() => !(window as unknown as { stale?: boolean }).stale);
+		await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+		writeFileSync(
+			HEARTH_FILE,
+			HEARTH_FIXTURE.replace('revision: 1', `revision: ${20 + attempt * 10}`)
+		);
+	}
+});

@@ -4,6 +4,7 @@
 	import { configuration } from '$lib/core/app/configuration';
 	import { hapticsSupported, sampleVibration, vibrate } from '$lib/core/app/haptics';
 	import { lang } from '$lib/core/i18n';
+	import { reloadPage } from '$lib/core/app/reload';
 	import { editor, requestConfirmation } from '../store';
 	import { prefersReducedMotion } from '../screen';
 	import EditSheet from './EditSheet.svelte';
@@ -202,7 +203,7 @@
 						>
 							{$lang('hearth_overwrite')}
 						</button>
-						<button type="button" class="hearth-button secondary" onclick={() => location.reload()}>
+						<button type="button" class="hearth-button secondary" onclick={reloadPage}>
 							{$lang('hearth_reload')}
 						</button>
 					</span>
