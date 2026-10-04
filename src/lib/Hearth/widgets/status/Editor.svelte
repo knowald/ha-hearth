@@ -18,8 +18,10 @@
 	let entity = $state(initial?.entity ?? '');
 	let tapAction = $state(initial?.tap_action);
 	let holdAction = $state(initial?.hold_action);
-	let tapValid = $state(true);
-	let holdValid = $state(true);
+	let tapValid = $state<boolean>();
+	let holdValid = $state<boolean>();
+	// without text or an entity the widget lists open problems and has no pill to tap
+	let autoMode = $derived(!text.trim() && !entity.trim());
 
 	$effect(() => {
 		onchange({
@@ -27,10 +29,10 @@
 				icon: icon.trim() || undefined,
 				text: text.trim() || undefined,
 				entity: entity.trim() || undefined,
-				tap_action: tapAction,
-				hold_action: holdAction
+				tap_action: autoMode ? undefined : tapAction,
+				hold_action: autoMode ? undefined : holdAction
 			},
-			valid: tapValid && holdValid
+			valid: autoMode || (tapValid !== false && holdValid !== false)
 		});
 	});
 </script>
@@ -51,5 +53,7 @@
 <div class="hint">
 	{$lang('hearth_leave_text_and_entity_empty_to')}
 </div>
-<ActionField label={$lang('hearth_tap_action')} bind:value={tapAction} bind:valid={tapValid} />
-<ActionField label={$lang('hearth_hold_action')} bind:value={holdAction} bind:valid={holdValid} />
+{#if !autoMode}
+	<ActionField label={$lang('hearth_tap_action')} bind:value={tapAction} bind:valid={tapValid} />
+	<ActionField label={$lang('hearth_hold_action')} bind:value={holdAction} bind:valid={holdValid} />
+{/if}

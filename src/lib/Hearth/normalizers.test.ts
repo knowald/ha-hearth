@@ -126,6 +126,10 @@ describe('normalizeEmbedUrl', () => {
 			'data:text/html,hi',
 			'file:///etc/passwd',
 			'//evil',
+			'/\\evil.com',
+			'/\t/evil.com',
+			'/lo\ncal/page.html',
+			'https://example.com/a b',
 			'',
 			3
 		]) {

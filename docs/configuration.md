@@ -141,7 +141,7 @@ Each entity in an entities card, as a tile or a stat box, and the status widget 
 | `url`            | Opens `url_path` in a new tab. Only http(s) addresses and paths on the Hearth host, such as `/local/page.html`.                             |
 | `none`           | Does nothing. With `hold_action: none`, a long press counts as a tap.                                                                       |
 
-Any action can ask first: `confirmation: true` asks "Are you sure?", and `confirmation: { text: Lock up for the night? }` asks that instead.
+Any action can ask first: `confirmation: true` asks "Are you sure?", and `confirmation: { text: Lock up for the night? }` asks that instead. Where an unlock or a moving garage door asks anyway, Hearth asks once, not twice.
 
 ```yaml
 entities:
@@ -174,7 +174,13 @@ The keys are the ones Home Assistant's dashboards use, so an action copied from 
       text: Good night?
 ```
 
-Hearth has no `double_tap_action` and ignores it. Other Lovelace action types, such as `assist` or `fire-dom-event`, are reported as errors. A configured action runs on a display-only tile too, since display only quiets the tile's own tap and hold. In edit mode a tap opens the tile's editor and no action runs.
+Hearth has no `double_tap_action` and ignores it. Other Lovelace action types, such as `assist` or `fire-dom-event`, are reported as errors. In edit mode a tap opens the tile's editor and no action runs.
+
+A display-only tile, set on the entity or inherited from the card, sends no command from a configured action either: `toggle` and `perform-action` do nothing there. `navigate`, `more-info` and `url` still run, so a read-only tile can still lead somewhere.
+
+The status widget takes actions only with text or an entity. Without either it lists open problems and has no pill to tap, so the editor hides Tap and Hold and YAML that sets them is reported.
+
+On a touch screen a configured hold action runs when the finger lifts; the vibration still comes at the hold. A browser opens a new tab only from the lift, so this keeps `url` holds working.
 
 The search overlay works as a small command palette for scenes and scripts: each one gets a Run button, and Enter runs the highlighted one. Tapping the row still opens its details.
 

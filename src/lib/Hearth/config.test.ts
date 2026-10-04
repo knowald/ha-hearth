@@ -9,6 +9,7 @@ import {
 	isStack,
 	foldedRail,
 	foldedTopCount,
+	isLinkUrl,
 	railDividerIndex,
 	railSides,
 	railSlots,
@@ -232,6 +233,35 @@ describe('normalizeHearthConfig', () => {
 	});
 });
 
+describe('isLinkUrl', () => {
+	it('takes http(s) addresses and paths that stay on this host', () => {
+		for (const url of [
+			'https://example.com/a?b=1',
+			'http://192.168.1.2:8123/x',
+			'/local/page.html',
+			'/lovelace/kitchen#top'
+		])
+			expect(isLinkUrl(url), url).toBe(true);
+	});
+
+	it('refuses other schemes, other hosts by path, backslashes and whitespace', () => {
+		for (const url of [
+			'javascript:alert(1)',
+			'data:text/html,hi',
+			'ftp://example.com',
+			'//evil.com',
+			'/\\evil.com',
+			'\\\\evil.com',
+			'/\t/evil.com',
+			'/\n/evil.com',
+			'https://exa mple.com',
+			'page.html',
+			''
+		])
+			expect(isLinkUrl(url), JSON.stringify(url)).toBe(false);
+	});
+});
+
 describe('hearthConfigIssues', () => {
 	it('gives actionable paths for editor mistakes', () => {
 		const issues = hearthConfigIssues({
@@ -299,7 +329,10 @@ describe('hearthConfigIssues', () => {
 
 	it('reports tap and hold actions that miss what they need', () => {
 		const issues = hearthConfigIssues({
-			rail: [{ id: 'status', type: 'status', tap_action: { action: 'url' } }],
+			rail: [
+				{ id: 'status', type: 'status', text: 'Hi', tap_action: { action: 'url' } },
+				{ id: 'auto', type: 'status', hold_action: { action: 'none' } }
+			],
 			rooms: [
 				{
 					id: 'home',
@@ -327,6 +360,7 @@ describe('hearthConfigIssues', () => {
 		const path = 'rooms[0].cards[0][0].entities';
 		expect(issues).toEqual([
 			'rail[0].tap_action needs url_path for url',
+			'rail[1] tap_action and hold_action need text or an entity',
 			`${path}[0].tap_action needs perform_action for perform-action`,
 			`${path}[1].hold_action.service must be a domain.service name, like script.turn_on`,
 			`${path}[2].tap_action.action must be default, toggle, more-info, perform-action, navigate, url or none`

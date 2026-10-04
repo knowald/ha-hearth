@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
-import { DEFAULT_HEARTH_CONFIG } from './config';
+import { DEFAULT_HEARTH_CONFIG, resolvePage } from './config';
 import {
 	currentRoom,
 	dismissConfirmation,
@@ -17,7 +17,7 @@ vi.mock('$lib/core/domains/entity', async (importOriginal) => ({
 	toggleDevice: vi.fn()
 }));
 import { toggleEntity } from '$lib/core/domains/entity';
-import { customAction, resolvePage, runSurfaceAction } from './actions';
+import { actionRuns, customAction, runSurfaceAction, tapToggles } from './actions';
 
 const ROOMS = [
 	{ id: 'home', name: 'Home' },
@@ -33,6 +33,10 @@ beforeEach(() => {
 	currentRoom.set('home');
 	states.set({
 		'lock.front': hassEntity('lock.front', 'locked', { friendly_name: 'Front door' }),
+		'cover.garage': hassEntity('cover.garage', 'closed', {
+			friendly_name: 'Garage',
+			device_class: 'garage'
+		}),
 		'switch.fan': hassEntity('switch.fan', 'off', { friendly_name: 'Fan' })
 	});
 });
@@ -87,16 +91,80 @@ describe('runSurfaceAction', () => {
 		expect(request).toMatchObject({
 			title: 'Turn the fan on?',
 			message: 'Fan',
-			confirmLabel: 'Run'
+			confirmLabel: 'Toggle'
 		});
 		expect(toggleEntity).not.toHaveBeenCalled();
 		request?.action();
 		expect(toggleEntity).toHaveBeenCalledWith('switch.fan');
 	});
 
+	it('names the confirm button after what the action does', () => {
+		const surface = { fallback: vi.fn() };
+		const labels = [
+			[{ action: 'perform-action', perform_action: 'script.turn_on' }, 'Run'],
+			[{ action: 'navigate', navigation_path: 'kitchen' }, 'Go'],
+			[{ action: 'url', url_path: '/local/a.html' }, 'Open']
+		] as const;
+		for (const [action, label] of labels) {
+			runSurfaceAction({ ...action, confirmation: true }, surface);
+			expect(get(requestedConfirmation)).toMatchObject({
+				title: 'Are you sure?',
+				// no name and no entity: a plain sentence, never an entity id
+				message: 'This runs the action set for this tile.',
+				confirmLabel: label
+			});
+		}
+	});
+
 	it('keeps the unlock question for a toggle action on a lock', () => {
 		runSurfaceAction({ action: 'toggle' }, { entity: 'lock.front', fallback: vi.fn() });
 		expect(get(requestedConfirmation)?.confirmLabel).toBe('Unlock');
 		expect(toggleEntity).not.toHaveBeenCalled();
+	});
+
+	it('asks once, not twice, where the lock or garage door asks anyway', () => {
+		runSurfaceAction(
+			{ action: 'toggle', confirmation: true },
+			{ entity: 'lock.front', fallback: vi.fn() }
+		);
+		expect(get(requestedConfirmation)?.confirmLabel).toBe('Unlock');
+		dismissConfirmation();
+
+		const fallback = vi.fn();
+		runSurfaceAction(
+			{ action: 'default', confirmation: true },
+			{ entity: 'cover.garage', fallbackToggles: true, fallback }
+		);
+		expect(fallback).toHaveBeenCalledOnce();
+		expect(get(requestedConfirmation)).toBeNull();
+
+		// the same default on a surface whose fallback does not toggle still asks
+		runSurfaceAction(
+			{ action: 'default', confirmation: true },
+			{ entity: 'lock.front', fallback: vi.fn() }
+		);
+		expect(get(requestedConfirmation)?.confirmLabel).toBe('Continue');
+	});
+
+	it('sends no command from a read-only surface but still navigates', () => {
+		const surface = { entity: 'switch.fan', readonly: true, fallback: vi.fn() };
+		runSurfaceAction({ action: 'toggle', confirmation: true }, surface);
+		runSurfaceAction({ action: 'perform-action', perform_action: 'script.turn_on' }, surface);
+		expect(get(requestedConfirmation)).toBeNull();
+		expect(toggleEntity).not.toHaveBeenCalled();
+		runSurfaceAction({ action: 'navigate', navigation_path: 'kitchen' }, surface);
+		expect(get(currentRoom)).toBe('kitchen');
+		expect(actionRuns({ action: 'toggle' }, true)).toBe(false);
+		expect(actionRuns({ action: 'more-info' }, true)).toBe(true);
+	});
+});
+
+describe('tapToggles', () => {
+	it('holds for no action, default and a toggle of the own entity only', () => {
+		expect(tapToggles(undefined, 'switch.fan')).toBe(true);
+		expect(tapToggles({ action: 'default' }, 'switch.fan')).toBe(true);
+		expect(tapToggles({ action: 'toggle' }, 'switch.fan')).toBe(true);
+		expect(tapToggles({ action: 'toggle', entity: 'switch.other' }, 'switch.fan')).toBe(false);
+		expect(tapToggles({ action: 'navigate', navigation_path: 'a' }, 'switch.fan')).toBe(false);
 	});
 });

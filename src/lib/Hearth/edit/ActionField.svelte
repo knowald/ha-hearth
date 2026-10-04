@@ -2,7 +2,7 @@
 	import * as yaml from 'js-yaml';
 	import { fill, lang } from '$lib/core/i18n';
 	import type { ActionTarget } from '$lib/core/ha/commands';
-	import { resolvePage } from '../actions';
+	import { isLinkUrl, resolvePage } from '../config';
 	import { hearthConfig } from '../store';
 	import type { HearthAction } from '../types';
 	import CheckField from './CheckField.svelte';
@@ -19,7 +19,7 @@
 		label: string;
 		/** Unset is the surface's own behaviour. Left as it was while the form is invalid. */
 		value?: HearthAction;
-		/** Written once the field mounts; false while the form holds no usable action. */
+		/** False while the form holds no usable action; unset counts as usable. */
 		valid?: boolean;
 	} = $props();
 
@@ -62,9 +62,7 @@
 			: null
 	);
 	let urlError = $derived(
-		kind === 'url' && !/^(https?:\/\/|\/(?!\/))/i.test(url.trim())
-			? $lang('hearth_action_url_invalid')
-			: null
+		kind === 'url' && !isLinkUrl(url.trim()) ? $lang('hearth_action_url_invalid') : null
 	);
 	// CodeField reports why the text does not parse; this only decides validity
 	let data = $derived.by((): { ok: boolean; value?: Record<string, unknown> } => {
@@ -116,10 +114,16 @@
 		}
 	}
 
+	// the form as it opened stands for the stored action even where it spells it
+	// differently (a Lovelace path, a one-item list), so opening it is no edit
+	const openedAs = JSON.stringify(build());
+
 	$effect(() => {
 		const ok = !serviceError && !urlError && data.ok && (kind !== 'navigate' || Boolean(page));
-		valid = ok;
-		if (ok) value = build();
+		if ((valid ?? true) !== ok) valid = ok;
+		if (!ok) return;
+		const next = build();
+		value = JSON.stringify(next) === openedAs ? initial : next;
 	});
 </script>
 

@@ -255,8 +255,8 @@ export interface ActionHost {
 	toggle: (entityId: string) => void;
 	moreInfo: (entityId: string) => void;
 	navigate: (path: string) => void;
-	/** Asks first; `text` is the configured question, if any. */
-	confirm: (text: string | undefined, run: () => void) => void;
+	/** Asks about `action`, whose confirmation is set, and calls `run` once accepted. */
+	confirm: (action: HaAction, run: () => void) => void;
 }
 
 /** Calls a `domain.service` on a target, the way a Lovelace perform-action does. */
@@ -280,7 +280,7 @@ export function runAction(action: HaAction | undefined, host: ActionHost) {
 		return;
 	const run = () => dispatchAction(action, host);
 	if (!action.confirmation) return run();
-	host.confirm(action.confirmation === true ? undefined : action.confirmation.text, run);
+	host.confirm(action, run);
 }
 
 function dispatchAction(action: HaAction, host: ActionHost) {

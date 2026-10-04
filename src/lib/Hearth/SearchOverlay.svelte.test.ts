@@ -48,6 +48,8 @@ describe('SearchOverlay', () => {
 
 	describe('scenes and scripts', () => {
 		beforeEach(() => {
+			// jsdom lays nothing out, so it has no scrollIntoView
+			Element.prototype.scrollIntoView = vi.fn();
 			connection.set({} as Connection);
 			health.set('connected');
 			states.set({
@@ -73,7 +75,7 @@ describe('SearchOverlay', () => {
 
 		it('runs the highlighted scene on Enter and closes', async () => {
 			const onclose = await search('movie n');
-			await fireEvent.keyDown(window, { key: 'Enter' });
+			await fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
 			expect(callService).toHaveBeenCalledWith(
 				{},
 				'scene',
@@ -104,10 +106,24 @@ describe('SearchOverlay', () => {
 			);
 		});
 
+		it('leaves Enter on a focused Run button to that button', async () => {
+			await search('movie');
+			const run = screen.getByRole('button', { name: 'Run Movie night' });
+			run.focus();
+			await fireEvent.keyDown(run, { key: 'Enter' });
+			// the highlighted first row (Movie lamp) is not opened behind its back
+			expect(get(popup)).toBeNull();
+			expect(callService).not.toHaveBeenCalled();
+			expect(screen.getByRole('button', { name: /^Movie night/ }).closest('.row')).toHaveProperty(
+				'className',
+				expect.stringContaining('active')
+			);
+		});
+
 		it('offers no Run button for other domains and opens them on Enter', async () => {
 			await search('lamp');
 			expect(screen.queryByRole('button', { name: /^Run / })).toBeNull();
-			await fireEvent.keyDown(window, { key: 'Enter' });
+			await fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
 			expect(get(popup)).toMatchObject({ entity: 'switch.movie_lamp' });
 			expect(callService).not.toHaveBeenCalled();
 		});

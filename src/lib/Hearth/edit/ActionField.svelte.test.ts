@@ -9,10 +9,10 @@ import StatusEditor from '../widgets/status/Editor.svelte';
 import StatusWidgetView from '../widgets/status/Widget.svelte';
 
 // the status widget editor is the smallest host for two action fields
-function renderEditor(initial?: Partial<StatusWidget>) {
+function renderEditor(initial: Partial<StatusWidget> = {}) {
 	const onchange = vi.fn();
 	render(StatusEditor, {
-		initial: initial ? ({ id: 's', type: 'status', ...initial } as StatusWidget) : undefined,
+		initial: { id: 's', type: 'status', text: 'Kitchen', ...initial } as StatusWidget,
 		onchange
 	});
 	return () => onchange.mock.lastCall?.[0] as { fields: StatusWidget; valid?: boolean };
@@ -40,6 +40,37 @@ describe('ActionField', () => {
 		const last = renderEditor();
 		expect(last().fields.tap_action).toBeUndefined();
 		expect(last().fields.hold_action).toBeUndefined();
+		expect(last().valid).toBe(true);
+	});
+
+	it('leaves a stored action as it is until the form changes', async () => {
+		const stored: Partial<StatusWidget> = {
+			tap_action: {
+				action: 'perform-action',
+				perform_action: 'script.turn_on',
+				target: { entity_id: ['script.goodnight'] }
+			},
+			hold_action: { action: 'navigate', navigation_path: '/lovelace/kitchen' }
+		};
+		const last = renderEditor(structuredClone(stored));
+		expect(last().fields.tap_action).toEqual(stored.tap_action);
+		expect(last().fields.hold_action).toEqual(stored.hold_action);
+
+		await fireEvent.input(screen.getByLabelText(en.hearth_action_service), {
+			target: { value: 'script.toggle' }
+		});
+		expect(last().fields.tap_action).toMatchObject({
+			perform_action: 'script.toggle',
+			target: { entity_id: 'script.goodnight' }
+		});
+		expect(last().fields.hold_action).toEqual(stored.hold_action);
+	});
+
+	it('hides both fields and drops the actions while the widget lists problems', async () => {
+		const last = renderEditor({ tap_action: { action: 'toggle' } });
+		await fireEvent.input(screen.getByLabelText(en.text), { target: { value: '' } });
+		expect(screen.queryByLabelText(en.hearth_tap_action)).toBeNull();
+		expect(last().fields.tap_action).toBeUndefined();
 		expect(last().valid).toBe(true);
 	});
 

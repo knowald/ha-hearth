@@ -6,6 +6,7 @@ import { connection, health } from '$lib/core/ha/connection';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import { setCommandGate } from '$lib/core/ha/commands';
+import { gestureClaimed } from '$lib/ui/gestures';
 import { DEFAULT_HEARTH_CONFIG } from './config';
 import {
 	currentRoom,
@@ -128,12 +129,82 @@ describe('tile tap and hold actions', () => {
 		expect(callService).not.toHaveBeenCalled();
 	});
 
-	it('runs actions on a read-only tile, whose own tap stays silent', async () => {
+	it('sends no command from a read-only tile, configured or not', async () => {
 		render(EntityTile, { entity: 'switch.fan', readonly: true, tapAction: RUN_SCRIPT });
+		const tile = screen.getByRole('button');
+		expect(tile.getAttribute('tabindex')).toBe('-1');
+		await fireEvent.click(tile);
+		expect(callService).not.toHaveBeenCalled();
+	});
+
+	it('still navigates from a read-only tile', async () => {
+		render(EntityTile, {
+			entity: 'switch.fan',
+			readonly: true,
+			tapAction: { action: 'navigate', navigation_path: 'kitchen' }
+		});
 		const tile = screen.getByRole('button');
 		expect(tile.getAttribute('tabindex')).toBe('0');
 		await fireEvent.click(tile);
-		expect(callService).toHaveBeenCalledOnce();
+		expect(get(currentRoom)).toBe('kitchen');
+	});
+
+	it('reports pressed only while the tap flips the tile itself', () => {
+		const { container } = render(EntityTile, {
+			entity: 'switch.fan',
+			tapAction: { action: 'navigate', navigation_path: 'kitchen' }
+		});
+		expect(container.querySelector('.tile')!.hasAttribute('aria-pressed')).toBe(false);
+		const { container: toggled } = render(EntityTile, {
+			entity: 'switch.fan',
+			tapAction: { action: 'toggle' }
+		});
+		expect(toggled.querySelector('.tile')!.getAttribute('aria-pressed')).toBe('false');
+	});
+
+	it('keeps the drag off a read-only light, so only its tap action runs', () => {
+		vi.useFakeTimers();
+		const { container } = render(EntityTile, {
+			entity: 'light.desk',
+			readonly: true,
+			tapAction: { action: 'navigate', navigation_path: 'kitchen' }
+		});
+		const tile = container.querySelector('.tile') as HTMLElement;
+		const down = new Event('pointerdown', { bubbles: true });
+		Object.assign(down, { clientX: 10, clientY: 10, isPrimary: true, pointerId: 1, button: 0 });
+		tile.dispatchEvent(down);
+		expect(gestureClaimed(down)).toBe(false);
+		fireEvent.pointerMove(tile, { clientX: 120, clientY: 10, pointerId: 1 });
+		fireEvent.pointerUp(tile, { clientX: 120, clientY: 10, pointerId: 1 });
+		vi.advanceTimersByTime(1000);
+		expect(callService).not.toHaveBeenCalled();
+		expect(get(currentRoom)).toBe('home');
+
+		// a slow tap: no hold action, so it stays a tap
+		press(tile);
+		vi.advanceTimersByTime(800);
+		release(tile);
+		expect(get(currentRoom)).toBe('kitchen');
+	});
+
+	it('lets a long press on a light with hold_action none count as a tap', () => {
+		vi.useFakeTimers();
+		const { container } = render(EntityTile, {
+			entity: 'light.desk',
+			holdAction: { action: 'none' }
+		});
+		const tile = container.querySelector('.tile') as HTMLElement;
+		press(tile);
+		vi.advanceTimersByTime(800);
+		fireEvent.pointerUp(tile, { clientX: 10, clientY: 10, isPrimary: true, pointerId: 1 });
+		expect(get(popup)).toBeNull();
+		expect(callService).toHaveBeenCalledWith(
+			{},
+			'light',
+			'toggle',
+			expect.objectContaining({ entity_id: 'light.desk' }),
+			undefined
+		);
 	});
 
 	it('asks before a confirmed action and sends nothing until accepted', async () => {

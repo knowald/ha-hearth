@@ -149,6 +149,10 @@
 		entitiesOpen = true;
 	}
 
+	let actionsValid = $derived(
+		entities.every((ref) => ref.tapValid !== false && ref.holdValid !== false)
+	);
+
 	$effect(() => {
 		const columnCount = integerFromInput(columns);
 		onchange({
@@ -189,7 +193,9 @@
 					}))
 					.filter((ref) => ref.entity)
 			},
-			valid: entities.every((ref) => ref.tapValid !== false && ref.holdValid !== false)
+			valid: actionsValid,
+			// the broken action may sit in a collapsed row, out of sight
+			reason: actionsValid ? undefined : $lang('hearth_action_fix_reason')
 		});
 	});
 </script>

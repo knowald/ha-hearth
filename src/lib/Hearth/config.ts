@@ -336,6 +336,49 @@ export function moveItem<T>(list: T[], index: number, delta: number) {
  */
 export const RADAR_ZOOM = { min: 3, max: 7, fallback: 6 } as const;
 
+// a stand-in origin, so a path can be told apart from an address on another host
+const LINK_BASE = 'http://hearth.invalid';
+
+/**
+ * A link Hearth may open or embed: an absolute http(s) address, or a path on
+ * this host starting with `/`. Backslashes, whitespace and control characters
+ * are refused outright, since browsers repair them in ways that can move the
+ * link to another host (`/\evil.com` reads as `//evil.com`).
+ */
+export function isLinkUrl(value: string): boolean {
+	for (const char of value) {
+		const code = char.charCodeAt(0);
+		if (code <= 0x20 || code === 0x7f || char === '\\') return false;
+	}
+	let url: URL;
+	try {
+		url = new URL(value, LINK_BASE);
+	} catch {
+		return false;
+	}
+	if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+	return /^https?:\/\//i.test(value) || (value.startsWith('/') && url.origin === LINK_BASE);
+}
+
+/**
+ * The page a link names: its id, its name, or the last segment of a Lovelace
+ * path such as `/lovelace/kitchen`.
+ */
+export function resolvePage(
+	rooms: Pick<HearthRoom, 'id' | 'name'>[],
+	path: string
+): string | undefined {
+	const wanted = path.trim();
+	const segment = wanted.split(/[?#]/)[0].split('/').filter(Boolean).at(-1) ?? '';
+	for (const candidate of [wanted, segment]) {
+		const match =
+			rooms.find((room) => room.id === candidate) ??
+			rooms.find((room) => room.name.toLowerCase() === candidate.toLowerCase());
+		if (match) return match.id;
+	}
+	return undefined;
+}
+
 /** A Leaflet raster tile template: http(s) with {z}, {x} and {y} placeholders. */
 export function isTileUrl(value: string): boolean {
 	return /^https?:\/\//.test(value) && ['{z}', '{x}', '{y}'].every((part) => value.includes(part));

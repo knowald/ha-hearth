@@ -115,6 +115,8 @@
 		}
 	}
 
+	let input = $state<HTMLInputElement>();
+
 	function focusOnMount(node: HTMLInputElement) {
 		node.focus();
 	}
@@ -126,7 +128,8 @@
 		} else if (event.key === 'ArrowUp') {
 			event.preventDefault();
 			if (results.length) activeIndex = (activeIndex - 1 + results.length) % results.length;
-		} else if (event.key === 'Enter') {
+		} else if (event.key === 'Enter' && event.target === input) {
+			// a focused row or Run button answers Enter on its own
 			event.preventDefault();
 			const result = results[activeIndex];
 			if (result && runnable(result)) runResult(result);
@@ -150,6 +153,7 @@
 			<input
 				type="text"
 				bind:value={query}
+				bind:this={input}
 				placeholder={$lang('hearth_search_placeholder')}
 				aria-label={$lang('hearth_search_placeholder')}
 				spellcheck="false"
@@ -167,6 +171,7 @@
 						use:Ripple={PRESS_RIPPLE}
 						bind:this={rowEls[index]}
 						onmouseenter={() => (activeIndex = index)}
+						onfocus={() => (activeIndex = index)}
 						onclick={() => selectResult(result)}
 					>
 						<span class="row-icon">
@@ -189,6 +194,7 @@
 						<button
 							type="button"
 							class="row-run pressable"
+							onfocus={() => (activeIndex = index)}
 							aria-label={fill($lang('hearth_run_named'), { name: result.name })}
 							use:Ripple={PRESS_RIPPLE}
 							onclick={() => runResult(result)}
@@ -310,7 +316,8 @@
 		flex: none;
 		gap: 6px;
 		margin-right: 6px;
-		padding: 8px 12px;
+		min-height: var(--h-touch-target);
+		padding: 0 14px;
 		border-radius: var(--h-radius-pill);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.09 * var(--h-line-scale)));
 		background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));

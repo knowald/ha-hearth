@@ -25,7 +25,7 @@
 	import LightTile from './LightTile.svelte';
 	import TuneButton from './TuneButton.svelte';
 	import { activateOnKeyboard, longPress } from './interaction';
-	import { customAction, runSurfaceAction } from './actions';
+	import { actionRuns, customAction, runSurfaceAction, tapToggles } from './actions';
 	import type { HearthAction } from './types';
 
 	let {
@@ -99,13 +99,15 @@
 	let opens = $derived(!readonly || tapSurface === 'history');
 	let interactive = $derived(
 		$hearthEditMode ||
-			customAction(tapAction) ||
-			customAction(holdAction) ||
+			actionRuns(tapAction, readonly) ||
+			actionRuns(holdAction, readonly) ||
 			(opens && controllable && tapSurface !== 'none')
 	);
 	let holdDisabled = $derived(
 		$hearthEditMode ||
-			(customAction(holdAction) ? holdAction?.action === 'none' : !opens || !controllable)
+			(customAction(holdAction)
+				? !actionRuns(holdAction, readonly) || holdAction?.action === 'none'
+				: !opens || !controllable)
 	);
 	// a toggle whose detail sheet only repeats the tap earns no tune glyph
 	let tunable = $derived(
@@ -123,12 +125,20 @@
 
 	function handleClick() {
 		if ($hearthEditMode) onedit?.();
-		else runSurfaceAction(tapAction, { entity, name, detail, fallback: defaultTap });
+		else
+			runSurfaceAction(tapAction, {
+				entity,
+				name,
+				readonly,
+				detail,
+				fallbackToggles: tapSurface === 'toggle',
+				fallback: defaultTap
+			});
 	}
 
 	function handleHold() {
 		if ($hearthEditMode) return;
-		runSurfaceAction(holdAction, { entity, name, detail, fallback: openControls });
+		runSurfaceAction(holdAction, { entity, name, readonly, detail, fallback: openControls });
 	}
 
 	function defaultTap() {
@@ -192,9 +202,13 @@
 		class:pressable={interactive}
 		role="button"
 		tabindex={interactive ? 0 : -1}
-		aria-pressed={pressed}
+		aria-pressed={tapToggles(tapAction, entity) ? pressed : undefined}
 		use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
-		use:longPress={{ hold: handleHold, disabled: holdDisabled }}
+		use:longPress={{
+			hold: handleHold,
+			disabled: holdDisabled,
+			deferOnTouch: customAction(holdAction)
+		}}
 		onclick={handleClick}
 		onkeydown={(event) => activateOnKeyboard(event, event.shiftKey ? handleHold : handleClick)}
 	>

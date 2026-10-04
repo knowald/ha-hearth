@@ -7,7 +7,7 @@
 	import { openEntityDetail } from './details';
 	import { airQualityVerdict } from '$lib/core/domains/sensor';
 	import { entityAvailability, sensorNumber } from '$lib/core/ha/entities';
-	import { customAction, runSurfaceAction } from './actions';
+	import { actionRuns, runSurfaceAction } from './actions';
 	import { longPress } from './interaction';
 	import type { HearthAction } from './types';
 
@@ -50,11 +50,12 @@
 	// only removes
 	let readable = $derived(value !== null);
 	let openable = $derived(
-		!$hearthEditMode && (readable || customAction(tapAction) || customAction(holdAction))
+		!$hearthEditMode &&
+			(readable || actionRuns(tapAction, readonly) || actionRuns(holdAction, readonly))
 	);
 
 	function surface(fallback: () => void) {
-		return { entity, name, detail: { readonly }, fallback };
+		return { entity, name, readonly, detail: { readonly }, fallback };
 	}
 
 	function tap() {
@@ -108,7 +109,8 @@
 		onclick={tap}
 		use:longPress={{
 			hold,
-			disabled: !customAction(holdAction) || holdAction?.action === 'none'
+			deferOnTouch: true,
+			disabled: !actionRuns(holdAction, readonly) || holdAction?.action === 'none'
 		}}
 	>
 		{@render body()}

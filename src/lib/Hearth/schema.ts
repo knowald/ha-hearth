@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 import type { ActionTarget, HaAction } from '$lib/core/ha/commands';
-import { isTileUrl, RADAR_ZOOM } from './config';
+import { isLinkUrl, isTileUrl, RADAR_ZOOM } from './config';
 
 /*
  * Field-level schemas for the shapes that recur across card and widget types.
@@ -127,7 +127,7 @@ export const ActionSchema = v.pipe(
 			v.pipe(
 				v.string('must be text'),
 				v.trim(),
-				v.regex(/^(https?:\/\/|\/(?!\/))/i, 'must be an http(s) URL or a path on this host')
+				v.check(isLinkUrl, 'must be an http(s) URL or a path on this host')
 			)
 		),
 		confirmation: v.optional(

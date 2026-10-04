@@ -84,6 +84,7 @@
 			onclick={tap}
 			use:longPress={{
 				hold,
+				deferOnTouch: true,
 				disabled: !customAction(widget.hold_action) || widget.hold_action?.action === 'none'
 			}}
 		>

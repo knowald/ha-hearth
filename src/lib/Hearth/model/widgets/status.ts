@@ -19,12 +19,20 @@ export const statusWidget: WidgetDefinition<StatusWidget> = {
 		tap_action: normalizeAction(widget.tap_action),
 		hold_action: normalizeAction(widget.hold_action)
 	}),
-	schema: v.looseObject({
-		icon: OptionalText,
-		text: OptionalText,
-		entity: OptionalEntityId,
-		tap_action: v.optional(ActionSchema),
-		hold_action: v.optional(ActionSchema)
-	}),
+	schema: v.pipe(
+		v.looseObject({
+			icon: OptionalText,
+			text: OptionalText,
+			entity: OptionalEntityId,
+			tap_action: v.optional(ActionSchema),
+			hold_action: v.optional(ActionSchema)
+		}),
+		// without either the widget lists open problems, which have no pill to tap
+		v.check(
+			(widget) =>
+				Boolean(widget.text || widget.entity) || !(widget.tap_action || widget.hold_action),
+			'tap_action and hold_action need text or an entity'
+		)
+	),
 	entityIds: (widget) => (widget.entity ? [widget.entity] : [])
 };

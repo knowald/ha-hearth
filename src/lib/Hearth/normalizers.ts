@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 import type { EntityRef, HearthAction, SceneRef, VacuumModeRef, VerdictBands } from './types';
-import { uniqueId } from './config';
+import { isLinkUrl, uniqueId } from './config';
 import { ActionSchema } from './schema';
 
 /*
@@ -127,7 +127,7 @@ export function trimmedOrUndefined(value: unknown): string | undefined {
 export function normalizeEmbedUrl(value: unknown): string | undefined {
 	const url = trimmedOrUndefined(value);
 	if (!url) return undefined;
-	return url === 'about:blank' || /^(https?:\/\/|\/(?!\/))/i.test(url) ? url : undefined;
+	return url === 'about:blank' || isLinkUrl(url) ? url : undefined;
 }
 
 export function normalizeSceneRef(raw: any): SceneRef | null {

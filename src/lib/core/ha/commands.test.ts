@@ -17,7 +17,7 @@ function host() {
 		moreInfo: vi.fn(),
 		navigate: vi.fn(),
 		// runs at once, as if the user agreed
-		confirm: vi.fn((_text: string | undefined, run: () => void) => run())
+		confirm: vi.fn((_action: HaAction, run: () => void) => run())
 	} satisfies ActionHost;
 }
 
@@ -87,18 +87,16 @@ describe('runAction', () => {
 		open.mockRestore();
 	});
 
-	it('asks first when the action wants confirmation, with the configured question', () => {
+	it('asks first when the action wants confirmation and runs once accepted', () => {
 		const surface = host();
 		surface.confirm.mockImplementation(() => {});
-		runAction({ action: 'toggle', confirmation: { text: 'Really?' } }, surface);
-		expect(surface.confirm).toHaveBeenCalledWith('Really?', expect.any(Function));
+		const action: HaAction = { action: 'toggle', confirmation: { text: 'Really?' } };
+		runAction(action, surface);
+		expect(surface.confirm).toHaveBeenCalledWith(action, expect.any(Function));
 		expect(surface.toggle).not.toHaveBeenCalled();
 
 		surface.confirm.mock.calls[0][1]();
 		expect(surface.toggle).toHaveBeenCalledWith('switch.fan');
-
-		runAction({ action: 'navigate', navigation_path: 'a', confirmation: true }, surface);
-		expect(surface.confirm).toHaveBeenLastCalledWith(undefined, expect.any(Function));
 	});
 
 	it('refuses device commands while the gate is closed, without asking first', () => {

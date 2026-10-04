@@ -6,13 +6,13 @@
 	import type { SliderUpdateMode } from '$lib/core/app/configuration';
 	import { capitalize, PRESS_RIPPLE } from './config';
 	import { horizontalDrag } from './drag';
-	import { activateOnKeyboard } from './interaction';
+	import { activateOnKeyboard, longPress } from './interaction';
 	import Icon from './Icon.svelte';
 	import { hearthEditMode, popup } from './store';
 	import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
 	import { lightViewFor, setLightLevel, toggleLight } from '$lib/core/domains/light';
 	import TuneButton from './TuneButton.svelte';
-	import { customAction, runSurfaceAction } from './actions';
+	import { actionRuns, runSurfaceAction, tapToggles } from './actions';
 	import type { HearthAction } from './types';
 
 	let {
@@ -58,10 +58,12 @@
 				: 'var(--h-icon-dim)'
 	);
 	let pending = $derived($pendingEntities[entity] !== undefined);
-	// the tile's own tap, hold and drag; configured actions run regardless
+	// the tile's own tap, hold and drag; without them a configured action can
+	// still make the tile tappable
 	let ownControls = $derived(!readonly && controllable);
+	let customHold = $derived(actionRuns(holdAction, readonly));
 	let interactive = $derived(
-		$hearthEditMode || ownControls || customAction(tapAction) || customAction(holdAction)
+		$hearthEditMode || ownControls || actionRuns(tapAction, readonly) || customHold
 	);
 
 	function openControls() {
@@ -69,7 +71,7 @@
 	}
 
 	function surface(fallback: () => void) {
-		return { entity, name, detail: { icon, sliderUpdates, readonly }, fallback };
+		return { entity, name, readonly, detail: { icon, sliderUpdates, readonly }, fallback };
 	}
 
 	function tap() {
@@ -97,9 +99,13 @@
 	data-id={entity}
 	role="button"
 	tabindex={interactive ? 0 : -1}
-	aria-pressed={view.on}
+	aria-pressed={tapToggles(tapAction, entity) ? view.on : undefined}
 	use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
-	onclick={() => $hearthEditMode && onedit?.()}
+	onclick={() => {
+		if ($hearthEditMode) onedit?.();
+		// with the drag off, the click is the tap
+		else if (!ownControls) tap();
+	}}
 	onkeydown={(event) =>
 		activateOnKeyboard(event, () => {
 			if ($hearthEditMode) onedit?.();
@@ -107,14 +113,18 @@
 			else tap();
 		})}
 	use:horizontalDrag={{
-		set: (value, commit) => {
-			if (ownControls) setLightLevel(entity, value, commit);
-		},
+		set: (value, commit) => setLightLevel(entity, value, commit),
 		updateMode: sliderUpdates,
 		tap,
 		hold: holdAction?.action === 'none' ? undefined : hold,
-		disabled: $hearthEditMode || !interactive,
+		deferOnTouch: customHold,
+		disabled: $hearthEditMode || !ownControls,
 		ignore: '.tune'
+	}}
+	use:longPress={{
+		hold,
+		deferOnTouch: true,
+		disabled: $hearthEditMode || ownControls || !customHold || holdAction?.action === 'none'
 	}}
 >
 	<div class="fill" style:width="{view.on ? view.level : 0}%"></div>
