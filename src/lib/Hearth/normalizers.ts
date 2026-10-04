@@ -59,19 +59,29 @@ export function normalizeAction(raw: unknown): HearthAction | undefined {
 	return parsed.success ? parsed.output : undefined;
 }
 
-type RefFields = Omit<EntityRef, 'active_entity' | 'active_states' | 'tap_action' | 'hold_action'>;
+type RefFields = Omit<
+	EntityRef,
+	| 'active_entity'
+	| 'active_states'
+	| 'tap_action'
+	| 'hold_action'
+	| 'name_template'
+	| 'state_template'
+>;
 
 function normalizeRefFields(raw: any): RefFields | null {
 	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
 	const entity = trimmedOrUndefined(raw.entity);
 	if (!entity) return null;
-	// the tile highlight and action fields are typed per ref kind by its own
-	// normalizer
+	// the tile highlight, action and template fields are typed per ref kind by
+	// its own normalizer
 	const rest = { ...raw };
 	delete rest.active_entity;
 	delete rest.active_states;
 	delete rest.tap_action;
 	delete rest.hold_action;
+	delete rest.name_template;
+	delete rest.state_template;
 	return {
 		...rest,
 		entity,
@@ -97,7 +107,9 @@ export function normalizeEntityRef(raw: unknown): EntityRef | null {
 		active_entity: trimmedOrUndefined(raw.active_entity),
 		active_states: normalizeStateList(raw.active_states),
 		tap_action: normalizeAction(raw.tap_action),
-		hold_action: normalizeAction(raw.hold_action)
+		hold_action: normalizeAction(raw.hold_action),
+		name_template: normalizeTemplate(raw.name_template),
+		state_template: normalizeTemplate(raw.state_template)
 	};
 }
 
@@ -116,6 +128,11 @@ function normalizeStateList(raw: unknown): string[] | undefined {
 
 export function trimmedOrUndefined(value: unknown): string | undefined {
 	return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+/** A Home Assistant template, kept verbatim: its whitespace can be part of the output. */
+export function normalizeTemplate(value: unknown): string | undefined {
+	return typeof value === 'string' && value.trim() ? value : undefined;
 }
 
 /**

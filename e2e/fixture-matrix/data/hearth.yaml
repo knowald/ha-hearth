@@ -206,6 +206,13 @@ rooms:
           title: Web page
           url: about:blank
           height: 160
+        - id: template-card
+          type: template
+          title: Climate note
+          icon: thermostat
+          content: "**{{ states('sensor.temperature') }} C** inside"
+          entities:
+            - sensor.temperature
   - id: devices
     name: Devices
     icon: devices

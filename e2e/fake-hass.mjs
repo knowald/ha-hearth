@@ -688,13 +688,37 @@ function handleMessage(socket, message) {
 			reply(result);
 			return;
 		}
-		case 'render_template':
+		case 'render_template': {
+			const template = String(message.template ?? '');
+			// stands in for a Jinja error such as an undefined name: with
+			// report_errors Home Assistant accepts the subscription and sends the
+			// error as an event; without it the error only reaches its log
+			if (template.includes('undefined_function')) {
+				reply(null);
+				if (message.report_errors) {
+					event({ error: "UndefinedError: 'undefined_function' is undefined", level: 'ERROR' });
+				}
+				return;
+			}
+			// states('entity') calls are filled in; any other template gets the
+			// fixed sample
+			let substituted = false;
+			const rendered = template.replace(
+				/\{\{\s*states\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}/g,
+				(_, entityId) => {
+					substituted = true;
+					return states[entityId]?.s ?? 'unknown';
+				}
+			);
 			reply(null);
 			event({
-				result: `**${states['sensor.temperature'].s} °C** inside, _${states['weather.home'].s}_ outside`,
+				result: substituted
+					? rendered
+					: `**${states['sensor.temperature'].s} °C** inside, _${states['weather.home'].s}_ outside`,
 				listeners: {}
 			});
 			return;
+		}
 		case 'camera/capabilities':
 			cameraRequests.push({ type: message.type, entity_id: message.entity_id });
 			reply({ frontend_stream_types: cameraStreamTypes[message.entity_id] ?? [] });

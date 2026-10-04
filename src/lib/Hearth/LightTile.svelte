@@ -18,6 +18,7 @@
 	let {
 		entity,
 		name = undefined,
+		stateOverride = undefined,
 		icon = undefined,
 		compact = false,
 		readonly = false,
@@ -29,6 +30,7 @@
 	}: {
 		entity: string;
 		name?: string;
+		stateOverride?: string;
 		icon?: string;
 		compact?: boolean;
 		/** display only: neither the tap nor the brightness drag sends a command */
@@ -58,6 +60,15 @@
 				: 'var(--h-icon-dim)'
 	);
 	let pending = $derived($pendingEntities[entity] !== undefined);
+	// a state_template gives way to the live value while the tile is being
+	// changed, and to the availability text
+	let templatedState = $derived(
+		available &&
+			!pending &&
+			!Object.keys($controlOverrides).some((key) => key.endsWith(`:${entity}`))
+			? stateOverride
+			: undefined
+	);
 	// the tile's own tap, hold and drag; without them a configured action can
 	// still make the tile tappable
 	let ownControls = $derived(!readonly && controllable);
@@ -133,7 +144,8 @@
 		<div class="text">
 			<div class="name">{label}</div>
 			<div class="state">
-				{available ? (view.on ? `${view.level}%` : capitalize($lang('off'))) : availabilityText}
+				{templatedState ??
+					(available ? (view.on ? `${view.level}%` : capitalize($lang('off'))) : availabilityText)}
 			</div>
 		</div>
 	</div>

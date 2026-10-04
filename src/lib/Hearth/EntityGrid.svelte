@@ -9,6 +9,7 @@
 	import EntityTile from './EntityTile.svelte';
 	import Icon from './Icon.svelte';
 	import StatTile from './StatTile.svelte';
+	import TileTemplates from './TileTemplates.svelte';
 
 	let {
 		entities,
@@ -75,30 +76,36 @@
 					<Icon name="drag_indicator" size={ICON.inline} />
 				</div>
 			{/if}
-			{#if (ref.display ?? style) === 'stat'}
-				<StatTile
-					entity={ref.entity}
-					name={ref.name}
-					verdictBands={ref.verdict}
-					readonly={ref.readonly ?? readonly}
-					tapAction={ref.tap_action}
-					holdAction={ref.hold_action}
-				/>
-			{:else}
-				<EntityTile
-					entity={ref.entity}
-					name={ref.name}
-					icon={ref.icon}
-					readonly={ref.readonly ?? readonly}
-					activeEntity={ref.active_entity}
-					activeStates={ref.active_states}
-					sliderUpdates={ref.slider_updates ?? sliderUpdates}
-					showTune={tuneButton}
-					tapAction={ref.tap_action}
-					holdAction={ref.hold_action}
-					{compact}
-				/>
-			{/if}
+			<TileTemplates nameTemplate={ref.name_template} stateTemplate={ref.state_template}>
+				{#snippet children(templatedName, templatedState)}
+					{#if (ref.display ?? style) === 'stat'}
+						<StatTile
+							entity={ref.entity}
+							name={templatedName ?? ref.name}
+							stateOverride={templatedState}
+							verdictBands={ref.verdict}
+							readonly={ref.readonly ?? readonly}
+							tapAction={ref.tap_action}
+							holdAction={ref.hold_action}
+						/>
+					{:else}
+						<EntityTile
+							entity={ref.entity}
+							name={templatedName ?? ref.name}
+							stateOverride={templatedState}
+							icon={ref.icon}
+							readonly={ref.readonly ?? readonly}
+							activeEntity={ref.active_entity}
+							activeStates={ref.active_states}
+							sliderUpdates={ref.slider_updates ?? sliderUpdates}
+							showTune={tuneButton}
+							tapAction={ref.tap_action}
+							holdAction={ref.hold_action}
+							{compact}
+						/>
+					{/if}
+				{/snippet}
+			</TileTemplates>
 		</div>
 	{/each}
 </div>

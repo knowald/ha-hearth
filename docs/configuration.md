@@ -184,6 +184,44 @@ On a touch screen a configured hold action runs when the finger lifts; the vibra
 
 The search overlay works as a small command palette for scenes and scripts: each one gets a Run button, and Enter runs the highlighted one. Tapping the row still opens its details.
 
+## Templates
+
+Templates are Home Assistant Jinja. Home Assistant renders them on the server, over the same websocket connection as everything else, and pushes a new result whenever a state they read changes; Hearth only shows the text. Any user that can sign in to Hearth can render templates this way, so a long-lived token of a non-administrator works too.
+
+Each distinct template is rendered once, however many cards and tiles show it, and only while one of them is on screen. While you type a template in the editor, the preview waits for a short pause before asking Home Assistant, so half-typed templates do not fill its log with errors.
+
+### Template card
+
+A `template` card shows the result as Markdown, cleaned the same way as the Template widget in the sidebar: no scripts, frames, form controls or event handlers. `title` and `icon` are optional. `entities` is an optional list of the entity ids the template reads; Hearth does not parse the template, so this list is what tells the dashboard which entities the card depends on.
+
+```yaml
+- id: laundry-note
+  type: template
+  title: Laundry
+  icon: local_laundry_service
+  content: |
+    **{{ states('sensor.washer_status') | title }}**
+    {% if is_state('binary_sensor.washer_door', 'on') %}Door open{% endif %}
+  entities:
+    - sensor.washer_status
+    - binary_sensor.washer_door
+```
+
+While the template loads, or when Home Assistant reports an error, the card shows a dash. In edit mode it shows the error instead.
+
+### Templated tile text
+
+Each entity in an entities card takes a `name_template` and a `state_template`. Set them in the entity's options in the entities card editor, or in YAML:
+
+```yaml
+entities:
+  - entity: sensor.phone_battery
+    name_template: "{{ state_attr('device_tracker.phone', 'friendly_name') }}"
+    state_template: "{{ states('sensor.phone_battery') }}% {{ 'charging' if is_state('binary_sensor.phone_charging', 'on') else '' }}"
+```
+
+The result replaces the tile's name or state text, or a stat box's reading and unit. Until it renders, when it fails, and when it renders blank, the tile shows its normal name and state. The normal state text also comes back while the entity is unavailable and while a light or cover is being dragged or a command is in flight. A stat box's air quality verdict and band still follow the entity's real value, not the template. The rendered name is also the name the tile's details and controls use.
+
 ## Custom CSS and JavaScript
 
 Edit custom CSS under Settings > Appearance > Custom CSS. Save writes the file at once and returns to Settings. Style against the `--h-*` tokens, not internal class names, which can change between releases.

@@ -20,8 +20,15 @@ export function loadMarkdownRenderer(): Promise<Render> {
 			return (source) =>
 				DOMPurify.sanitize(marked.parse(source, { async: false }), {
 					USE_PROFILES: { html: true },
-					ADD_ATTR: ['target']
+					ADD_ATTR: ['target'],
+					// a form in the dashboard could pass for one of its own controls
+					FORBID_TAGS: ['form', 'input', 'button', 'textarea', 'select']
 				});
+		},
+		(failure) => {
+			// a failed chunk load (a flaky network, a new deploy) is retried next time
+			renderer = undefined;
+			throw failure;
 		}
 	);
 	return renderer;
