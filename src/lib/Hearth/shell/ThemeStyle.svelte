@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { minuteTimer } from '$lib/core/app/clock';
+	import { deviceName } from '$lib/core/app/device';
 	import { motion } from '$lib/core/app/motion';
 	import { states } from '$lib/core/ha/entities';
 	import {
@@ -9,20 +11,38 @@
 		themeDeclarations,
 		type HearthTheme
 	} from '$lib/core/theme';
+	import { derived } from 'svelte/store';
 	import { ZOOM_GHOST_SHELL } from '$lib/ui/actions/sortable';
 	import { FOLD_QUERY } from '../breakpoints';
-	import { editedThemeSlot, editor, hearthConfig, hearthEditMode } from '../store';
+	import { displayTimeZone, editedThemeSlot, editor, hearthConfig, hearthEditMode } from '../store';
 	import { resolveBackgroundImage } from '../images';
+	import {
+		activeLook,
+		ensureSavedThemes,
+		monthDayOf,
+		needsSavedThemes,
+		savedThemes,
+		scheduledIndex
+	} from '../themeSchedule';
+	import { evaluateVisibility } from '../visibility';
 	import { screenSettings } from '../screen';
 	import { zoomSupported } from '../zoom';
 
-	/** A display-only preset from ?theme=, replacing the stored theme without touching the config. */
-	let { presetOverride = undefined }: { presetOverride?: { theme: HearthTheme | null } } = $props();
+	let {
+		presetOverride = undefined,
+		pageId = undefined
+	}: {
+		/** A display-only preset from ?theme=, replacing the stored theme without touching the config. */
+		presetOverride?: { theme: HearthTheme | null };
+		/** The page on screen, whose own look goes over the theme. */
+		pageId?: string;
+	} = $props();
 
 	// While editing, preview the selected slot. At runtime the configured HA
 	// entity decides whether the full day or night theme is active.
+	let editingTheme = $derived($hearthEditMode && $editor?.kind === 'theme');
 	let night = $derived(
-		$hearthEditMode && $editor?.kind === 'theme'
+		editingTheme
 			? $editedThemeSlot === 'night'
 			: isNightState(
 					$states?.[$hearthConfig.day_night?.entity ?? '']?.state,
@@ -30,11 +50,48 @@
 				)
 	);
 
-	let storedTheme = $derived(
-		night ? ($hearthConfig.theme_night ?? $hearthConfig.theme) : $hearthConfig.theme
+	// the date only matters to a schedule; nothing ticks without one
+	const scheduleClock = derived(hearthConfig, ($config, set: (now?: Date) => void) => {
+		if (!$config.theme_schedule?.length) {
+			set(undefined);
+			return;
+		}
+		return minuteTimer.subscribe(set);
+	});
+	let now = $derived($scheduleClock);
+
+	$effect(() => {
+		if (needsSavedThemes($hearthConfig)) ensureSavedThemes();
+	});
+
+	// a number, so a state change that leaves the same entry holding stops here
+	let entryIndex = $derived(
+		editingTheme || !now
+			? -1
+			: scheduledIndex($hearthConfig.theme_schedule, monthDayOf(now, $displayTimeZone), (when) =>
+					evaluateVisibility(
+						when,
+						$states,
+						{},
+						{
+							device: $deviceName,
+							now,
+							timeZone: $displayTimeZone
+						}
+					)
+				)
 	);
 
-	let chosenTheme = $derived(presetOverride ? (presetOverride.theme ?? undefined) : storedTheme);
+	// the theme sheet shows the slot it edits, without the schedule or a page's look
+	let lookTheme = $derived(
+		editingTheme
+			? night
+				? ($hearthConfig.theme_night ?? $hearthConfig.theme)
+				: $hearthConfig.theme
+			: activeLook($hearthConfig, { night, entryIndex, pageId, saved: $savedThemes })
+	);
+
+	let chosenTheme = $derived(presetOverride ? (presetOverride.theme ?? undefined) : lookTheme);
 
 	// an uploaded background is stored without the base path, which only the
 	// browser knows
@@ -46,23 +103,6 @@
 				}
 			: chosenTheme
 	);
-
-	// CSS custom properties do not transition by themselves. Briefly blanket
-	// the rendered tree when the switch changes, then release component styles.
-	let lastNight: boolean | undefined;
-
-	$effect(() => {
-		const switched = lastNight !== undefined && lastNight !== night;
-		lastNight = night;
-		if (!switched || !$motion) return;
-		const root = document.documentElement;
-		root.classList.add('theme-fade');
-		const timer = setTimeout(() => root.classList.remove('theme-fade'), MOTION.theme);
-		return () => {
-			clearTimeout(timer);
-			root.classList.remove('theme-fade');
-		};
-	});
 
 	// Reduced motion (configuration or OS) zeroes the motion tokens, and
 	// components key their animations off the same attribute. Boot and
@@ -132,16 +172,47 @@
 		};
 	});
 
+	/*
+	 * Declarations are compared as text before the rule is touched, so a
+	 * config or state change that leaves the theme as it was costs nothing.
+	 * CSS custom properties do not transition by themselves: when the tokens
+	 * do change (day and night, a schedule entry, a page with a look of its
+	 * own), the rendered tree is briefly blanketed by a fade. Editing in the
+	 * theme sheet, and opening or closing it, does not fade.
+	 */
+	let applied: string | undefined;
+	let wasEditing = false;
+	let fadeTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function fade() {
+		const root = document.documentElement;
+		clearTimeout(fadeTimer);
+		root.classList.add('theme-fade');
+		fadeTimer = setTimeout(() => root.classList.remove('theme-fade'), MOTION.theme);
+	}
+
 	$effect(() => {
-		if (!themeRule) return;
+		return () => {
+			clearTimeout(fadeTimer);
+			document.documentElement.classList.remove('theme-fade');
+		};
+	});
+
+	$effect(() => {
+		if (!themeRule) {
+			applied = undefined;
+			return;
+		}
+		const declarations = [...themeDeclarations(THEME_DEFAULTS), ...themeDeclarations(activeTheme)];
+		const serialized = JSON.stringify(declarations);
+		const fades = applied !== undefined && !editingTheme && !wasEditing && $motion > 0;
+		wasEditing = editingTheme;
+		if (serialized === applied) return;
+		applied = serialized;
 		const style = themeRule.style;
 		style.cssText = '';
-		for (const [property, value] of [
-			...themeDeclarations(THEME_DEFAULTS),
-			...themeDeclarations(activeTheme)
-		]) {
-			style.setProperty(property, value);
-		}
+		for (const [property, value] of declarations) style.setProperty(property, value);
+		if (fades) fade();
 	});
 
 	let rootCss = $derived(

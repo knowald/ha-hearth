@@ -12,6 +12,12 @@
 	import { duplicateRoom, shiftItem } from '../model/layoutEdits';
 	import { confirmDiscard } from './discard';
 	import { currentRoom, editor, hearthConfig, updateConfig } from '../store';
+	import { pageBackgroundIssue } from '../normalize';
+	import { loadSavedThemes, savedThemes } from '../themeSchedule';
+	import type { ScrimLevel } from '../types';
+	import FormSection from './FormSection.svelte';
+	import ImageField from './ImageField.svelte';
+	import { themeOptions, withCurrent } from './options';
 	import CheckField from './CheckField.svelte';
 	import EditSheet from './EditSheet.svelte';
 	import EntityField from './EntityField.svelte';
@@ -43,6 +49,27 @@
 	let visibility = $state<VisibilityCondition[]>(
 		(initial?.visibility ?? []).map((condition) => ({ ...condition }))
 	);
+	let backgroundImage = $state(initial?.background_image ?? '');
+	let backgroundScrim = $state<ScrimLevel>(initial?.background_scrim ?? 'medium');
+	let pageTheme = $state(initial?.theme ?? '');
+
+	let backgroundIssue = $derived(
+		backgroundImage.trim() ? pageBackgroundIssue(backgroundImage.trim()) : null
+	);
+
+	$effect(() => {
+		void loadSavedThemes();
+	});
+
+	function look() {
+		const image = backgroundImage.trim();
+		return {
+			background_image: image || undefined,
+			// medium is the default, so it is stored as unset
+			background_scrim: image && backgroundScrim !== 'medium' ? backgroundScrim : undefined,
+			theme: pageTheme.trim() || undefined
+		};
+	}
 
 	function staged() {
 		return {
@@ -55,12 +82,17 @@
 			fillScreen,
 			columns,
 			moveBy,
-			visibility
+			visibility,
+			backgroundImage,
+			backgroundScrim,
+			pageTheme
 		};
 	}
 
 	let validity = $derived(
-		requireFields($lang('hearth_field_required'), { label: $lang('name'), value: name })
+		backgroundIssue
+			? { valid: false, reason: $lang('hearth_fix_marked_fields') }
+			: requireFields($lang('hearth_field_required'), { label: $lang('name'), value: name })
 	);
 
 	const untouched = JSON.stringify(staged());
@@ -89,6 +121,7 @@
 				room.fill_screen = fillScreen === 'fill' || undefined;
 				room.columns = roomColumns;
 				room.visibility = normalizeVisibility($state.snapshot(visibility));
+				Object.assign(room, look());
 				if (roomColumns !== undefined && room.cards?.length && room.cards.length !== roomColumns) {
 					room.cards = resizeCardColumns(room.cards, roomColumns);
 				}
@@ -108,6 +141,7 @@
 					fill_screen: fillScreen === 'fill' || undefined,
 					columns: roomColumns,
 					visibility: normalizeVisibility($state.snapshot(visibility)),
+					...look(),
 					cards: Array.from({ length: roomColumns ?? 1 }, () => [])
 				});
 			}
@@ -215,4 +249,37 @@
 
 	<VisibilitySection bind:value={visibility} />
 	<div class="field-hint">{$lang('hearth_page_visibility_hint')}</div>
+
+	<FormSection title={$lang('hearth_page_look')}>
+		<SelectField
+			label={$lang('theme')}
+			bind:value={pageTheme}
+			options={withCurrent(
+				[
+					{ value: '', label: $lang('hearth_page_theme_default') },
+					...themeOptions($lang, $savedThemes)
+				],
+				pageTheme,
+				$lang
+			)}
+			hint={$lang('hearth_page_theme_hint')}
+		/>
+		<ImageField
+			label={$lang('hearth_background_image')}
+			bind:value={backgroundImage}
+			issue={backgroundIssue}
+			placeholder={$lang('hearth_example_background_image')}
+		/>
+		{#if backgroundImage.trim()}
+			<SelectField
+				label={$lang('hearth_background_scrim')}
+				bind:value={backgroundScrim}
+				options={(['light', 'medium', 'strong'] as const).map((level) => ({
+					value: level,
+					label: $lang(`hearth_scrim_${level}`)
+				}))}
+				hint={$lang('hearth_page_scrim_hint')}
+			/>
+		{/if}
+	</FormSection>
 </EditSheet>

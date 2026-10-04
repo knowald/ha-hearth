@@ -20,6 +20,16 @@ export type Weekday = (typeof WEEKDAYS)[number];
 /** A time of day as HH:MM on the 24 hour clock. */
 export const CLOCK_TIME = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
+const MONTH_LENGTHS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** A day of the year as MM-DD; 02-29 counts, for the years that have it. */
+export function isMonthDay(value: unknown): value is string {
+	const match = typeof value === 'string' ? /^(\d\d)-(\d\d)$/.exec(value) : null;
+	if (!match) return false;
+	const [month, day] = [Number(match[1]), Number(match[2])];
+	return month >= 1 && month <= 12 && day >= 1 && day <= MONTH_LENGTHS[month - 1];
+}
+
 /** A gap with no height is the one that absorbs the rail's leftover space. */
 function isFlexibleGap(widget: RailWidget): boolean {
 	return widget.type === 'spacer' && !widget.height;
@@ -165,6 +175,91 @@ export function foldedRail(rail: RailWidget[], position: RailPosition): RailWidg
 
 export function isStack(item: OverviewItem): item is OverviewStack {
 	return 'kind' in item && item.kind === 'stack';
+}
+
+/** Columns a top-level item covers on a page of `columns`; stacks and plain cards cover one. */
+export function cardSpan(item: OverviewItem, columns: number): number {
+	if (isStack(item) || !item.span || columns < 2) return 1;
+	return item.span === 'full' ? columns : Math.min(columns, item.span);
+}
+
+/** Whether any card on a page of these columns covers more than its own. */
+export function hasSpans(columns: OverviewItem[][]): boolean {
+	return columns.some((column) => column.some((item) => cardSpan(item, columns.length) > 1));
+}
+
+/**
+ * One block of the spanned layout, placed on the page grid: a run of a
+ * column's items between its spanning cards, or one spanning card. Rows and
+ * columns count from 1, as CSS grid lines do.
+ */
+export type SpanCell =
+	| { kind: 'run'; column: number; row: number; items: OverviewItem[] }
+	| {
+			kind: 'span';
+			column: number;
+			row: number;
+			card: OverviewCard;
+			start: number;
+			span: number;
+	  };
+
+/**
+ * Lays out a page whose cards span columns. Every column is cut at its
+ * spanning cards into runs. The n-th runs of all columns share a grid row,
+ * and below it the n-th spanning card of each column takes a row of its own,
+ * in column order; then the columns resume. A spanning card starts at its own
+ * column, moved left as far as it needs to fit. The cells come in reading
+ * order: column by column, every card where it is stored, as the page reads
+ * folded to one column and as focus and screen readers walk it on any width.
+ * `rows` says which grid rows hold runs and which hold spans.
+ */
+export function spanLayout(columns: OverviewItem[][]): {
+	cells: SpanCell[];
+	rows: ('run' | 'span')[];
+} {
+	const count = columns.length;
+	const bands = columns.map((column) => {
+		const runs: OverviewItem[][] = [[]];
+		const spans: OverviewCard[] = [];
+		for (const item of column) {
+			if (cardSpan(item, count) > 1) {
+				spans.push(item as OverviewCard);
+				runs.push([]);
+			} else runs[runs.length - 1].push(item);
+		}
+		return { runs, spans };
+	});
+
+	const cells: SpanCell[] = [];
+	const rows: ('run' | 'span')[] = [];
+	const depth = Math.max(...bands.map((band) => band.runs.length));
+	for (let band = 0; band < depth; band++) {
+		if (bands.some(({ runs }) => runs[band]?.length)) {
+			rows.push('run');
+			bands.forEach(({ runs }, column) => {
+				const items = runs[band];
+				if (items?.length) cells.push({ kind: 'run', column, row: rows.length, items });
+			});
+		}
+		bands.forEach(({ spans }, column) => {
+			const card = spans[band];
+			if (!card) return;
+			rows.push('span');
+			const span = cardSpan(card, count);
+			cells.push({
+				kind: 'span',
+				column,
+				row: rows.length,
+				card,
+				start: Math.min(column, count - span) + 1,
+				span
+			});
+		});
+	}
+
+	// within a column, rows already follow the stored order
+	return { cells: cells.sort((a, b) => a.column - b.column || a.row - b.row), rows };
 }
 
 /** Mutable list containing an id-addressed card or stack. */

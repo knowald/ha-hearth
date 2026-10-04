@@ -6,6 +6,7 @@ import {
 	classListProblem,
 	CLOCK_TIME,
 	isLinkUrl,
+	isMonthDay,
 	isTileUrl,
 	PHOTO_SECONDS,
 	RADAR_ZOOM,
@@ -401,7 +402,8 @@ export const VisibilityListSchema = v.optional(
 export const CardSharedSchema = v.looseObject({
 	visibility: VisibilityListSchema,
 	fill: optionalNumberAtLeast(0),
-	height: HeightSchema
+	height: HeightSchema,
+	span: v.optional(v.picklist([2, 3, 'full'], 'must be 2, 3 or full'))
 });
 
 export const WidgetSharedSchema = v.looseObject({
@@ -426,6 +428,14 @@ export const RoomSchema = v.looseObject({
 	hide_header: OptionalFlag,
 	fill_screen: OptionalFlag,
 	visibility: VisibilityListSchema,
+	// the value check is in newThemeIssues, so loading never refuses the file
+	background_image: OptionalText,
+	background_scrim: v.optional(
+		v.picklist(['light', 'medium', 'strong'], 'must be light, medium or strong')
+	),
+	theme: v.optional(
+		v.pipe(v.string('must be text'), v.trim(), v.minLength(1, 'must not be empty'))
+	),
 	columns: v.optional(
 		v.pipe(
 			v.number('must be a number'),
@@ -483,11 +493,45 @@ export const AlertChimesSchema = v.optional(
 	})
 );
 
+const ThemeChoiceSchema = v.union(
+	[v.pipe(v.string(), v.trim(), v.minLength(1)), ThemeSchema],
+	'must be a preset id, a saved theme name or a mapping of tokens'
+);
+
+const MonthDaySchema = v.optional(
+	v.pipe(
+		v.string('must be a day like 12-24'),
+		v.check((value: string) => isMonthDay(value), 'must be a day like 12-24')
+	)
+);
+
+/** One theme_schedule entry; see ThemeScheduleEntry. */
+export const ThemeScheduleEntrySchema = v.pipe(
+	v.object({
+		theme: ThemeChoiceSchema,
+		night: v.optional(ThemeChoiceSchema),
+		from: MonthDaySchema,
+		to: MonthDaySchema,
+		when: v.optional(
+			v.pipe(
+				v.array(VisibilityConditionSchema, 'must be a list of conditions'),
+				v.check(
+					(conditions) => !usesMedia(conditions),
+					'cannot use media queries; the theme follows states and dates, not the screen'
+				)
+			)
+		)
+	}),
+	v.check((entry) => !entry.from === !entry.to, 'needs both from and to'),
+	v.check((entry) => Boolean(entry.from || entry.when?.length), 'needs from and to, or when')
+);
+
 /** Root settings; `rail` and `rooms` are walked item by item by the issue checker. */
 export const RootSettingsSchema = v.looseObject({
 	theme: v.optional(ThemeSchema),
 	theme_night: v.optional(ThemeSchema),
 	day_night: v.optional(DayNightSwitchSchema),
+	theme_schedule: v.optional(v.array(ThemeScheduleEntrySchema, 'must be a list')),
 	rail_position: v.optional(
 		v.picklist(['left', 'right', 'both', 'none'], 'must be left, right, both or none')
 	),

@@ -58,12 +58,12 @@ The Home Assistant app sets `HASS_URL` itself. For direct-port access, set its H
 
 ## URL options
 
-| Option            | Effect                                                                                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `?room=<id>`      | Open the page with this id. Hearth keeps the current page in the address, so copy it from there.                                          |
-| `?theme=<preset>` | Show a built-in theme without saving it: `hearth`, `paper`, `slate`, `void`, `glass`, `forest`, `plum` or `muted`. Ignored while editing. |
-| `?menu=false`     | Hide the Edit Hearth configuration and This screen buttons, for wall tablets. See [This screen](#this-screen) for the way back in.        |
-| `?device=<name>`  | Name this screen, so [alerts](alerts.md#home-assistant-events) can target it.                                                             |
+| Option            | Effect                                                                                                                                                                             |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `?room=<id>`      | Open the page with this id. Hearth keeps the current page in the address, so copy it from there.                                                                                   |
+| `?theme=<preset>` | Show a built-in theme without saving it: `hearth`, `paper`, `slate`, `void`, `glass`, `forest`, `plum`, `muted`, `winter`, `spring`, `autumn` or `holiday`. Ignored while editing. |
+| `?menu=false`     | Hide the Edit Hearth configuration and This screen buttons, for wall tablets. See [This screen](#this-screen) for the way back in.                                                 |
+| `?device=<name>`  | Name this screen, so [alerts](alerts.md#home-assistant-events) can target it.                                                                                                      |
 
 These change presentation only. They are not access controls.
 
@@ -205,6 +205,67 @@ The star in an entity's popup adds it to this browser's favorites. At 900 px and
 Settings > Size and spacing sets the interface scale (`scale` in `hearth.yaml`, 50 to 200 percent) and the side and top/bottom padding (`padding_x`, `padding_y`). The rows under Screens 900 px and narrower (`mobile_scale`, `mobile_padding_x`, `mobile_padding_y`) apply at 900 px wide and below. While one of them is unset, those screens use the main value. A screen can override both scales under This screen.
 
 The scale is a CSS `zoom` on the page and needs Chromium 128 or Firefox 126. Older browsers stay at 100%, and Settings says so. Layout breakpoints follow the physical screen, not the scaled one, so a large scale on a narrow tablet keeps the wide layout in less room.
+
+## Theme schedule
+
+`theme_schedule` replaces the day theme on certain days, while conditions hold, or both. Each entry names a `theme`: a preset id (`winter`, `spring`, `autumn`, `holiday` or any other built-in preset), the name of a saved theme in `hearth-themes/`, or a mapping of theme tokens. `from` and `to` are days of the year as `MM-DD`, both included; when `from` is later than `to` the range runs across the new year. `when` takes [visibility conditions](#visibility-conditions), all of which must hold; media queries are not allowed. An entry needs `from` and `to`, `when`, or both. The first entry that holds wins.
+
+```yaml
+theme_schedule:
+  - theme: holiday
+    from: '12-20'
+    to: '12-26'
+    when:
+      - entity: input_boolean.holiday_mode
+        state: 'on'
+  - theme: winter
+    from: '12-01'
+    to: '02-29'
+  - theme: Moss
+    night: void
+    from: '09-23'
+    to: '11-30'
+```
+
+Days are read in the time zone the clocks show: the first clock widget's, or the browser's. The schedule is checked again every minute, so a new range starts at midnight. At night `theme_night` stays, unless the entry has a `night` of its own, in the same forms as `theme`. Without a `theme_night`, night wears the scheduled theme. A saved theme that cannot be found leaves the day theme in place. Each browser keeps the last list of saved themes it fetched, so a saved theme shows from the first frame on the next visit. Token values are checked as in [Sharing cards and themes](#sharing-cards-and-themes) when you apply or save; when the file loads, a value that fails is skipped. Edit the schedule under Theme > Schedule. An entry with tokens written out shows as Tokens from YAML there and keeps them until you pick another theme. While the Theme sheet is open the dashboard shows the theme being edited, not the schedule.
+
+## Page look
+
+A page can have a look of its own while it is open. `theme` names a preset id or a saved theme by name and replaces the day theme, the schedule's included. At night `theme_night` stays. `background_image` takes a URL or an uploaded image (`hearth-images/<file>`), under the same rules as a theme's background, and goes over whichever theme is worn. It always has a shade over it so cards stay readable: `background_scrim` is `light`, `medium` (the default) or `strong`. Leaving the page brings the dashboard's own theme back; the switch fades unless motion is reduced. Set them under Look in the page editor.
+
+```yaml
+rooms:
+  - id: garden
+    name: Garden
+    icon: park
+    theme: forest
+    background_image: hearth-images/a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5.webp
+    background_scrim: strong
+    cards:
+      - []
+```
+
+## Wide cards
+
+On a page with two or three columns a card can take `span: 2`, `span: 3` or `span: full`. It covers that many columns, starting at its own column and moved left as far as it needs to fit; `full`, and any span on a two-column page, covers the whole width. Cards stay in the column they are stored in. A spanning card cuts its column in two: the cards above it in every column come first, then the spanning card in a row of its own, then every column continues below it. When two columns have a spanning card at the same point, each gets its own row, in column order.
+
+```yaml
+cards:
+  - - id: lights
+      type: entities
+      entities: [...]
+    - id: energy
+      type: iframe
+      url: https://example.com/energy
+      span: full
+    - id: scenes
+      type: scenes
+      scenes: [...]
+  - - id: climate
+      type: climate
+```
+
+Here `lights` and `climate` share the first row, `energy` takes the whole second row, and `scenes` starts the third. A spanning card hidden by its visibility conditions cuts nothing: its column runs on as if it were not there. Keyboard focus and screen readers go through the cards in stored order, column by column, on every screen. When the page folds to one column, on phones and narrow screens, spans do nothing and the cards show in that order too. Edit mode keeps a spanning card in its column, so it can be dragged like any other; on a page with spans the cards are built again when edit mode starts and ends, so a card that keeps state of its own, such as a camera stream or an embedded page, reloads then. Cards inside a stack do not span. Set it under Layout > Width in the card editor; the field shows on pages with more than one column.
 
 ## Tap and hold actions
 

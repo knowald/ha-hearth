@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { english as copy } from '$lib/core/i18n/testing';
 import {
+	BACKGROUND_SCRIMS,
 	RADIUS_SCALES,
 	SURFACE_BLUR_SCALES,
 	TEXT_CONTRAST_SCALES,
@@ -21,6 +22,7 @@ const DYNAMIC_KEYS: Record<string, string[]> = {
 	hearth_text_shadow_: TEXT_SHADOW_SCALES.map((scale) => scale.value),
 	hearth_glass_: SURFACE_BLUR_SCALES.map((scale) => scale.value),
 	hearth_corners_: RADIUS_SCALES.map((scale) => scale.value),
+	hearth_scrim_: Object.keys(BACKGROUND_SCRIMS),
 	hearth_last_: [...CHART_PERIODS]
 };
 const DYNAMIC_PREFIXES = ['hearth_domain_', ...Object.keys(DYNAMIC_KEYS)];

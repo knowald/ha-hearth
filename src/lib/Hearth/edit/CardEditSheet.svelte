@@ -4,6 +4,7 @@
 	import { get } from 'svelte/store';
 	import { untrack } from 'svelte';
 	import type {
+		CardSpan,
 		EntityRef,
 		HearthConfig,
 		OverviewCard,
@@ -42,6 +43,7 @@
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
 	import VisibilitySection from './VisibilitySection.svelte';
+	import { withCurrent } from './options';
 
 	let {
 		roomId,
@@ -90,6 +92,8 @@
 	let visibility = $state<VisibilityCondition[]>(
 		(initial?.visibility ?? []).map((condition) => ({ ...condition }))
 	);
+	// blank keeps the card in its own column
+	let span = $state(initial?.span ? String(initial.span) : '');
 
 	/*
 	 * Where an existing card goes on Done: another page, another column, and
@@ -104,6 +108,12 @@
 	let targetColumn = $state(String(startColumn));
 	let moveBy = $state(0);
 	let relocated = $derived(targetPage !== roomId || Number(targetColumn) !== startColumn);
+	// only a card straight in a column spans; one in a stack goes where the stack goes
+	// svelte-ignore state_referenced_locally
+	const topLevel =
+		id === null
+			? stackId === undefined
+			: (startRoom?.cards ?? []).some((items) => items.some((item) => item.id === id));
 
 	let pageOptions = $derived(
 		$hearthConfig.rooms.map((entry) => ({ value: entry.id, label: entry.name || entry.id }))
@@ -181,6 +191,7 @@
 				? { height: Number.isFinite(heightValue) && heightValue >= 40 ? heightValue : undefined }
 				: {}),
 			fill: Number.isFinite(fillValue as number) ? fillValue : undefined,
+			span: span === '' ? undefined : span === 'full' ? 'full' : (Number(span) as CardSpan),
 			visibility: normalizeVisibility($state.snapshot(visibility))
 		} as OverviewCard;
 	}
@@ -194,7 +205,7 @@
 	 * switch as a change.
 	 */
 	function layout() {
-		return JSON.stringify({ fill, height, visibility, targetPage, targetColumn, moveBy });
+		return JSON.stringify({ fill, height, span, visibility, targetPage, targetColumn, moveBy });
 	}
 	const untouchedLayout = layout();
 	let untouchedType = $state(initial?.type ?? 'entities');
@@ -288,6 +299,7 @@
 			type = card.type;
 			fill = typeof card.fill === 'number' ? String(card.fill) : '';
 			height = 'height' in card && card.height ? String(card.height) : '';
+			span = card.span ? String(card.span) : '';
 			visibility = (card.visibility ?? []).map((condition) => ({ ...condition }));
 			draft = { fields: {} as CardDraft<OverviewCard>['fields'] };
 			editorRound += 1;
@@ -424,6 +436,25 @@
 						placeholder="240"
 						inputmode="numeric"
 						hint={$lang(descriptor.heightHint ?? 'hearth_height_hint_fill')}
+					/>
+				{/if}
+
+				{#if topLevel && targetColumns > 1}
+					<SelectField
+						label={$lang('hearth_card_width')}
+						bind:value={span}
+						options={withCurrent(
+							[
+								{ value: '', label: $lang('hearth_card_width_column') },
+								...(targetColumns > 2
+									? [{ value: '2', label: fillText($lang('hearth_columns_count'), { count: 2 }) }]
+									: []),
+								{ value: 'full', label: $lang('hearth_card_width_full') }
+							],
+							span,
+							$lang
+						)}
+						hint={$lang('hearth_card_width_hint')}
 					/>
 				{/if}
 

@@ -382,6 +382,18 @@ export const VOID_THEME: HearthTheme = {
 	bad_text: '#ffb0a8'
 };
 
+/**
+ * Gradients drawn over a background photo so panels and text stay legible,
+ * from a light veil to a strong shade. Medium is the Glass preset's own.
+ */
+export const BACKGROUND_SCRIMS = {
+	light: 'linear-gradient(180deg, rgba(10, 8, 6, 0.15), rgba(10, 8, 6, 0.35))',
+	medium: 'linear-gradient(180deg, rgba(10, 8, 6, 0.3), rgba(10, 8, 6, 0.6))',
+	strong: 'linear-gradient(180deg, rgba(10, 8, 6, 0.5), rgba(10, 8, 6, 0.8))'
+} as const;
+
+export type ScrimLevel = keyof typeof BACKGROUND_SCRIMS;
+
 /*
  * Translucent panels floating over the background image. The photo is the
  * user's own - set background_image to a room shot; the scrim keeps text
@@ -400,7 +412,7 @@ export const GLASS_THEME: HearthTheme = {
 		textFade: 0.35
 	}),
 	text_shadow: '0 2px 12px rgba(0, 0, 0, 0.6)',
-	background_scrim: 'linear-gradient(180deg, rgba(10, 8, 6, 0.3), rgba(10, 8, 6, 0.6))',
+	background_scrim: BACKGROUND_SCRIMS.medium,
 	surface_blur: 'blur(20px) saturate(140%)',
 	// panels carry their weight in the tint and the hairline, not a shadow
 	fill_scale: '2.2',
@@ -463,6 +475,59 @@ export const THEME_PRESETS: { id: string; theme: HearthTheme | null }[] = [
 			}),
 			...deriveRadii(0.36),
 			font_ui: "'Inter Variable', system-ui"
+		}
+	},
+	// seasonal looks, for theme_schedule date ranges as much as for picking by hand
+	{
+		id: 'winter',
+		theme: buildTheme({
+			accent: '#9cc8e8',
+			cool: '#b4bff0',
+			backgroundInner: '#1a2230',
+			backgroundOuter: '#0c1119',
+			ink: '#eef5fb'
+		})
+	},
+	{
+		id: 'spring',
+		theme: {
+			...buildTheme({
+				accent: '#6fa85a',
+				cool: '#4f8fb8',
+				backgroundInner: '#f5f8ef',
+				backgroundOuter: '#e7efdc',
+				ink: '#1d2618',
+				light: true
+			}),
+			good: '#3f7a3a',
+			good_text: '#356a31',
+			bad: '#c0503f',
+			bad_text: '#a03a2c',
+			media: '#12a04a'
+		}
+	},
+	{
+		id: 'autumn',
+		theme: buildTheme({
+			accent: '#e08a3c',
+			cool: '#8fb0a0',
+			backgroundInner: '#2a1c14',
+			backgroundOuter: '#140d08',
+			ink: '#f8ece0'
+		})
+	},
+	{
+		id: 'holiday',
+		theme: {
+			...buildTheme({
+				accent: '#e86b5f',
+				cool: '#e3c06a',
+				backgroundInner: '#16271d',
+				backgroundOuter: '#09140e',
+				ink: '#f6f1e6'
+			}),
+			good: '#8fd6a0',
+			good_text: '#a8dcb4'
 		}
 	}
 ];

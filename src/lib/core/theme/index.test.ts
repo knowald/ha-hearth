@@ -50,6 +50,48 @@ describe('THEME_PRESETS', () => {
 	});
 });
 
+// WCAG 2 relative luminance and contrast ratio
+function relativeLuminance(hex: string) {
+	const [r, g, b] = [1, 3, 5].map((offset) => {
+		const channel = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+		return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+	});
+	return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(foreground: string, background: string) {
+	const [light, dark] = [relativeLuminance(foreground), relativeLuminance(background)].sort(
+		(a, b) => b - a
+	);
+	return (light + 0.05) / (dark + 0.05);
+}
+
+describe('preset contrast', () => {
+	const BACKGROUNDS = ['background_inner', 'background_outer', 'sheet_top', 'sheet_bottom'];
+	const BODY_TEXT = ['text_1', 'text_2', 'text_3', 'text_4'];
+	const STATUS_TEXT = ['accent_text', 'cool_text', 'good_text', 'bad_text'];
+	const SEASONAL = ['winter', 'spring', 'autumn', 'holiday'];
+
+	function worst(theme: Record<string, string>, keys: string[]) {
+		return Math.min(
+			...keys.flatMap((key) => BACKGROUNDS.map((ground) => contrast(theme[key], theme[ground])))
+		);
+	}
+
+	it.each(THEME_PRESETS.map((preset) => [preset.id, preset.theme] as const))(
+		'keeps the body text of %s at 4.5:1 or more on every background',
+		(_id, theme) => {
+			expect(worst({ ...THEME_DEFAULTS, ...theme }, BODY_TEXT)).toBeGreaterThanOrEqual(4.5);
+		}
+	);
+
+	it.each(SEASONAL)('keeps the status text of %s at 4.5:1 or more as well', (id) => {
+		const theme = THEME_PRESETS.find((entry) => entry.id === id)?.theme;
+		expect(theme).toBeTruthy();
+		expect(worst({ ...THEME_DEFAULTS, ...theme }, STATUS_TEXT)).toBeGreaterThanOrEqual(4.5);
+	});
+});
+
 describe('surface blur', () => {
 	it('stays off by default so surfaces cost nothing until a theme opts in', () => {
 		expect(THEME_DEFAULTS.surface_blur).toBe('none');

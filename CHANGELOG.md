@@ -19,6 +19,10 @@
 - Add only the entities an area's page does not show yet when importing areas again, without touching the rest of the page
 - Suggest the cards of its area on an empty page named after one, each added with one tap
 - Star entities in their popup to get a favorites page on your phone, kept in that browser
+- Winter, Spring meadow, Autumn and Holiday theme presets
+- Switch the day theme by date range or by conditions with `theme_schedule`, for example Winter from December to February or Holiday while a helper is on, with an optional night theme per entry; edit it under Theme > Schedule
+- Give a page its own theme and background image, with a shade over the image, shown while the page is open; set it under Look in the page editor
+- Let a card span two or three columns, or the full width, on pages with more than one column with `span`; phones and edit mode keep it in its column
 
 ### Changed
 

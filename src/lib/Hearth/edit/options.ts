@@ -1,5 +1,6 @@
 import { fill } from '$lib/core/i18n';
 import type { AlertChime } from '../types';
+import { THEME_PRESETS } from '$lib/core/theme';
 
 export interface Option {
 	value: string;
@@ -55,4 +56,17 @@ export function chimeValue(chime: AlertChime | undefined): string {
 export function storedChime(value: string): AlertChime | undefined {
 	if (value === 'chime') return true;
 	return value === 'soft' || value === 'bell' || value === 'none' ? value : undefined;
+}
+
+/** Built-in presets by id, then saved themes by name: the ways a page or schedule names a theme. */
+export function themeOptions(lang: Translate, saved: { name: string }[] = []): Option[] {
+	return [
+		...THEME_PRESETS.map((preset) => ({
+			value: preset.id,
+			label: lang(`hearth_theme_preset_${preset.id}`)
+		})),
+		...saved
+			.filter((theme) => !THEME_PRESETS.some((preset) => preset.id === theme.name))
+			.map((theme) => ({ value: theme.name, label: theme.name }))
+	];
 }
