@@ -6,6 +6,7 @@
 	import { base } from '$app/paths';
 	import { onDestroy } from 'svelte';
 	import { get } from 'svelte/store';
+	import { SvelteMap } from 'svelte/reactivity';
 	import {
 		deriveAccent,
 		deriveBackground,
@@ -174,7 +175,9 @@
 	/*
 	 * The schedule is edited as drafts and written when a field is left, an
 	 * entry is added or removed, or the sheet closes. Only complete entries
-	 * reach the config: a theme, and both days or a condition.
+	 * reach the config: a theme, and both days or a condition. An entry whose
+	 * days are mistyped or half filled keeps what it last wrote, and holds
+	 * Done until they are fixed.
 	 */
 	interface ScheduleDraft {
 		key: number;
@@ -189,8 +192,11 @@
 
 	const INLINE_TOKENS = '#tokens';
 	let draftKey = 0;
+	// what each draft last wrote, by key; a mistyped day falls back to it
+	const lastEntries = new SvelteMap<number, ThemeScheduleEntry>();
 
 	function scheduleDraft(entry: ThemeScheduleEntry): ScheduleDraft {
+		lastEntries.set(draftKey, entry);
 		return {
 			key: draftKey++,
 			theme: typeof entry.theme === 'string' ? entry.theme : INLINE_TOKENS,
@@ -206,20 +212,46 @@
 		(get(hearthConfig).theme_schedule ?? []).map(scheduleDraft)
 	);
 
+	function draftConditions(draft: ScheduleDraft) {
+		return withoutMedia(normalizeVisibility(draft.when) ?? []);
+	}
+
+	/** Why one of a draft's days cannot be written, if it cannot. */
+	function dayError(draft: ScheduleDraft, side: 'from' | 'to'): string | undefined {
+		const value = draft[side].trim();
+		if (value && !isMonthDay(value)) return $lang('hearth_schedule_day_format');
+		const other = draft[side === 'from' ? 'to' : 'from'].trim();
+		// a day alone is half a range, and an entry needs days or a condition
+		if (!value && (other || !draftConditions(draft).length)) {
+			const label = side === 'from' ? 'hearth_schedule_from' : 'hearth_schedule_to';
+			return fill($lang('hearth_field_required'), { field: $lang(label) });
+		}
+		return undefined;
+	}
+
+	function draftError(draft: ScheduleDraft): string | undefined {
+		return dayError(draft, 'from') ?? dayError(draft, 'to');
+	}
+
+	let scheduleError = $derived(schedule.map(draftError).find(Boolean) ?? null);
+
 	function scheduleEntries(drafts: ScheduleDraft[]): ThemeScheduleEntry[] {
 		return drafts.flatMap((draft): ThemeScheduleEntry[] => {
+			const last = lastEntries.get(draft.key);
+			if (draftError(draft)) return last ? [last] : [];
 			const theme = draft.theme === INLINE_TOKENS ? draft.tokens : draft.theme;
-			const dated = isMonthDay(draft.from.trim()) && isMonthDay(draft.to.trim());
-			const when = withoutMedia(normalizeVisibility(draft.when) ?? []);
-			if (!theme || (!dated && !when.length)) return [];
-			return [
-				{
-					theme,
-					...(draft.night ? { night: draft.night } : {}),
-					...(dated ? { from: draft.from.trim(), to: draft.to.trim() } : {}),
-					...(when.length ? { when } : {})
-				}
-			];
+			if (!theme) return [];
+			const from = draft.from.trim();
+			const to = draft.to.trim();
+			const when = draftConditions(draft);
+			const entry: ThemeScheduleEntry = {
+				theme,
+				...(draft.night ? { night: draft.night } : {}),
+				...(from ? { from, to } : {}),
+				...(when.length ? { when } : {})
+			};
+			lastEntries.set(draft.key, entry);
+			return [entry];
 		});
 	}
 
@@ -247,12 +279,6 @@
 	function removeScheduleEntry(key: number) {
 		schedule = schedule.filter((draft) => draft.key !== key);
 		applySchedule();
-	}
-
-	function dayError(value: string): string | undefined {
-		return value.trim() && !isMonthDay(value.trim())
-			? $lang('hearth_schedule_day_format')
-			: undefined;
 	}
 
 	let savedThemes = $state<SavedTheme[]>([]);
@@ -501,6 +527,8 @@
 	title={$lang('theme')}
 	onclose={close}
 	ondone={close}
+	doneDisabled={Boolean(scheduleError)}
+	doneReason={scheduleError}
 	doneLabel={$lang('hearth_close')}
 	floating
 >
@@ -602,13 +630,13 @@
 						label={$lang('hearth_schedule_from')}
 						bind:value={draft.from}
 						placeholder="12-01"
-						error={dayError(draft.from)}
+						error={dayError(draft, 'from')}
 					/>
 					<TextField
 						label={$lang('hearth_schedule_to')}
 						bind:value={draft.to}
 						placeholder="02-29"
-						error={dayError(draft.to)}
+						error={dayError(draft, 'to')}
 					/>
 				</div>
 				<VisibilityField bind:value={draft.when} media={false} />
