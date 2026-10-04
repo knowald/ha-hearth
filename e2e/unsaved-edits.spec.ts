@@ -65,6 +65,8 @@ test('the browser asks before a reload drops unsaved edits', async ({ page }) =>
 	const sheet = page.getByRole('dialog', { name: 'Add page' });
 	await sheet.getByLabel('Name').fill('Garage');
 	await sheet.getByRole('button', { name: 'Done' }).click();
+	// the closed sheet's history.back() would abort the reload (see ui/layers.ts)
+	await page.waitForFunction(() => !history.state?.hearthLayer);
 
 	const dialogs: string[] = [];
 	page.on('dialog', (dialog) => {

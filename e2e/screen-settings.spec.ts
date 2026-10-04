@@ -56,6 +56,10 @@ test('This screen opens without edit mode and keeps its choices in this browser'
 	await sheet.getByLabel('Keep screen awake').selectOption('off');
 	await page.keyboard.press('Escape');
 	await expect(sheet).toBeHidden();
+	// a closed sheet takes its history entry back with history.back() a task
+	// later (see ui/layers.ts); a reload started before that traversal lands
+	// is aborted by it
+	await page.waitForFunction(() => !history.state?.hearthLayer);
 
 	await page.reload();
 	await page.getByRole('button', { name: 'This screen' }).click();
