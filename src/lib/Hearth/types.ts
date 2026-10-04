@@ -10,9 +10,9 @@ import type {
 	VisibilityConditionSchema
 } from './schema';
 import type { VerdictBands } from '$lib/core/domains/sensor';
-import type { DayNightSwitch, HearthTheme } from '$lib/core/theme';
+import type { DayNightSwitch, HearthTheme, ScrimLevel } from '$lib/core/theme';
 
-export type { DayNightSwitch, HearthTheme, VerdictBands };
+export type { DayNightSwitch, HearthTheme, ScrimLevel, VerdictBands };
 
 /*
  * The configuration vocabulary: pages, cards, widgets and their references.
@@ -40,7 +40,30 @@ export interface HearthRoom {
 	columns?: number;
 	// the page leaves navigation while these do not hold; edit mode keeps it
 	visibility?: VisibilityCondition[];
+	/** A URL or `hearth-images/<file>`, shown behind the dashboard while this page is open. */
+	background_image?: string;
+	// the shade over that image; there always is one, medium when unset
+	background_scrim?: ScrimLevel;
+	/** A preset id or a saved theme's name, worn while this page is open in the day. */
+	theme?: string;
 	cards: OverviewItem[][];
+}
+
+/** A preset id, a saved theme's name, or the theme's tokens written out. */
+export type ThemeChoice = string | HearthTheme;
+
+/**
+ * Replaces the day theme while it holds: from `from` to `to` (MM-DD, both
+ * days included, across the new year when from is later), and while every
+ * `when` condition holds. The first entry that holds wins.
+ */
+export interface ThemeScheduleEntry {
+	theme: ThemeChoice;
+	// replaces theme_night as well; without it the night theme stays
+	night?: ThemeChoice;
+	from?: string;
+	to?: string;
+	when?: VisibilityCondition[];
 }
 
 /** A configured tap or hold action; see ActionSchema. */
@@ -297,7 +320,11 @@ type OverviewCardVariant =
 export type OverviewCard = OverviewCardVariant & {
 	visibility?: VisibilityCondition[];
 	fill?: number;
+	// columns a top-level card covers on a wide page; see spanRows in config.ts
+	span?: CardSpan;
 };
+
+export type CardSpan = 2 | 3 | 'full';
 
 /**
  * A named horizontal or vertical layout container, parity with the original
@@ -388,6 +415,7 @@ export interface HearthConfig {
 	// full replacement for theme while day_night resolves to night
 	theme_night?: HearthTheme;
 	day_night?: DayNightSwitch;
+	theme_schedule?: ThemeScheduleEntry[];
 	// unset is a single rail on the left
 	rail_position?: RailPosition;
 	rail: RailWidget[];

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { minuteTimer } from '$lib/core/app/clock';
+	import { deviceName } from '$lib/core/app/device';
 	import { motion } from '$lib/core/app/motion';
 	import { states } from '$lib/core/ha/entities';
 	import {
@@ -9,20 +11,37 @@
 		themeDeclarations,
 		type HearthTheme
 	} from '$lib/core/theme';
+	import { derived } from 'svelte/store';
 	import { ZOOM_GHOST_SHELL } from '$lib/ui/actions/sortable';
 	import { FOLD_QUERY } from '../breakpoints';
-	import { editedThemeSlot, editor, hearthConfig, hearthEditMode } from '../store';
+	import { displayTimeZone, editedThemeSlot, editor, hearthConfig, hearthEditMode } from '../store';
 	import { resolveBackgroundImage } from '../images';
+	import {
+		activeLook,
+		loadSavedThemes,
+		monthDayOf,
+		needsSavedThemes,
+		savedThemes
+	} from '../themeSchedule';
+	import { evaluateVisibility } from '../visibility';
 	import { screenSettings } from '../screen';
 	import { zoomSupported } from '../zoom';
 
-	/** A display-only preset from ?theme=, replacing the stored theme without touching the config. */
-	let { presetOverride = undefined }: { presetOverride?: { theme: HearthTheme | null } } = $props();
+	let {
+		presetOverride = undefined,
+		pageId = undefined
+	}: {
+		/** A display-only preset from ?theme=, replacing the stored theme without touching the config. */
+		presetOverride?: { theme: HearthTheme | null };
+		/** The page on screen, whose own look goes over the theme. */
+		pageId?: string;
+	} = $props();
 
 	// While editing, preview the selected slot. At runtime the configured HA
 	// entity decides whether the full day or night theme is active.
+	let editingTheme = $derived($hearthEditMode && $editor?.kind === 'theme');
 	let night = $derived(
-		$hearthEditMode && $editor?.kind === 'theme'
+		editingTheme
 			? $editedThemeSlot === 'night'
 			: isNightState(
 					$states?.[$hearthConfig.day_night?.entity ?? '']?.state,
@@ -30,11 +49,43 @@
 				)
 	);
 
-	let storedTheme = $derived(
-		night ? ($hearthConfig.theme_night ?? $hearthConfig.theme) : $hearthConfig.theme
+	// the date only matters to a schedule; nothing ticks without one
+	const scheduleClock = derived(hearthConfig, ($config, set: (now?: Date) => void) => {
+		if (!$config.theme_schedule?.length) {
+			set(undefined);
+			return;
+		}
+		return minuteTimer.subscribe(set);
+	});
+	let now = $derived($scheduleClock);
+
+	$effect(() => {
+		if ($savedThemes === undefined && needsSavedThemes($hearthConfig)) void loadSavedThemes();
+	});
+
+	// the theme sheet shows the slot it edits, without the schedule or a page's look
+	let look = $derived(
+		editingTheme
+			? {
+					theme: night ? ($hearthConfig.theme_night ?? $hearthConfig.theme) : $hearthConfig.theme,
+					key: `edit:${night}`
+				}
+			: activeLook($hearthConfig, {
+					night,
+					day: now ? monthDayOf(now, $displayTimeZone) : '',
+					pageId,
+					holds: (conditions) =>
+						evaluateVisibility(
+							conditions,
+							$states,
+							{},
+							{ device: $deviceName, now, timeZone: $displayTimeZone }
+						),
+					saved: $savedThemes
+				})
 	);
 
-	let chosenTheme = $derived(presetOverride ? (presetOverride.theme ?? undefined) : storedTheme);
+	let chosenTheme = $derived(presetOverride ? (presetOverride.theme ?? undefined) : look.theme);
 
 	// an uploaded background is stored without the base path, which only the
 	// browser knows
@@ -48,12 +99,18 @@
 	);
 
 	// CSS custom properties do not transition by themselves. Briefly blanket
-	// the rendered tree when the switch changes, then release component styles.
-	let lastNight: boolean | undefined;
+	// the rendered tree when the theme switches (day and night, a schedule
+	// entry, a page with a look of its own), then release component styles.
+	// Opening or closing the theme sheet is not a switch.
+	let lookKey = $derived(look.key);
+	let lastLook: string | undefined;
 
 	$effect(() => {
-		const switched = lastNight !== undefined && lastNight !== night;
-		lastNight = night;
+		const switched =
+			lastLook !== undefined &&
+			lastLook !== lookKey &&
+			lastLook.startsWith('edit:') === lookKey.startsWith('edit:');
+		lastLook = lookKey;
 		if (!switched || !$motion) return;
 		const root = document.documentElement;
 		root.classList.add('theme-fade');

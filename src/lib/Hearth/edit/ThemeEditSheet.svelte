@@ -12,7 +12,7 @@
 		deriveCool,
 		deriveRadii,
 		deriveText,
-		GLASS_THEME,
+		BACKGROUND_SCRIMS,
 		isLightTheme,
 		RADIUS_SCALES,
 		SURFACE_BLUR_SCALES,
@@ -46,7 +46,11 @@
 	import ImageField from './ImageField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
-	import { withCurrent } from './options';
+	import { themeOptions, withCurrent } from './options';
+	import VisibilityField from './VisibilityField.svelte';
+	import { isMonthDay, normalizeVisibility, withoutMedia } from '../config';
+	import type { ThemeChoice, ThemeScheduleEntry, VisibilityCondition } from '../types';
+	import { savedThemes as sharedSavedThemes } from '../themeSchedule';
 	import Icon from '../Icon.svelte';
 
 	interface SavedTheme {
@@ -165,6 +169,83 @@
 		selectSlot('day');
 	}
 
+	/*
+	 * The schedule is edited as drafts and written when a field is left, an
+	 * entry is added or removed, or the sheet closes. Only complete entries
+	 * reach the config: a theme, and both days or a condition.
+	 */
+	interface ScheduleDraft {
+		key: number;
+		// a preset id or saved theme name; INLINE_TOKENS for tokens written out in YAML
+		theme: string;
+		tokens?: HearthTheme;
+		night?: ThemeChoice;
+		from: string;
+		to: string;
+		when: VisibilityCondition[];
+	}
+
+	const INLINE_TOKENS = '#tokens';
+	let draftKey = 0;
+
+	function scheduleDraft(entry: ThemeScheduleEntry): ScheduleDraft {
+		return {
+			key: draftKey++,
+			theme: typeof entry.theme === 'string' ? entry.theme : INLINE_TOKENS,
+			tokens: typeof entry.theme === 'string' ? undefined : entry.theme,
+			night: entry.night,
+			from: entry.from ?? '',
+			to: entry.to ?? '',
+			when: structuredClone(entry.when ?? [])
+		};
+	}
+
+	let schedule = $state<ScheduleDraft[]>(
+		(get(hearthConfig).theme_schedule ?? []).map(scheduleDraft)
+	);
+
+	function scheduleEntries(drafts: ScheduleDraft[]): ThemeScheduleEntry[] {
+		return drafts.flatMap((draft): ThemeScheduleEntry[] => {
+			const theme = draft.theme === INLINE_TOKENS ? draft.tokens : draft.theme;
+			const dated = isMonthDay(draft.from.trim()) && isMonthDay(draft.to.trim());
+			const when = withoutMedia(normalizeVisibility(draft.when) ?? []);
+			if (!theme || (!dated && !when.length)) return [];
+			return [
+				{
+					theme,
+					...(draft.night ? { night: draft.night } : {}),
+					...(dated ? { from: draft.from.trim(), to: draft.to.trim() } : {}),
+					...(when.length ? { when } : {})
+				}
+			];
+		});
+	}
+
+	function applySchedule() {
+		const entries = scheduleEntries($state.snapshot(schedule) as ScheduleDraft[]);
+		const current = get(hearthConfig).theme_schedule ?? [];
+		if (JSON.stringify(entries) === JSON.stringify(current)) return;
+		updateConfig((config) => {
+			config.theme_schedule = entries.length ? entries : undefined;
+		});
+	}
+
+	function addScheduleEntry() {
+		schedule.push({ key: draftKey++, theme: 'winter', from: '12-01', to: '02-28', when: [] });
+		applySchedule();
+	}
+
+	function removeScheduleEntry(key: number) {
+		schedule = schedule.filter((draft) => draft.key !== key);
+		applySchedule();
+	}
+
+	function dayError(value: string): string | undefined {
+		return value.trim() && !isMonthDay(value.trim())
+			? $lang('hearth_schedule_day_format')
+			: undefined;
+	}
+
 	let savedThemes = $state<SavedTheme[]>([]);
 	let themesLoading = $state(false);
 	let themesError = $state('');
@@ -181,6 +262,8 @@
 				return;
 			}
 			savedThemes = await response.json();
+			// the dashboard resolves saved theme names from the same list
+			sharedSavedThemes.set(savedThemes);
 		} catch (err: any) {
 			console.error(err);
 			themesError = $lang('hearth_themes_load_failed');
@@ -290,6 +373,7 @@
 				return;
 			}
 			savedThemes = savedThemes.filter((entry) => entry.id !== saved.id);
+			sharedSavedThemes.set(savedThemes);
 		} catch (err: any) {
 			console.error(err);
 			themesError = $lang('hearth_theme_delete_failed');
@@ -318,13 +402,12 @@
 	});
 
 	// darkens a bright photo behind the panels; the medium step is the Glass preset's
-	const LIGHT_SCRIM = 'linear-gradient(180deg, rgba(10, 8, 6, 0.15), rgba(10, 8, 6, 0.35))'; // copy ok: css value
-	const STRONG_SCRIM = 'linear-gradient(180deg, rgba(10, 8, 6, 0.5), rgba(10, 8, 6, 0.8))'; // copy ok: css value
-	const BACKGROUND_SCRIMS = [
+	const SCRIM_OPTIONS = [
 		{ value: 'none', label: 'hearth_scrim_none' },
-		{ value: LIGHT_SCRIM, label: 'hearth_scrim_light' },
-		{ value: GLASS_THEME.background_scrim, label: 'hearth_scrim_medium' },
-		{ value: STRONG_SCRIM, label: 'hearth_scrim_strong' }
+		...Object.entries(BACKGROUND_SCRIMS).map(([level, value]) => ({
+			value,
+			label: `hearth_scrim_${level}`
+		}))
 	];
 	let scrim = $derived(knob('background_scrim'));
 
@@ -370,6 +453,7 @@
 	function close() {
 		applyBackgroundImage();
 		applySwitch();
+		applySchedule();
 		editedThemeSlot.set('day');
 		editor.set(null);
 	}
@@ -474,6 +558,63 @@
 			{$lang('hearth_turn_off_the_night_theme')}
 		</div>
 	{/if}
+
+	<div class="group-label">{$lang('hearth_theme_schedule')}</div>
+	<div class="field-hint">{$lang('hearth_theme_schedule_hint')}</div>
+	<div class="schedule" onchange={applySchedule}>
+		{#each schedule as draft, index (draft.key)}
+			<div class="schedule-entry">
+				<div class="schedule-head">
+					<SelectField
+						label={fill($lang('hearth_schedule_entry'), { number: index + 1 })}
+						bind:value={draft.theme}
+						options={withCurrent(
+							[
+								...themeOptions($lang, savedThemes),
+								...(draft.tokens
+									? [{ value: INLINE_TOKENS, label: $lang('hearth_schedule_tokens') }]
+									: [])
+							],
+							draft.theme,
+							$lang
+						)}
+					/>
+					<button
+						type="button"
+						class="icon-button"
+						aria-label={fill($lang('hearth_remove_schedule_entry'), { number: index + 1 })}
+						onclick={() => removeScheduleEntry(draft.key)}
+					>
+						<Icon name="delete" size={ICON.control} />
+					</button>
+				</div>
+				<div class="schedule-days">
+					<TextField
+						label={$lang('hearth_schedule_from')}
+						bind:value={draft.from}
+						placeholder="12-01"
+						error={dayError(draft.from)}
+					/>
+					<TextField
+						label={$lang('hearth_schedule_to')}
+						bind:value={draft.to}
+						placeholder="02-28"
+						error={dayError(draft.to)}
+					/>
+				</div>
+				<VisibilityField bind:value={draft.when} media={false} />
+			</div>
+		{/each}
+		<button
+			type="button"
+			class="hearth-button secondary pressable"
+			use:Ripple={PRESS_RIPPLE}
+			onclick={addScheduleEntry}
+		>
+			<Icon name="add" size={ICON.inline} />
+			{$lang('hearth_add_schedule_entry')}
+		</button>
+	</div>
 
 	<div class="group-label">{$lang('hearth_presets')}</div>
 	<div class="presets">
@@ -671,7 +812,7 @@
 			label={$lang('hearth_background_scrim')}
 			value={scrim}
 			options={withCurrent(
-				BACKGROUND_SCRIMS.map(({ value, label }) => ({ value, label: $lang(label) })),
+				SCRIM_OPTIONS.map(({ value, label }) => ({ value, label: $lang(label) })),
 				scrim,
 				$lang,
 				$lang('hearth_custom_scrim')
@@ -778,6 +919,44 @@
 	/* groups the fields for one change listener without taking a grid cell */
 	.switch-fields {
 		display: contents;
+	}
+
+	.schedule {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 10px;
+		margin-bottom: 18px;
+	}
+
+	.schedule-entry {
+		align-self: stretch;
+		padding: 12px 12px 0;
+		border-radius: var(--h-radius-xs);
+		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
+	}
+
+	.schedule-head {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.schedule-head > :global(.field) {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.schedule-days {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+	}
+
+	.schedule .hearth-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
 	}
 
 	.slots {

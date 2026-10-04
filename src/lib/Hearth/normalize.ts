@@ -9,17 +9,21 @@ import type {
 	PresenceGreeting,
 	RailPosition,
 	RailWidget,
-	ScreensaverRadar
+	ScreensaverRadar,
+	ThemeChoice,
+	ThemeScheduleEntry
 } from './types';
 import {
 	DEFAULT_HEARTH_CONFIG,
 	GREETING_MINUTES,
+	isMonthDay,
 	normalizeVisibility,
 	isTileUrl,
 	PHOTO_SECONDS,
 	RADAR_ZOOM,
 	resizeCardColumns,
-	uniqueId
+	uniqueId,
+	withoutMedia
 } from './config';
 import {
 	isRecord,
@@ -88,6 +92,47 @@ export function normalizeTheme(raw: unknown): HearthTheme | undefined {
 	);
 }
 
+function normalizeThemeChoice(raw: unknown): ThemeChoice | undefined {
+	return trimmedOrUndefined(raw) ?? normalizeTheme(raw);
+}
+
+/**
+ * Entries need a theme and a date range or conditions to hold by; one
+ * without is dropped, as is a lone from or to. Media conditions never hold
+ * here, see ThemeScheduleEntrySchema.
+ */
+function normalizeThemeSchedule(raw: unknown): ThemeScheduleEntry[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const entries = raw.filter(isRecord).flatMap((entry): ThemeScheduleEntry[] => {
+		const theme = normalizeThemeChoice(entry.theme);
+		const night = normalizeThemeChoice(entry.night);
+		const dated = isMonthDay(entry.from) && isMonthDay(entry.to);
+		const when = normalizeVisibility(entry.when);
+		const conditions = when && withoutMedia(when);
+		if (!theme || (!dated && !conditions?.length)) return [];
+		return [
+			{
+				theme,
+				...(night ? { night } : {}),
+				...(dated ? { from: entry.from as string, to: entry.to as string } : {}),
+				...(conditions?.length ? { when: conditions } : {})
+			}
+		];
+	});
+	return entries.length ? entries : undefined;
+}
+
+/**
+ * A page background the dashboard can apply, by the same rule as a theme's
+ * background_image; see themeValueIssue.
+ */
+export function pageBackgroundIssue(value: string): string | null {
+	return themeValueIssue('background_image', `url(${value})`);
+}
+
+const SCRIM_LEVELS = new Set<unknown>(['light', 'medium', 'strong']);
+const CARD_SPANS = new Set<unknown>([2, 3, 'full']);
+
 const SCREENSAVER_CLOCK_SIZES = new Set<unknown>(['small', 'medium', 'large']);
 // 'none' is the default and is stored as unset
 const SCREENSAVER_BACKGROUNDS = new Set<unknown>(['image', 'radar', 'photos', 'sun', 'media']);
@@ -138,14 +183,32 @@ function normalizeScreensaverRadar(raw: unknown): ScreensaverRadar | undefined {
  */
 export function newThemeIssues(raw: unknown): string[] {
 	if (!isRecord(raw)) return [];
-	return (['theme', 'theme_night'] as const).flatMap((slot) => {
-		const theme = raw[slot];
+	const tokenIssues = (theme: unknown, path: string) => {
 		if (!isRecord(theme)) return [];
 		return Object.entries(theme).flatMap(([key, value]) => {
 			const message = typeof value === 'string' ? themeValueIssue(key, value) : null;
-			return message ? [`${slot}.${key} ${message}`] : [];
+			return message ? [`${path}.${key} ${message}`] : [];
 		});
-	});
+	};
+	const schedule = Array.isArray(raw.theme_schedule) ? raw.theme_schedule : [];
+	const rooms = Array.isArray(raw.rooms) ? raw.rooms : [];
+	return [
+		...tokenIssues(raw.theme, 'theme'),
+		...tokenIssues(raw.theme_night, 'theme_night'),
+		...schedule.flatMap((entry, index) =>
+			isRecord(entry)
+				? [
+						...tokenIssues(entry.theme, `theme_schedule[${index}].theme`),
+						...tokenIssues(entry.night, `theme_schedule[${index}].night`)
+					]
+				: []
+		),
+		...rooms.flatMap((room, index) => {
+			const image = isRecord(room) ? room.background_image : undefined;
+			const message = typeof image === 'string' ? pageBackgroundIssue(image.trim()) : null;
+			return message ? [`rooms[${index}].background_image ${message}`] : [];
+		})
+	];
 }
 
 export function hearthConfigIssues(raw: unknown): string[] {
@@ -261,6 +324,7 @@ function normalizeCard(raw: any, fallbackId: string, taken: string[]): OverviewC
 		...(descriptor?.normalize?.(raw) ?? {}),
 		...(descriptor?.sizable ? { height: normalizeHeight(raw.height) } : {}),
 		fill: normalizeFill(raw.fill),
+		span: CARD_SPANS.has(raw.span) ? raw.span : undefined,
 		visibility: normalizeVisibility(raw.visibility)
 	} as OverviewCard;
 }
@@ -324,6 +388,11 @@ function normalizeRoomCards(
 		: cards;
 }
 
+function normalizePageBackground(raw: unknown): string | undefined {
+	const value = trimmedOrUndefined(raw);
+	return value && !pageBackgroundIssue(value) ? value : undefined;
+}
+
 /**
  * `taken` collects the ids already handed out and is mutated here: two pages
  * sharing an id would make every id-keyed lookup (nav, drag, editor targets)
@@ -348,6 +417,9 @@ function normalizeRoom(raw: any, index: number, taken: string[], takenItems: str
 		fill_screen: raw?.fill_screen === true ? true : undefined,
 		columns,
 		visibility: normalizeVisibility(raw?.visibility),
+		background_image: normalizePageBackground(raw?.background_image),
+		background_scrim: SCRIM_LEVELS.has(raw?.background_scrim) ? raw.background_scrim : undefined,
+		theme: trimmedOrUndefined(raw?.theme),
 		cards: normalizeRoomCards(raw, id, columns, takenItems)
 	};
 }
@@ -435,6 +507,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'theme',
 		'theme_night',
 		'day_night',
+		'theme_schedule',
 		'rail_position',
 		'rail',
 		'rooms',
@@ -478,6 +551,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		theme: normalizeTheme(config.theme),
 		theme_night: normalizeTheme(config.theme_night),
 		day_night: dayNight,
+		theme_schedule: normalizeThemeSchedule(config.theme_schedule),
 		rail_position: RAIL_POSITIONS.has(config.rail_position) ? config.rail_position : undefined,
 		rail,
 		rooms,

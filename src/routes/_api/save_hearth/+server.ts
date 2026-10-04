@@ -27,6 +27,11 @@ export const POST: RequestHandler = async ({ request }) => {
 	for (const slot of ['theme', 'theme_night']) {
 		if (isMapping(config[slot])) config[slot] = normalizeTheme(config[slot]);
 	}
+	for (const entry of Array.isArray(config.theme_schedule) ? config.theme_schedule : []) {
+		for (const slot of ['theme', 'night']) {
+			if (isMapping(entry) && isMapping(entry[slot])) entry[slot] = normalizeTheme(entry[slot]);
+		}
+	}
 	const revision = body.revision;
 	if (!(Number.isInteger(revision) && (revision as number) >= 0)) {
 		error(400, 'invalid revision');
