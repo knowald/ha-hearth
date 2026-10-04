@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { autofocus, finePointer } from './autofocus';
+import { finePointer } from '$lib/core/app/pointer';
+import { autofocus } from './autofocus';
 
 function input() {
 	const node = document.createElement('input');

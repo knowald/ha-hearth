@@ -271,7 +271,7 @@
 
 	.preview-note {
 		font-size: var(--h-type-secondary);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		text-align: center;
 	}
 

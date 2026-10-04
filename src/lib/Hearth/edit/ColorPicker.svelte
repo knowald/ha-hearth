@@ -263,4 +263,11 @@
 		letter-spacing: 1px;
 		text-transform: lowercase;
 	}
+
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		.hex input {
+			font-size: max(var(--h-input-floor), var(--h-type-secondary));
+		}
+	}
 </style>

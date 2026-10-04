@@ -98,8 +98,9 @@
 			content: '';
 			position: absolute;
 			top: 50%;
-			width: var(--h-touch-target);
-			height: var(--h-touch-target);
+			/* capped so a small interface scale cannot spread it over the neighbours */
+			width: min(var(--h-touch-target), 56px);
+			height: min(var(--h-touch-target), 56px);
 			transform: translateY(-50%);
 		}
 

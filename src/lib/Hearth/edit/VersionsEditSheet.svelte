@@ -285,13 +285,13 @@
 
 	.entry-sub {
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 
 	.empty {
 		padding: 14px;
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 
 	.preview {
@@ -314,7 +314,7 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 
 	.state.bad {

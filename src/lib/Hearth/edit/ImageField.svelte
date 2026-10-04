@@ -286,6 +286,13 @@
 		color: var(--h-text-6);
 	}
 
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		.input-row input[type='text'] {
+			font-size: max(var(--h-input-floor), var(--h-type-body));
+		}
+	}
+
 	.file {
 		display: none;
 	}
@@ -385,7 +392,7 @@
 	.empty {
 		padding: 10px;
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		text-align: center;
 	}
 </style>

@@ -351,7 +351,7 @@
 	@media (pointer: coarse) {
 		.input-row input,
 		.filter {
-			font-size: max(16px, var(--h-type-secondary)); /* literal ok: the iOS no-zoom floor */
+			font-size: max(var(--h-input-floor), var(--h-type-secondary));
 		}
 
 		.expand {

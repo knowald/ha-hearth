@@ -8,7 +8,8 @@
 		onchange,
 		pending = false,
 		describedby = undefined,
-		invalid = false
+		invalid = false,
+		labelledby = undefined
 	}: {
 		checked: boolean;
 		label: string;
@@ -18,6 +19,8 @@
 		/** Ids of the hint or error that explain this switch. */
 		describedby?: string;
 		invalid?: boolean;
+		/** Id of visible text that names the switch, in place of `label`. */
+		labelledby?: string;
 	} = $props();
 </script>
 
@@ -27,7 +30,8 @@
 	class="switch pressable"
 	class:on={checked}
 	class:pending
-	aria-label={label}
+	aria-label={labelledby ? undefined : label}
+	aria-labelledby={labelledby}
 	aria-checked={checked}
 	aria-describedby={describedby}
 	aria-invalid={invalid || undefined}

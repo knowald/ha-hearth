@@ -219,7 +219,7 @@ test.describe('saving', () => {
 		await sheet.getByLabel('Title').fill('Lamps');
 		await sheet.getByRole('button', { name: 'Done' }).click();
 		await page.getByRole('button', { name: 'Save', exact: true }).click();
-		await expect(page.getByText('Saved')).toBeVisible();
+		await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toHaveText('Saved');
 		await page.reload();
 		await expect(page.getByText('Lamps')).toBeVisible();
 	});
@@ -239,7 +239,7 @@ test.describe('saving', () => {
 		await expect(page.getByText('Configuration changed elsewhere')).toBeVisible();
 		await page.getByRole('button', { name: 'Overwrite' }).click();
 		await page.getByRole('alertdialog').getByRole('button', { name: 'Overwrite' }).click();
-		await expect(page.getByText('Saved')).toBeVisible();
+		await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toHaveText('Saved');
 		await page.reload();
 		await expect(page.getByText('Mine')).toBeVisible();
 	});

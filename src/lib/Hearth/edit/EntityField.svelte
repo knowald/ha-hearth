@@ -115,7 +115,7 @@
 	/* iOS Safari zooms the page into any input set under 16px */
 	@media (pointer: coarse) {
 		input {
-			font-size: max(16px, var(--h-type-secondary)); /* literal ok: the iOS no-zoom floor */
+			font-size: max(var(--h-input-floor), var(--h-type-secondary));
 		}
 	}
 

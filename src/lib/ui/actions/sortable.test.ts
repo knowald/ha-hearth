@@ -1,5 +1,7 @@
 import Sortable from 'sortablejs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { motion } from '$lib/core/app/motion';
+import { MOTION } from '$lib/core/theme';
 import { nestZoomedGhost, sortable, ZOOM_GHOST_SHELL } from './sortable';
 
 function mount(zoom: number) {
@@ -30,6 +32,15 @@ describe('sortable animation under zoom', () => {
 		const { node, instance, action } = mount(1.5);
 		expect(instance.options.animation).toBe(0);
 		Object.defineProperty(node, 'currentCSSZoom', { configurable: true, value: 1 });
+		expect(instance.options.animation).toBe(150);
+		action.destroy?.();
+	});
+
+	it('follows reduced motion switched on after mount', () => {
+		const { instance, action } = mount(1);
+		motion.set(0);
+		expect(instance.options.animation).toBe(0);
+		motion.set(MOTION.base);
 		expect(instance.options.animation).toBe(150);
 		action.destroy?.();
 	});

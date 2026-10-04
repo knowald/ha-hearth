@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 	import { lang } from '$lib/core/i18n';
-	import { finePointer } from '$lib/ui/actions/autofocus';
 	import { MAX_ALERT_SECONDS, normalizeVisibility, slugify, uniqueId } from '../config';
 	import type { AlertRule, AlertSeverity, VisibilityCondition } from '../types';
 	import { editor, hearthConfig, updateConfig } from '../store';
@@ -126,11 +125,7 @@
 	onremove={initial ? remove : undefined}
 >
 	<div class="editor-fields">
-		<TextField
-			label={$lang('hearth_title')}
-			bind:value={title}
-			autofocus={!initial && finePointer()}
-		/>
+		<TextField label={$lang('hearth_title')} bind:value={title} autofocus={!initial} />
 		<TextField label={$lang('hearth_alert_message')} bind:value={message} />
 		<SelectField
 			label={$lang('hearth_alert_severity')}

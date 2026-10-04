@@ -575,6 +575,8 @@ export const STRUCTURE_CSS = [
 	// a finger-sized target in screen pixels: the interface scale shrinks CSS
 	// pixels, so the floor grows as the zoom drops below 1
 	'--h-touch-target: max(44px, calc(44px / var(--h-zoom, 1)));',
+	// iOS Safari zooms the page into a focused input set under 16 screen pixels
+	'--h-input-floor: max(16px, calc(16px / var(--h-zoom, 1)));',
 	// surfaces drawn over artwork or photos: fixed dark scrims and light ink,
 	// independent of the theme so they read on any album cover
 	'--h-art-scrim-1: rgba(20, 14, 9, 0.55);',

@@ -50,13 +50,28 @@
 		invalid: ['hearth_config_invalid', 'hearth_config_invalid_hint']
 	};
 	let hearthErrorTitle = $derived(hearthErrorCopy[$hearthLoadErrorKind ?? 'invalid']);
+
+	// a live region only announces changes to content it already held, so the
+	// status line stays mounted and the toasts below are its visual copies
+	let announcement = $derived(
+		[
+			shownIssue &&
+				$lang(shownIssue === 'lost' ? 'hearth_connection_lost' : 'hearth_connection_degraded'),
+			$saveState === 'saved' && $lang('saved'),
+			$copyState === 'copied' && $lang('copied')
+		]
+			.filter(Boolean)
+			.join('. ')
+	);
 </script>
+
+<div class="announcer" role="status">{announcement}</div>
 
 {#if shownIssue}
 	<div
 		class="connection-toast"
 		class:degraded={shownIssue === 'degraded'}
-		role="status"
+		aria-hidden="true"
 		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
 	>
 		<Icon name={shownIssue === 'lost' ? 'cloud_off' : 'sync_problem'} size={ICON.control} />
@@ -95,7 +110,11 @@
 	</div>
 {/if}
 {#if $saveState === 'saved'}
-	<div class="save-toast" role="status" transition:fade={{ duration: $motion ? MOTION.slow : 0 }}>
+	<div
+		class="save-toast"
+		aria-hidden="true"
+		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
+	>
 		<Icon name="check_circle" size={ICON.control} />
 		{$lang('saved')}
 	</div>
@@ -105,7 +124,8 @@
 		class="save-toast"
 		class:failed={$copyState === 'failed'}
 		class:editing={$hearthEditMode}
-		role={$copyState === 'failed' ? 'alert' : 'status'}
+		role={$copyState === 'failed' ? 'alert' : undefined}
+		aria-hidden={$copyState === 'failed' ? undefined : 'true'}
 		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
 	>
 		<Icon name={$copyState === 'failed' ? 'error' : 'content_copy'} size={ICON.control} />
@@ -160,6 +180,15 @@
 {/if}
 
 <style>
+	.announcer {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
 	.connection-toast {
 		position: absolute;
 		top: calc(18px + var(--h-pad-y));

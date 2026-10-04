@@ -3,7 +3,8 @@
 	import { lang, fill } from '$lib/core/i18n';
 	import { activateOnKeyboard } from '../interaction';
 	import { states } from '$lib/core/ha/entities';
-	import { autofocus, finePointer } from '$lib/ui/actions/autofocus';
+	import { finePointer } from '$lib/core/app/pointer';
+	import { autofocus } from '$lib/ui/actions/autofocus';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from '../config';
 	import { domainIcon } from '$lib/core/domains';
@@ -60,6 +61,8 @@
 	}
 
 	function navigate(event: KeyboardEvent) {
+		// Enter that confirms an input method composition is not a pick
+		if (event.isComposing) return;
 		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
 			event.preventDefault();
 			const step = event.key === 'ArrowDown' ? 1 : -1;
@@ -120,6 +123,7 @@
 						id="{uid}-option-{index}"
 						class="row pressable"
 						class:active={index === activeIndex}
+						onpointermove={() => (active = index)}
 						use:Ripple={PRESS_RIPPLE}
 						onclick={() => pick(entry.entityId)}
 						role="option"
@@ -209,7 +213,7 @@
 	/* iOS Safari zooms the page into any input set under 16px */
 	@media (pointer: coarse) {
 		.search input {
-			font-size: max(16px, var(--h-type-body)); /* literal ok: the iOS no-zoom floor */
+			font-size: max(var(--h-input-floor), var(--h-type-body));
 		}
 	}
 
@@ -230,14 +234,11 @@
 		cursor: pointer;
 	}
 
+	/* the pointer moves the highlight too, so only one row is lit; on move
+	   rather than enter, so rows scrolling under a resting pointer keep the
+	   keyboard's choice */
 	.row.active {
 		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
-	}
-
-	@media (hover: hover) {
-		.row:hover {
-			background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
-		}
 	}
 
 	.row-icon {

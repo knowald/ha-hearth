@@ -65,9 +65,21 @@ describe('Toasts', () => {
 		'shows no connection banner while %s',
 		async (state) => {
 			await settle(state);
-			expect(screen.queryByRole('status')).toBeNull();
+			expect(screen.getByRole('status').textContent).toBe('');
+			expect(document.querySelector('.connection-toast')).toBeNull();
 		}
 	);
+
+	it('keeps one status line mounted and changes only its text, so it is announced', async () => {
+		render(Toasts);
+		const status = screen.getByRole('status');
+		expect(status.textContent).toBe('');
+		await act(() => saveState.set('saved'));
+		expect(screen.getByRole('status')).toBe(status);
+		expect(status.textContent).toBe(en.saved);
+		await act(() => saveState.set('idle'));
+		expect(status.textContent).toBe('');
+	});
 
 	it.each([
 		[
@@ -122,6 +134,8 @@ describe('Toasts', () => {
 		expect(screen.getByRole('status').textContent).toContain(en.copied);
 		await act(() => copyState.set('failed'));
 		expect(screen.getByRole('alert').textContent).toContain(en.hearth_copy_failed);
+		// the alert speaks for itself; the status line does not repeat it
+		expect(screen.getByRole('status').textContent).toBe('');
 	});
 
 	it('raises a save conflict above an open sheet, which hides the edit bar', async () => {

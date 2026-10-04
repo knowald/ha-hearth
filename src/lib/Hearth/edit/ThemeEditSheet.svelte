@@ -585,7 +585,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-label);
 		letter-spacing: 1px;
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 
 	.group-label {
@@ -673,6 +673,13 @@
 
 	.save-row input::placeholder {
 		color: var(--h-text-6);
+	}
+
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		.save-row input {
+			font-size: max(var(--h-input-floor), var(--h-type-body));
+		}
 	}
 
 	.save-row .button {

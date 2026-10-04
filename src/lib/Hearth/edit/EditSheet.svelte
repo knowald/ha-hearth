@@ -11,6 +11,7 @@
 	import type { Snippet } from 'svelte';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { lang } from '$lib/core/i18n';
+	import { finePointer } from '$lib/core/app/pointer';
 	import { PRESS_RIPPLE } from '../config';
 	import Icon from '../Icon.svelte';
 	import CloseButton from '../CloseButton.svelte';
@@ -157,12 +158,13 @@
 
 	/*
 	 * A modal sheet takes focus and keeps Tab inside. A form field that asks
-	 * for focus with data-autofocus gets it; otherwise the done button does, so
-	 * opening an editor never raises an on-screen keyboard by itself.
+	 * for focus with data-autofocus gets it under a mouse or trackpad; otherwise
+	 * the done button does, so opening an editor never raises an on-screen
+	 * keyboard by itself.
 	 */
 	function initialFocus(node: HTMLElement) {
 		return (
-			node.querySelector<HTMLElement>('[data-autofocus]') ??
+			(finePointer() ? node.querySelector<HTMLElement>('[data-autofocus]') : null) ??
 			node.querySelector<HTMLElement>('.header .primary:not(:disabled)')
 		);
 	}
@@ -358,6 +360,16 @@
 
 	.icon-button:active {
 		transform: scale(0.9);
+	}
+
+	/* the interface scale must not shrink it under a finger */
+	@media (pointer: coarse) {
+		.icon-button {
+			min-width: var(--h-touch-target);
+			min-height: var(--h-touch-target);
+			align-items: center;
+			justify-content: center;
+		}
 	}
 
 	@media (hover: hover) {

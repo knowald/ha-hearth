@@ -213,6 +213,13 @@
 		color: var(--h-text-6);
 	}
 
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		.search input {
+			font-size: max(var(--h-input-floor), var(--h-type-body));
+		}
+	}
+
 	.collapse {
 		display: grid;
 		place-items: center;
@@ -256,7 +263,7 @@
 
 	.kind-sub {
 		font-size: var(--h-type-label);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 
 	.kind.selected {
@@ -273,7 +280,7 @@
 		grid-column: 1 / -1;
 		padding: 12px;
 		font-size: var(--h-type-secondary);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		text-align: center;
 	}
 

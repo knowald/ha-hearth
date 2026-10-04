@@ -8,6 +8,7 @@
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from './config';
 	import Icon from './Icon.svelte';
+	import CheckField from './edit/CheckField.svelte';
 	import EditSheet from './edit/EditSheet.svelte';
 	import './buttons.css';
 	import { applyImport, existingPageNames, pageNameKey, type ImportMode } from './importPlan';
@@ -212,16 +213,19 @@
 				</p>
 			{/if}
 			{#if proposal.glanceables.length}
-				<label class="row glanceables">
-					<input type="checkbox" bind:checked={includeGlanceables} />
-					<span class="row-icon"><Icon name="today" size={ICON.control} /></span>
-					<span class="row-text">
-						<span class="row-name">{$lang('hearth_today_glanceables')}</span>
-						<span class="row-summary"
-							>{count(glanceableCount, 'hearth_one_suggestion', 'hearth_n_suggestions')}</span
-						>
-					</span>
-				</label>
+				<div class="row glanceables">
+					<CheckField label={$lang('hearth_today_glanceables')} bind:checked={includeGlanceables}>
+						<span class="row-content">
+							<span class="row-icon"><Icon name="today" size={ICON.control} /></span>
+							<span class="row-text">
+								<span class="row-name">{$lang('hearth_today_glanceables')}</span>
+								<span class="row-summary"
+									>{count(glanceableCount, 'hearth_one_suggestion', 'hearth_n_suggestions')}</span
+								>
+							</span>
+						</span>
+					</CheckField>
+				</div>
 			{/if}
 			{#if selectablePages.length > 1}
 				<div class="bulk">
@@ -238,14 +242,17 @@
 					{#if page.floorName && page.floorName !== selectablePages[index - 1]?.floorName}
 						<div class="floor">{page.floorName}</div>
 					{/if}
-					<label class="row">
-						<input type="checkbox" bind:checked={included[page.room.id]} />
-						<span class="row-icon"><Icon name={page.room.icon} size={ICON.control} /></span>
-						<span class="row-text">
-							<span class="row-name">{page.room.name}</span>
-							<span class="row-summary">{summarize(page)}</span>
-						</span>
-					</label>
+					<div class="row">
+						<CheckField label={page.room.name} bind:checked={included[page.room.id]}>
+							<span class="row-content">
+								<span class="row-icon"><Icon name={page.room.icon} size={ICON.control} /></span>
+								<span class="row-text">
+									<span class="row-name">{page.room.name}</span>
+									<span class="row-summary">{summarize(page)}</span>
+								</span>
+							</span>
+						</CheckField>
+					</div>
 				{:else}
 					<div class="hint">
 						{mode === 'add' && proposal.pages.length
@@ -354,24 +361,26 @@
 	}
 
 	.row {
+		padding: 2px 10px;
+		border-radius: var(--h-radius-xs);
+	}
+
+	/* the rows sit in a list; the field's own spacing is for forms */
+	.row :global(.field) {
+		margin: 0;
+	}
+
+	.row-content {
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		padding: 10px 10px;
-		border-radius: var(--h-radius-xs);
-		cursor: pointer;
+		min-width: 0;
 	}
 
 	@media (hover: hover) {
 		.row:hover {
 			background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
 		}
-	}
-
-	.row input {
-		accent-color: var(--h-accent-deep);
-		width: 16px;
-		height: 16px;
 	}
 
 	.row-icon {

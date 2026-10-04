@@ -84,7 +84,11 @@ function check(file, source, block) {
 		) {
 			fail('colour literal; use a --h-* token');
 		}
-		if (property === 'font-size' && !/^var\(--h-type-/.test(value) && value !== 'inherit') {
+		if (
+			property === 'font-size' &&
+			!/^(var|max\(var\(--h-input-floor\),\s*var)\(--h-type-/.test(value) &&
+			value !== 'inherit'
+		) {
 			fail('font size off the type scale; use var(--h-type-*)');
 		}
 		if (property === 'border-radius') {

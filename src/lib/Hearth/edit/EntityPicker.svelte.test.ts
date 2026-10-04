@@ -60,6 +60,19 @@ describe('EntityPicker keyboard', () => {
 		expect(activeOption(search)?.textContent).toContain('Desk lamp');
 	});
 
+	it('leaves an Enter that ends an input method composition alone', async () => {
+		const { onselect, search } = open();
+		await fireEvent.keyDown(search, { key: 'Enter', isComposing: true });
+		expect(onselect).not.toHaveBeenCalled();
+	});
+
+	it('moves the highlight to the row under the pointer', async () => {
+		const { search } = open();
+		await fireEvent.pointerMove(screen.getByRole('option', { name: /Fan/ }));
+		expect(activeOption(search)?.textContent).toContain('Fan');
+		expect(screen.getAllByRole('option', { selected: true })).toHaveLength(1);
+	});
+
 	it('ignores Enter when nothing matches', async () => {
 		const { onselect, search } = open();
 		await fireEvent.input(search, { target: { value: 'nothing here' } });

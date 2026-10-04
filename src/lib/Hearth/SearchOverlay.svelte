@@ -238,7 +238,7 @@
 	/* iOS Safari zooms the page into any input set under 16px */
 	@media (pointer: coarse) {
 		.search input {
-			font-size: max(16px, var(--h-type-body)); /* literal ok: the iOS no-zoom floor */
+			font-size: max(var(--h-input-floor), var(--h-type-body));
 		}
 	}
 

@@ -210,7 +210,7 @@ test('the position and a widget side survive a save and reload', async ({ page }
 	await expect(rails.nth(1).locator('[data-id="clock"]')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.getByText('Saved')).toBeVisible();
+	await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toHaveText('Saved');
 	const saved = readFileSync(HEARTH_FILE, 'utf8');
 	expect(saved).toContain('rail_position: both');
 	expect(saved).toContain('side: right');

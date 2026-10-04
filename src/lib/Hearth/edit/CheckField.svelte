@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import Switch from '../Switch.svelte';
 	import FieldMessages, { describedBy } from './FieldMessages.svelte';
 
@@ -9,13 +10,16 @@
 		checked = $bindable(false),
 		hint = undefined,
 		error = undefined,
-		onchange = undefined
+		onchange = undefined,
+		children = undefined
 	}: {
 		label: string;
 		checked?: boolean;
 		hint?: string;
 		error?: string | null;
 		onchange?: (checked: boolean) => void;
+		/** Richer content in place of the plain label text; it names the switch. */
+		children?: Snippet;
 	} = $props();
 </script>
 
@@ -25,6 +29,7 @@
 		<Switch
 			{checked}
 			{label}
+			labelledby="{uid}-label"
 			describedby={describedBy(uid, hint, error)}
 			invalid={Boolean(error)}
 			onchange={(next) => {
@@ -32,7 +37,9 @@
 				onchange?.(next);
 			}}
 		/>
-		<span class="check-label">{label}</span>
+		<span class="check-label" id="{uid}-label">
+			{#if children}{@render children()}{:else}{label}{/if}
+		</span>
 	</label>
 	<FieldMessages id={uid} {hint} {error} />
 </div>
@@ -47,7 +54,7 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		min-height: 44px;
+		min-height: var(--h-touch-target);
 		font-size: var(--h-type-body);
 		color: var(--h-text-3);
 		cursor: pointer;
