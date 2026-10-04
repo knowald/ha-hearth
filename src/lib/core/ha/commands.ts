@@ -178,13 +178,18 @@ export function socketOpen(): boolean {
 	return $health === 'connected' || $health === 'degraded';
 }
 
+/**
+ * Sends a device command. Resolves true once Home Assistant accepted it and
+ * false when it was refused or failed, which has been reported already; most
+ * callers ignore the result.
+ */
 export function service(
 	domain: string,
 	name: string,
 	data: Record<string, unknown>,
 	target?: ActionTarget
-) {
-	if (!commandsAllowed()) return;
+): Promise<boolean> {
+	if (!commandsAllowed()) return Promise.resolve(false);
 	const named = data.entity_id ?? target?.entity_id;
 	const entityId = typeof named === 'string' ? named : null;
 	const conn = get(connection);
@@ -192,12 +197,16 @@ export function service(
 	// degraded socket (one stale subscription) still carries commands
 	if (!conn || !socketOpen()) {
 		reportCommandFailure(entityId, new Error('Not connected to Home Assistant'));
-		return;
+		return Promise.resolve(false);
 	}
-	callService(conn, domain, name, data, target).catch((error) => {
-		console.error(error);
-		reportCommandFailure(entityId, error);
-	});
+	return callService(conn, domain, name, data, target).then(
+		() => true,
+		(error) => {
+			console.error(error);
+			reportCommandFailure(entityId, error);
+			return false;
+		}
+	);
 }
 
 export function callEntityService(
@@ -205,18 +214,18 @@ export function callEntityService(
 	name: string,
 	entityId: string,
 	data: Record<string, unknown> = {}
-) {
-	if (!commandsAllowed()) return;
+): Promise<boolean> {
+	if (!commandsAllowed()) return Promise.resolve(false);
 	// the one place every entity command passes, so an unavailable target is
 	// refused here rather than in each card, popup and detail sheet
 	const $states = get(states);
 	if ($states && !entityControllable($states[entityId])) {
 		const reason = $states[entityId] ? 'is unavailable' : 'is not known to Home Assistant';
 		reportCommandFailure(entityId, new Error(`${entityId} ${reason}`));
-		return;
+		return Promise.resolve(false);
 	}
 	markPending(entityId);
-	service(domain, name, { entity_id: entityId, ...data });
+	return service(domain, name, { entity_id: entityId, ...data });
 }
 
 /* configured actions */

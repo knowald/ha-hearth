@@ -19,7 +19,8 @@ const CARD_NAMES = [
 	'Scenes',
 	'Days since',
 	'Now playing',
-	'Template'
+	'Template',
+	'To-do list'
 ];
 const WIDGET_NAMES = [
 	'Clock',
@@ -49,6 +50,7 @@ const REQUIRED_VALUES: Record<string, string> = {
 	Image: 'image.floorplan',
 	Climate: 'climate.living',
 	'Days since': 'input_datetime.filter_changed',
+	'To-do list': 'todo.shopping',
 	Weather: 'weather.home',
 	'Energy today': 'sensor.energy',
 	Progress: 'sensor.printer_status',

@@ -8,6 +8,8 @@ import { WebSocketServer } from 'ws';
  * Recorder statistics, state history, calendar events, template renders and
  * weather forecasts are synthesized so data-driven widgets have something to
  * draw. Camera capabilities and WebRTC signaling are answered without media.
+ * To-do lists answer todo/item/subscribe and the todo.* services, pushing
+ * the changed list to every subscriber.
  * Test endpoints: GET /_test/calls lists received service calls,
  * GET /_test/camera lists received camera/* messages,
  * POST /_test/reset restores the initial states and clears the call log,
@@ -286,11 +288,24 @@ function initialStates() {
 			}
 		},
 		'calendar.family': { s: 'off', a: { friendly_name: 'Family' } },
+		// create, delete, update and due dates; no reordering
+		'todo.shopping': { s: '2', a: { friendly_name: 'Shopping list', supported_features: 23 } },
 		'sun.sun': { s: 'above_horizon', a: { friendly_name: 'Sun' } }
 	};
 }
 
+function initialTodoItems() {
+	return {
+		'todo.shopping': [
+			{ uid: 'milk', summary: 'Milk', status: 'needs_action' },
+			{ uid: 'bread', summary: 'Bread', status: 'needs_action', due: '2026-10-06' },
+			{ uid: 'coffee', summary: 'Coffee', status: 'completed' }
+		]
+	};
+}
+
 let states = initialStates();
+let todoItems = initialTodoItems();
 let calls = [];
 let cameraRequests = [];
 // Stream types as Home Assistant reports them through camera/capabilities; the
@@ -299,6 +314,8 @@ const cameraStreamTypes = { 'camera.front': [], 'camera.door': ['web_rtc'] };
 const entitySubscribers = new Map();
 // socket -> subscription ids of subscribe_trigger messages for HEARTH events
 const triggerSubscribers = new Map();
+// socket -> Map(subscription id -> todo entity id)
+const todoSubscribers = new Map();
 
 function now() {
 	return Math.floor(Date.now() / 1000);
@@ -320,6 +337,54 @@ function pushChange(entityId) {
 			socket.send(JSON.stringify({ id, type: 'event', event: change }));
 		}
 	}
+}
+
+function pushTodoItems(entityId) {
+	const items = todoItems[entityId] ?? [];
+	states[entityId].s = String(items.filter((item) => item.status === 'needs_action').length);
+	pushChange(entityId);
+	for (const [socket, subscriptions] of todoSubscribers) {
+		if (socket.readyState !== socket.OPEN) continue;
+		for (const [id, subscribed] of subscriptions) {
+			if (subscribed === entityId) {
+				socket.send(JSON.stringify({ id, type: 'event', event: { items } }));
+			}
+		}
+	}
+}
+
+/** Applies a todo.* service the way Home Assistant does; returns an error message or null. */
+function applyTodoService(service, data) {
+	const entityId = [].concat(data.entity_id ?? [])[0];
+	const items = todoItems[entityId];
+	if (!items) return `${entityId} is not a to-do list`;
+	const find = (key) => items.find((item) => item.uid === key || item.summary === key);
+	switch (service) {
+		case 'add_item':
+			items.push({ uid: `item-${Date.now()}`, summary: data.item, status: 'needs_action' });
+			break;
+		case 'update_item': {
+			const item = find(data.item);
+			if (!item) return `Unable to find to-do list item: ${data.item}`;
+			if (data.rename) item.summary = data.rename;
+			if (data.status) item.status = data.status;
+			break;
+		}
+		case 'remove_item': {
+			const keys = [].concat(data.item ?? []);
+			todoItems[entityId] = items.filter(
+				(item) => !keys.includes(item.uid) && !keys.includes(item.summary)
+			);
+			break;
+		}
+		case 'remove_completed_items':
+			todoItems[entityId] = items.filter((item) => item.status !== 'completed');
+			break;
+		default:
+			return null;
+	}
+	pushTodoItems(entityId);
+	return null;
 }
 
 function applyService(domain, service, data) {
@@ -602,7 +667,14 @@ function handleMessage(socket, message) {
 				switch: { turn_on: {}, turn_off: {}, toggle: {} },
 				cover: { open_cover: {}, close_cover: {}, set_cover_position: {} },
 				climate: { set_temperature: {}, set_hvac_mode: {} },
-				calendar: { get_events: {} }
+				calendar: { get_events: {} },
+				todo: {
+					add_item: {},
+					update_item: {},
+					remove_item: {},
+					remove_completed_items: {},
+					get_items: {}
+				}
 			});
 			return;
 		case 'persistent_notification/subscribe':
@@ -631,10 +703,55 @@ function handleMessage(socket, message) {
 				});
 				return;
 			}
-			applyService(domain, service, merged);
+			if (domain === 'todo' && service === 'get_items') {
+				const entityId = [].concat(merged.entity_id ?? [])[0];
+				reply({
+					context: { id: 'ctx' },
+					response: { [entityId]: { items: todoItems[entityId] ?? [] } }
+				});
+				return;
+			}
+			if (domain === 'todo') {
+				const error = applyTodoService(service, merged);
+				if (error) {
+					socket.send(
+						JSON.stringify({
+							id: message.id,
+							type: 'result',
+							success: false,
+							error: { code: 'service_validation_error', message: error }
+						})
+					);
+					return;
+				}
+			} else {
+				applyService(domain, service, merged);
+			}
 			reply({ context: { id: 'ctx', parent_id: null, user_id: null } });
 			return;
 		}
+		case 'todo/item/subscribe': {
+			if (!todoItems[message.entity_id]) {
+				socket.send(
+					JSON.stringify({
+						id: message.id,
+						type: 'result',
+						success: false,
+						error: { code: 'invalid_entity_id', message: 'To-do list entity not found' }
+					})
+				);
+				return;
+			}
+			if (!todoSubscribers.has(socket)) todoSubscribers.set(socket, new Map());
+			todoSubscribers.get(socket).set(message.id, message.entity_id);
+			reply(null);
+			event({ items: todoItems[message.entity_id] });
+			return;
+		}
+		case 'unsubscribe_events':
+			todoSubscribers.get(socket)?.delete(message.subscription);
+			reply(null);
+			return;
 		case 'config/floor_registry/list':
 			reply([{ floor_id: 'ground', name: 'Ground floor', level: 0 }]);
 			return;
@@ -792,9 +909,11 @@ const http = createServer(async (request, response) => {
 	}
 	if (request.url === '/_test/reset' && request.method === 'POST') {
 		states = initialStates();
+		todoItems = initialTodoItems();
 		calls = [];
 		cameraRequests = [];
 		for (const entityId of Object.keys(states)) pushChange(entityId);
+		for (const entityId of Object.keys(todoItems)) pushTodoItems(entityId);
 		response.end('ok');
 		return;
 	}
@@ -883,6 +1002,7 @@ wss.on('connection', (socket) => {
 	socket.on('close', () => {
 		entitySubscribers.delete(socket);
 		triggerSubscribers.delete(socket);
+		todoSubscribers.delete(socket);
 	});
 });
 

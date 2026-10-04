@@ -213,6 +213,10 @@ rooms:
           content: "**{{ states('sensor.temperature') }} C** inside"
           entities:
             - sensor.temperature
+        - id: shopping
+          type: todo
+          entity: todo.shopping
+          sort: due
   - id: devices
     name: Devices
     icon: devices

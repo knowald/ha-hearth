@@ -12,6 +12,7 @@ import { mediaCard } from './cards/media';
 import { scenesCard } from './cards/scenes';
 import { temperatureCard } from './cards/temperature';
 import { templateCard } from './cards/template';
+import { todoCard } from './cards/todo';
 import { vacuumCard } from './cards/vacuum';
 export const CARD_DEFINITIONS = [
 	cameraCard,
@@ -26,6 +27,7 @@ export const CARD_DEFINITIONS = [
 	scenesCard,
 	temperatureCard,
 	templateCard,
+	todoCard,
 	vacuumCard
 ] as const;
 import { calendarWidget } from './widgets/calendar';
