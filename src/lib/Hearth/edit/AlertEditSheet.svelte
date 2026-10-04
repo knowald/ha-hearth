@@ -134,7 +134,7 @@
 	ondone={done}
 	{dirty}
 	doneDisabled={!validity.valid}
-	doneReason={validity.reason}
+	doneReason={validity.reason ?? null}
 	onremove={initial ? remove : undefined}
 >
 	<div class="editor-fields">

@@ -660,6 +660,16 @@ function handleMessage(socket, message) {
 				}))
 			);
 			return;
+		case 'config/entity_registry/list_for_display':
+			// the compact form the entity picker reads
+			reply({
+				entity_categories: { 0: 'config', 1: 'diagnostic' },
+				entities: Object.keys(states).map((entityId) => ({
+					ei: entityId,
+					ai: entityId.includes('desk') ? 'office' : 'living'
+				}))
+			});
+			return;
 		case 'recorder/statistics_during_period': {
 			const start = Date.parse(message.start_time);
 			const end = message.end_time ? Date.parse(message.end_time) : Date.now();

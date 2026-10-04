@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/svelte';
 import { get } from 'svelte/store';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '../../../static/translations/en.json';
 import { states } from '$lib/core/ha/entities';
 import { DEFAULT_HEARTH_CONFIG } from './config';
@@ -35,6 +35,12 @@ async function editWithFallback() {
 }
 
 describe('HearthDashboard when edit mode cannot load', () => {
+	// compiles the real chunks once, outside any findBy timeout, so a cold
+	// transform under a loaded suite cannot fail a test
+	beforeAll(async () => {
+		await Promise.all([import('./shell/EditBar.svelte'), import('./edit/EditorHost.svelte')]);
+	});
+
 	beforeEach(() => {
 		vi.stubGlobal('matchMedia', () => ({
 			matches: false,
@@ -85,6 +91,8 @@ describe('HearthDashboard when edit mode cannot load', () => {
 		vi.mocked(loadEditorHost).mockImplementation(() => import('./edit/EditorHost.svelte'));
 		vi.mocked(loadEditBar).mockClear();
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_retry }));
+		await vi.mocked(loadEditorHost).mock.results.at(-1)?.value;
+		await vi.mocked(loadEditBar).mock.results.at(-1)?.value;
 		expect(await screen.findByRole('button', { name: en.save })).toBeTruthy();
 		expect(loadEditBar).toHaveBeenCalledOnce();
 		expect(screen.queryByText(en.hearth_could_not_load_component)).toBeNull();

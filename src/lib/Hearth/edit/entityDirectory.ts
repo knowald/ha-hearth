@@ -1,5 +1,7 @@
-import type { HassEntities, HassEntity } from 'home-assistant-js-websocket';
-import { fetchRegistry, type RegistrySnapshot } from '$lib/core/ha/registry';
+import type { Connection, HassEntities, HassEntity } from 'home-assistant-js-websocket';
+import { get } from 'svelte/store';
+import { connection } from '$lib/core/ha/connection';
+import { fetchDisplayRegistry, type DisplayRegistry } from '$lib/core/ha/registry';
 
 /*
  * What the entity picker knows beyond the entity states: where each entity
@@ -8,62 +10,123 @@ import { fetchRegistry, type RegistrySnapshot } from '$lib/core/ha/registry';
  */
 
 export interface EntityPlace {
+	areaId?: string;
 	area?: string;
 	device?: string;
 }
 
-export interface PickerEntry {
+/** The part of a picker row that changes only with its entity or the registry. */
+interface BaseEntry extends EntityPlace {
 	entityId: string;
 	name: string;
-	state: string;
-	area?: string;
-	device?: string;
-	recent: boolean;
+	/** false when the name is only the id again, which the row then shows once */
+	named: boolean;
+	// lowercased name, id, area and device, matched against the query
+	haystack: string;
 }
 
-let places: Promise<Map<string, EntityPlace>> | undefined;
+export interface PickerEntry extends BaseEntry {
+	recent: boolean;
+	/** Fits the requested device class; the rest sort after. */
+	fits: boolean;
+}
+
+export const REGISTRY_TIMEOUT_MS = 10_000;
+
+let cached: { conn: Connection; places: Promise<Map<string, EntityPlace>> } | undefined;
 
 /**
  * Area and device names per entity. Fetched the first time a picker opens and
- * kept for the page's life; a failed fetch is forgotten so the next picker
- * tries again.
+ * kept for the connection's life; a new connection fetches again. A failed or
+ * stalled fetch is forgotten so the next picker tries again.
  */
 export function loadEntityPlaces(): Promise<Map<string, EntityPlace>> {
-	places ??= fetchRegistry()
-		.then(placesFrom)
-		.catch((error) => {
-			places = undefined;
-			throw error;
-		});
-	return places;
+	const conn = get(connection);
+	if (!conn) return Promise.reject(new Error('Not connected to Home Assistant'));
+	if (cached?.conn === conn) return cached.places;
+	const entry = {
+		conn,
+		places: withTimeout(fetchDisplayRegistry(conn), REGISTRY_TIMEOUT_MS)
+			.then(placesFrom)
+			.catch((error) => {
+				if (cached === entry) cached = undefined;
+				throw error;
+			})
+	};
+	cached = entry;
+	return entry.places;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => reject(new Error('Registry request timed out')), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 /** Drops the cached registry, so tests start from a cold picker. */
 export function forgetEntityPlaces() {
-	places = undefined;
+	cached = undefined;
 }
 
-export function placesFrom(snapshot: RegistrySnapshot): Map<string, EntityPlace> {
-	const areas = new Map(snapshot.areas.map((area) => [area.area_id, area.name]));
-	const devices = new Map(snapshot.devices.map((device) => [device.id, device]));
+export function placesFrom(registry: DisplayRegistry): Map<string, EntityPlace> {
+	const areas = new Map(registry.areas.map((area) => [area.area_id, area.name]));
+	const devices = new Map(registry.devices.map((device) => [device.id, device]));
 	const result = new Map<string, EntityPlace>();
-	for (const entity of snapshot.entities) {
+	for (const entity of registry.entities) {
 		const device = entity.device_id ? devices.get(entity.device_id) : undefined;
 		// an entity without its own area sits where its device does
-		const areaId = entity.area_id ?? device?.area_id;
+		const areaId = entity.area_id ?? device?.area_id ?? undefined;
+		const area = areaId ? areas.get(areaId) : undefined;
 		result.set(entity.entity_id, {
-			area: (areaId && areas.get(areaId)) || undefined,
+			areaId: area ? areaId : undefined,
+			area,
 			device: device?.name_by_user || device?.name || undefined
 		});
 	}
 	return result;
 }
 
-/** The state as a person reads it: the value and its unit. */
-export function stateText(entity: HassEntity | undefined): string {
-	if (!entity) return '';
-	const unit = entity.attributes?.unit_of_measurement;
-	return unit ? `${entity.state} ${unit}` : entity.state;
+// units that mark a sensor without a device_class (a template or MQTT
+// sensor, say) as the kind a field asks for
+const CLASS_UNITS: Record<string, string[]> = {
+	temperature: ['\u00b0C', '\u00b0F', 'K'],
+	humidity: ['%']
+};
+
+export function fitsDeviceClass(entity: HassEntity | undefined, deviceClass?: string): boolean {
+	if (!deviceClass) return true;
+	const declared = entity?.attributes?.device_class;
+	if (declared) return declared === deviceClass;
+	const unit = entity?.attributes?.unit_of_measurement;
+	return typeof unit === 'string' && (CLASS_UNITS[deviceClass]?.includes(unit) ?? false);
+}
+
+/**
+ * Builds rows for one registry snapshot. States change many times a minute,
+ * but an unchanged entity keeps its object, so its row is reused rather than
+ * its name, place and search text rebuilt.
+ */
+export function entryBuilder(places?: Map<string, EntityPlace>) {
+	const built = new WeakMap<HassEntity, BaseEntry>();
+	return (entityId: string, entity: HassEntity): BaseEntry => {
+		let entry = built.get(entity);
+		if (!entry) {
+			const friendly = entity.attributes?.friendly_name;
+			const name = friendly ? String(friendly) : entityId;
+			const place = places?.get(entityId);
+			entry = {
+				entityId,
+				name,
+				named: !!friendly,
+				...place,
+				haystack: [name, entityId, place?.area ?? '', place?.device ?? ''].join('\n').toLowerCase()
+			};
+			built.set(entity, entry);
+		}
+		return entry;
+	};
 }
 
 export function entityEntries(
@@ -71,65 +134,70 @@ export function entityEntries(
 	{
 		domains = [],
 		deviceClass,
-		places,
-		recent = []
+		recent = [],
+		build = entryBuilder()
 	}: {
 		domains?: string[];
 		deviceClass?: string;
-		places?: Map<string, EntityPlace>;
 		recent?: string[];
+		build?: (entityId: string, entity: HassEntity) => BaseEntry;
 	}
 ): PickerEntry[] {
 	return Object.entries(states)
 		.filter(([entityId]) => domains.length === 0 || domains.includes(entityId.split('.')[0]))
-		.filter(([, entity]) => !deviceClass || entity.attributes?.device_class === deviceClass)
 		.map(([entityId, entity]) => ({
-			entityId,
-			name: String(entity.attributes?.friendly_name ?? entityId),
-			state: stateText(entity),
-			...places?.get(entityId),
-			recent: recent.includes(entityId)
+			...build(entityId, entity),
+			recent: recent.includes(entityId),
+			fits: fitsDeviceClass(entity, deviceClass)
 		}));
 }
 
-/** Every word of the query must appear in the name, id, area or device. */
-export function matchesQuery(entry: PickerEntry, query: string): boolean {
-	const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-	if (!words.length) return true;
-	const haystack = [entry.name, entry.entityId, entry.area ?? '', entry.device ?? '']
-		.join('\n')
-		.toLowerCase();
-	return words.every((word) => haystack.includes(word));
+export function queryWords(query: string): string[] {
+	return query.trim().toLowerCase().split(/\s+/).filter(Boolean);
 }
 
+/** Every word of the query must appear in the name, id, area or device. */
+export function matchesQuery(entry: PickerEntry, words: string[]): boolean {
+	return words.every((word) => entry.haystack.includes(word));
+}
+
+const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+
 /**
- * Sorted by name, except that with an empty query the recently picked come
- * first, newest first.
+ * Entries fitting the device class first; then, with an empty query, the
+ * recently picked, newest first; then by name.
  */
 export function orderEntries(
 	entries: PickerEntry[],
 	query: string,
 	recent: string[]
 ): PickerEntry[] {
-	const byName = (a: PickerEntry, b: PickerEntry) => a.name.localeCompare(b.name);
-	if (query.trim()) return [...entries].sort(byName);
-	const rank = (entry: PickerEntry) => recent.indexOf(entry.entityId);
-	return [
-		...entries.filter((entry) => entry.recent).sort((a, b) => rank(a) - rank(b)),
-		...entries.filter((entry) => !entry.recent).sort(byName)
-	];
+	const browsing = !query.trim();
+	const recency = (entry: PickerEntry) =>
+		browsing && entry.recent ? recent.indexOf(entry.entityId) : recent.length;
+	return [...entries].sort(
+		(a, b) =>
+			Number(b.fits) - Number(a.fits) || recency(a) - recency(b) || collator.compare(a.name, b.name)
+	);
 }
 
-/** The areas holding the most entries, busiest first. */
-export function topAreas(entries: PickerEntry[], limit = 6): string[] {
-	const counts = new Map<string, number>();
+/**
+ * The areas holding the most entries, in name order so the chips stay put
+ * while the user types.
+ */
+export function topAreas(entries: PickerEntry[], limit = 6): { id: string; name: string }[] {
+	const counts = new Map<string, { id: string; name: string; count: number }>();
 	for (const entry of entries) {
-		if (entry.area) counts.set(entry.area, (counts.get(entry.area) ?? 0) + 1);
+		if (!entry.areaId || !entry.area) continue;
+		const area = counts.get(entry.areaId) ?? { id: entry.areaId, name: entry.area, count: 0 };
+		area.count += 1;
+		counts.set(entry.areaId, area);
 	}
-	return [...counts.entries()]
-		.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+	return [...counts.values()]
+		.sort((a, b) => b.count - a.count || collator.compare(a.name, b.name))
 		.slice(0, limit)
-		.map(([area]) => area);
+		.sort((a, b) => collator.compare(a.name, b.name))
+		.map(({ id, name }) => ({ id, name }));
 }
 
 const RECENT_KEY = 'hearthRecentEntities';

@@ -376,5 +376,10 @@
 {/if}
 
 {#if pickingMany}
-	<EntityPicker multiple onselectmany={addPicked} onclose={() => (pickingMany = false)} />
+	<EntityPicker
+		multiple
+		taken={entities.map((ref) => ref.entity.trim()).filter(Boolean)}
+		onselectmany={addPicked}
+		onclose={() => (pickingMany = false)}
+	/>
 {/if}

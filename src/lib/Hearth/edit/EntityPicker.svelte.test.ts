@@ -2,12 +2,16 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
-import type { RegistrySnapshot } from '$lib/core/ha/registry';
+import type { Connection } from 'home-assistant-js-websocket';
+import { connection } from '$lib/core/ha/connection';
+import type { DisplayRegistry } from '$lib/core/ha/registry';
+import { confirmRequestedAction, dismissConfirmation, requestedConfirmation } from '../store';
+import { get } from 'svelte/store';
 import en from '../../../../static/translations/en.json';
 import { forgetEntityPlaces } from './entityDirectory';
 
-const fetchRegistry = vi.fn<() => Promise<RegistrySnapshot>>();
-vi.mock('$lib/core/ha/registry', () => ({ fetchRegistry: () => fetchRegistry() }));
+const fetchRegistry = vi.fn<() => Promise<DisplayRegistry>>();
+vi.mock('$lib/core/ha/registry', () => ({ fetchDisplayRegistry: () => fetchRegistry() }));
 
 const { default: EntityPicker } = await import('./EntityPicker.svelte');
 
@@ -27,7 +31,13 @@ beforeEach(() => {
 	localStorage.clear();
 	forgetEntityPlaces();
 	fetchRegistry.mockReset();
-	fetchRegistry.mockRejectedValue(new Error('Not connected to Home Assistant'));
+	fetchRegistry.mockRejectedValue(new Error('offline'));
+	connection.set({} as Connection);
+});
+
+afterEach(() => {
+	dismissConfirmation();
+	connection.set(undefined);
 });
 
 describe('EntityPicker keyboard', () => {
@@ -128,37 +138,19 @@ describe('EntityPicker v2', () => {
 				friendly_name: 'Humidity',
 				device_class: 'humidity',
 				unit_of_measurement: '%'
-			})
+			}),
+			'sensor.attic': hassEntity('sensor.attic', '18', { unit_of_measurement: '\u00b0C' })
 		});
 		fetchRegistry.mockResolvedValue({
-			floors: [],
 			areas: [
 				{ area_id: 'office', name: 'Office' },
 				{ area_id: 'kitchen', name: 'Kitchen' }
 			],
 			devices: [{ id: 'hub', area_id: 'kitchen', name: 'Smart hub' }],
 			entities: [
-				{
-					entity_id: 'light.desk',
-					area_id: 'office',
-					device_id: null,
-					disabled_by: null,
-					hidden_by: null
-				},
-				{
-					entity_id: 'switch.plug',
-					area_id: null,
-					device_id: 'hub',
-					disabled_by: null,
-					hidden_by: null
-				},
-				{
-					entity_id: 'light.shelf',
-					area_id: 'kitchen',
-					device_id: null,
-					disabled_by: null,
-					hidden_by: null
-				}
+				{ entity_id: 'light.desk', area_id: 'office', device_id: null },
+				{ entity_id: 'switch.plug', area_id: null, device_id: 'hub' },
+				{ entity_id: 'light.shelf', area_id: 'kitchen', device_id: null }
 			]
 		});
 	});
@@ -196,21 +188,44 @@ describe('EntityPicker v2', () => {
 			expect.stringContaining('Shelf light')
 		]);
 		await fireEvent.click(chip);
-		expect(optionNames()).toHaveLength(5);
+		expect(optionNames()).toHaveLength(6);
+	});
+
+	it('keeps the area chips in name order while typing', async () => {
+		const { search } = open();
+		await screen.findByRole('button', { name: 'Kitchen' });
+		const chips = () =>
+			Array.from(
+				screen.getByRole('group', { name: en.hearth_filter_by_area }).querySelectorAll('button'),
+				(chip) => chip.textContent?.trim()
+			);
+		expect(chips()).toEqual(['Kitchen', 'Office']);
+		await fireEvent.input(search, { target: { value: 'desk' } });
+		expect(chips()).toEqual(['Kitchen', 'Office']);
 	});
 
 	it('still searches names without a connection', async () => {
-		fetchRegistry.mockRejectedValue(new Error('Not connected to Home Assistant'));
+		connection.set(undefined);
 		const { search } = open();
 		await fireEvent.input(search, { target: { value: 'shelf' } });
 		expect(optionNames()).toEqual([expect.stringContaining('Shelf light')]);
 		expect(screen.queryByRole('group', { name: en.hearth_filter_by_area })).toBeNull();
 	});
 
-	it('limits the list to a device class and shows the state with its unit', () => {
+	it('lists a device class first, a sensor with a fitting unit included, and keeps the rest', () => {
 		open({ domains: ['sensor'], deviceClass: 'temperature' });
-		expect(optionNames()).toEqual([expect.stringContaining('Temperature')]);
-		expect(screen.getByRole('option').textContent).toContain('21.5 C');
+		expect(optionNames()).toEqual([
+			expect.stringContaining('sensor.attic'),
+			expect.stringContaining('Temperature'),
+			expect.stringContaining('Humidity')
+		]);
+		expect(optionNames()[1]).toMatch(/21\.5\s*C/);
+	});
+
+	it('shows the id once for an entity without a friendly name', () => {
+		open({ domains: ['sensor'] });
+		const attic = screen.getByRole('option', { name: /sensor\.attic/ });
+		expect(attic.textContent?.split('sensor.attic')).toHaveLength(2);
 	});
 
 	it('picks several entities and hands them over in order with one confirm', async () => {
@@ -233,6 +248,42 @@ describe('EntityPicker v2', () => {
 		expect(onselectmany).toHaveBeenCalledWith(['light.shelf', 'light.desk']);
 		expect(onselect).not.toHaveBeenCalled();
 		expect(onclose).toHaveBeenCalled();
+	});
+
+	it('confirms the picks with Ctrl or Cmd and Enter from the search', async () => {
+		const onselectmany = vi.fn();
+		const { onclose, search } = open({ multiple: true, onselectmany });
+		await fireEvent.keyDown(search, { key: 'Enter' });
+		await fireEvent.keyDown(search, { key: 'Enter', metaKey: true });
+		expect(onselectmany).toHaveBeenCalledWith(['light.desk']);
+		expect(onclose).toHaveBeenCalled();
+	});
+
+	it('asks before a close drops unconfirmed picks', async () => {
+		const { onclose } = open({ multiple: true, onselectmany: vi.fn() });
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_close }));
+		expect(onclose).toHaveBeenCalledOnce();
+		onclose.mockClear();
+
+		await fireEvent.click(screen.getByRole('option', { name: /Plug/ }));
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_close }));
+		expect(onclose).not.toHaveBeenCalled();
+		expect(get(requestedConfirmation)?.title).toBe(en.hearth_discard_sheet_title);
+		confirmRequestedAction();
+		expect(onclose).toHaveBeenCalledOnce();
+	});
+
+	it('marks entities already in the list and will not pick them again', async () => {
+		const onselectmany = vi.fn();
+		open({ multiple: true, onselectmany, taken: ['light.desk'] });
+		const desk = screen.getByRole('option', { name: /Desk lamp/ });
+		expect(desk.getAttribute('aria-disabled')).toBe('true');
+		expect(desk.textContent).toContain(en.hearth_already_added);
+		await fireEvent.click(desk);
+		expect(screen.getByRole('button', { name: en.hearth_add_picked_entities })).toHaveProperty(
+			'disabled',
+			true
+		);
 	});
 
 	it('lists recent picks first while the search is empty', async () => {

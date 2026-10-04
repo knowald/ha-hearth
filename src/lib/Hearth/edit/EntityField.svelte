@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { ICON } from '../iconSizes';
-	import { fill, lang } from '$lib/core/i18n';
+	import { fill, lang, selectedLanguage } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from '../config';
 	import Icon from '../Icon.svelte';
 	import EntityPicker from './EntityPicker.svelte';
 	import FieldMessages, { describedBy } from './FieldMessages.svelte';
-	import { stateText } from './entityDirectory';
+	import StateLogic from '$lib/ui/StateLogic.svelte';
+	import { fitsDeviceClass } from './entityDirectory';
 
 	const uid = $props.id();
 
@@ -24,7 +25,7 @@
 		label: string;
 		value?: string;
 		domains?: string[];
-		/** Narrows the suggestions and the picker, such as to temperature sensors. */
+		/** Lists fitting entities first in the suggestions and the picker, such as temperature sensors. */
 		deviceClass?: string;
 		/** Marks the label and tells assistive tech; the editor decides what blocks Done. */
 		required?: boolean;
@@ -41,9 +42,9 @@
 	let options = $derived(
 		Object.entries($states ?? {})
 			.filter(([id]) => domains.length === 0 || domains.includes(id.split('.')[0]))
-			.filter(([, entity]) => !deviceClass || entity.attributes?.device_class === deviceClass)
-			.map(([id]) => id)
-			.sort()
+			.map(([id, entity]) => ({ id, fits: fitsDeviceClass(entity, deviceClass) }))
+			.sort((a, b) => Number(b.fits) - Number(a.fits) || a.id.localeCompare(b.id))
+			.map((option) => option.id)
 	);
 
 	let entityId = $derived(value.trim());
@@ -59,11 +60,23 @@
 		if (!entityId || typing || !$states || !Object.keys($states).length) return null;
 		if (domains.length && !domains.includes(entityId.split('.')[0])) {
 			const names = domains.map((domain) => $lang(`hearth_domain_${domain}`));
-			return fill($lang('hearth_entity_wrong_domain'), { domains: names.join(', ') });
+			return fill($lang('hearth_entity_wrong_domain'), { domains: domainList(names) });
 		}
 		if (!entity) return $lang('hearth_entity_not_found');
 		return null;
 	});
+
+	// "Scene or Script" in the reader's language
+	function domainList(names: string[]): string {
+		try {
+			return new Intl.ListFormat($selectedLanguage || undefined, { type: 'disjunction' }).format(
+				names
+			);
+		} catch {
+			// a language tag the browser does not know
+			return names.join(', ');
+		}
+	}
 
 	function commit() {
 		typing = false;
@@ -107,8 +120,10 @@
 	</datalist>
 	{#if entity}
 		<span class="entity-details" id="{uid}-entity">
-			<span class="entity-name">{entity.attributes?.friendly_name ?? entityId}</span>
-			<span class="entity-state">{stateText(entity)}</span>
+			{#if entity.attributes?.friendly_name}
+				<span class="entity-name">{entity.attributes.friendly_name}</span>
+			{/if}
+			<span class="entity-state"><StateLogic entity_id={entityId} /></span>
 		</span>
 	{/if}
 	<FieldMessages id={uid} {hint} {error} {warning} />

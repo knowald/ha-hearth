@@ -112,7 +112,7 @@
 	ondone={done}
 	{dirty}
 	doneDisabled={!validity.valid}
-	doneReason={validity.reason}
+	doneReason={validity.reason ?? null}
 	onremove={id && $hearthConfig.rooms.length > 1 ? remove : undefined}
 	onmoveup={id ? () => move(-1) : undefined}
 	onmovedown={id ? () => move(1) : undefined}

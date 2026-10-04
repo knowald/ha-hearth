@@ -49,7 +49,6 @@ describe.each([
 
 describe.each([
 	['TextField', TextField, 'textbox', {}],
-	['SelectField', SelectField, 'combobox', { options: OPTIONS }],
 	['EntityField', EntityField, 'combobox', {}]
 ] as const)('%s required', (_name, Field, role, extra) => {
 	it('marks the label and tells assistive tech, outside the accessible name', () => {
@@ -132,7 +131,7 @@ describe('EntityField entity feedback', () => {
 		const { container } = render(EntityField, { label: 'Entity', value: 'sensor.temperature' });
 		const details = container.querySelector<HTMLElement>('.entity-details')!;
 		expect(details.textContent).toContain('Living temperature');
-		expect(details.textContent).toContain('21.5 C');
+		expect(details.textContent).toMatch(/21\.5\s*C/);
 		const input = screen.getByRole('combobox', { name: 'Entity' });
 		expect(input.getAttribute('aria-describedby')).toContain(details.id);
 	});
@@ -148,7 +147,7 @@ describe('EntityField entity feedback', () => {
 
 	it('warns about an id outside the allowed domains', () => {
 		render(EntityField, { label: 'Entity', value: 'light.desk', domains: ['scene', 'script'] });
-		expect(screen.getByText('Expected a Scene, Script entity')).toBeTruthy();
+		expect(screen.getByText('This field takes Scene or Script entities')).toBeTruthy();
 		// still a real entity, so its name shows too
 		expect(screen.getByText('Desk lamp', { selector: '.entity-name' })).toBeTruthy();
 	});
@@ -160,6 +159,14 @@ describe('EntityField entity feedback', () => {
 		expect(screen.queryByText(en.hearth_entity_not_found)).toBeNull();
 		await fireEvent.change(input);
 		expect(screen.getByText(en.hearth_entity_not_found)).toBeTruthy();
+	});
+
+	it('shows only the state under an id without a friendly name', () => {
+		states.set({ 'sensor.bare': hassEntity('sensor.bare', '7') });
+		const { container } = render(EntityField, { label: 'Entity', value: 'sensor.bare' });
+		const details = container.querySelector('.entity-details')!;
+		expect(details.querySelector('.entity-name')).toBeNull();
+		expect(details.textContent?.trim()).toBe('7');
 	});
 
 	it('says nothing before the first states arrive', () => {

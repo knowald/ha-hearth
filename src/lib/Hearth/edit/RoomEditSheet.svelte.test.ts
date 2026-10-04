@@ -19,7 +19,12 @@ describe('RoomEditSheet', () => {
 				friendly_name: 'Living humidity',
 				device_class: 'humidity'
 			}),
-			'sensor.power': hassEntity('sensor.power', '120', { friendly_name: 'Power' })
+			'sensor.power': hassEntity('sensor.power', '120', { friendly_name: 'Power' }),
+			// a template sensor that declares only its unit
+			'sensor.attic': hassEntity('sensor.attic', '17', {
+				friendly_name: 'Attic',
+				unit_of_measurement: '\u00b0C'
+			})
 		});
 	});
 
@@ -40,15 +45,16 @@ describe('RoomEditSheet', () => {
 	});
 
 	it.each([
-		[en.hearth_temperature_sensor, 'Living temperature'],
-		[en.hearth_humidity_sensor, 'Living humidity']
-	])('offers only matching sensors for the %s', async (label, expected) => {
+		[en.hearth_temperature_sensor, ['Attic', 'Living temperature']],
+		[en.hearth_humidity_sensor, ['Living humidity']]
+	])('lists fitting sensors first for the %s', async (label, expected) => {
 		render(RoomEditSheet, { id: null });
 		const field = screen.getByLabelText(label).closest('.field') as HTMLElement;
 		await fireEvent.click(within(field).getByRole('button', { name: en.hearth_choose_entity }));
 		const picker = screen.getByRole('dialog', { name: en.hearth_choose_entity });
 		const options = within(picker).getAllByRole('option');
-		expect(options).toHaveLength(1);
-		expect(options[0].textContent).toContain(expected);
+		// the rest stay reachable below, for a sensor that declares neither
+		expect(options).toHaveLength(4);
+		expected.forEach((name, index) => expect(options[index].textContent).toContain(name));
 	});
 });

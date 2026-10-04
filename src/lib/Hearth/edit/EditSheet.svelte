@@ -53,7 +53,11 @@
 		onback?: () => void;
 		ondone: () => void;
 		doneDisabled?: boolean;
-		/** Why Done is disabled, shown under it; only while it is. */
+		/**
+		 * Why Done is disabled, shown under it while it is. A sheet that can
+		 * block Done passes null while it does not, which keeps the line's
+		 * room so the form below never jumps.
+		 */
 		doneReason?: string | null;
 		doneLabel?: string;
 		onremove?: () => void;
@@ -215,7 +219,7 @@
 		<div
 			class="header"
 			class:handle={floats}
-			class:captioned={!!blockedReason}
+			class:captioned={doneReason !== undefined}
 			use:windowDrag={{
 				position: () => position,
 				size: () => ({ width: sheet?.offsetWidth ?? 0, height: sheet?.offsetHeight ?? 0 }),
@@ -271,7 +275,7 @@
 			</button>
 			<CloseButton onclick={close} />
 		</div>
-		{#if blockedReason}
+		{#if doneReason !== undefined}
 			<div class="done-reason">
 				<FieldMessages id="{uid}-done" warning={blockedReason} />
 			</div>
@@ -357,6 +361,8 @@
 	/* sits under the header's actions, so it reads as Done's own caption */
 	.done-reason {
 		flex: none;
+		/* one line of small text, held empty while Done is enabled */
+		min-height: calc(var(--h-type-small) * 1.4 + 10px);
 		padding: 0 28px 10px;
 		text-align: right;
 		border-bottom: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));

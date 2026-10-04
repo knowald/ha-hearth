@@ -6,16 +6,20 @@
 	import { finePointer } from '$lib/core/app/pointer';
 	import { autofocus } from '$lib/ui/actions/autofocus';
 	import Ripple from '$lib/ui/actions/ripple';
+	import StateLogic from '$lib/ui/StateLogic.svelte';
 	import { PRESS_RIPPLE } from '../config';
 	import { domainIcon } from '$lib/core/domains';
 	import Icon from '../Icon.svelte';
 	import CloseButton from '../CloseButton.svelte';
 	import { layer } from '$lib/ui/layers';
+	import { confirmDiscard } from './discard';
 	import {
 		entityEntries,
+		entryBuilder,
 		loadEntityPlaces,
 		matchesQuery,
 		orderEntries,
+		queryWords,
 		recentEntities,
 		rememberEntities,
 		topAreas,
@@ -27,15 +31,18 @@
 		domains = [],
 		deviceClass = undefined,
 		multiple = false,
+		taken = [],
 		onselect = undefined,
 		onselectmany = undefined,
 		onclose
 	}: {
 		domains?: string[];
-		/** Only entities whose device_class matches, such as temperature sensors. */
+		/** Entities of this device_class (or a fitting unit) are listed first, such as temperature sensors. */
 		deviceClass?: string;
 		/** Rows toggle instead of closing the picker, and one confirm hands over the picks in order. */
 		multiple?: boolean;
+		/** Already in the list being added to: shown as added and not pickable again. */
+		taken?: string[];
 		onselect?: (entityId: string) => void;
 		onselectmany?: (entityIds: string[]) => void;
 		onclose: () => void;
@@ -49,7 +56,7 @@
 	// the row Enter picks, moved with the arrow keys while focus stays in the search
 	let active = $state(0);
 	let listbox = $state<HTMLElement>();
-	let area = $state<string | null>(null);
+	let areaId = $state<string | null>(null);
 	let picked = $state<string[]>([]);
 	let places = $state<Map<string, EntityPlace>>();
 
@@ -58,15 +65,17 @@
 		.then((loaded) => (places = loaded))
 		.catch(() => {});
 
-	let entries = $derived(entityEntries($states ?? {}, { domains, deviceClass, places, recent }));
-	let found = $derived(entries.filter((entry) => matchesQuery(entry, query)));
-	let areas = $derived.by(() => {
-		const busiest = topAreas(found);
-		// a chosen area keeps its chip after the query has moved past it
-		return area && !busiest.includes(area) ? [area, ...busiest] : busiest;
-	});
+	let build = $derived(entryBuilder(places));
+	let entries = $derived(entityEntries($states ?? {}, { domains, deviceClass, recent, build }));
+	// from every entry rather than the matches, so the chips hold still while typing
+	let areas = $derived(topAreas(entries));
+	let words = $derived(queryWords(query));
 	let matches = $derived(
-		orderEntries(area ? found.filter((entry) => entry.area === area) : found, query, recent)
+		orderEntries(
+			entries.filter((entry) => (!areaId || entry.areaId === areaId) && matchesQuery(entry, words)),
+			query,
+			recent
+		)
 	);
 
 	let visible = $derived(matches.slice(0, MAX_ROWS));
@@ -77,6 +86,7 @@
 	});
 
 	function choose(entityId: string) {
+		if (taken.includes(entityId)) return;
 		if (multiple) {
 			picked = picked.includes(entityId)
 				? picked.filter((entry) => entry !== entityId)
@@ -95,8 +105,13 @@
 		onclose();
 	}
 
-	function toggleArea(name: string) {
-		area = area === name ? null : name;
+	// unconfirmed picks are work a stray Escape or backdrop tap must not drop
+	function close() {
+		confirmDiscard(picked.length > 0, onclose);
+	}
+
+	function toggleArea(id: string) {
+		areaId = areaId === id ? null : id;
 		active = 0;
 	}
 
@@ -107,6 +122,9 @@
 			event.preventDefault();
 			const step = event.key === 'ArrowDown' ? 1 : -1;
 			active = Math.max(0, Math.min(visible.length - 1, activeIndex + step));
+		} else if (event.key === 'Enter' && multiple && (event.ctrlKey || event.metaKey)) {
+			event.preventDefault();
+			confirm();
 		} else if (event.key === 'Enter' && visible[activeIndex]) {
 			event.preventDefault();
 			choose(visible[activeIndex].entityId);
@@ -116,10 +134,10 @@
 
 <div
 	class="overlay"
-	onclick={(event) => event.target === event.currentTarget && onclose()}
+	onclick={(event) => event.target === event.currentTarget && close()}
 	role="presentation"
 	use:layer={{
-		close: onclose,
+		close,
 		trap: true,
 		// without the search taking focus on a touch screen, the dialog itself does
 		initialFocus: (node) => (finePointer() ? null : node.querySelector<HTMLElement>('.panel'))
@@ -149,19 +167,19 @@
 				onkeydown={navigate}
 				use:autofocus
 			/>
-			<CloseButton onclick={onclose} />
+			<CloseButton onclick={close} />
 		</div>
-		{#if areas.length > 1 || area}
+		{#if areas.length > 1}
 			<div class="areas" role="group" aria-label={$lang('hearth_filter_by_area')}>
-				{#each areas as name (name)}
+				{#each areas as area (area.id)}
 					<button
 						type="button"
 						class="area-chip pressable"
-						class:active={area === name}
-						aria-pressed={area === name}
-						onclick={() => toggleArea(name)}
+						class:active={areaId === area.id}
+						aria-pressed={areaId === area.id}
+						onclick={() => toggleArea(area.id)}
 					>
-						{name}
+						{area.name}
 					</button>
 				{/each}
 			</div>
@@ -175,16 +193,19 @@
 				bind:this={listbox}
 			>
 				{#each visible as entry, index (entry.entityId)}
-					{@const chosen = picked.includes(entry.entityId)}
+					{@const added = taken.includes(entry.entityId)}
+					{@const chosen = added || picked.includes(entry.entityId)}
 					<div
 						id="{uid}-option-{index}"
 						class="row pressable"
 						class:active={index === activeIndex}
+						class:added
 						onpointermove={() => (active = index)}
 						use:Ripple={PRESS_RIPPLE}
 						onclick={() => choose(entry.entityId)}
 						role="option"
 						aria-selected={multiple ? chosen : index === activeIndex}
+						aria-disabled={added || undefined}
 						tabindex="-1"
 						onkeydown={(event) => activateOnKeyboard(event, () => choose(entry.entityId))}
 					>
@@ -194,14 +215,16 @@
 						<span class="row-text">
 							<span class="row-name">{entry.name}</span>
 							<span class="row-meta">
-								<span class="row-id">{entry.entityId}</span>
+								{#if entry.named}<span class="row-id">{entry.entityId}</span>{/if}
 								{#if entry.area}<span class="row-area">{entry.area}</span>{/if}
-								{#if entry.recent && !query.trim()}
-									<span class="row-recent">{$lang('hearth_recently_picked')}</span>
+								{#if added}
+									<span class="row-tag">{$lang('hearth_already_added')}</span>
+								{:else if entry.recent && !query.trim()}
+									<span class="row-tag">{$lang('hearth_recently_picked')}</span>
 								{/if}
 							</span>
 						</span>
-						<span class="row-state">{entry.state}</span>
+						<span class="row-state"><StateLogic entity_id={entry.entityId} /></span>
 						{#if multiple}
 							<span class="row-check" class:chosen>
 								<Icon name={chosen ? 'check_box' : 'check_box_outline_blank'} size={ICON.control} />
@@ -365,12 +388,17 @@
 	}
 
 	.row-area,
-	.row-recent {
+	.row-tag {
 		flex: none;
 	}
 
-	.row-recent {
+	.row-tag {
 		color: var(--h-accent-text);
+	}
+
+	.row.added {
+		cursor: default;
+		opacity: 0.6;
 	}
 
 	.row-check {

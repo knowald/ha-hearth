@@ -31,12 +31,16 @@ test('a climate card without an entity keeps Done disabled and says why', async 
 	// a typed id the dashboard does not know warns but does not block
 	await entity.fill('climate.attic');
 	await entity.press('Tab');
-	await expect(sheet.getByText('Entity not found, it may be unavailable')).toBeVisible();
+	await expect(
+		sheet.getByText('Home Assistant does not report this entity. It may be offline or renamed.')
+	).toBeVisible();
 	await expect(done).toBeEnabled();
 
 	await entity.fill('climate.living');
 	await entity.press('Tab');
-	await expect(sheet.getByText('Entity not found, it may be unavailable')).toBeHidden();
+	await expect(
+		sheet.getByText('Home Assistant does not report this entity. It may be offline or renamed.')
+	).toBeHidden();
 	await expect(sheet.getByText('Entity is required')).toBeHidden();
 	await done.click();
 	await expect(sheet).toBeHidden();

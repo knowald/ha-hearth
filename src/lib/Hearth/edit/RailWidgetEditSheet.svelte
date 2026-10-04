@@ -158,7 +158,9 @@
 	ondone={done}
 	{dirty}
 	doneDisabled={typeOpen || draft.valid === false}
-	doneReason={draft.valid === false ? (draft.reason ?? $lang('hearth_fix_marked_fields')) : null}
+	doneReason={!typeOpen && draft.valid === false
+		? (draft.reason ?? $lang('hearth_fix_marked_fields'))
+		: null}
 	onremove={initial ? remove : undefined}
 	onmoveup={initial ? () => move(-1) : undefined}
 	onmovedown={initial ? () => move(1) : undefined}

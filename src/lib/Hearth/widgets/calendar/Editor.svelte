@@ -19,10 +19,18 @@
 		typeof initial?.lookahead_hours === 'number' ? String(initial.lookahead_hours) : ''
 	);
 
+	let calendars = $derived(
+		entities
+			.split(',')
+			.map((entry) => entry.trim())
+			.filter(Boolean)
+	);
+	// judged on the parsed list, so a stray comma alone does not pass
 	let validity = $derived(
 		requireFields($lang('hearth_field_required'), {
 			label: $lang('hearth_calendar_entities_comma_separated'),
-			value: entities
+			value: calendars.join(','),
+			reason: $lang('hearth_calendar_entities_required')
 		})
 	);
 
@@ -30,10 +38,7 @@
 		const parsedHours = numberFromInput(lookaheadHours);
 		onchange({
 			fields: {
-				entities: entities
-					.split(',')
-					.map((entry) => entry.trim())
-					.filter(Boolean),
+				entities: calendars,
 				travel_entity: travelEntity.trim() || undefined,
 				lookahead_hours: Number.isFinite(parsedHours) && parsedHours > 0 ? parsedHours : undefined
 			},

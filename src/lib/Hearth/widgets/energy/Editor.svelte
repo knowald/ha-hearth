@@ -20,7 +20,7 @@
 
 	let validity = $derived(
 		requireFields($lang('hearth_field_required'), {
-			label: $lang('hearth_energy_sensor_today_total_or_increasing'),
+			label: $lang('hearth_energy_sensor'),
 			value: entity
 		})
 	);

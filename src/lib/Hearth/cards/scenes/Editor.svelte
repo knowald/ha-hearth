@@ -157,6 +157,7 @@
 	<EntityPicker
 		multiple
 		domains={SCENE_DOMAINS}
+		taken={scenes.map((ref) => ref.entity.trim()).filter(Boolean)}
 		onselectmany={(entityIds) => scenes.push(...entityIds.map((entityId) => blankScene(entityId)))}
 		onclose={() => (pickingMany = false)}
 	/>

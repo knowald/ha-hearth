@@ -58,6 +58,12 @@ const EDITORS: [type: string, editor: unknown, label: string, filled: Record<str
 	['iframe widget', IframeWidgetEditor, en.hearth_url, { url: 'https://example.com' }]
 ];
 
+// reasons that would read badly built from the field's long label
+const SHORT_REASONS: Record<string, string> = {
+	energy: required(en.hearth_energy_sensor),
+	calendar: en.hearth_calendar_entities_required
+};
+
 function lastDraft(editor: unknown, initial?: Record<string, unknown>) {
 	const onchange = vi.fn();
 	render(editor as Component<{ initial: unknown; onchange: typeof onchange }>, {
@@ -69,7 +75,10 @@ function lastDraft(editor: unknown, initial?: Record<string, unknown>) {
 
 describe.each(EDITORS)('%s editor', (_type, editor, label, filled) => {
 	it('blocks Done while the required field is empty and names it', () => {
-		expect(lastDraft(editor)).toMatchObject({ valid: false, reason: required(label) });
+		expect(lastDraft(editor)).toMatchObject({
+			valid: false,
+			reason: SHORT_REASONS[_type] ?? required(label)
+		});
 	});
 
 	it('lets Done through once the field is filled', () => {
@@ -81,6 +90,13 @@ describe.each(EDITORS)('%s editor', (_type, editor, label, filled) => {
 		const marked = document.querySelectorAll('.field-required');
 		expect(marked).toHaveLength(1);
 		expect(marked[0].textContent).toBe(label);
+	});
+});
+
+it('judges the calendar list once parsed, so commas alone do not count', () => {
+	expect(lastDraft(CalendarEditor, { id: 'x', entities: [' ', ''] })).toMatchObject({
+		valid: false,
+		reason: en.hearth_calendar_entities_required
 	});
 });
 

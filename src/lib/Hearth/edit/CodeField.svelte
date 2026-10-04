@@ -40,6 +40,7 @@
 			<CodeEditor.default
 				{value}
 				{label}
+				{required}
 				{placeholder}
 				type={language}
 				transitionend={false}

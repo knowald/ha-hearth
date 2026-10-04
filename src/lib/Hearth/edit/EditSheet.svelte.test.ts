@@ -101,6 +101,27 @@ describe('EditSheet done reason', () => {
 		expect(reason.classList.contains('field-warning')).toBe(true);
 	});
 
+	it('keeps the line for a sheet that can block Done, so the form does not jump', () => {
+		const { container } = render(EditSheet, {
+			title: 'Edit card',
+			children,
+			onclose: () => {},
+			ondone: () => {},
+			doneReason: null
+		});
+		expect(container.querySelector('.done-reason')).not.toBeNull();
+	});
+
+	it('draws no line for a sheet that never blocks Done', () => {
+		const { container } = render(EditSheet, {
+			title: 'Edit card',
+			children,
+			onclose: () => {},
+			ondone: () => {}
+		});
+		expect(container.querySelector('.done-reason')).toBeNull();
+	});
+
 	it('drops the reason once Done is enabled', () => {
 		renderSheet({ doneDisabled: false, doneReason: 'Entity is required' });
 		expect(screen.queryByText('Entity is required')).toBeNull();

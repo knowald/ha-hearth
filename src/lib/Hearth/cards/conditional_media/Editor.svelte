@@ -79,6 +79,7 @@
 	<EntityPicker
 		multiple
 		domains={['media_player']}
+		taken={players.map((row) => row.entity.trim()).filter(Boolean)}
 		onselectmany={(entityIds) => players.push(...entityIds.map((entity) => ({ entity })))}
 		onclose={() => (pickingMany = false)}
 	/>
