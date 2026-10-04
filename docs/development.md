@@ -43,7 +43,7 @@ Browser tests and the matrix run against a fake Home Assistant with fixture data
 Hearth offers every language Home Assistant ships. Its copy comes from two places:
 
 - `static/translations/<locale>.json` holds strings taken from Home Assistant, such as state names. `scripts/translations/generate.sh` rewrites these files from a Home Assistant install, see [its README](../scripts/translations/README.md). Do not edit them by hand.
-- `static/translations/hearth/<locale>.json` holds Hearth's own copy. `en.json` is the source; every other locale is translated from it. generate.sh never writes here.
+- `static/translations/hearth/<locale>.json` holds Hearth's own copy. `en.json` is the source; every other locale is translated from it. Every key starts with `hearth_`, so none can collide with a Home Assistant key. generate.sh never changes these files; it only adds an empty one when Home Assistant ships a new locale.
 
 The locales are the Home Assistant files present. The server merges the Home Assistant file and the Hearth file of the chosen locale, and any key a locale lacks falls back to English.
 
@@ -51,7 +51,7 @@ The locales are the Home Assistant files present. The server merges the Home Ass
 
 ### Adding or changing a string
 
-1. Add the key to `static/translations/hearth/en.json`, keeping keys sorted. `just translations-check --fix` sorts every file and drops keys English no longer has.
+1. Add the key to `static/translations/hearth/en.json`, keeping keys sorted. `just translations-check --fix` sorts every file and creates missing locale files. After removing a key from English, `just translations-check --fix --prune` also drops it from every locale and prints each key it drops; without `--prune` such keys are reported as extra.
 2. For each locale, list what it still needs, translate the values and merge them back:
 
    ```sh
@@ -60,15 +60,15 @@ The locales are the Home Assistant files present. The server merges the Home Ass
    just translations-apply de /tmp/de.json
    ```
 
-   `translations-missing` lists keys that are missing, outdated, empty or have different placeholders, each with its English text. `translations-apply` refuses the whole file if a key is unknown, a value is empty or its `{placeholders}` differ from English. Otherwise it writes the translations and their source hashes with sorted keys. Keep `{name}` placeholders as they are and translate only the text around them.
+   `translations-missing` lists keys that are missing, outdated, empty or have different placeholders, each with its English text. `translations-apply` refuses the whole file if a key is unknown, a value is empty, its `{placeholders}` differ from English or it is the same as English. Pass `--allow-identical` when words really read the same in both languages. Otherwise it writes the translations and their source hashes with sorted keys. Keep `{name}` placeholders as they are and translate only the text around them.
 
 3. Run `just translations-check` for all locales, or `just translations-check --locale de` to list every issue of one locale.
 
-The check reports missing, outdated, extra and empty keys, placeholders that differ from English, invalid JSON, unsorted keys and files without a Home Assistant locale. Text identical to English is only a warning, since some words read the same in both languages. `--warn-only` turns missing and outdated translations into warnings; every other issue still fails.
+The check reports missing, outdated, extra and empty keys, placeholders that differ from English, invalid JSON, unsorted keys, Hearth keys without the `hearth_` prefix, a missing Hearth file for a locale and files without a Home Assistant locale. Text identical to English is only a warning, since some words read the same in both languages. `--warn-only` turns missing and outdated translations and missing locale files into warnings; every other issue still fails.
 
 ### Hook and CI
 
-`just hooks` points Git at `.githooks/`, whose pre-commit hook runs `pnpm check:translations` when a commit touches translation files. Nothing installs the hook for you.
+`just hooks` points Git at `.githooks/`. Its pre-commit hook runs when a commit touches translation files or their scripts, and checks the staged versions of the translation files with the flags of `pnpm check:translations`. It needs only Node.js. Nothing installs the hook for you.
 
 CI runs `pnpm check:translations` as well. Until every locale is translated, that script passes `--warn-only`. Removing the flag from `package.json` makes missing and outdated translations fail both CI and the hook.
 
