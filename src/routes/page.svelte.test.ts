@@ -76,18 +76,18 @@ describe('boot screen', () => {
 		render(Page, { data });
 		tokenNeeded.set(true);
 		await tick();
-		expect(screen.getByRole('dialog', { name: 'Sign in' })).toBeTruthy();
-		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+		expect(await screen.findByRole('dialog', { name: 'Sign in' })).toBeTruthy();
+		await fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
 		expect(screen.queryByRole('dialog', { name: 'Sign in' })).toBeNull();
 		await fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
-		expect(screen.getByRole('dialog', { name: 'Sign in' })).toBeTruthy();
+		expect(await screen.findByRole('dialog', { name: 'Sign in' })).toBeTruthy();
 	});
 
 	it('asks to sign in instead of spinning while a token is needed', async () => {
 		const { container } = render(Page, { data });
 		tokenNeeded.set(true);
 		await tick();
-		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+		await fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
 		const status = screen.getByRole('status');
 		expect(status.textContent).toContain('Sign in required');
 		expect(status.textContent).not.toContain('Connecting');
@@ -100,7 +100,7 @@ describe('boot screen', () => {
 		});
 		tokenNeeded.set(true);
 		await tick();
-		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+		await fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
 		expect(screen.getByRole('status').textContent).toContain(
 			'Home Assistant rejected the saved token'
 		);

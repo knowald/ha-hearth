@@ -19,7 +19,6 @@
 	import { startConnection, stopConnection } from '$lib/core/ha/connection';
 	import { setCommandGate } from '$lib/core/ha/commands';
 	import { get } from 'svelte/store';
-	import TokenPrompt from '$lib/Hearth/TokenPrompt.svelte';
 	import ThemeStyle from '$lib/Hearth/shell/ThemeStyle.svelte';
 	import { normalizeHearthConfig } from '$lib/Hearth/normalize';
 	import { startScreenSettings } from '$lib/Hearth/screen';
@@ -38,6 +37,15 @@
 	let { data }: { data: PageData } = $props();
 
 	let tokenPromptOpen = $state(false);
+
+	// offline or a stale deploy: closed again, so the Sign in button retries
+	function loadTokenPrompt() {
+		return import('$lib/Hearth/TokenPrompt.svelte').catch((error) => {
+			console.warn('sign-in prompt unavailable', error);
+			tokenPromptOpen = false;
+			throw error;
+		});
+	}
 	// opens once when a token becomes necessary; the boot screen button reopens it after a dismiss
 	$effect(() => {
 		if ($tokenNeeded) tokenPromptOpen = true;
@@ -156,7 +164,14 @@
 	{/if}
 {/if}
 
-{#if tokenPromptOpen}<TokenPrompt onclose={() => (tokenPromptOpen = false)} />{/if}
+{#if tokenPromptOpen}
+	<!-- most screens never need it, and it brings the edit sheet's code along -->
+	{#await loadTokenPrompt() then TokenPrompt}
+		<TokenPrompt.default onclose={() => (tokenPromptOpen = false)} />
+	{:catch}
+		<!-- closed by loadTokenPrompt -->
+	{/await}
+{/if}
 
 <!-- modules -->
 {#if $configuration?.custom_js}

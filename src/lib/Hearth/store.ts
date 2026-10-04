@@ -4,6 +4,7 @@ import { validTimeZone } from './clock';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import { vibrate } from '$lib/core/app/haptics';
 import { holdReloads } from '$lib/core/app/reload';
+import { lang } from '$lib/core/i18n';
 import {
 	DEFAULT_HEARTH_CONFIG,
 	type AlertSeverity,
@@ -151,6 +152,21 @@ export function cancelEdit() {
 	clearSaveFeedback();
 	editor.set(null);
 	hearthEditMode.set(false);
+}
+
+/** The edit bar's Cancel: at once when nothing changed, otherwise once the user agrees to drop the edits. */
+export function requestCancelEdit() {
+	if (!hasUnsavedEdits()) {
+		cancelEdit();
+		return;
+	}
+	const text = get(lang);
+	requestConfirmation({
+		title: text('hearth_discard_edits_title'),
+		message: text('hearth_discard_edits_message'),
+		confirmLabel: text('hearth_discard'),
+		action: cancelEdit
+	});
 }
 
 /** The revision the server holds now, or undefined when it cannot say. */
