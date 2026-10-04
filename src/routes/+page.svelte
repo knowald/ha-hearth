@@ -19,7 +19,6 @@
 	import { startConnection, stopConnection } from '$lib/core/ha/connection';
 	import { setCommandGate } from '$lib/core/ha/commands';
 	import { get } from 'svelte/store';
-	import TokenPrompt from '$lib/Hearth/TokenPrompt.svelte';
 	import ThemeStyle from '$lib/Hearth/shell/ThemeStyle.svelte';
 	import { normalizeHearthConfig } from '$lib/Hearth/normalize';
 	import { startScreenSettings } from '$lib/Hearth/screen';
@@ -156,7 +155,12 @@
 	{/if}
 {/if}
 
-{#if tokenPromptOpen}<TokenPrompt onclose={() => (tokenPromptOpen = false)} />{/if}
+{#if tokenPromptOpen}
+	<!-- most screens never need it, and it brings the edit sheet's code along -->
+	{#await import('$lib/Hearth/TokenPrompt.svelte') then TokenPrompt}
+		<TokenPrompt.default onclose={() => (tokenPromptOpen = false)} />
+	{/await}
+{/if}
 
 <!-- modules -->
 {#if $configuration?.custom_js}

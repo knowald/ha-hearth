@@ -8,10 +8,8 @@
 		canRedo,
 		canUndo,
 		editor,
-		guardUnload,
 		hearthConfig,
 		hasUnsavedEdits,
-		hearthEditMode,
 		redoConfig,
 		reloadDiscardingEdits,
 		reportCopy,
@@ -22,9 +20,6 @@
 		undoConfig
 	} from '../store';
 	import Icon from '../Icon.svelte';
-	import EditToggle from './EditToggle.svelte';
-
-	let { hideEditToggle = false }: { hideEditToggle?: boolean } = $props();
 
 	// The YAML serializer pulls in js-yaml, which stays out of the eager bundle.
 	// Loading starts with the bar so the copy click does not wait on the
@@ -113,88 +108,82 @@
 	}
 </script>
 
-<svelte:window onbeforeunload={guardUnload} />
-
-{#if $hearthEditMode}
-	<div class="edit-bar" bind:this={bar}>
-		{#if $saveState === 'conflict'}
-			<span class="save-error">{$lang('hearth_config_changed')}</span>
-			<button
-				type="button"
-				class="bar-button pressable"
-				use:Ripple={PRESS_RIPPLE}
-				onclick={copySessionEdits}
-			>
-				{$lang('hearth_copy_edits')}
-			</button>
-			<button
-				type="button"
-				class="bar-button dangerous pressable"
-				use:Ripple={PRESS_RIPPLE}
-				onclick={confirmOverwrite}
-			>
-				{$lang('hearth_overwrite')}
-			</button>
-			<button
-				type="button"
-				class="bar-button pressable"
-				use:Ripple={PRESS_RIPPLE}
-				onclick={reloadAfterConflict}
-			>
-				{$lang('hearth_reload')}
-			</button>
-		{:else if $saveState === 'error'}
-			<span class="save-error">
-				{$lang('hearth_save_failed')}{#if $saveFailure}: {$saveFailure}{/if}
-			</span>
-		{/if}
+<div class="edit-bar" bind:this={bar}>
+	{#if $saveState === 'conflict'}
+		<span class="save-error">{$lang('hearth_config_changed')}</span>
 		<button
 			type="button"
-			class="bar-icon pressable"
-			aria-label={$lang('settings')}
-			onclick={() => editor.set({ kind: 'settings' })}
-		>
-			<Icon name="settings" size={ICON.control} />
-		</button>
-		<button
-			type="button"
-			class="bar-icon pressable"
-			aria-label={$lang('theme')}
-			onclick={() => editor.set({ kind: 'theme' })}
-		>
-			<Icon name="palette" size={ICON.control} />
-		</button>
-		<button
-			type="button"
-			class="bar-icon"
-			disabled={!$canUndo}
-			aria-label={$lang('undo')}
-			onclick={undoConfig}
-		>
-			<Icon name="undo" size={ICON.control} />
-		</button>
-		<button
-			type="button"
-			class="bar-icon"
-			disabled={!$canRedo}
-			aria-label={$lang('hearth_redo')}
-			onclick={redoConfig}
-		>
-			<Icon name="redo" size={ICON.control} />
-		</button>
-		<button type="button" class="bar-button pressable" use:Ripple={PRESS_RIPPLE} onclick={cancel}
-			>{$lang('cancel')}</button
-		>
-		<button
-			type="button"
-			class="bar-button primary pressable"
+			class="bar-button pressable"
 			use:Ripple={PRESS_RIPPLE}
-			onclick={() => saveWithFeedback()}>{$lang('save')}</button
+			onclick={copySessionEdits}
 		>
-	</div>
-{:else if !hideEditToggle}
-	<EditToggle />
-{/if}
+			{$lang('hearth_copy_edits')}
+		</button>
+		<button
+			type="button"
+			class="bar-button dangerous pressable"
+			use:Ripple={PRESS_RIPPLE}
+			onclick={confirmOverwrite}
+		>
+			{$lang('hearth_overwrite')}
+		</button>
+		<button
+			type="button"
+			class="bar-button pressable"
+			use:Ripple={PRESS_RIPPLE}
+			onclick={reloadAfterConflict}
+		>
+			{$lang('hearth_reload')}
+		</button>
+	{:else if $saveState === 'error'}
+		<span class="save-error">
+			{$lang('hearth_save_failed')}{#if $saveFailure}: {$saveFailure}{/if}
+		</span>
+	{/if}
+	<button
+		type="button"
+		class="bar-icon pressable"
+		aria-label={$lang('settings')}
+		onclick={() => editor.set({ kind: 'settings' })}
+	>
+		<Icon name="settings" size={ICON.control} />
+	</button>
+	<button
+		type="button"
+		class="bar-icon pressable"
+		aria-label={$lang('theme')}
+		onclick={() => editor.set({ kind: 'theme' })}
+	>
+		<Icon name="palette" size={ICON.control} />
+	</button>
+	<button
+		type="button"
+		class="bar-icon"
+		disabled={!$canUndo}
+		aria-label={$lang('undo')}
+		onclick={undoConfig}
+	>
+		<Icon name="undo" size={ICON.control} />
+	</button>
+	<button
+		type="button"
+		class="bar-icon"
+		disabled={!$canRedo}
+		aria-label={$lang('hearth_redo')}
+		onclick={redoConfig}
+	>
+		<Icon name="redo" size={ICON.control} />
+	</button>
+	<button type="button" class="bar-button pressable" use:Ripple={PRESS_RIPPLE} onclick={cancel}
+		>{$lang('cancel')}</button
+	>
+	<button
+		type="button"
+		class="bar-button primary pressable"
+		use:Ripple={PRESS_RIPPLE}
+		onclick={() => saveWithFeedback()}>{$lang('save')}</button
+	>
+</div>
 
 <style>
 	.edit-bar {

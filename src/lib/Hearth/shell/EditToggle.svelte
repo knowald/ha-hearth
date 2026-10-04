@@ -14,6 +14,7 @@
 	} from '../store';
 	import { HOLD_MS, screenSheetOpen } from '../screen';
 	import Icon from '../Icon.svelte';
+	import { preloadEditMode } from '../editLoader';
 
 	// the toggle sits at the rail's foot, so a lone right rail takes it along
 	let toggleRight = $derived(railPositionOf($hearthConfig) === 'right');
@@ -31,12 +32,13 @@
 	 * A wall tablet can keep a page open for weeks, and editing a revision that
 	 * another screen has since replaced only ends in a conflict on save. Offer
 	 * the newer one first; when the server cannot say, editing goes ahead.
-	 * Runs once the lock, if any, has been passed.
+	 * Runs once the lock, if any, has been passed. Edit mode's code loads
+	 * alongside the check, so the bar is ready when edit mode turns on.
 	 */
 	async function startEditing() {
 		if (checkingRevision) return;
 		checkingRevision = true;
-		const revision = await fetchServerRevision();
+		const [revision] = await Promise.all([fetchServerRevision(), preloadEditMode()]);
 		checkingRevision = false;
 		// the import wizard may have handed a failed save to edit mode meanwhile
 		if ($hearthEditMode) return;
@@ -108,7 +110,12 @@
 			aria-busy={checkingRevision}
 			aria-label={$lang('hearth_edit_configuration')}
 			onclick={handleClick}
-			onpointerdown={(event) => event.button === 0 && startHold()}
+			onpointerenter={preloadEditMode}
+			onfocus={preloadEditMode}
+			onpointerdown={(event) => {
+				preloadEditMode();
+				if (event.button === 0) startHold();
+			}}
 			onpointerup={endHold}
 			onpointerleave={endHold}
 			onpointercancel={endHold}
@@ -125,6 +132,8 @@
 		class="screen-toggle pressable"
 		aria-label={$lang('hearth_this_screen')}
 		title={$lang('hearth_this_screen')}
+		onpointerenter={preloadEditMode}
+		onfocus={preloadEditMode}
 		onclick={() => screenSheetOpen.set(true)}
 	>
 		<Icon name="display_settings" size={ICON.control} />

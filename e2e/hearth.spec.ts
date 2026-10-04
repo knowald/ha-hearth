@@ -132,6 +132,23 @@ test('a long press opens the light sheet and Escape closes it', async ({ page })
 	await expect(toggle).toBeHidden();
 });
 
+test('the dashboard loads without the edit bar and drag code', async ({ page }) => {
+	const scripts: string[] = [];
+	page.on('response', async (response) => {
+		if (response.url().endsWith('.js')) scripts.push(await response.text().catch(() => ''));
+	});
+	const loaded = (marker: string) => scripts.some((script) => script.includes(marker));
+	await page.reload();
+	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+	expect(loaded('hearth_copy_edits')).toBe(false);
+	expect(loaded('Sortable: Cannot mount plugin')).toBe(false);
+
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
+	await expect.poll(() => loaded('hearth_copy_edits')).toBe(true);
+	await expect.poll(() => loaded('Sortable: Cannot mount plugin')).toBe(true);
+});
+
 test('edit mode loads the card editor on demand', async ({ page }) => {
 	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
 	await page

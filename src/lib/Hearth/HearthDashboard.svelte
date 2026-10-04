@@ -5,6 +5,7 @@
 	import { THEME_PRESETS, type HearthTheme } from '$lib/core/theme';
 	import {
 		currentRoom,
+		guardUnload,
 		hearthConfig,
 		hearthEditMode,
 		hearthLoadError,
@@ -31,7 +32,7 @@
 	import RoomDetail from './RoomDetail.svelte';
 	import SearchOverlay from './SearchOverlay.svelte';
 	import ConfirmDialog from './shell/ConfirmDialog.svelte';
-	import EditBar from './shell/EditBar.svelte';
+	import EditToggle from './shell/EditToggle.svelte';
 	import Keyboard from './shell/Keyboard.svelte';
 	import PhoneNav from './shell/PhoneNav.svelte';
 	import ThemeStyle from './shell/ThemeStyle.svelte';
@@ -46,6 +47,7 @@
 	import { FOLD_QUERY, SHORT_QUERY } from './breakpoints';
 	import { layerDepth } from '$lib/ui/layers';
 	import { neighborRoom, swipeNav, type SwipeDirection } from './swipeNav';
+	import { loadEditBar, loadEditorHost } from './editLoader';
 
 	let showSearch = $state(false);
 
@@ -278,7 +280,7 @@
 	});
 </script>
 
-<svelte:window onpopstate={syncRoomParam} />
+<svelte:window onpopstate={syncRoomParam} onbeforeunload={guardUnload} />
 <Keyboard onsearch={openSearch} />
 <ThemeStyle {presetOverride} />
 
@@ -367,7 +369,7 @@
 		<!-- the edit sheets and their editors load with edit mode or the This
 		     screen sheet, not the dashboard; one boundary for both keeps the
 		     shared sheet code out of the eager chunks -->
-		{#await import('./edit/EditorHost.svelte') then EditorHost}
+		{#await loadEditorHost() then EditorHost}
 			<EditorHost.default />
 		{:catch}
 			{#if $hearthEditMode}
@@ -408,7 +410,15 @@
 	{/await}
 	<ConfirmDialog />
 	<Toasts {overflowBy} />
-	<EditBar {hideEditToggle} />
+	{#if $hearthEditMode}
+		{#await loadEditBar() then EditBar}
+			<EditBar.default />
+		{:catch}
+			<!-- the editor host above failed alike and offers the way out -->
+		{/await}
+	{:else if !hideEditToggle}
+		<EditToggle />
+	{/if}
 </section>
 
 <style>
