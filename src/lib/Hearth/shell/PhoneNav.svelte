@@ -3,7 +3,7 @@
 	import { motion } from '$lib/core/app/motion';
 	import { ICON } from '../iconSizes';
 	import { states } from '$lib/core/ha/entities';
-	import { currentRoom, hearthConfig, hearthEditMode } from '../store';
+	import { currentRoom, editor, hearthConfig, hearthEditMode } from '../store';
 	import { searchAvailable } from '../visibility';
 	import Icon from '../Icon.svelte';
 	import PhoneClock from './PhoneClock.svelte';
@@ -56,6 +56,17 @@
 				<span>{room.name}</span>
 			</button>
 		{/each}
+		{#if $hearthEditMode}
+			<!-- the only way to add a page when the rail is off or has no page list -->
+			<button
+				type="button"
+				class="page add pressable"
+				aria-label={$lang('hearth_add_page')}
+				onclick={() => editor.set({ kind: 'room', id: null })}
+			>
+				<Icon name="add" size={ICON.inline} />
+			</button>
+		{/if}
 	</div>
 	{#if hasSearch && !$hearthEditMode}
 		<button type="button" class="search pressable" aria-label={$lang('search')} onclick={onsearch}>
@@ -137,10 +148,16 @@
 		cursor: pointer;
 	}
 
-	.search {
+	.search,
+	.page.add {
 		width: 44px;
 		padding: 0;
 		justify-content: center;
+	}
+
+	.page.add {
+		border-style: dashed;
+		color: var(--h-text-5);
 	}
 
 	.page.active {

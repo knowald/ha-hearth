@@ -80,9 +80,59 @@ export function redoConfig() {
 	syncHistoryFlags();
 }
 
+/*
+ * A removal is undone from its toast rather than confirmed first. The offer
+ * holds the config the removal produced, and Undo only steps back while that
+ * is still the current one: any later change ends the offer, so the toast
+ * can never undo something other than the removal it names.
+ */
+export const UNDO_OFFER_MS = 6000;
+/** `serial` tells two offers with the same message apart, so each is announced. */
+export const undoOffer = writable<{ message: string; serial: number } | null>(null);
+let undoTarget: HearthConfig | null = null;
+let undoTimer: ReturnType<typeof setTimeout> | undefined;
+let undoSerial = 0;
+
+export function offerUndo(message: string) {
+	undoTarget = get(hearthConfig);
+	undoSerial += 1;
+	undoOffer.set({ message, serial: undoSerial });
+	resumeUndoOffer();
+}
+
+/** Holds the offer while the pointer or focus is on its toast. */
+export function pauseUndoOffer() {
+	clearTimeout(undoTimer);
+}
+
+/** Gives a held offer its full time again, so it never vanishes under a leaving pointer. */
+export function resumeUndoOffer() {
+	clearTimeout(undoTimer);
+	if (undoTarget) undoTimer = setTimeout(dismissUndoOffer, UNDO_OFFER_MS);
+}
+
+export function dismissUndoOffer() {
+	clearTimeout(undoTimer);
+	undoTarget = null;
+	undoOffer.set(null);
+}
+
+export function acceptUndoOffer() {
+	if (undoTarget && get(hearthConfig) === undoTarget) undoConfig();
+	dismissUndoOffer();
+}
+
+hearthConfig.subscribe((config) => {
+	if (undoTarget && config !== undoTarget) dismissUndoOffer();
+});
+
 /* edit mode */
 
 export const hearthEditMode = writable(false);
+
+hearthEditMode.subscribe((editing) => {
+	if (!editing) dismissUndoOffer();
+});
 
 // a reload Home Assistant asks for mid-edit would drop the draft, so it waits for Save or Cancel
 hearthEditMode.subscribe(holdReloads);
@@ -111,6 +161,11 @@ export type Editor =
 	| { kind: 'versions'; from?: Editor };
 
 export const editor = writable<Editor | null>(null);
+
+// the next editor is the next piece of work; the removal's toast is behind it
+editor.subscribe((open) => {
+	if (open) dismissUndoOffer();
+});
 
 // The dashboard previews this slot while the theme editor is open.
 export const editedThemeSlot = writable<'day' | 'night'>('day');

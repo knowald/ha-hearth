@@ -1248,5 +1248,21 @@
 	"hearth_font_serif": "Serif",
 	"hearth_font_mono": "Monospace",
 	"hearth_font_system_mono": "System monospace",
-	"hearth_font_same_as_text": "Same as text font"
+	"hearth_font_same_as_text": "Same as text font",
+	"hearth_column": "Column",
+	"hearth_column_number": "Column {number}",
+	"hearth_duplicate": "Duplicate",
+	"hearth_card_removed": "Card removed",
+	"hearth_widget_removed": "Widget removed",
+	"hearth_stack_removed": "Stack and its cards removed",
+	"hearth_stack": "Stack",
+	"hearth_remove_stack_and_cards": "Remove stack and cards",
+	"hearth_remove_stack_and_cards_title": "Remove the stack and its cards?",
+	"hearth_remove_stack_and_cards_message": "The stack and every card in it leave the draft. Unwrap keeps the cards instead.",
+	"hearth_page_copy_name": "{name} copy",
+	"hearth_unsaved_changes": "Unsaved changes",
+	"hearth_edit_hint": "Tap a card to edit it, drag the grip to move it",
+	"hearth_move_named_up": "Move {name} up",
+	"hearth_move_named_down": "Move {name} down",
+	"hearth_undo_available": "{message}. Undo is available"
 }

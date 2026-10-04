@@ -179,6 +179,23 @@ export function findOverviewItemList(
 	return undefined;
 }
 
+/**
+ * Drops the stack whose card list `cards` is, once its last card moved out:
+ * an empty stack shows nothing outside the editor.
+ */
+export function pruneEmptyStack(config: HearthConfig, cards: OverviewItem[]) {
+	if (cards.length) return;
+	for (const room of config.rooms) {
+		for (const column of room.cards ?? []) {
+			const index = column.findIndex((item) => isStack(item) && item.cards === cards);
+			if (index >= 0) {
+				column.splice(index, 1);
+				return;
+			}
+		}
+	}
+}
+
 export function findOverviewCard(
 	config: HearthConfig,
 	id: string,

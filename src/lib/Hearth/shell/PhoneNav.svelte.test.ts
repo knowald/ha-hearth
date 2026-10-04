@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/svelte';
+import { act, fireEvent, render, screen } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '../../../../static/translations/en.json';
 import { motion } from '$lib/core/app/motion';
@@ -6,7 +6,8 @@ import { selectedLanguage } from '$lib/core/i18n';
 import { states } from '$lib/core/ha/entities';
 import { MOTION } from '$lib/core/theme';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig, type RailWidget } from '../config';
-import { currentRoom, hearthConfig } from '../store';
+import { get } from 'svelte/store';
+import { currentRoom, editor, hearthConfig, hearthEditMode } from '../store';
 import PhoneNav from './PhoneNav.svelte';
 
 function configure(rail: RailWidget[], settings: Partial<HearthConfig> = {}) {
@@ -34,6 +35,20 @@ describe('PhoneNav', () => {
 		currentRoom.set('home');
 		motion.set(MOTION.base);
 		scrollIntoView.mockReset();
+	});
+
+	it('adds a page from the strip while editing', async () => {
+		configure([]);
+		render(PhoneNav, { onsearch: () => {}, always: true });
+		expect(screen.queryByRole('button', { name: en.hearth_add_page })).toBeNull();
+		await act(() => hearthEditMode.set(true));
+		try {
+			await fireEvent.click(screen.getByRole('button', { name: en.hearth_add_page }));
+			expect(get(editor)).toEqual({ kind: 'room', id: null });
+		} finally {
+			hearthEditMode.set(false);
+			editor.set(null);
+		}
 	});
 
 	it('offers search only when the search widget is shown on mobile', async () => {

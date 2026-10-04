@@ -36,6 +36,43 @@ describe('EditBar', () => {
 		vi.unstubAllGlobals();
 	});
 
+	it('marks Save while the draft holds unsaved edits and keeps it clickable', async () => {
+		renderBar();
+		const save = screen.getByRole('button', { name: en.save }) as HTMLButtonElement;
+		expect(save.getAttribute('aria-describedby')).toBeNull();
+		expect(save.querySelector('.unsaved-dot')).toBeNull();
+		updateConfig((config) => {
+			config.rooms[0].name = 'Renamed';
+		});
+		await waitFor(() => expect(save.querySelector('.unsaved-dot')).toBeTruthy());
+		const described = save.getAttribute('aria-describedby')!;
+		expect(document.getElementById(described)?.textContent).toBe(en.hearth_unsaved_changes);
+		expect(save.disabled).toBe(false);
+	});
+
+	it('shows the editing hint once per browser', async () => {
+		localStorage.removeItem('hearth-edit-hint-seen');
+		const first = renderBar();
+		expect(screen.getByText(en.hearth_edit_hint)).toBeTruthy();
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_dismiss }));
+		expect(screen.queryByText(en.hearth_edit_hint)).toBeNull();
+		first.unmount();
+		renderBar();
+		expect(screen.queryByText(en.hearth_edit_hint)).toBeNull();
+	});
+
+	it('still shows the hint when storage is blocked', () => {
+		vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+			throw new Error('blocked');
+		});
+		try {
+			renderBar();
+			expect(screen.getByText(en.hearth_edit_hint)).toBeTruthy();
+		} finally {
+			vi.restoreAllMocks();
+		}
+	});
+
 	it('leaves the area import to the settings sheet', () => {
 		renderBar();
 		expect(screen.queryByRole('button', { name: en.hearth_setup })).toBeNull();

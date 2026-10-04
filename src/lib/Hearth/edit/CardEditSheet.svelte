@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { integerFromInput } from './numbers';
-	import { lang } from '$lib/core/i18n';
+	import { fill as fillText, lang } from '$lib/core/i18n';
 	import { get } from 'svelte/store';
 	import { untrack } from 'svelte';
 	import type {
@@ -15,14 +15,21 @@
 		findOverviewCard,
 		findOverviewItemList,
 		isStack,
-		moveItem,
 		normalizeVisibility,
 		slugify,
 		takenCardIds,
 		uniqueId
 	} from '../config';
 	import { CARD_TYPES, cardDescriptor, type CardDraft } from '../cards';
-	import { editor, hearthConfig, updateConfig } from '../store';
+	import {
+		cardColumnIndex,
+		duplicateOverviewItem,
+		moveOverviewItem,
+		roomColumnCount,
+		shiftItem
+	} from '../model/layoutEdits';
+	import { editor, hearthConfig, offerUndo, updateConfig } from '../store';
+	import { confirmDiscard } from './discard';
 	import CardPreview from './CardPreview.svelte';
 	import EditSheet from './EditSheet.svelte';
 	import FormSection from './FormSection.svelte';
@@ -77,6 +84,53 @@
 		(initial?.visibility ?? []).map((condition) => ({ ...condition }))
 	);
 
+	/*
+	 * Where an existing card goes on Done: another page, another column, and
+	 * how many places it moves from where it lands. All staged, so Cancel
+	 * leaves the card where it was.
+	 */
+	const startRoom = get(hearthConfig).rooms.find((entry) => entry.id === roomId);
+	// svelte-ignore state_referenced_locally
+	const startColumn = Math.max(0, id !== null && startRoom ? cardColumnIndex(startRoom, id) : 0);
+	// svelte-ignore state_referenced_locally
+	let targetPage = $state(roomId);
+	let targetColumn = $state(String(startColumn));
+	let moveBy = $state(0);
+	let relocated = $derived(targetPage !== roomId || Number(targetColumn) !== startColumn);
+
+	let pageOptions = $derived(
+		$hearthConfig.rooms.map((entry) => ({ value: entry.id, label: entry.name || entry.id }))
+	);
+	let targetColumns = $derived.by(() => {
+		const target = $hearthConfig.rooms.find((entry) => entry.id === targetPage);
+		return target ? roomColumnCount(target) : 1;
+	});
+	let columnOptions = $derived(
+		Array.from({ length: targetColumns }, (_, index) => ({
+			value: String(index),
+			label: fillText($lang('hearth_column_number'), { number: index + 1 })
+		}))
+	);
+
+	// the card's place before the staged steps: where it is, or the end of
+	// the column it is being sent to
+	let position = $derived.by(() => {
+		if (id === null) return { index: 0, length: 1 };
+		if (!relocated) {
+			const list = findOverviewItemList($hearthConfig, id, roomId) ?? [];
+			return { index: list.findIndex((item) => item.id === id), length: list.length };
+		}
+		const target = $hearthConfig.rooms.find((entry) => entry.id === targetPage);
+		const landing = target?.cards?.[Number(targetColumn)]?.length ?? 0;
+		return { index: landing, length: landing + 1 };
+	});
+	let stagedIndex = $derived(position.index + moveBy);
+
+	function choosePage(value: string) {
+		targetColumn = String(value === roomId ? startColumn : 0);
+		moveBy = 0;
+	}
+
 	// the per-type editor reports its fields; the shell adds id, type and layout
 	let draft = $state<CardDraft<OverviewCard>>({ fields: {} as CardDraft<OverviewCard>['fields'] });
 	let editorRef = $state<{ applyPreviewReorder?: (entities: EntityRef[]) => void }>();
@@ -119,7 +173,7 @@
 	 * switch as a change.
 	 */
 	function layout() {
-		return JSON.stringify({ fill, height, visibility });
+		return JSON.stringify({ fill, height, visibility, targetPage, targetColumn, moveBy });
 	}
 	const untouchedLayout = layout();
 	let untouchedType = $state(initial?.type ?? 'entities');
@@ -147,7 +201,17 @@
 			if (id !== null) {
 				const cards = findOverviewItemList(config, id, roomId);
 				const targetIndex = cards?.findIndex((card) => card.id === id) ?? -1;
-				if (cards && targetIndex >= 0) cards[targetIndex] = buildCard(id);
+				if (!cards || targetIndex < 0) return;
+				cards[targetIndex] = buildCard(id);
+				if (relocated) moveOverviewItem(config, id, roomId, targetPage, Number(targetColumn));
+				const landed = findOverviewItemList(config, id, targetPage);
+				if (landed && moveBy) {
+					shiftItem(
+						landed,
+						landed.findIndex((card) => card.id === id),
+						moveBy
+					);
+				}
 			} else {
 				const cards = insertionList(config);
 				if (!cards) return;
@@ -165,18 +229,24 @@
 			if (cards && targetIndex >= 0) cards.splice(targetIndex, 1);
 		});
 		close();
+		offerUndo($lang('hearth_card_removed'));
 	}
 
 	function move(delta: number) {
-		updateConfig((config) => {
-			if (id === null) return;
-			const cards = findOverviewItemList(config, id, roomId);
-			if (cards)
-				moveItem(
-					cards,
-					cards.findIndex((card) => card.id === id),
-					delta
-				);
+		const next = Math.max(0, Math.min(position.length - 1, stagedIndex + delta));
+		moveBy = next - position.index;
+	}
+
+	// copies the card as saved and opens the copy, so a staged edit is dropped first
+	function duplicate() {
+		if (id === null) return;
+		const source = id;
+		confirmDiscard(dirty, () => {
+			let copyId: string | undefined;
+			updateConfig((config) => {
+				copyId = duplicateOverviewItem(config, roomId, source);
+			});
+			if (copyId) editor.set({ kind: 'card', roomId, id: copyId });
 		});
 	}
 
@@ -203,6 +273,10 @@
 	onremove={id !== null ? remove : undefined}
 	onmoveup={id !== null ? () => move(-1) : undefined}
 	onmovedown={id !== null ? () => move(1) : undefined}
+	moveUpDisabled={stagedIndex <= 0}
+	moveDownDisabled={stagedIndex >= position.length - 1}
+	onduplicate={id !== null ? duplicate : undefined}
+	confirmRemove={false}
 	wide
 >
 	<TypeGallery
@@ -247,6 +321,23 @@
 						inputmode="numeric"
 						hint={$lang(descriptor.heightHint ?? 'hearth_height_hint_fill')}
 					/>
+				{/if}
+
+				{#if id !== null}
+					<SelectField
+						label={$lang('hearth_page')}
+						bind:value={targetPage}
+						options={pageOptions}
+						onchange={choosePage}
+					/>
+					{#if targetColumns > 1}
+						<SelectField
+							label={$lang('hearth_column')}
+							bind:value={targetColumn}
+							options={columnOptions}
+							onchange={() => (moveBy = 0)}
+						/>
+					{/if}
 				{/if}
 
 				<VisibilitySection bind:value={visibility} />

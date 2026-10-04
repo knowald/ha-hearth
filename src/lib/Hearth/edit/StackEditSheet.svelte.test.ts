@@ -107,10 +107,10 @@ describe('editing a stack', () => {
 		expect(select.value).toBe('0');
 	});
 
-	it('moves up from the header and still saves the moved stack', async () => {
+	it('stages a move up from the header and saves the moved stack on Done', async () => {
 		render(StackEditSheet, { roomId: 'den', column: 0, index: 1 });
 		await fireEvent.click(screen.getByTitle(en.hearth_move_up));
-		expect(denColumn().map((item) => item.id)).toEqual(['stack', 'first']);
+		expect(denColumn().map((item) => item.id)).toEqual(['first', 'stack']);
 		await fireEvent.input(screen.getByRole('textbox', { name: en.hearth_title_optional }), {
 			target: { value: 'Lights' }
 		});

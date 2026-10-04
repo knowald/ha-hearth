@@ -5,6 +5,7 @@
 		cloneOverviewItem,
 		findOverviewItemList,
 		isStack,
+		pruneEmptyStack,
 		takenCardIds,
 		type HearthConfig,
 		type OverviewCard,
@@ -13,6 +14,7 @@
 	} from './config';
 	import { fillWeight, cardDescriptor } from './cards';
 	import { onDndReceive } from './drag';
+	import { editTap } from './editTap';
 	import { provideHearthInteractionMode } from './interaction';
 	import { editor, hearthConfig, hearthEditMode, updateConfig } from './store';
 	import AddControl from './AddControl.svelte';
@@ -66,7 +68,7 @@
 
 	// a card or stack dropped from another column/stack: move it in one
 	// config update; the source's onEnd then finds nothing to remove and
-	// no-ops. Alt-drop duplicates instead: the source keeps its item and the
+	// no-ops. A stack left empty by the move goes with it. Alt-drop duplicates instead: the source keeps its item and the
 	// target gets a clone with a fresh id.
 	function receiveCard(column: number, id: string, newIndex: number, alt: boolean) {
 		updateConfig((config) => {
@@ -83,6 +85,7 @@
 			} else {
 				const [item] = sourceList.splice(index, 1);
 				locate(config)[column].splice(newIndex, 0, item);
+				pruneEmptyStack(config, sourceList);
 			}
 		});
 	}
@@ -113,8 +116,27 @@
 			} else {
 				sourceList.splice(index, 1);
 				stack.cards.splice(newIndex, 0, source);
+				pruneEmptyStack(config, sourceList);
 			}
 		});
+	}
+
+	// a tap on a card, or on a stack around its cards, opens that one's editor
+	function openTapped(target: Element): boolean {
+		const slot = target.closest<HTMLElement>('.card-slot, .stack-slot');
+		const id = slot?.dataset.id;
+		if (!slot || !id) return false;
+		if (slot.classList.contains('card-slot')) {
+			editor.set({ kind: 'card', roomId, id });
+			return true;
+		}
+		for (const [column, items] of columns.entries()) {
+			const index = items.findIndex((item) => item.id === id);
+			if (index < 0) continue;
+			editor.set({ kind: 'stack', roomId, column, index });
+			return true;
+		}
+		return false;
 	}
 
 	function addStack(column: number) {
@@ -166,7 +188,9 @@
 	class="overview"
 	class:fill
 	class:clip={clipToHeight}
+	class:editing={$hearthEditMode}
 	style:--overview-columns={columns.length}
+	use:editTap={{ enabled: $hearthEditMode, open: openTapped }}
 >
 	{#each columns as column, columnIndex (columnIndex)}
 		<div
@@ -193,16 +217,26 @@
 						data-id={item.id}
 						data-card-type="stack"
 					>
-						{#if $hearthEditMode}
-							<EditChip
-								label={item.title?.trim()
-									? fillText($lang('hearth_edit_named'), { name: item.title.trim() })
-									: $lang('hearth_edit_stack')}
-								onedit={() => editor.set({ kind: 'stack', column: columnIndex, index, roomId })}
-							/>
-						{/if}
-						{#if item.title}
-							<div class="group-label">{item.title}</div>
+						<!-- while editing the row holds the stack's chip after the title, so
+						     it never sits on a card or the title; an untitled stack gets
+						     the row only then -->
+						{#if item.title || $hearthEditMode}
+							<div class="group-label" class:untitled={!item.title}>
+								<span class="group-title">
+									{item.title ?? ''}
+									{#if $hearthEditMode}
+										<EditChip
+											label={item.title?.trim()
+												? fillText($lang('hearth_edit_named'), { name: item.title.trim() })
+												: $lang('hearth_edit_stack')}
+											kind={$lang('hearth_stack')}
+											after
+											onedit={() =>
+												editor.set({ kind: 'stack', column: columnIndex, index, roomId })}
+										/>
+									{/if}
+								</span>
+							</div>
 						{/if}
 						<div
 							class="stack"
@@ -388,6 +422,36 @@
 
 	.stack-slot {
 		position: relative;
+	}
+
+	/* a stack draws no frame of its own; while editing it gets one, so it
+	   reads as the container its chip edits. The outline takes no layout. */
+	.overview.editing .stack-slot {
+		outline: 1px dashed rgb(var(--h-accent-rgb) / calc(0.35 * var(--h-accent-scale)));
+		outline-offset: 8px;
+		border-radius: var(--h-radius-md);
+	}
+
+	.overview.editing .card-slot,
+	.overview.editing .stack-slot {
+		cursor: pointer;
+	}
+
+	/* a tap inside embedded content never reaches the page, so while editing
+	   it falls through to the card and opens its editor */
+	.overview.editing :global(:is(iframe, video, object, embed)) {
+		pointer-events: none;
+	}
+
+	/* the chip's anchor: it rides just past the end of the title */
+	.group-title {
+		position: relative;
+		display: inline-block;
+	}
+
+	/* the chip's height, so an untitled stack's row does not crop it */
+	.group-label.untitled .group-title {
+		height: 20px;
 	}
 
 	.group-label {

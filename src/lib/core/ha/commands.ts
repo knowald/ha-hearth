@@ -30,6 +30,8 @@ export const controlOverrides = writable<Record<string, number>>({});
 const overrideTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
 export function setControlOverride(key: string, value: number, ttl = 2000) {
+	// no command leaves, so nothing should look as if one had
+	if (!commandsAllowed()) return;
 	clearTimeout(overrideTimers[key]);
 	controlOverrides.update((current) => ({ ...current, [key]: value }));
 	overrideTimers[key] = setTimeout(() => {

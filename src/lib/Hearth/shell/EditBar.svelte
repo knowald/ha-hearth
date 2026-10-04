@@ -20,6 +20,7 @@
 		undoConfig
 	} from '../store';
 	import Icon from '../Icon.svelte';
+	import { onMount } from 'svelte';
 
 	// The YAML serializer pulls in js-yaml, which stays out of the eager bundle.
 	// Loading starts with the bar so the copy click does not wait on the
@@ -82,6 +83,52 @@
 		return () => {
 			observer.disconnect();
 			host.style.removeProperty('--h-edit-bar-height');
+		};
+	});
+
+	// hasUnsavedEdits reads stores it does not subscribe to; the draft and the
+	// save outcome are what change its answer, so the check reruns on those
+	const unsavedId = $props.id();
+	let unsaved = $derived.by(() => {
+		void $hearthConfig;
+		void $saveState;
+		return hasUnsavedEdits();
+	});
+
+	/*
+	 * The first edit session on a browser says how editing works. Seen once
+	 * it stays away; a browser that blocks storage just shows it each time.
+	 */
+	const HINT_SEEN_KEY = 'hearth-edit-hint-seen';
+	let showHint = $state(false);
+
+	function hintSeen(): boolean {
+		try {
+			return localStorage.getItem(HINT_SEEN_KEY) === '1';
+		} catch {
+			return false;
+		}
+	}
+
+	function dismissHint() {
+		showHint = false;
+		try {
+			localStorage.setItem(HINT_SEEN_KEY, '1');
+		} catch {
+			// nothing to remember it in
+		}
+	}
+
+	// opening any editor is the hint followed, and it would sit over the toasts after
+	$effect(() => {
+		if ($editor && showHint) dismissHint();
+	});
+
+	onMount(() => {
+		showHint = !hintSeen();
+		// leaving edit mode counts as having seen it
+		return () => {
+			if (showHint) dismissHint();
 		};
 	});
 
@@ -171,9 +218,30 @@
 		type="button"
 		class="bar-button primary pressable"
 		use:Ripple={PRESS_RIPPLE}
-		onclick={() => saveWithFeedback()}>{$lang('save')}</button
+		aria-describedby={unsaved ? unsavedId : undefined}
+		onclick={() => saveWithFeedback()}
 	>
+		{$lang('save')}
+		{#if unsaved}<span class="unsaved-dot" aria-hidden="true"></span>{/if}
+	</button>
+	<!-- a description rather than part of the name, so Save keeps its name -->
+	{#if unsaved}<span class="unsaved-text" id={unsavedId}>{$lang('hearth_unsaved_changes')}</span
+		>{/if}
 </div>
+{#if showHint}
+	<div class="edit-hint" role="note">
+		<Icon name="touch_app" size={ICON.control} />
+		<span>{$lang('hearth_edit_hint')}</span>
+		<button
+			type="button"
+			class="hint-dismiss"
+			aria-label={$lang('hearth_dismiss')}
+			onclick={dismissHint}
+		>
+			<Icon name="close" size={ICON.inline} />
+		</button>
+	</div>
+{/if}
 
 <style>
 	.edit-bar {
@@ -233,6 +301,62 @@
 		color: var(--h-on-accent);
 	}
 
+	.bar-button.primary {
+		position: relative;
+	}
+
+	.unsaved-dot {
+		position: absolute;
+		top: -4px;
+		right: -4px;
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		background: var(--h-on-accent);
+		border: 2px solid var(--h-accent-deep);
+	}
+
+	/* the dot says it to the eye; this says it to assistive technology */
+	.unsaved-text {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.edit-hint {
+		position: absolute;
+		bottom: calc(
+			18px + var(--h-pad-y) + var(--h-safe-bottom) + var(--h-edit-bar-height, 60px) + 12px
+		); /* literal ok: fallback until the bar is measured */
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: var(--h-layer-toast);
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: max-content;
+		max-width: calc(100 * var(--h-vw) - 32px);
+		padding: 10px 10px 10px 16px;
+		border-radius: var(--h-radius-md);
+		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
+		border: 1px solid rgb(var(--h-accent-rgb) / calc(0.35 * var(--h-accent-scale)));
+		box-shadow: var(--h-shadow-toast);
+		color: var(--h-text-2);
+		font-size: var(--h-type-body);
+	}
+
+	.hint-dismiss {
+		display: inline-flex;
+		padding: 6px;
+		border: 0;
+		background: none;
+		color: var(--h-icon);
+		cursor: pointer;
+	}
+
 	.bar-button.dangerous {
 		color: var(--h-bad-text);
 		border-color: rgb(var(--h-bad-rgb) / calc(0.35 * var(--h-accent-scale)));
@@ -252,6 +376,12 @@
 
 		.bar-button {
 			padding: 10px 14px;
+		}
+
+		.edit-hint {
+			bottom: calc(
+				8px + var(--h-safe-bottom) + var(--h-edit-bar-height, 60px) + 12px
+			); /* literal ok: fallback until the bar is measured */
 		}
 	}
 </style>

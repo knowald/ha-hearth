@@ -25,6 +25,26 @@ describe('SettingsEditSheet', () => {
 		zoom.zoomSupported = false;
 	});
 
+	it('lists the pages to reorder, open and add, whatever the rail shows', async () => {
+		const config = structuredClone(DEFAULT_HEARTH_CONFIG);
+		config.rail_position = 'none';
+		config.rooms.push({ id: 'kitchen', name: 'Kitchen', icon: 'kitchen', cards: [[]] });
+		hearthConfig.set(config);
+		render(SettingsEditSheet);
+		const up = (name: string) =>
+			screen.getByRole('button', {
+				name: fill(en.hearth_move_named_up, { name })
+			}) as HTMLButtonElement;
+		expect(up('Home').disabled).toBe(true);
+		await fireEvent.click(up('Kitchen'));
+		expect(get(hearthConfig).rooms.map((room) => room.id)).toEqual(['kitchen', 'home']);
+
+		await fireEvent.click(screen.getByRole('button', { name: /^Kitchen$/ }));
+		expect(get(editor)).toEqual({ kind: 'room', id: 'kitchen' });
+		await fireEvent.click(screen.getByRole('button', { name: new RegExp(en.hearth_add_page) }));
+		expect(get(editor)).toEqual({ kind: 'room', id: null });
+	});
+
 	it('groups the rows into sections that say where each one is kept', () => {
 		const { container } = render(SettingsEditSheet);
 		const titles = [...container.querySelectorAll('.section-title')].map(

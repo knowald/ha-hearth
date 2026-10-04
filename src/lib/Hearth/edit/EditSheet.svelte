@@ -38,8 +38,13 @@
 		onremove,
 		removeLabel = undefined,
 		removeTone = 'danger',
+		confirmRemove = true,
+		onduplicate,
+		actions,
 		onmoveup,
 		onmovedown,
+		moveUpDisabled = false,
+		moveDownDisabled = false,
 		wide = false,
 		split = false,
 		floating = false,
@@ -64,8 +69,16 @@
 		removeLabel?: string;
 		/** A neutral remove action (one that destroys nothing) runs without asking. */
 		removeTone?: 'danger' | 'neutral';
+		/** False removes at once; the caller offers an undo instead (see offerUndo). */
+		confirmRemove?: boolean;
+		onduplicate?: () => void;
+		/** More buttons for the footer, after Duplicate. */
+		actions?: Snippet;
 		onmoveup?: () => void;
 		onmovedown?: () => void;
+		/** The item already sits first or last where it will land. */
+		moveUpDisabled?: boolean;
+		moveDownDisabled?: boolean;
 		wide?: boolean;
 		split?: boolean;
 		/** Drop the modal backdrop and let the sheet be dragged over the page. */
@@ -183,7 +196,7 @@
 	}
 
 	function handleRemove() {
-		if (removeTone === 'neutral') {
+		if (removeTone === 'neutral' || !confirmRemove) {
 			onremove?.();
 			return;
 		}
@@ -245,6 +258,7 @@
 							class="icon-button"
 							title={$lang('hearth_move_up')}
 							aria-label={$lang('hearth_move_up')}
+							disabled={moveUpDisabled}
 							onclick={onmoveup}
 						>
 							<Icon name="arrow_upward" size={ICON.control} />
@@ -256,6 +270,7 @@
 							class="icon-button"
 							title={$lang('hearth_move_down')}
 							aria-label={$lang('hearth_move_down')}
+							disabled={moveDownDisabled}
 							onclick={onmovedown}
 						>
 							<Icon name="arrow_downward" size={ICON.control} />
@@ -289,18 +304,31 @@
 				<ScrollEdge edge="bottom" size={72} active={bodyCut.bottom} />
 			{/if}
 		</div>
-		{#if onremove}
+		{#if onremove || onduplicate || actions}
 			<div class="footer">
-				<button
-					type="button"
-					class="hearth-button pressable"
-					class:danger={removeTone === 'danger'}
-					class:secondary={removeTone === 'neutral'}
-					use:Ripple={PRESS_RIPPLE}
-					onclick={handleRemove}
-				>
-					{removeLabel ?? $lang('remove')}
-				</button>
+				{#if onremove}
+					<button
+						type="button"
+						class="hearth-button pressable"
+						class:danger={removeTone === 'danger'}
+						class:secondary={removeTone === 'neutral'}
+						use:Ripple={PRESS_RIPPLE}
+						onclick={handleRemove}
+					>
+						{removeLabel ?? $lang('remove')}
+					</button>
+				{/if}
+				{@render actions?.()}
+				{#if onduplicate}
+					<button
+						type="button"
+						class="hearth-button secondary pressable duplicate"
+						use:Ripple={PRESS_RIPPLE}
+						onclick={onduplicate}
+					>
+						{$lang('hearth_duplicate')}
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -401,8 +429,13 @@
 		font: inherit;
 	}
 
-	.icon-button:active {
+	.icon-button:active:not(:disabled) {
 		transform: scale(0.9);
+	}
+
+	.icon-button:disabled {
+		color: var(--h-icon-dim);
+		cursor: default;
 	}
 
 	/* the interface scale must not shrink it under a finger */
@@ -416,7 +449,7 @@
 	}
 
 	@media (hover: hover) {
-		.icon-button:hover {
+		.icon-button:hover:not(:disabled) {
 			color: var(--h-text-3);
 		}
 	}
@@ -481,10 +514,16 @@
 
 	.footer {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
+		gap: 10px;
 		padding: 14px 28px 18px;
 		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
 		flex: none;
+	}
+
+	.footer .duplicate {
+		margin-left: auto;
 	}
 
 	/* the page keeps the pointer; only the window itself takes it back */
