@@ -31,6 +31,7 @@
 		open = $bindable(false),
 		onselect,
 		onpaste,
+		pasteCheck,
 		pasteHint = ''
 	}: {
 		kinds: readonly Kind[];
@@ -43,6 +44,8 @@
 		onselect: (type: string) => void;
 		/** Adds what was pasted as YAML, or returns why it cannot; no Paste YAML without it. */
 		onpaste?: (text: string) => string | null;
+		/** Why pasted text cannot be added, checked as it arrives; null when it can. */
+		pasteCheck?: (text: string) => string | null;
 		pasteHint?: string;
 	} = $props();
 
@@ -76,6 +79,7 @@
 					label={$lang('hearth_yaml_to_add')}
 					hint={pasteHint}
 					submitLabel={$lang('add')}
+					check={pasteCheck}
 					onsubmit={onpaste}
 					oncancel={() => (pasting = false)}
 				/>

@@ -324,7 +324,7 @@ The card offers only what the list's integration supports: no add field on a lis
 
 ## Sharing cards and themes
 
-The card and widget sheets have a Form and a YAML view. YAML shows the item as it is saved, id included, and takes every option, also ones the form has no field for, such as `verdict` bands on an entity or a temperature card. It is checked like `hearth.yaml`: while it has an issue, Done and the way back to the form stay disabled and the issue names the line. The id of an existing item cannot change here.
+The card and widget sheets have a Form and a YAML view. YAML shows the item as it is saved, id included, and takes every option, also ones the form has no field for, such as `verdict` bands on an entity or a temperature card. It is checked like `hearth.yaml`: while it has an issue, Done and the way back to the form stay disabled and the issue names the line. The id of an existing item cannot change here. Comments are not kept, and anchors, aliases (`*name`) and merge keys (`<<`) are refused; write the values out.
 
 Copy as YAML, in the sheet's footer, puts the item on the clipboard. Add card and Add widget take it back under Paste YAML: one item, or a list of them, each with a new id. A Lovelace card pastes only where it is already a valid Hearth card; nothing is converted. Over plain HTTP on the LAN the browser keeps the clipboard from Hearth, so Copy shows the text selected for copying by hand, and Paste takes text pasted into its box.
 
@@ -342,7 +342,7 @@ Copy as YAML, in the sheet's footer, puts the item on the clipboard. Add card an
   height: 240
 ```
 
-Under Theme > Share, Copy as YAML and Download write the open theme (day or night) in the format of a saved theme in `hearth-themes/`. Import takes such a file, or a bare mapping of theme tokens, shows a preview, and applies it on Apply as a step you can undo.
+Under Theme > Share, Copy as YAML and Download write the open theme (day or night) in the format of a saved theme in `hearth-themes/`. Import takes such a file, or a bare mapping of theme tokens, shows a preview, and applies it on Apply as a step you can undo. Keys that are not theme tokens are left out and listed. Each value must be one CSS value: no `;` outside brackets, no comments, backslashes or braces, and a hex colour for `accent`, `cool`, `bad`, `surface` and `line`. `hearth.yaml` is checked the same way. An imported `background_image` must be `none` or point at an uploaded image, a path on the Hearth host or a `data:image` URL, never another host.
 
 ```yaml
 name: Moss

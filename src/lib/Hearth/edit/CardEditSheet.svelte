@@ -334,7 +334,7 @@
 	<button
 		type="button"
 		class="hearth-button secondary pressable"
-		disabled={yamlIssue !== null}
+		disabled={mode === 'yaml' ? yamlIssue !== null : draft.valid === false}
 		onclick={copyYaml}
 	>
 		{$lang('hearth_copy_as_yaml')}
@@ -377,6 +377,7 @@
 			bind:open={typeOpen}
 			onselect={selectType}
 			onpaste={id === null ? paste : undefined}
+			pasteCheck={(text) => pastedCards(text, [], stackId !== undefined).issue}
 			pasteHint={$lang('hearth_paste_cards_hint')}
 		/>
 	{/if}
@@ -388,9 +389,8 @@
 			<div class="card-settings editor-fields">
 				<div class="hint">{$lang('hearth_yaml_tab_hint')}</div>
 				<CodeField label={$lang('hearth_card_yaml')} bind:value={yamlText} expectMapping={false} />
-				{#if yamlIssue}
-					<div class="field-error" role="alert">{yamlIssue}</div>
-				{/if}
+				<!-- always present, so a screen reader announces each new issue -->
+				<div class="field-error" aria-live="polite">{yamlIssue ?? ''}</div>
 			</div>
 		{/if}
 		<div class="card-settings editor-fields" class:hidden={mode === 'yaml'}>

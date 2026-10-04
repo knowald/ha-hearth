@@ -2,6 +2,7 @@ import * as yaml from 'js-yaml';
 import { CONFIG_VERSION, currentHearthConfig } from './format';
 import { hearthConfigIssues, normalizeHearthConfig } from './normalize';
 import type { HearthConfig } from './types';
+import { parseYaml } from './yamlText';
 
 /*
  * Moving a dashboard in and out of the app as a file: the YAML editor's
@@ -13,7 +14,7 @@ import type { HearthConfig } from './types';
 export function configDocument(config: HearthConfig): string {
 	const body: Record<string, unknown> = { ...config };
 	delete body.revision;
-	return yaml.dump({ version: CONFIG_VERSION, ...body });
+	return yaml.dump({ version: CONFIG_VERSION, ...body }, { noRefs: true });
 }
 
 /**
@@ -41,12 +42,9 @@ export function transferFileName(date: Date, stem = 'hearth'): string {
  * silently wiping the layout, so only a mapping is acceptable.
  */
 export function documentIssue(text: string): string | null {
-	let parsed: unknown;
-	try {
-		parsed = yaml.load(text);
-	} catch (error) {
-		return error instanceof Error ? error.message.split('\n')[0] : 'Invalid YAML'; // copy ok: yaml diagnostic
-	}
+	const loaded = parseYaml(text);
+	if (loaded.issue !== null) return loaded.issue;
+	const parsed = loaded.value;
 	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
 		return 'Configuration must be a YAML mapping'; // copy ok: yaml diagnostic
 	}
@@ -61,5 +59,5 @@ export function documentIssue(text: string): string | null {
 /** The config `text` describes, or null when `documentIssue` would report on it. */
 export function parseDocument(text: string): HearthConfig | null {
 	if (documentIssue(text)) return null;
-	return normalizeHearthConfig(yaml.load(text));
+	return normalizeHearthConfig(parseYaml(text).value);
 }

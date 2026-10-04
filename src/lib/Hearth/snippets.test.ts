@@ -6,6 +6,7 @@ import {
 	itemFromDocument,
 	pastedCards,
 	pastedWidgets,
+	pathLine,
 	themeDocument,
 	themeFileName,
 	themeFromDocument
@@ -82,7 +83,7 @@ describe('itemDocument and itemFromDocument', () => {
 		const text =
 			'id: readings\ntype: entities\nentities:\n  - entity: sensor.co2\n    verdict: {good: 3}\n';
 		expect(itemFromDocument('card', text, 'readings').issue).toBe(
-			'Line 3: entities[0].verdict must be false or bands'
+			'Line 5: entities[0].verdict must be false or bands'
 		);
 	});
 
@@ -149,7 +150,7 @@ describe('pastedCards', () => {
 
 	it('accepts a Lovelace card only where it is also a Hearth card', () => {
 		expect(pastedCards('type: entities\nentities:\n  - light.desk\n', []).issue).toMatch(
-			/^Line 2: entities\[0\]/
+			/^Line 3: entities\[0\]/
 		);
 		expect(pastedCards('type: entities\nentities:\n  - entity: light.desk\n', []).issue).toBeNull();
 	});
@@ -184,14 +185,15 @@ describe('theme sharing', () => {
 
 	it('round trips an exported theme with its name', () => {
 		expect(themeFromDocument(themeDocument('Ember', theme))).toEqual({
-			value: { name: 'Ember', theme },
+			value: { name: 'Ember', theme, ignored: [] },
 			issue: null
 		});
 	});
 
 	it('takes a bare mapping of tokens', () => {
 		expect(themeFromDocument('accent: "#ff8800"\n').value).toEqual({
-			theme: { accent: '#ff8800' }
+			theme: { accent: '#ff8800' },
+			ignored: []
 		});
 	});
 
@@ -205,5 +207,99 @@ describe('theme sharing', () => {
 
 	it('names the download after the theme', () => {
 		expect(themeFileName('Warm Ember')).toBe('hearth-theme-warm-ember.yaml');
+	});
+});
+
+describe('pathLine', () => {
+	const text = `# a readings card
+id: readings
+type: entities
+entities:
+  - entity: sensor.co2
+  - entity: sensor.pm25
+    verdict:
+      good: 3
+`;
+
+	it('finds a nested key under the list entry it belongs to', () => {
+		expect(pathLine(text, ['entities', 1, 'verdict', 'good'])).toBe(8);
+		expect(pathLine(text, ['entities', 1])).toBe(6);
+		expect(pathLine(text, ['type'])).toBe(3);
+	});
+
+	it('falls back to the deepest part it finds', () => {
+		expect(pathLine(text, ['entities', 0, 'name'])).toBe(5);
+		expect(pathLine(text, ['title'])).toBeNull();
+	});
+
+	it('reads an indented document and a compact list under a key', () => {
+		const indented = '    id: x\n    tiles:\n    - entity: a\n      name: b\n';
+		expect(pathLine(indented, ['tiles', 0, 'name'])).toBe(4);
+	});
+
+	it('points pasted list issues at the entry', () => {
+		const text = '- type: entities\n- type: entities\n  entities:\n    - entity: 3\n';
+		expect(pastedCards(text, []).issue).toBe(
+			'Line 4: [1].entities[0].entity must be a non-empty string'
+		);
+	});
+});
+
+describe('YAML the editors refuse', () => {
+	const bomb = `a: &a [x, x, x, x, x, x, x, x, x]
+b: &b [*a, *a, *a, *a, *a, *a, *a, *a, *a]
+c: &c [*b, *b, *b, *b, *b, *b, *b, *b, *b]
+d: [*c, *c, *c, *c, *c, *c, *c, *c, *c]
+`;
+
+	it('refuses aliases before they expand', () => {
+		expect(pastedCards(bomb, []).issue).toMatch(
+			/^Line 2: YAML aliases \(\*name\) are not supported/
+		);
+		expect(themeFromDocument(bomb).issue).toMatch(/aliases/);
+	});
+
+	it('refuses merge keys by name', () => {
+		expect(itemFromDocument('card', 'type: entities\n<<: {title: x}\n', null).issue).toBe(
+			'Line 2: YAML merge keys (<<) are not supported, write the keys out'
+		);
+	});
+
+	it('writes an object reached twice out twice, without an anchor', () => {
+		const shared = { entity: 'light.a' };
+		const text = itemDocument({ id: 'x', type: 'entities', entities: [shared, shared] } as never);
+		expect(text).not.toContain('&');
+		expect(itemFromDocument('card', text, 'x').issue).toBeNull();
+	});
+});
+
+describe('imported themes', () => {
+	it('leaves out keys that are not tokens and lists them', () => {
+		expect(themeFromDocument('accent: "#3a7d44"\nsparkle: "on"\n').value).toEqual({
+			theme: { accent: '#3a7d44' },
+			ignored: ['sparkle']
+		});
+	});
+
+	it.each([
+		['accent: "red; display: none"\n', /^Line 1: accent must be a hex colour/],
+		['text_1: "#fff /*"\n', /^Line 1: text_1 must not contain comments/],
+		['name: X\ntheme:\n  text_2: "red; } body { display: none"\n', /^Line 3: text_2 must not/],
+		['background_image: url(//evil.example/a.png)\n', /^Line 1: background_image must be none/],
+		[
+			'background_image: "url(https://evil.example/a.png)"\n',
+			/^Line 1: background_image must be none/
+		]
+	])('refuses %s', (text, issue) => {
+		expect(themeFromDocument(text).issue).toMatch(issue);
+	});
+
+	it.each([
+		'none',
+		'url(hearth-images/abc.webp)',
+		"url('/local/wall.jpg')",
+		'url(data:image/png;base64,iVBORw0KGgo=)'
+	])('takes the background %s', (background) => {
+		expect(themeFromDocument(yaml.dump({ background_image: background })).issue).toBeNull();
 	});
 });

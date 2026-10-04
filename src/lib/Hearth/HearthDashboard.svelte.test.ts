@@ -248,10 +248,15 @@ describe('HearthDashboard navigation', () => {
 		hearthConfig.set(withRooms([{ id: 'nav', type: 'nav' }]));
 		render(HearthDashboard);
 		await act();
-		const withPreset = document.head.innerHTML;
+		// theme tokens are set through the CSSOM, so they show in the rules, not the markup
+		const tokens = () =>
+			[...document.head.querySelectorAll<HTMLStyleElement>('style[data-hearth-theme]')]
+				.map((element) => (element.sheet?.cssRules[0] as CSSStyleRule).style.cssText)
+				.join('\n');
+		const withPreset = tokens();
 		await act(() => enterEditMode());
-		expect(document.head.innerHTML).not.toBe(withPreset);
+		expect(tokens()).not.toBe(withPreset);
 		await act(() => cancelEdit());
-		expect(document.head.innerHTML).toBe(withPreset);
+		expect(tokens()).toBe(withPreset);
 	});
 });

@@ -1,10 +1,11 @@
-import * as yaml from 'js-yaml';
 import * as v from 'valibot';
+import { THEME_VARS } from '$lib/core/theme';
 import { cloneOverviewItem, slugify, uniqueId } from './config';
 import { hearthConfigIssues, normalizeHearthConfig } from './normalize';
 import { isRecord } from './normalizers';
 import { issueLines, ThemeSchema } from './schema';
 import type { HearthTheme, OverviewCard, OverviewItem, RailWidget } from './types';
+import { dumpYaml, parseYaml } from './yamlText';
 
 /*
  * Single cards, widgets and themes as YAML: the sheets' YAML tab, Copy as
@@ -36,35 +37,93 @@ function tidy(item: object, withId: boolean): Record<string, unknown> {
 
 /** A card, stack or widget as it is saved. A new item's document leaves the id to Done. */
 export function itemDocument(item: OverviewItem | RailWidget, withId = true): string {
-	return yaml.dump(tidy(item, withId), { lineWidth: -1 });
+	return dumpYaml(tidy(item, withId));
 }
 
-function load(text: string): SnippetResult<unknown> {
-	try {
-		return { value: yaml.load(text), issue: null };
-	} catch (error) {
-		if (error instanceof yaml.YAMLException && error.mark) {
-			return fail(`Line ${error.mark.line + 1}: ${error.reason}`); // copy ok: yaml diagnostic
+interface SourceLine {
+	index: number;
+	/** Leading spaces before any list dash. */
+	lead: number;
+	/** Where the content after the dashes starts. */
+	indent: number;
+	/** Column of the innermost dash, when the line starts a list entry. */
+	dash: number | null;
+	content: string;
+}
+
+function sourceLines(text: string): SourceLine[] {
+	return text.split('\n').flatMap((raw, index) => {
+		const lead = raw.length - raw.trimStart().length;
+		let content = raw.trimStart();
+		if (!content || content.startsWith('#')) return [];
+		let indent = lead;
+		let dash: number | null = null;
+		while (/^-(\s|$)/.test(content)) {
+			dash = indent;
+			const rest = content.slice(1);
+			indent += 1 + (rest.length - rest.trimStart().length);
+			content = rest.trimStart();
 		}
-		return fail(error instanceof Error ? error.message.split('\n')[0] : 'Invalid YAML'); // copy ok: yaml diagnostic
+		return [{ index, lead, indent, dash, content }];
+	});
+}
+
+/** The lines inside an entry that starts at `line`: deeper ones, and a compact list under a key. */
+function childLines(lines: SourceLine[], at: number, indent: number, isKey: boolean): SourceLine[] {
+	const children: SourceLine[] = [];
+	for (const line of lines.slice(at + 1)) {
+		if (line.lead > indent || (isKey && line.lead === indent && line.dash === indent)) {
+			children.push(line);
+		} else break;
 	}
+	return children;
 }
 
 /**
- * The 1-based line an issue points at: the top-level key it names in a single
- * mapping, or the start of the list entry it names in a list.
+ * The 1-based line of a path like `entities[0].verdict` in a document, or
+ * of the deepest part of it that can be found, or null for none.
  */
-function issueLine(text: string, rest: string, index: number, single: boolean): number | null {
-	const lines = text.split('\n');
-	let found = -1;
-	if (single) {
-		const key = /^([\w-]+)/.exec(rest)?.[1];
-		if (key) found = lines.findIndex((line) => line.startsWith(`${key}:`));
-	} else {
-		let seen = -1;
-		found = lines.findIndex((line) => /^-(\s|$)/.test(line) && ++seen === index);
+export function pathLine(text: string, path: (string | number)[]): number | null {
+	let block = sourceLines(text);
+	let found: number | null = null;
+	for (const segment of path) {
+		if (!block.length) break;
+		if (typeof segment === 'number') {
+			const entries = block.filter((line) => line.dash !== null);
+			const outer = Math.min(...entries.map((line) => line.dash!));
+			const entry = entries.filter((line) => line.dash === outer)[segment];
+			if (!entry) break;
+			found = entry.index;
+			const at = block.indexOf(entry);
+			block = [{ ...entry, lead: entry.indent }, ...childLines(block, at, outer, false)];
+		} else {
+			const outer = Math.min(...block.map((line) => line.indent));
+			const at = block.findIndex(
+				(line) =>
+					line.indent === outer &&
+					new RegExp(`^(['"]?)${segment.replace(/[^\w]/g, '\\$&')}\\1\\s*:`).test(line.content)
+			);
+			if (at < 0) break;
+			found = block[at].index;
+			block = childLines(block, at, block[at].indent, true);
+		}
 	}
-	return found >= 0 ? found + 1 : null;
+	return found === null ? null : found + 1;
+}
+
+/** `entities[0].verdict must be ...` split into its path and the rest. */
+function splitIssue(issue: string): { path: (string | number)[]; message: string } {
+	const match = /^((?:\[\d+\]|\.?[\w-]+)(?:\[\d+\]|\.[\w-]+)*)(.*)$/.exec(issue);
+	if (!match) return { path: [], message: issue };
+	const path = [...match[1].matchAll(/\[(\d+)\]|([\w-]+)/g)].map((part) =>
+		part[1] !== undefined ? Number(part[1]) : part[2]
+	);
+	return { path, message: match[2] };
+}
+
+function withLine(text: string, issue: string, base: (string | number)[] = []): string {
+	const line = pathLine(text, [...base, ...splitIssue(issue).path]);
+	return line ? `Line ${line}: ${issue}` : issue; // copy ok: yaml diagnostic
 }
 
 /** Issue lines from the full-config checker, relative to the snippet instead of the stand-in config. */
@@ -73,10 +132,8 @@ function snippetIssue(issues: string[], prefix: string, text: string, single: bo
 		.slice(0, MAX_ISSUES)
 		.map((issue) => {
 			let rest = issue.startsWith(prefix) ? issue.slice(prefix.length) : issue;
-			const index = Number(/^\[(\d+)\]/.exec(rest)?.[1] ?? 0);
 			if (single) rest = rest.replace(/^\[\d+\]\.?/, '').trim();
-			const line = issueLine(text, rest, index, single);
-			return line ? `Line ${line}: ${rest}` : rest; // copy ok: yaml diagnostic
+			return withLine(text, rest);
 		})
 		.join('; ');
 }
@@ -131,7 +188,7 @@ export function itemFromDocument(
 	text: string,
 	id: string | null
 ): SnippetResult<OverviewCard | RailWidget> {
-	const loaded = load(text);
+	const loaded = parseYaml(text);
 	if (loaded.issue !== null) return loaded;
 	const raw = loaded.value;
 	if (!isRecord(raw)) return fail(`Expected a YAML mapping for one ${kind}`); // copy ok: yaml diagnostic
@@ -139,8 +196,7 @@ export function itemFromDocument(
 		return fail('A stack is edited from its own sheet'); // copy ok: yaml diagnostic
 	}
 	if (id !== null && raw.id !== undefined && raw.id !== id) {
-		const line = issueLine(text, 'id', 0, true);
-		return fail(`${line ? `Line ${line}: ` : ''}id must stay ${id}`); // copy ok: yaml diagnostic
+		return fail(withLine(text, `id must stay ${id}`)); // copy ok: yaml diagnostic
 	}
 	const checked = kind === 'card' ? checkCards([raw], text, true) : checkWidgets([raw], text, true);
 	if (checked.issue !== null) return checked;
@@ -150,7 +206,7 @@ export function itemFromDocument(
 
 function snippetList(text: string): SnippetResult<{ items: unknown[]; single: boolean }> {
 	if (!text.trim()) return fail('Nothing to paste'); // copy ok: yaml diagnostic
-	const loaded = load(text);
+	const loaded = parseYaml(text);
 	if (loaded.issue !== null) return loaded;
 	const raw = loaded.value;
 	const single = !Array.isArray(raw);
@@ -202,8 +258,13 @@ export interface SharedTheme {
 	theme: HearthTheme;
 }
 
+/** An imported theme, with the keys it carried that are not theme tokens and were left out. */
+export interface ImportedTheme extends SharedTheme {
+	ignored: string[];
+}
+
 export function themeDocument(name: string, theme: HearthTheme): string {
-	return yaml.dump({ name, theme }, { lineWidth: -1 });
+	return dumpYaml({ name, theme });
 }
 
 export function themeFileName(name: string): string {
@@ -211,34 +272,57 @@ export function themeFileName(name: string): string {
 }
 
 /**
- * A theme from a shared file: the `name` and `theme` mapping Export writes, or
- * a bare mapping of tokens as it appears under `theme:` in hearth.yaml.
+ * A background from someone else's file may only point at this Hearth: a path
+ * on this host, an uploaded image, or an image inlined as a data URL. A
+ * foreign address would have every dashboard showing it call that host.
  */
-export function themeFromDocument(text: string): SnippetResult<SharedTheme> {
-	const loaded = load(text);
+function importedBackgroundIssue(value: string): string | null {
+	if (value.trim() === 'none') return null;
+	const target = /^url\((['"]?)(.*)\1\)$/.exec(value.trim())?.[2] ?? '';
+	const local =
+		(target.startsWith('/') && !target.startsWith('//')) ||
+		target.startsWith('hearth-images/') ||
+		target.startsWith('data:image/');
+	return local
+		? null
+		: 'must be none or url() of an uploaded image, a path on this host or a data:image URL'; // copy ok: yaml diagnostic
+}
+
+/**
+ * A theme from a shared file: the `name` and `theme` mapping Export writes, or
+ * a bare mapping of tokens as it appears under `theme:` in hearth.yaml. Keys
+ * that are not theme tokens are left out and listed.
+ */
+export function themeFromDocument(text: string): SnippetResult<ImportedTheme> {
+	const loaded = parseYaml(text);
 	if (loaded.issue !== null) return loaded;
 	const raw = loaded.value;
 	if (!isRecord(raw)) return fail('Expected a YAML mapping of theme tokens'); // copy ok: yaml diagnostic
 	const wrapped = isRecord(raw.theme);
 	const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : undefined;
-	const tokens = wrapped ? raw.theme : { ...raw, name: undefined };
-	const parsed = v.safeParse(
-		ThemeSchema,
-		Object.fromEntries(Object.entries(tokens as object).filter(([, value]) => value !== undefined))
+	const entries = Object.entries(wrapped ? (raw.theme as object) : raw).filter(
+		([key]) => wrapped || key !== 'name'
 	);
-	if (!parsed.success) {
+	const tokens = Object.fromEntries(entries.filter(([key]) => key in THEME_VARS));
+	const ignored = entries.map(([key]) => key).filter((key) => !(key in THEME_VARS));
+	const base = wrapped ? ['theme'] : [];
+	const parsed = v.safeParse(ThemeSchema, tokens);
+	const issues = parsed.success ? [] : issueLines(parsed.issues, '');
+	if (typeof tokens.background_image === 'string') {
+		const issue = importedBackgroundIssue(tokens.background_image);
+		if (issue) issues.push(`background_image ${issue}`);
+	}
+	if (issues.length) {
 		return fail(
-			issueLines(parsed.issues, '')
+			issues
 				.slice(0, MAX_ISSUES)
-				.map((issue) => {
-					const key = /^([\w-]+)/.exec(issue)?.[1];
-					const lines = text.split('\n');
-					const found = key ? lines.findIndex((line) => line.trim().startsWith(`${key}:`)) : -1;
-					return found >= 0 ? `Line ${found + 1}: ${issue}` : issue; // copy ok: yaml diagnostic
-				})
+				.map((issue) => withLine(text, issue, base))
 				.join('; ')
 		);
 	}
-	if (!Object.keys(parsed.output).length) return fail('The theme has no tokens'); // copy ok: yaml diagnostic
-	return { value: { ...(name ? { name } : {}), theme: parsed.output }, issue: null };
+	if (!Object.keys(tokens).length) return fail('The theme has no tokens'); // copy ok: yaml diagnostic
+	return {
+		value: { ...(name ? { name } : {}), theme: tokens as HearthTheme, ignored },
+		issue: null
+	};
 }

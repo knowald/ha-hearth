@@ -11,8 +11,9 @@
 
 	/**
 	 * A box to paste YAML into: Paste YAML in the type gallery and the theme
-	 * import. The clipboard button reads it in one step where the browser
-	 * allows; over plain http it does not, and pasting by hand still works.
+	 * import. The clipboard button fills the box where the browser allows it;
+	 * over plain http it does not, and pasting by hand still works. Either way
+	 * the text is checked as it arrives and only added on the submit button.
 	 */
 	let {
 		label,
@@ -57,7 +58,6 @@
 		}
 		text = pasted;
 		submitted = null;
-		if (!check) submit();
 	}
 
 	async function fromFile() {
@@ -75,9 +75,9 @@
 		></textarea>
 	</label>
 	<div class="field-hint">{hint}</div>
-	{#if issue}
-		<div class="issue" role="alert">{issue}</div>
-	{:else if text.trim() && preview}
+	<!-- always present, so a screen reader announces each new issue -->
+	<div class="issue" aria-live="polite">{issue ?? ''}</div>
+	{#if !issue && text.trim() && preview}
 		{@render preview(text)}
 	{/if}
 	<div class="actions">
@@ -169,6 +169,9 @@
 	.issue {
 		font-size: var(--h-type-small);
 		color: var(--h-bad-text);
+	}
+
+	.issue:not(:empty) {
 		margin-bottom: 8px;
 	}
 

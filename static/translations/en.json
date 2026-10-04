@@ -1349,7 +1349,7 @@
 	"hearth_yaml": "YAML",
 	"hearth_fix_the_yaml_to_use_the_form": "Fix the YAML to go back to the form",
 	"hearth_fix_the_yaml": "Fix the YAML first",
-	"hearth_yaml_tab_hint": "Every option, including ones the form has no field for. Done applies it, Form reads it back into the fields.",
+	"hearth_yaml_tab_hint": "Every option, including ones the form has no field for. Done applies it, Form reads it back into the fields. Comments are not kept.",
 	"hearth_card_yaml": "Card YAML",
 	"hearth_widget_yaml": "Widget YAML",
 	"hearth_copy_as_yaml": "Copy as YAML",
@@ -1368,5 +1368,7 @@
 	"hearth_theme_yaml": "Theme YAML",
 	"hearth_theme_import_hint": "A theme as Copy as YAML or Download writes it, or a mapping of theme tokens. Check the preview, then Apply.",
 	"hearth_imported_theme": "Imported theme",
-	"hearth_theme_token_count": "{count} tokens"
+	"hearth_theme_token_count": "{count} tokens",
+	"hearth_theme_token_count_one": "{count} token",
+	"hearth_theme_keys_left_out": "Not theme tokens, left out: {keys}"
 }

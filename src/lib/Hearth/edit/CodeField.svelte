@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as yaml from 'js-yaml';
+	import { parseYaml } from '../yamlText';
 	import { entityIds } from '$lib/core/ha/entities';
 
 	let {
@@ -22,14 +22,12 @@
 
 	let error = $derived.by(() => {
 		if (!expectMapping || !value.trim()) return null;
-		try {
-			const parsed = yaml.load(value);
-			return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-				? null
-				: 'Expected a YAML mapping'; // copy ok: yaml diagnostic
-		} catch (parseError) {
-			return parseError instanceof Error ? parseError.message.split('\n')[0] : 'Invalid YAML'; // copy ok: yaml diagnostic
-		}
+		const loaded = parseYaml(value);
+		if (loaded.issue !== null) return loaded.issue;
+		const parsed = loaded.value;
+		return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+			? null
+			: 'Expected a YAML mapping'; // copy ok: yaml diagnostic
 	});
 </script>
 

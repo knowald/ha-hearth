@@ -1,6 +1,7 @@
 import * as v from 'valibot';
 import type { ActionTarget, HaAction } from '$lib/core/ha/commands';
 import { imageFileOf } from '$lib/core/images';
+import { themeValueIssue } from '$lib/core/theme';
 import {
 	classListProblem,
 	CLOCK_TIME,
@@ -441,7 +442,19 @@ export const ThemeSchema = v.pipe(
 		(value) => !!value && typeof value === 'object' && !Array.isArray(value),
 		'must be a mapping of tokens'
 	),
-	v.record(v.string(), v.string('must be text'))
+	v.record(v.string(), v.string('must be text')),
+	// each value must stay inside its own custom property; see themeValueIssue
+	v.rawCheck(({ dataset, addIssue }) => {
+		if (!dataset.typed) return;
+		for (const [key, value] of Object.entries(dataset.value)) {
+			const message = themeValueIssue(key, value);
+			if (!message) continue;
+			addIssue({
+				message,
+				path: [{ type: 'object', origin: 'value', input: dataset.value, key, value }]
+			});
+		}
+	})
 );
 
 /** Root settings; `rail` and `rooms` are walked item by item by the issue checker. */

@@ -73,3 +73,48 @@ describe('withoutRevision', () => {
 		expect(withoutRevision('version: 5\nrevision: 7\n')).toBe('version: 5\nrevision: 7\n');
 	});
 });
+
+describe('theme values in hearth.yaml', () => {
+	const document = (theme: string) =>
+		`version: ${CONFIG_VERSION}\nrail: []\nrooms:\n  - id: home\n    cards: [[]]\ntheme:\n${theme}`;
+
+	it.each([
+		['  accent: "red; display: none"\n', 'theme.accent must be a hex colour like #f0b860'],
+		[
+			'  text_1: "#fff /*"\n',
+			'theme.text_1 must not contain comments, backslashes, braces or angle brackets'
+		]
+	])('reports %s instead of applying it', (theme, issue) => {
+		expect(documentIssue(document(theme))).toBe(issue);
+	});
+
+	it('keeps a data URL background', () => {
+		expect(
+			documentIssue(document('  background_image: url(data:image/png;base64,iVBORw0KGgo=)\n'))
+		).toBeNull();
+	});
+});
+
+describe('aliases', () => {
+	it('refuses them in a whole document', () => {
+		expect(documentIssue('a: &a [x, x]\nb: [*a, *a]\n')).toMatch(
+			/^Line 2: YAML aliases \(\*name\) are not supported/
+		);
+	});
+
+	it('writes no anchors for an object reached twice', () => {
+		const shared = { entity: 'light.a' };
+		const text = configDocument({
+			...config,
+			rooms: [
+				{
+					id: 'home',
+					name: 'Home',
+					cards: [[{ id: 'a', type: 'entities', entities: [shared, shared] }]]
+				}
+			]
+		} as unknown as HearthConfig);
+		expect(text).not.toContain('&');
+		expect(documentIssue(text)).toBeNull();
+	});
+});

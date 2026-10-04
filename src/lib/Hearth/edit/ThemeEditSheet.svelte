@@ -372,9 +372,21 @@
 			</div>
 			<span class="saved-theme-name">{shared.name ?? $lang('hearth_imported_theme')}</span>
 			<span class="token-count">
-				{fill($lang('hearth_theme_token_count'), { count: Object.keys(shared.theme).length })}
+				{fill(
+					$lang(
+						Object.keys(shared.theme).length === 1
+							? 'hearth_theme_token_count_one'
+							: 'hearth_theme_token_count'
+					),
+					{ count: Object.keys(shared.theme).length }
+				)}
 			</span>
 		</div>
+		{#if shared.ignored.length}
+			<div class="field-hint">
+				{fill($lang('hearth_theme_keys_left_out'), { keys: shared.ignored.join(', ') })}
+			</div>
+		{/if}
 	{/if}
 {/snippet}
 
@@ -534,7 +546,7 @@
 			label={$lang('hearth_theme_yaml')}
 			hint={$lang('hearth_theme_import_hint')}
 			submitLabel={$lang('hearth_apply')}
-			accept=".yaml,.yml,text/yaml"
+			accept=".yaml,.yml,text/yaml,application/yaml,application/x-yaml,text/plain"
 			check={(text) => themeFromDocument(text).issue}
 			preview={importPreview}
 			onsubmit={importTheme}

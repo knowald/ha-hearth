@@ -1,7 +1,7 @@
 import { act, render } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { motion } from '$lib/core/app/motion';
-import { MOTION } from '$lib/core/theme';
+import { MOTION, THEME_DEFAULTS } from '$lib/core/theme';
 import type { HearthConfig } from '../types';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
 import { hearthConfig } from '../store';
@@ -83,5 +83,54 @@ describe('ThemeStyle scale output', () => {
 		const css = renderCss({ scale: 150, mobile_scale: 80 });
 		expect(css).toContain('--h-zoom: 1;');
 		expect(css).not.toContain('--h-zoom: 0.8');
+	});
+});
+
+describe('ThemeStyle theme tokens', () => {
+	beforeEach(() => document.head.replaceChildren());
+	afterEach(() => hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG)));
+
+	function themeRule() {
+		const element = document.head.querySelector<HTMLStyleElement>('style[data-hearth-theme]');
+		return (element?.sheet?.cssRules[0] as CSSStyleRule).style;
+	}
+
+	it('sets each token on its own property, defaults under the theme', () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			theme: { accent: '#3366ff', text_2: '#abcdef' }
+		});
+		render(ThemeStyle);
+		expect(themeRule().getPropertyValue('--h-accent-rgb')).toBe('51 102 255');
+		expect(themeRule().getPropertyValue('--h-text-2')).toBe('#abcdef');
+		expect(themeRule().getPropertyValue('--h-text-1')).toBe(THEME_DEFAULTS.text_1);
+	});
+
+	it('keeps a hostile value inside its property', () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			theme: {
+				accent: 'red; display: none',
+				text_1: '#fff /*',
+				text_2: 'red; } :root { display: none',
+				text_3: '#abcdef'
+			}
+		});
+		render(ThemeStyle);
+		// nothing from a theme reaches stylesheet text
+		expect(document.head.innerHTML).not.toContain('display: none');
+		const rule = document.head.querySelector<HTMLStyleElement>('style[data-hearth-theme]')!.sheet!
+			.cssRules;
+		expect(rule).toHaveLength(1);
+		expect(themeRule().getPropertyValue('display')).toBe('');
+		expect(themeRule().getPropertyValue('--h-text-3')).toBe('#abcdef');
+	});
+
+	it('goes ahead of the custom CSS, which may override any token', () => {
+		const custom = document.createElement('style');
+		custom.id = 'ha-hearth-custom-css';
+		document.head.append(custom);
+		render(ThemeStyle);
+		expect(custom.previousElementSibling?.hasAttribute('data-hearth-theme')).toBe(true);
 	});
 });

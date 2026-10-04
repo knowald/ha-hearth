@@ -6,7 +6,7 @@
 		MOTION,
 		STRUCTURE_CSS,
 		THEME_DEFAULTS,
-		themeStyle,
+		themeDeclarations,
 		type HearthTheme
 	} from '$lib/core/theme';
 	import { ZOOM_GHOST_SHELL } from '$lib/ui/actions/sortable';
@@ -108,10 +108,44 @@
 		return declarations ? `@media ${FOLD_QUERY} { :root { ${declarations}} }` : '';
 	});
 
-	// tokens live on :root (not .frame) so modals portaled outside the frame
-	// resolve them too; base first, user theme overrides second
+	/*
+	 * Theme tokens live on :root (not .frame) so modals portaled outside the
+	 * frame resolve them too. They go through the CSSOM, never into the
+	 * stylesheet text below: a value from a hand-edited or imported theme then
+	 * cannot end its property or the rule. Defaults first, so a value the
+	 * browser rejects leaves the default in place. The sheet goes ahead of the
+	 * custom CSS, which may override any token.
+	 */
+	let themeRule = $state<CSSStyleRule | null>(null);
+
+	$effect(() => {
+		const element = document.createElement('style');
+		element.dataset.hearthTheme = '';
+		const custom = document.getElementById('ha-hearth-custom-css');
+		if (custom) custom.before(element);
+		else document.head.append(element);
+		element.sheet!.insertRule(':root {}', 0);
+		themeRule = element.sheet!.cssRules[0] as CSSStyleRule;
+		return () => {
+			element.remove();
+			themeRule = null;
+		};
+	});
+
+	$effect(() => {
+		if (!themeRule) return;
+		const style = themeRule.style;
+		style.cssText = '';
+		for (const [property, value] of [
+			...themeDeclarations(THEME_DEFAULTS),
+			...themeDeclarations(activeTheme)
+		]) {
+			style.setProperty(property, value);
+		}
+	});
+
 	let rootCss = $derived(
-		`:root { ${STRUCTURE_CSS} ${themeStyle(THEME_DEFAULTS)} ${themeStyle(activeTheme)}  ` +
+		`:root { ${STRUCTURE_CSS} ` +
 			`--h-pad-x: ${Math.max(0, $hearthConfig.padding_x ?? 0)}px; ` +
 			`--h-pad-y: ${Math.max(0, $hearthConfig.padding_y ?? 0)}px; ` +
 			`--h-zoom: ${zoomSupported ? $screenSettings.scale / 100 : 1}; zoom: var(--h-zoom); ${VIEWPORT_CSS} } ` +
@@ -120,6 +154,6 @@
 </script>
 
 <svelte:head>
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -- generated from theme tokens, never user text -->
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- generated from numbers and constants; theme tokens go through the CSSOM above -->
 	{@html `<style>${rootCss}</style>`}
 </svelte:head>

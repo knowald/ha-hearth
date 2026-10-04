@@ -180,11 +180,14 @@
 			const targetSide = railSideOf(widget);
 			const sideChanged = !initial || railSideOf(initial) !== targetSide;
 			if (twoRails && sideChanged) config.rail = moveToSide(config.rail, id, targetSide);
-			for (let step = 0; step < Math.abs(moveBy); step += 1) {
+			// staged steps count places on the side they were staged for; YAML that
+			// sends the widget to the other side lands it at the end there instead
+			const steps = targetSide === side ? moveBy : 0;
+			for (let step = 0; step < Math.abs(steps); step += 1) {
 				moveRailWidget(
 					config.rail,
 					widgetIndex(config.rail),
-					moveBy < 0 ? -1 : 1,
+					steps < 0 ? -1 : 1,
 					railPositionOf(config)
 				);
 			}
@@ -214,6 +217,7 @@
 			base = widget;
 			type = widget.type;
 			mobile = widget.mobile;
+			if (railSideOf(widget) !== side) moveBy = 0;
 			side = railSideOf(widget);
 			visibility = (widget.visibility ?? []).map((condition) => ({ ...condition }));
 			draft = { fields: {} as WidgetDraft<RailWidget>['fields'] };
@@ -277,7 +281,7 @@
 	<button
 		type="button"
 		class="hearth-button secondary pressable"
-		disabled={yamlIssue !== null}
+		disabled={mode === 'yaml' ? yamlIssue !== null : draft.valid === false}
 		onclick={copyYaml}
 	>
 		{$lang('hearth_copy_as_yaml')}
@@ -328,6 +332,7 @@
 				draft = { fields: {} as WidgetDraft<RailWidget>['fields'] };
 			}}
 			onpaste={index === null ? paste : undefined}
+			pasteCheck={(text) => pastedWidgets(text, []).issue}
 			pasteHint={$lang('hearth_paste_widgets_hint')}
 		/>
 	{/if}
@@ -343,9 +348,8 @@
 					bind:value={yamlText}
 					expectMapping={false}
 				/>
-				{#if yamlIssue}
-					<div class="field-error" role="alert">{yamlIssue}</div>
-				{/if}
+				<!-- always present, so a screen reader announces each new issue -->
+				<div class="field-error" aria-live="polite">{yamlIssue ?? ''}</div>
 			</div>
 		{/if}
 		<div class="config editor-fields" class:hidden={mode === 'yaml'}>
