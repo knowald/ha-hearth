@@ -453,6 +453,9 @@ export function moveItem<T>(list: T[], index: number, delta: number) {
  */
 export const RADAR_ZOOM = { min: 3, max: 7, fallback: 6 } as const;
 
+/** Seconds each sleep screen photo shows; shorter makes the slideshow restless. */
+export const PHOTO_SECONDS = { min: 5, max: 86_400, fallback: 30 } as const;
+
 // a stand-in origin, so a path can be told apart from an address on another host
 const LINK_BASE = 'http://hearth.invalid';
 

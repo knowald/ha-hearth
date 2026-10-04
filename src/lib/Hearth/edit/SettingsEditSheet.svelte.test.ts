@@ -234,6 +234,51 @@ describe('SettingsEditSheet', () => {
 		expect(get(hearthConfig).screensaver_radar).toEqual({ latitude: 40.4 });
 	});
 
+	it('sets up the photo frame and stores only what differs from the defaults', async () => {
+		render(SettingsEditSheet);
+		expect(screen.queryByLabelText(en.hearth_sleep_photo_order)).toBeNull();
+		await fireEvent.change(screen.getByLabelText(en.hearth_sleep_background), {
+			target: { value: 'photos' }
+		});
+		expect(get(hearthConfig).screensaver_background).toBe('photos');
+		expect(screen.getByRole('group', { name: en.hearth_sleep_photos })).toBeTruthy();
+
+		const seconds = screen.getByLabelText(en.hearth_sleep_photo_seconds);
+		expect((seconds as HTMLSelectElement).value).toBe('30');
+		await fireEvent.change(seconds, { target: { value: '60' } });
+		expect(get(hearthConfig).screensaver_photo_seconds).toBe(60);
+		await fireEvent.change(seconds, { target: { value: '30' } });
+		expect(get(hearthConfig).screensaver_photo_seconds).toBeUndefined();
+
+		const order = screen.getByLabelText(en.hearth_sleep_photo_order);
+		await fireEvent.change(order, { target: { value: 'sequence' } });
+		expect(get(hearthConfig).screensaver_photo_order).toBe('sequence');
+		await fireEvent.change(order, { target: { value: 'shuffle' } });
+		expect(get(hearthConfig).screensaver_photo_order).toBeUndefined();
+	});
+
+	it('picks a media player and shows the fallback background fields under it', async () => {
+		render(SettingsEditSheet);
+		await fireEvent.change(screen.getByLabelText(en.hearth_sleep_background), {
+			target: { value: 'media' }
+		});
+		expect(screen.getByLabelText(en.hearth_sleep_media_entity)).toBeTruthy();
+		const fallback = screen.getByLabelText(en.hearth_sleep_media_fallback) as HTMLSelectElement;
+		expect([...fallback.options].map((option) => option.value)).toEqual([
+			'none',
+			'image',
+			'radar',
+			'photos',
+			'sun'
+		]);
+		await fireEvent.change(fallback, { target: { value: 'photos' } });
+		expect(get(hearthConfig).screensaver_media_fallback).toBe('photos');
+		expect(screen.getByLabelText(en.hearth_sleep_photo_order)).toBeTruthy();
+		await fireEvent.change(fallback, { target: { value: 'none' } });
+		expect(get(hearthConfig).screensaver_media_fallback).toBeUndefined();
+		expect(screen.queryByLabelText(en.hearth_sleep_photo_order)).toBeNull();
+	});
+
 	it('takes a custom basemap only as a tile template', async () => {
 		render(SettingsEditSheet);
 		await fireEvent.change(screen.getByLabelText(en.hearth_sleep_background), {

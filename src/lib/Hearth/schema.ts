@@ -1,10 +1,12 @@
 import * as v from 'valibot';
 import type { ActionTarget, HaAction } from '$lib/core/ha/commands';
+import { imageFileOf } from '$lib/core/images';
 import {
 	classListProblem,
 	CLOCK_TIME,
 	isLinkUrl,
 	isTileUrl,
+	PHOTO_SECONDS,
 	RADAR_ZOOM,
 	usesMedia,
 	WEEKDAYS,
@@ -454,7 +456,10 @@ export const RootSettingsSchema = v.looseObject({
 	screensaver_drift: OptionalFlag,
 	screensaver_brightness: optionalNumberInRange(10, 100),
 	screensaver_background: v.optional(
-		v.picklist(['none', 'image', 'radar'], 'must be none, image or radar')
+		v.picklist(
+			['none', 'image', 'radar', 'photos', 'sun', 'media'],
+			'must be none, image, radar, photos, sun or media'
+		)
 	),
 	screensaver_image: OptionalText,
 	screensaver_radar: v.optional(
@@ -471,6 +476,29 @@ export const RootSettingsSchema = v.looseObject({
 			),
 			attribution: OptionalText
 		})
+	),
+	screensaver_photos: v.optional(
+		v.array(
+			v.pipe(
+				v.string('must be text'),
+				v.check(
+					(value) => imageFileOf(value.trim()) !== undefined,
+					'must be an uploaded image, hearth-images/<file>'
+				)
+			),
+			'must be a list'
+		)
+	),
+	screensaver_photo_seconds: optionalNumberInRange(PHOTO_SECONDS.min, PHOTO_SECONDS.max),
+	screensaver_photo_order: v.optional(
+		v.picklist(['shuffle', 'sequence'], 'must be shuffle or sequence')
+	),
+	screensaver_media_entity: OptionalEntityId,
+	screensaver_media_fallback: v.optional(
+		v.picklist(
+			['none', 'image', 'radar', 'photos', 'sun'],
+			'must be none, image, radar, photos or sun'
+		)
 	),
 	screensaver_show_date: OptionalFlag,
 	screensaver_clock_size: v.optional(

@@ -489,6 +489,65 @@ describe('sleep screen settings', () => {
 		).toEqual(['screensaver_radar.tile_url must be an http(s) URL with {z}, {x} and {y}']);
 	});
 
+	it('keeps photo frame and now playing options', () => {
+		const first = `hearth-images/${'a'.repeat(32)}.webp`;
+		const second = `hearth-images/${'b'.repeat(32)}.jpg`;
+		expect(
+			normalizeHearthConfig({
+				...base,
+				screensaver_background: 'photos',
+				screensaver_photos: [` ${first} `, second, first],
+				screensaver_photo_seconds: 12.4,
+				screensaver_photo_order: 'sequence',
+				screensaver_media_entity: ' media_player.living ',
+				screensaver_media_fallback: 'sun'
+			})
+		).toMatchObject({
+			screensaver_background: 'photos',
+			screensaver_photos: [first, second],
+			screensaver_photo_seconds: 12,
+			screensaver_photo_order: 'sequence',
+			screensaver_media_entity: 'media_player.living',
+			screensaver_media_fallback: 'sun'
+		});
+		for (const background of ['sun', 'media'])
+			expect(
+				normalizeHearthConfig({ ...base, screensaver_background: background })
+					.screensaver_background
+			).toBe(background);
+	});
+
+	it('drops photos that are not uploads and options at their default', () => {
+		const config = normalizeHearthConfig({
+			...base,
+			screensaver_photos: ['https://example.com/a.jpg', 'hearth-images/../x.png', 3],
+			screensaver_photo_seconds: 2,
+			screensaver_photo_order: 'shuffle',
+			screensaver_media_fallback: 'media'
+		});
+		expect(config.screensaver_photos).toBeUndefined();
+		expect(config.screensaver_photo_seconds).toBeUndefined();
+		expect(
+			normalizeHearthConfig({ ...base, screensaver_photo_seconds: 1e9 }).screensaver_photo_seconds
+		).toBe(86_400);
+		expect(config.screensaver_photo_order).toBeUndefined();
+		expect(config.screensaver_media_fallback).toBeUndefined();
+		expect(
+			hearthConfigIssues({
+				...base,
+				screensaver_photos: ['https://example.com/a.jpg'],
+				screensaver_photo_seconds: 2,
+				screensaver_photo_order: 'random',
+				screensaver_media_fallback: 'media'
+			})
+		).toEqual([
+			'screensaver_photos[0] must be an uploaded image, hearth-images/<file>',
+			'screensaver_photo_seconds must be 5 to 86400',
+			'screensaver_photo_order must be shuffle or sequence',
+			'screensaver_media_fallback must be none, image, radar, photos or sun'
+		]);
+	});
+
 	it('reports sleep screen values the normalizer would discard', () => {
 		expect(
 			hearthConfigIssues({
@@ -499,7 +558,7 @@ describe('sleep screen settings', () => {
 				screensaver_weather_entity: ''
 			})
 		).toEqual([
-			'screensaver_background must be none, image or radar',
+			'screensaver_background must be none, image, radar, photos, sun or media',
 			'screensaver_radar.latitude must be -90 to 90',
 			'screensaver_radar.zoom must be 3 to 7',
 			'screensaver_radar.basemap must be dark or light',

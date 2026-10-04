@@ -342,7 +342,10 @@ export interface AlertRule {
 
 export type EditLock = 'hold' | 'pin';
 
-export type ScreensaverBackground = 'none' | 'image' | 'radar';
+export type ScreensaverBackground = 'none' | 'image' | 'radar' | 'photos' | 'sun' | 'media';
+/** What a `media` sleep screen shows behind the clock while nothing plays. */
+export type ScreensaverMediaFallback = Exclude<ScreensaverBackground, 'media'>;
+export type ScreensaverPhotoOrder = 'shuffle' | 'sequence';
 export type ScreensaverClockSize = 'small' | 'medium' | 'large';
 
 /** The radar map's view; the location falls back to the Home Assistant home. */
@@ -377,6 +380,15 @@ export interface HearthConfig {
 	/** A URL or `hearth-images/<file>`, shown when the background is `image`. */
 	screensaver_image?: string;
 	screensaver_radar?: ScreensaverRadar;
+	/** Uploaded images (`hearth-images/<file>`) the `photos` background steps through. */
+	screensaver_photos?: string[];
+	/** Seconds per photo, 30 when unset. */
+	screensaver_photo_seconds?: number;
+	// unset shuffles
+	screensaver_photo_order?: ScreensaverPhotoOrder;
+	// the `media` background follows this player, or any playing one when unset
+	screensaver_media_entity?: string;
+	screensaver_media_fallback?: ScreensaverMediaFallback;
 	screensaver_show_date?: boolean;
 	screensaver_clock_size?: ScreensaverClockSize;
 	/** Weather entity whose condition and temperature show under the clock. */
