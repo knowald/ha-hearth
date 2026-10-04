@@ -8,7 +8,8 @@
 		placeholder = '',
 		language = 'yaml',
 		expectMapping = language === 'yaml',
-		required = false
+		required = false,
+		compact = false
 	}: {
 		label: string;
 		value?: string;
@@ -18,6 +19,8 @@
 		expectMapping?: boolean;
 		/** Marks the label; the editor decides what blocks Done. */
 		required?: boolean;
+		/** Starts at three lines and grows with the text, for a one-line template in a list row. */
+		compact?: boolean;
 	} = $props();
 
 	let error = $derived.by(() => {
@@ -31,7 +34,7 @@
 	});
 </script>
 
-<div class="field code-field">
+<div class="field code-field" class:compact>
 	<span class="field-label" class:field-required={required}>{label}</span>
 	<div class="code-workspace">
 		{#await import('$lib/ui/CodeEditor.svelte') then CodeEditor}
@@ -70,6 +73,16 @@
 
 	.code-workspace {
 		min-height: 160px;
+	}
+
+	/* three lines of the editor's 1.4 line height, plus its padding and border */
+	.compact .code-workspace {
+		min-height: calc(4.2 * var(--h-type-emphasis) + 10px);
+	}
+
+	.compact .code-workspace :global(.cm-content),
+	.compact .code-workspace :global(.cm-gutter) {
+		min-height: 4.2em;
 	}
 
 	.error {
