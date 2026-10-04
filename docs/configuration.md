@@ -236,7 +236,7 @@ Cards, sidebar widgets and pages take a `visibility` list. Every condition in it
 | `time` with `after`, `before` and/or `weekdays` | The time is from `after` up to `before`, on one of the `weekdays` (`mon` to `sun`). All three are optional. |
 | `or`                                            | At least one of the nested conditions holds.                                                                |
 
-Times are `HH:MM` on the 24 hour clock, in the browser's time zone. A window whose `after` is later than its `before` runs past midnight, and the hours after midnight count as the day the window started: Friday 22:00 to 06:00 still holds at 02:00 on Saturday. Time conditions are checked again every minute.
+Times are `HH:MM` on the 24 hour clock, read in the time zone the clocks show: the first clock widget's, or the browser's. The same time for `after` and `before` is the whole day. A window whose `after` is later than its `before` runs past midnight, and the hours after midnight count as the day the window started: Friday 22:00 to 06:00 still holds at 02:00 on Saturday. Time conditions are checked again every minute. A time condition that cannot be read, such as `after: 7pm`, never holds, and the editor reports it.
 
 ```yaml
 visibility:
@@ -250,15 +250,15 @@ visibility:
     state: heating
 ```
 
-A page with `visibility` leaves the nav widget, the phone page strip, search and swiping while its conditions do not hold. A `?room=` link to a hidden page, or a page that becomes hidden while it is on screen, falls back to the first page shown. When every page is hidden the first page stays. Set it under Conditions in the page editor.
+A page with `visibility` leaves the nav widget, the phone page strip, search and swiping while its conditions do not hold. A page that becomes hidden while it is on screen stays there until you leave it, and so does a hidden page that edit mode ends on. A `?room=` link to a hidden page opens the first page shown instead, and a `navigate` tap action or HEARTH event does nothing for a hidden page. When every page is hidden the first page stays. Set it under Conditions in the page editor.
 
 ## Style rules
 
-An entity in an entities card takes a `style` list. The first rule whose `conditions` hold restyles the tile; the others are skipped. Conditions are the same as for visibility. Each rule sets any of:
+An entity in an entities card takes a `style` list. The first rule whose `conditions` hold restyles the tile; the others are skipped. Conditions are the same as for visibility, except that media queries are not allowed. Each rule sets at least one of:
 
 - `color`: `accent`, `cool`, `good`, `bad`, or a CSS color such as `#e53935`. It colors the icon and the outline of a tile, and the value of a stat box.
 - `icon`: replaces the tile's icon.
-- `class`: one or more class names, added to the element around the tile for custom CSS.
+- `class`: one or more class names, added to the element around the tile for custom CSS. Names Hearth uses itself, such as `tile`, `styled`, `entity-slot`, `pressable`, `hidden` or `editing`, are refused; an unusable class is dropped and the rest of the rule kept.
 
 ```yaml
 entities:

@@ -7,7 +7,7 @@ import type {
 	VacuumModeRef,
 	VerdictBands
 } from './types';
-import { isLinkUrl, normalizeVisibility, uniqueId } from './config';
+import { classListProblem, isLinkUrl, normalizeVisibility, uniqueId, withoutMedia } from './config';
 import { ActionSchema, StyleRuleSchema } from './schema';
 
 /*
@@ -124,18 +124,20 @@ export function normalizeEntityRef(raw: unknown): EntityRef | null {
 }
 
 /**
- * Tile style rules. A rule left without conditions once the unusable ones
- * are dropped, or that restyles nothing, is dropped with them.
+ * Tile style rules. An unusable class is dropped on its own, and media
+ * conditions like in alert rules; a rule left without conditions, or that
+ * restyles nothing, is dropped whole.
  */
 export function normalizeStyleRules(raw: unknown): StyleRule[] | undefined {
 	if (!Array.isArray(raw)) return undefined;
 	const rules = raw.flatMap((entry): StyleRule[] => {
 		if (!isRecord(entry)) return [];
+		const className = trimmedOrUndefined(entry.class);
 		const parsed = v.safeParse(StyleRuleSchema, {
-			conditions: normalizeVisibility(entry.conditions) ?? [],
+			conditions: withoutMedia(normalizeVisibility(entry.conditions) ?? []),
 			color: trimmedOrUndefined(entry.color),
 			icon: trimmedOrUndefined(entry.icon),
-			class: trimmedOrUndefined(entry.class)
+			class: className && !classListProblem(className) ? className : undefined
 		});
 		return parsed.success ? [parsed.output] : [];
 	});

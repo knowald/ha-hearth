@@ -21,8 +21,15 @@
 		type RailPosition,
 		type RailSide
 	} from './config';
-	import { clockFor, conditionsHold, mediaQueriesIn, railWidgetShown } from './visibility';
-	import { navigablePages } from './pages';
+	import { get } from 'svelte/store';
+	import {
+		clockFor,
+		conditionsHeldAtMost,
+		conditionsHold,
+		mediaQueriesIn,
+		railWidgetShown
+	} from './visibility';
+	import { navigablePages, showPage } from './pages';
 	import type { AlertHost } from './alertEngine';
 	import { openEntityDetail } from './details';
 	import { loadMarkdownRenderer } from './markdown';
@@ -128,12 +135,29 @@
 	let layoutCut = $state<ScrollEdges>(NOTHING_CUT);
 	let edgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
 
-	// the selected page, or the first one when it was renamed away, deleted or
-	// hidden by its visibility conditions
+	/*
+	 * The selected page, or the first one shown when it was renamed away,
+	 * deleted or opened while hidden (a ?room= link). A page that was already
+	 * on screen once the states were in stays there when its conditions stop
+	 * holding, or when editing ends on it; it only leaves the navigation.
+	 */
+	let keptRoom = $state('');
 	let activeRoomId = $derived(
-		$navigablePages.some((room) => room.id === $currentRoom)
+		$navigablePages.some((room) => room.id === $currentRoom) ||
+			($currentRoom === keptRoom && $hearthConfig.rooms.some((room) => room.id === $currentRoom))
 			? $currentRoom
 			: ($navigablePages[0]?.id ?? '')
+	);
+	$effect(() => {
+		if ($states !== undefined && $navigablePages.some((room) => room.id === activeRoomId))
+			keptRoom = activeRoomId;
+	});
+
+	// swiping walks the shown pages, starting from a kept hidden one too
+	let swipePages = $derived(
+		$hearthConfig.rooms.filter(
+			(room) => room.id === activeRoomId || $navigablePages.some((shown) => shown.id === room.id)
+		)
 	);
 
 	let activeRoom = $derived($hearthConfig.rooms.find((room) => room.id === activeRoomId));
@@ -146,10 +170,10 @@
 			!$hearthEditMode &&
 			$layerDepth === 0
 	);
-	let activeIndex = $derived($navigablePages.findIndex((room) => room.id === activeRoomId));
+	let activeIndex = $derived(swipePages.findIndex((room) => room.id === activeRoomId));
 
 	function swipeTo(direction: SwipeDirection) {
-		const roomId = neighborRoom($navigablePages, activeRoomId, direction);
+		const roomId = neighborRoom(swipePages, activeRoomId, direction);
 		if (roomId) currentRoom.set(roomId);
 	}
 
@@ -290,6 +314,9 @@
 		openDetail: openEntityDetail,
 		holds: conditionsHold,
 		clockFor,
+		heldAtMost: conditionsHeldAtMost,
+		showPage,
+		sleepBlocked: () => get(screenSheetOpen) || get(setupWizardOpen),
 		layer,
 		loadMarkdown: loadMarkdownRenderer
 	};
@@ -316,7 +343,7 @@
 			use:swipeNav={{
 				enabled: swipeEnabled,
 				hasPrevious: activeIndex > 0,
-				hasNext: activeIndex >= 0 && activeIndex < $navigablePages.length - 1,
+				hasNext: activeIndex >= 0 && activeIndex < swipePages.length - 1,
 				onswipe: swipeTo
 			}}
 		>

@@ -18,7 +18,11 @@ import { openEntityDetail } from './details';
 import { ALERT_SEVERITIES } from './model/alerts';
 import { loadMarkdownRenderer } from './markdown';
 import { layer } from '$lib/ui/layers';
-import { clockFor, conditionsHold } from './visibility';
+import { clockFor, conditionsHeldAtMost, conditionsHold } from './visibility';
+import { showPage } from './pages';
+
+// what the dashboard reports as covering the screen (This screen, setup)
+let sleepBlocked = false;
 import {
 	activeAlerts,
 	cancelEdit,
@@ -53,6 +57,9 @@ const host = {
 	openDetail: openEntityDetail,
 	holds: conditionsHold,
 	clockFor,
+	heldAtMost: conditionsHeldAtMost,
+	showPage,
+	sleepBlocked: () => sleepBlocked,
 	layer,
 	loadMarkdown: loadMarkdownRenderer
 };
@@ -352,6 +359,52 @@ describe('alert rules that read the clock or the device', () => {
 		stop();
 		setAlertHost(host);
 	});
+
+	it('after a reload, waits from when a time window opened, not from the entity change', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-10-02T22:01:00'));
+		const lateDoor: AlertRule = {
+			...fridge,
+			id: 'late-door',
+			for_seconds: 300,
+			conditions: [...fridge.conditions, { time: { after: '22:00', before: '06:00' } }]
+		};
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), alerts: [lateDoor] });
+		health.set('connected');
+		// the first states after the reload: open for ten minutes, but the
+		// window has been open for one
+		states.set(door('on', 600));
+		const stop = startAlerts(host);
+		expect(keys()).toEqual([]);
+		vi.advanceTimersByTime(239_000);
+		expect(keys()).toEqual([]);
+		vi.advanceTimersByTime(1_000);
+		expect(keys()).toEqual(['rule:late-door']);
+		stop();
+		setAlertHost(host);
+	});
+
+	it('after a reload, waits the full delay for a device condition', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(START);
+		deviceName.set('kitchen');
+		const here: AlertRule = {
+			...fridge,
+			id: 'here',
+			for_seconds: 60,
+			conditions: [...fridge.conditions, { device: 'kitchen' }]
+		};
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), alerts: [here] });
+		health.set('connected');
+		states.set(door('on', 600));
+		const stop = startAlerts(host);
+		vi.advanceTimersByTime(59_000);
+		expect(keys()).toEqual([]);
+		vi.advanceTimersByTime(1_000);
+		expect(keys()).toEqual(['rule:here']);
+		stop();
+		setAlertHost(host);
+	});
 });
 
 describe('HEARTH events', () => {
@@ -420,6 +473,58 @@ describe('HEARTH events', () => {
 		expect(get(screensaverPreview)).toBe(false);
 	});
 
+	it('leaves an alert popup, This screen and setup uncovered by sleep', () => {
+		handleHearthAction({
+			action: 'alert',
+			tag: 'w',
+			title: 'Washer',
+			severity: 'info',
+			popup: true
+		});
+		handleHearthAction({ action: 'sleep' });
+		expect(get(screensaverPreview)).toBe(false);
+		// one only listed in the notifications widget covers nothing
+		handleHearthAction({ action: 'dismiss_alert', tag: 'w' });
+		handleHearthAction({
+			action: 'alert',
+			tag: 'q',
+			title: 'Quiet',
+			severity: 'info',
+			popup: false
+		});
+		sleepBlocked = true;
+		handleHearthAction({ action: 'sleep' });
+		expect(get(screensaverPreview)).toBe(false);
+		sleepBlocked = false;
+		handleHearthAction({ action: 'sleep' });
+		expect(get(screensaverPreview)).toBe(true);
+	});
+
+	it('does not navigate to a page its visibility conditions hide', () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			rooms: [
+				{ id: 'home', name: 'Home', icon: 'home', cards: [[]] },
+				{ id: 'kitchen', name: 'Kitchen', icon: 'kitchen', cards: [[]] },
+				{
+					id: 'night',
+					name: 'Night',
+					icon: 'bedtime',
+					visibility: [{ entity: 'input_boolean.night', state: 'on' }],
+					cards: [[]]
+				}
+			]
+		});
+		states.set({ 'input_boolean.night': hassEntity('input_boolean.night', 'off') });
+		currentRoom.set('kitchen');
+		handleHearthAction({ action: 'navigate', page: 'night' });
+		expect(get(currentRoom)).toBe('kitchen');
+		states.set({ 'input_boolean.night': hassEntity('input_boolean.night', 'on') });
+		handleHearthAction({ action: 'navigate', page: 'night' });
+		expect(get(currentRoom)).toBe('night');
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+	});
+
 	it('reads an alert with defaults for what it leaves out', () => {
 		expect(parseHearthEvent({ action: 'alert', title: ' Washer done ' }, '')).toEqual({
 			action: 'alert',
@@ -462,6 +567,13 @@ describe('HEARTH events', () => {
 		expect(parseHearthEvent(event, '')).toBeNull();
 		expect(parseHearthEvent({ ...event, device: ['hall', 'kitchen'] }, 'kitchen')).not.toBeNull();
 		expect(parseHearthEvent({ action: 'close_popup' }, 'hall')).not.toBeNull();
+	});
+
+	it('reaches no screen with an empty device name or list', () => {
+		for (const device of ['', '  ', [], ['', ' ']]) {
+			expect(parseHearthEvent({ action: 'wake', device }, '')).toBeNull();
+			expect(parseHearthEvent({ action: 'wake', device }, 'hall')).toBeNull();
+		}
 	});
 
 	it('raises, replaces and dismisses event alerts by tag', () => {

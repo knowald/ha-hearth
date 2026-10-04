@@ -46,6 +46,7 @@
 		// false while that action's form does not hold a usable action
 		tapValid?: boolean;
 		holdValid?: boolean;
+		styleValid?: boolean;
 		style: EditableStyleRule[];
 	};
 
@@ -169,6 +170,7 @@
 	let actionsValid = $derived(
 		entities.every((ref) => ref.tapValid !== false && ref.holdValid !== false)
 	);
+	let stylesValid = $derived(entities.every((ref) => ref.styleValid !== false));
 
 	$effect(() => {
 		const columnCount = integerFromInput(columns);
@@ -213,9 +215,13 @@
 					}))
 					.filter((ref) => ref.entity)
 			},
-			valid: actionsValid,
-			// the broken action may sit in a collapsed row, out of sight
-			reason: actionsValid ? undefined : $lang('hearth_action_fix_reason')
+			valid: actionsValid && stylesValid,
+			// the broken action or rule may sit in a collapsed row, out of sight
+			reason: !actionsValid
+				? $lang('hearth_action_fix_reason')
+				: !stylesValid
+					? $lang('hearth_style_rule_fix_reason')
+					: undefined
 		});
 	});
 </script>
@@ -409,7 +415,7 @@
 							bind:valid={ref.holdValid}
 						/>
 						{#await import('../../edit/StyleRulesField.svelte') then StyleRulesField}
-							<StyleRulesField.default bind:value={ref.style} />
+							<StyleRulesField.default bind:value={ref.style} bind:valid={ref.styleValid} />
 						{/await}
 					</div>
 				{/if}

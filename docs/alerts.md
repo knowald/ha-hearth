@@ -4,7 +4,7 @@ Alerts pop up over the dashboard, wake the sleep screen when they pop up, and ar
 
 ## Rules
 
-Create rules in edit mode under Settings > Alerts. They are stored in `hearth.yaml`. Each screen checks them in the browser against live entity states. A rule raises its alert once all of its conditions have held for `for_seconds` (default 0) and clears it when they stop holding. Conditions work like [card visibility](configuration.md#visibility-conditions) (`state`, `state_not`, `above`, `below`, `attribute`, `device`, `time`, `or`), except that media queries are not allowed. A rule with a `time` condition is checked again every minute. Each rule needs a unique `id`.
+Create rules in edit mode under Settings > Alerts. They are stored in `hearth.yaml`. Each screen checks them in the browser against live entity states. A rule raises its alert once all of its conditions have held for `for_seconds` (default 0) and clears it when they stop holding. Conditions work like [card visibility](configuration.md#visibility-conditions) (`state`, `state_not`, `above`, `below`, `attribute`, `device`, `time`, `or`), except that media queries are not allowed. A rule with a `time` condition is checked again every minute. After a reload, `for_seconds` counts from when the time window opened at the earliest, and from the reload for a `device` condition. Each rule needs a unique `id`.
 
 Use rules for alerts that follow a state, such as a door left open:
 
@@ -58,9 +58,9 @@ actions:
 | `close_popup`   | `entity` (optional). Without it, the open popup closes; with it, only that entity's popup closes.                                                                                                                                                                     |
 | `navigate`      | `page`: a page id, a page name, or a Lovelace path such as `/lovelace/cameras` whose last part is a page id. Ignored in edit mode and for a page whose visibility conditions hide it.                                                                                 |
 | `wake`          | No fields. Ends the sleep screen.                                                                                                                                                                                                                                     |
-| `sleep`         | No fields. Starts the sleep screen now, even when its timeout is off. Ignored in edit mode.                                                                                                                                                                           |
+| `sleep`         | No fields. Starts the sleep screen now, even when its timeout is off. Ignored in edit mode and while an alert pops up, This screen is open or setup runs.                                                                                                             |
 
-Every action accepts `device`, a name or a list of names. Without it, every screen acts on the event. With it, only screens whose device name matches exactly act on it. Set the name under This screen > Device name, which is stored in that browser, or with `?device=<name>` in the URL.
+Every action accepts `device`, a name or a list of names. Without it, every screen acts on the event. With it, only screens whose device name matches exactly act on it; an empty name or list reaches no screen. Set the name under This screen > Device name, which is stored in that browser, or with `?device=<name>` in the URL.
 
 When the doorbell rings, show the camera page on the hallway tablet and wake it:
 

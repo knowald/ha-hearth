@@ -1,6 +1,6 @@
 import * as v from 'valibot';
-import type { AlertRule, AlertSeverity, VisibilityCondition } from '../types';
-import { MAX_ALERT_SECONDS, normalizeVisibility } from '../config';
+import type { AlertRule, AlertSeverity } from '../types';
+import { MAX_ALERT_SECONDS, normalizeVisibility, usesMedia, withoutMedia } from '../config';
 import { isRecord, reserveId, trimmedOrUndefined } from '../normalizers';
 import { OptionalEntityId, OptionalFlag, OptionalText, VisibilityConditionSchema } from '../schema';
 
@@ -36,26 +36,6 @@ export const AlertRuleSchema = v.looseObject({
 	auto_close: OptionalFlag,
 	entity: OptionalEntityId
 });
-
-function usesMedia(conditions: VisibilityCondition[]): boolean {
-	return conditions.some(
-		(condition) => 'media' in condition || ('or' in condition && usesMedia(condition.or))
-	);
-}
-
-/*
- * Alert rules are checked when states change, not when the window resizes,
- * so a media query would read whatever the screen was at the last state
- * change. They are left out; an or-group left empty goes with them.
- */
-function withoutMedia(conditions: VisibilityCondition[]): VisibilityCondition[] {
-	return conditions.flatMap((condition): VisibilityCondition[] => {
-		if ('media' in condition) return [];
-		if (!('or' in condition)) return [condition];
-		const or = withoutMedia(condition.or);
-		return or.length ? [{ or }] : [];
-	});
-}
 
 /**
  * Rules without a title or a condition are dropped: a rule with nothing to

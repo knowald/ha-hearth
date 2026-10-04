@@ -74,6 +74,19 @@ describe('runSurfaceAction', () => {
 		expect(get(currentRoom)).toBe('kitchen');
 	});
 
+	it('does not navigate to a page its visibility conditions hide', () => {
+		hearthConfig.update((config) => {
+			config.rooms[2].visibility = [{ entity: 'input_boolean.guests', state: 'on' }];
+			return config;
+		});
+		currentRoom.set('kitchen');
+		const surface = { entity: 'switch.fan', fallback: vi.fn() };
+		runSurfaceAction({ action: 'navigate', navigation_path: 'living room' }, surface);
+		expect(get(currentRoom)).toBe('kitchen');
+		runSurfaceAction({ action: 'navigate', navigation_path: 'home' }, surface);
+		expect(get(currentRoom)).toBe('home');
+	});
+
 	it('opens the detail popup with the surface name and options for more-info', () => {
 		runSurfaceAction(
 			{ action: 'more-info' },

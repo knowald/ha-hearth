@@ -1,9 +1,10 @@
 import { writable } from 'svelte/store';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { StyleRule, VisibilityCondition } from './config';
 import {
 	clockFor,
 	evaluateVisibility,
+	heldAtMost,
 	inTimeWindow,
 	matchStyleRule,
 	styleColor,
@@ -89,6 +90,48 @@ describe('device, time and attribute conditions', () => {
 		).toBe(false);
 	});
 
+	it('reads the time on the clock of the display time zone', () => {
+		// 21:30 UTC is 23:30 in Berlin in October, and still Friday in New York
+		const instant = new Date('2026-10-02T21:30:00Z');
+		const night = { after: '22:00', before: '06:00' };
+		expect(inTimeWindow(night, instant, 'Europe/Berlin')).toBe(true);
+		expect(inTimeWindow(night, instant, 'America/New_York')).toBe(false);
+		// 00:30 Saturday in Tokyo belongs to Friday night there
+		expect(inTimeWindow({ ...night, weekdays: ['fri'] }, instant, 'Asia/Tokyo')).toBe(false);
+		expect(
+			inTimeWindow({ after: '06:00', before: '07:00', weekdays: ['sat'] }, instant, 'Asia/Tokyo')
+		).toBe(true);
+		expect(
+			evaluateVisibility([{ time: night }], {}, {}, { now: instant, timeZone: 'Europe/Berlin' })
+		).toBe(true);
+	});
+
+	it('takes the same after and before as the whole day', () => {
+		const allDay = { after: '08:00', before: '08:00' };
+		expect(inTimeWindow(allDay, at('07:59'))).toBe(true);
+		expect(inTimeWindow(allDay, at('08:00'))).toBe(true);
+		expect(inTimeWindow({ ...allDay, weekdays: ['sat'] }, at('12:00', 2))).toBe(false);
+	});
+
+	it('never holds for a window it cannot read', () => {
+		expect(inTimeWindow({}, at('12:00'))).toBe(false);
+		expect(inTimeWindow({ after: '7pm' }, at('20:00'))).toBe(false);
+		expect(inTimeWindow({ weekdays: ['funday' as never] }, at('12:00'))).toBe(false);
+	});
+
+	it('tells how long the non-entity conditions can have held', () => {
+		const now = at('22:10');
+		expect(heldAtMost([{ entity: 'a.b', state: 'on' }], now)).toBe(Infinity);
+		expect(heldAtMost([{ time: { after: '22:00', before: '06:00' } }], now)).toBe(600_000);
+		// the early hours of a night window count from the evening before
+		expect(heldAtMost([{ time: { after: '22:00', before: '06:00' } }], at('01:00'))).toBe(
+			3 * 3_600_000
+		);
+		expect(heldAtMost([{ time: { weekdays: ['fri'] } }], now)).toBe((22 * 60 + 10) * 60_000);
+		expect(heldAtMost([{ entity: 'a.b' }, { device: 'hall' }], now)).toBe(0);
+		expect(heldAtMost([{ or: [{ entity: 'a.b' }, { time: { after: '09:00' } }] }], now)).toBe(0);
+	});
+
 	it('finds time conditions inside or-groups', () => {
 		expect(usesTime([{ or: [{ entity: 'a.b' }, { time: { after: '10:00' } }] }])).toBe(true);
 		expect(usesTime([{ entity: 'a.b' }, { device: 'x' }])).toBe(false);
@@ -146,5 +189,19 @@ describe('style rules', () => {
 		expect(styleColor('tomato')).toBe('tomato');
 		expect(styleColor('red; background: url(x)')).toBeUndefined();
 		expect(styleColor(undefined)).toBeUndefined();
+	});
+
+	it('asks the browser whether a color parses when it can', () => {
+		const supports = vi.fn((_: string, value: string) => value !== 'notacolor');
+		vi.stubGlobal('CSS', { supports });
+		try {
+			expect(styleColor('tomato')).toBe('tomato');
+			expect(styleColor('notacolor')).toBeUndefined();
+			expect(supports).toHaveBeenCalledWith('color', 'notacolor');
+			// the shape check still comes first
+			expect(styleColor('var(--x)')).toBeUndefined();
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 });

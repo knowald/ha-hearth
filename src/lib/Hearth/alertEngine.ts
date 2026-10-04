@@ -6,12 +6,12 @@ import { states } from '$lib/core/ha/entities';
 import {
 	activeAlerts,
 	closePopup,
+	displayTimeZone,
 	hearthConfig,
 	hearthEditMode,
 	popup,
 	requestWake,
 	screensaverPreview,
-	showPage,
 	type HearthAlert,
 	type Popup
 } from './store';
@@ -38,6 +38,12 @@ export interface AlertHost {
 	holds: (conditions: VisibilityCondition[], $states: HassEntities | undefined) => boolean;
 	/** The minute clock while conditions read the time (visibility.ts). */
 	clockFor: typeof import('./visibility').clockFor;
+	/** The longest the conditions besides entity states can have held, in ms (visibility.ts). */
+	heldAtMost: (conditions: VisibilityCondition[]) => number;
+	/** Shows a page that is not hidden; see pages.ts. */
+	showPage: (path: string) => boolean;
+	/** Whether something the sleep screen must not cover is open (This screen, setup). */
+	sleepBlocked: () => boolean;
 	layer: typeof import('$lib/ui/layers').layer;
 	loadMarkdown: typeof import('./markdown').loadMarkdownRenderer;
 }
@@ -118,12 +124,14 @@ function conditionEntities(conditions: VisibilityCondition[]): string[] {
 }
 
 /*
- * Conditions read states only, so they cannot have changed since the latest
- * last_changed among their entities: the conditions have held at least that
- * long. After a reload this keeps a door that has been open for ten minutes
- * from waiting out the full delay again. last_changed is the server's clock,
- * so a browser clock that is off would shorten every delay; it is only
- * consulted for states that changed while nobody was watching (see
+ * Entity conditions cannot have changed since the latest last_changed among
+ * their entities: those conditions have held at least that long. After a
+ * reload this keeps a door that has been open for ten minutes from waiting
+ * out the full delay again. A time window caps it at the time since the
+ * window opened, and a device condition, whose start is not known, caps it
+ * at 0 (see heldAtMost in visibility.ts). last_changed is the server's
+ * clock, so a browser clock that is off would shorten every delay; it is
+ * only consulted for states that changed while nobody was watching (see
  * catchingUp), never for a change seen live.
  */
 function latestChange(conditions: VisibilityCondition[], $states: HassEntities | undefined) {
@@ -135,7 +143,8 @@ function latestChange(conditions: VisibilityCondition[], $states: HassEntities |
 
 function heldFor(conditions: VisibilityCondition[], $states: HassEntities | undefined): number {
 	const latest = latestChange(conditions, $states);
-	return Number.isFinite(latest) ? Math.max(0, Date.now() - latest) : 0;
+	const held = Number.isFinite(latest) ? Math.max(0, Date.now() - latest) : 0;
+	return Math.min(held, host?.heldAtMost(conditions) ?? 0);
 }
 
 function ruleHolds(rule: AlertRule, $states: HassEntities | undefined): boolean {
@@ -298,7 +307,10 @@ function text(value: unknown): string | undefined {
 /** Whether an event's `device` (a name or a list of names) includes this screen. */
 function forThisDevice(target: unknown, device: string): boolean {
 	if (target === undefined || target === null) return true;
-	const names = (Array.isArray(target) ? target : [target]).map((name) => String(name).trim());
+	// an empty name or list targets no screen, not every screen
+	const names = (Array.isArray(target) ? target : [target])
+		.map((name) => String(name).trim())
+		.filter(Boolean);
 	return names.includes(device.trim());
 }
 
@@ -381,13 +393,19 @@ export function handleHearthAction(action: HearthAction) {
 			return;
 		// edit mode keeps the page and the screen the editor is working on
 		case 'navigate':
-			if (!get(hearthEditMode)) showPage(action.page);
+			if (!get(hearthEditMode)) host?.showPage(action.page);
 			return;
 		case 'wake':
 			requestWake();
 			return;
+		// an alert card on screen must stay readable, the same rule the idle timeout follows
 		case 'sleep':
-			if (!get(hearthEditMode)) screensaverPreview.set(true);
+			if (
+				!get(hearthEditMode) &&
+				!get(activeAlerts).some((alert) => alert.popup) &&
+				!host?.sleepBlocked()
+			)
+				screensaverPreview.set(true);
 	}
 }
 
@@ -407,7 +425,7 @@ export function startAlerts(services: AlertHost): () => void {
 		derived(hearthConfig, ($config) => ($config.alerts ?? []).flatMap((rule) => rule.conditions))
 	);
 	const stopRules = derived(
-		[hearthConfig, states, clock, deviceName],
+		[hearthConfig, states, clock, deviceName, displayTimeZone],
 		(values) => values
 	).subscribe(([$config, $states]) => syncRules($config.alerts ?? [], $states));
 	const stopEvents = subscribeHearthEvents((data) => {

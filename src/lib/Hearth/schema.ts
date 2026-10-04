@@ -1,6 +1,15 @@
 import * as v from 'valibot';
 import type { ActionTarget, HaAction } from '$lib/core/ha/commands';
-import { CLOCK_TIME, isLinkUrl, isTileUrl, RADAR_ZOOM, WEEKDAYS, type Weekday } from './config';
+import {
+	classListProblem,
+	CLOCK_TIME,
+	isLinkUrl,
+	isTileUrl,
+	RADAR_ZOOM,
+	usesMedia,
+	WEEKDAYS,
+	type Weekday
+} from './config';
 
 /*
  * Field-level schemas for the shapes that recur across card and widget types.
@@ -177,8 +186,6 @@ export const ActionSchema = v.pipe(
 );
 
 // one class name or several, separated by spaces
-const CLASS_LIST = /^-?[_a-zA-Z][\w-]*(\s+-?[_a-zA-Z][\w-]*)*$/;
-
 /**
  * Restyles a tile while its conditions hold. Lazy because the condition
  * schema is declared further down.
@@ -188,7 +195,11 @@ export const StyleRuleSchema = v.lazy(() =>
 		v.object({
 			conditions: v.pipe(
 				v.array(VisibilityConditionSchema, 'must be a list of conditions'),
-				v.minLength(1, 'must have at least one condition')
+				v.minLength(1, 'must have at least one condition'),
+				v.check(
+					(conditions) => !usesMedia(conditions),
+					'cannot use media queries; style rules follow states, not the screen'
+				)
 			),
 			color: OptionalText,
 			icon: OptionalText,
@@ -196,7 +207,14 @@ export const StyleRuleSchema = v.lazy(() =>
 				v.pipe(
 					v.string('must be text'),
 					v.trim(),
-					v.regex(CLASS_LIST, 'must be CSS class names separated by spaces')
+					v.check(
+						(value) => classListProblem(value) !== 'format',
+						'must be CSS class names separated by spaces'
+					),
+					v.check(
+						(value) => classListProblem(value) !== 'reserved',
+						'reuses a class name Hearth uses itself'
+					)
 				)
 			)
 		}),

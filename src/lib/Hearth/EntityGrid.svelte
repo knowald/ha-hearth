@@ -5,7 +5,7 @@
 	import type { EntityRef } from './config';
 	import type { SliderUpdateMode } from '$lib/core/app/configuration';
 	import { onDndReceive } from './drag';
-	import { hearthEditMode } from './store';
+	import { displayTimeZone, hearthEditMode } from './store';
 	import EntityTile from './EntityTile.svelte';
 	import Icon from './Icon.svelte';
 	import StatTile from './StatTile.svelte';
@@ -62,8 +62,18 @@
 		}
 		return minuteTimer.subscribe((value) => (now = value));
 	});
+	// a grid without style rules never reads the states for them
+	let styled = $derived(entities.some((ref) => ref.style?.length));
 	let styleRules = $derived(
-		entities.map((ref) => matchStyleRule(ref.style, $states, { device: $deviceName, now }))
+		styled
+			? entities.map((ref) =>
+					matchStyleRule(ref.style, $states, {
+						device: $deviceName,
+						now,
+						timeZone: $displayTimeZone
+					})
+				)
+			: []
 	);
 
 	// a tablet card's four tracks would leave phone tiles too narrow to read

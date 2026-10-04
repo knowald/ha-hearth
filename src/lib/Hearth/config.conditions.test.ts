@@ -3,6 +3,7 @@ import { load } from 'js-yaml';
 import { normalizeVisibility } from './config';
 import { hearthConfigIssues, normalizeHearthConfig } from './normalize';
 import { normalizeEntityRef, normalizeStyleRules } from './normalizers';
+import { evaluateVisibility } from './visibility';
 
 describe('device, time and attribute conditions in YAML', () => {
 	it('keeps one device name or a list, and splits text the editor left with commas', () => {
@@ -16,20 +17,34 @@ describe('device, time and attribute conditions in YAML', () => {
 		expect(normalizeVisibility([{ device: '' }])).toBeUndefined();
 	});
 
-	it('keeps valid times and weekdays in week order, and drops an empty window', () => {
+	it('puts weekdays in week order, whatever their case', () => {
 		const [condition] = normalizeVisibility(
 			load(`
 - time:
     after: 22:00
     before: '6:30'
-    weekdays: [sun, fri, funday]
+    weekdays: [Sun, FRI]
 `)
 		)!;
 		expect(condition).toEqual({
 			time: { after: '22:00', before: '6:30', weekdays: ['fri', 'sun'] }
 		});
-		expect(normalizeVisibility([{ time: { after: '25:00' } }])).toBeUndefined();
-		expect(normalizeVisibility([{ time: {} }])).toBeUndefined();
+	});
+
+	it('keeps a window it cannot read, so the item stays hidden instead of showing always', () => {
+		const kept = normalizeVisibility([
+			{ time: { after: '25:00' } },
+			{ time: {} },
+			{ time: { weekdays: ['fri', 'funday'] } }
+		])!;
+		expect(kept).toEqual([
+			{ time: { after: '25:00' } },
+			{ time: {} },
+			{ time: { weekdays: ['fri', 'funday'] } }
+		]);
+		const friday = { now: new Date('2026-10-02T12:00:00') };
+		for (const condition of kept)
+			expect(evaluateVisibility([condition], {}, {}, friday)).toBe(false);
 	});
 
 	it('keeps the attribute on an entity condition', () => {
@@ -114,6 +129,55 @@ describe('style rules', () => {
 		]);
 		expect(normalizeStyleRules([])).toBeUndefined();
 		expect(normalizeStyleRules('red')).toBeUndefined();
+	});
+
+	it('drops only an unusable or reserved class, and media conditions', () => {
+		const door = { entity: 'lock.front', state: 'unlocked' };
+		expect(
+			normalizeStyleRules([
+				{ conditions: [door], color: 'bad', class: 'not a ;class' },
+				{ conditions: [door], icon: 'lock_open', class: 'alarm styled' },
+				{ conditions: [door, { media: '(max-width: 900px)' }], class: 'front' },
+				{ conditions: [{ media: '(max-width: 900px)' }], class: 'phone' }
+			])
+		).toEqual([
+			{ conditions: [door], color: 'bad' },
+			{ conditions: [door], icon: 'lock_open' },
+			{ conditions: [door], class: 'front' }
+		]);
+	});
+
+	it('reports reserved classes and media conditions', () => {
+		const issues = hearthConfigIssues({
+			rail: [],
+			rooms: [
+				{
+					id: 'home',
+					cards: [
+						[
+							{
+								id: 'locks',
+								type: 'entities',
+								entities: [
+									{
+										entity: 'lock.front',
+										style: [{ conditions: [{ entity: 'lock.front' }], class: 'tile' }]
+									},
+									{
+										entity: 'lock.back',
+										style: [{ conditions: [{ media: '(max-width: 900px)' }], color: 'bad' }]
+									}
+								]
+							}
+						]
+					]
+				}
+			]
+		});
+		expect(issues).toEqual([
+			'rooms[0].cards[0][0].entities[0].style[0].class reuses a class name Hearth uses itself',
+			'rooms[0].cards[0][0].entities[1].style[0].conditions cannot use media queries; style rules follow states, not the screen'
+		]);
 	});
 
 	it('rides on entity references and is checked by the issue checker', () => {

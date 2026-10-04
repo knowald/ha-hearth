@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- A media query inside an `or` group of a card or widget's visibility conditions now matches the screen; before, only media queries at the top level of the list were read and nested ones never held
+
 ## [0.6.0] - 2026-10-03
 
 ### Added

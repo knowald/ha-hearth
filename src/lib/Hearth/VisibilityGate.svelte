@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { minuteTimer } from '$lib/core/app/clock';
 	import { deviceName } from '$lib/core/app/device';
+	import { displayTimeZone } from './store';
 	import { states } from '$lib/core/ha/entities';
 	import type { VisibilityCondition } from './config';
 	import { evaluateVisibility, mediaQueriesIn, usesTime } from './visibility';
@@ -56,7 +57,11 @@
 	});
 
 	let visible = $derived(
-		evaluateVisibility(conditions, $states, mediaMatches, { device: $deviceName, now })
+		evaluateVisibility(conditions, $states, mediaMatches, {
+			device: $deviceName,
+			now,
+			timeZone: $displayTimeZone
+		})
 	);
 </script>
 

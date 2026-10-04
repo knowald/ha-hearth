@@ -189,6 +189,32 @@ describe('HearthDashboard navigation', () => {
 		expect(container.querySelectorAll('.phone-nav .page.visibility-dimmed')).toHaveLength(1);
 	});
 
+	it('keeps a page on screen when it becomes hidden there, or when editing ends on it', async () => {
+		const config = withRooms([{ id: 'nav', type: 'nav' }]);
+		config.rooms[1].visibility = [{ entity: 'input_boolean.cooking', state: 'on' }];
+		hearthConfig.set(config);
+		states.set({ 'input_boolean.cooking': { state: 'on' } } as never);
+		const { container } = render(HearthDashboard);
+		await act();
+		await fireEvent.click(container.querySelector('.rail-scroll [data-id="kitchen"]')!);
+		expect(container.querySelector('[data-page="kitchen"]')).not.toBeNull();
+
+		await act(() => states.set({ 'input_boolean.cooking': { state: 'off' } } as never));
+		expect(get(currentRoom)).toBe('kitchen');
+		expect(container.querySelector('[data-page="kitchen"]')).not.toBeNull();
+		expect(container.querySelector('.rail-scroll [data-id="kitchen"]')).toBeNull();
+
+		await fireEvent.click(container.querySelector('.rail-scroll [data-id="home"]')!);
+		expect(container.querySelector('[data-page="home"]')).not.toBeNull();
+
+		// a hidden page picked while editing stays once editing ends
+		await act(() => enterEditMode());
+		await fireEvent.click(container.querySelector('.rail-scroll [data-id="kitchen"]')!);
+		await act(() => cancelEdit());
+		expect(get(currentRoom)).toBe('kitchen');
+		expect(container.querySelector('[data-page="kitchen"]')).not.toBeNull();
+	});
+
 	it('sends a ?room= link to a hidden page to the first page shown', async () => {
 		history.replaceState(null, '', '/?room=kitchen');
 		const config = withRooms([{ id: 'nav', type: 'nav' }]);

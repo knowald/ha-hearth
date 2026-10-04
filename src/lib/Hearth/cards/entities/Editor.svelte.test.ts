@@ -50,6 +50,38 @@ describe('entities card editor style rules', () => {
 	});
 });
 
+describe('entities card editor style rule errors', () => {
+	it('names what is wrong with a rule and holds Done until it is fixed', async () => {
+		const onchange = vi.fn();
+		render(Editor, {
+			initial: { id: 'e', type: 'entities', entities: [{ entity: 'lock.back' }] } as EntitiesCard,
+			onchange
+		});
+		const last = () => onchange.mock.lastCall?.[0] as { valid: boolean; reason?: string };
+		await expandRow('lock.back');
+		await fireEvent.click(await screen.findByRole('button', { name: en.hearth_add_style_rule }));
+		expect(screen.getByText(en.hearth_style_rule_needs_change)).toBeTruthy();
+		expect(last()).toMatchObject({ valid: false, reason: en.hearth_style_rule_fix_reason });
+
+		await fireEvent.input(screen.getByLabelText(en.hearth_css_class), {
+			target: { value: 'tile' }
+		});
+		expect(screen.getByText(en.hearth_css_class_reserved)).toBeTruthy();
+		await fireEvent.input(screen.getByLabelText(en.hearth_css_class), {
+			target: { value: 'open-lock' }
+		});
+		// the condition the new rule starts with has no entity yet
+		expect(screen.getByText(en.hearth_style_rule_needs_condition)).toBeTruthy();
+		expect(last().valid).toBe(false);
+
+		await fireEvent.input(screen.getAllByLabelText(en.entity, { selector: 'input' }).at(-1)!, {
+			target: { value: 'lock.back' }
+		});
+		expect(last().valid).toBe(true);
+		expect(screen.queryByRole('alert')).toBeNull();
+	});
+});
+
 describe('entities card editor tile highlight', () => {
 	it('stores a trimmed highlight entity and the non-empty states', async () => {
 		const lastEntities = renderEditor([{ entity: 'sensor.washer' }]);

@@ -1,9 +1,9 @@
-import { derived, readable, type Readable } from 'svelte/store';
+import { derived, get, readable, type Readable } from 'svelte/store';
 import { deviceName } from '$lib/core/app/device';
 import { states } from '$lib/core/ha/entities';
 import { mediaQuery } from '$lib/ui/mediaQuery';
-import type { HearthRoom, VisibilityCondition } from './config';
-import { hearthConfig, hearthEditMode } from './store';
+import { resolvePage, type HearthRoom, type VisibilityCondition } from './config';
+import { currentRoom, displayTimeZone, hearthConfig, hearthEditMode } from './store';
 import { clockFor, evaluateVisibility, mediaQueriesIn, type VisibilityContext } from './visibility';
 
 /*
@@ -60,13 +60,17 @@ const pageMedia: Readable<Record<string, boolean>> = derived(
 );
 
 const hiddenList = derived(
-	[hearthConfig, states, deviceName, pageClock, pageMedia],
-	([$config, $states, $device, $now, $media]) =>
+	[hearthConfig, states, deviceName, displayTimeZone, pageClock, pageMedia],
+	([$config, $states, $device, $timeZone, $now, $media]) =>
 		// before the first states arrive every entity condition would fail; a
 		// ?room= link to a page that only shows once they are in must survive that
 		$states === undefined
 			? []
-			: hiddenPageIds($config.rooms, $states, $media, { device: $device, now: $now })
+			: hiddenPageIds($config.rooms, $states, $media, {
+					device: $device,
+					now: $now,
+					timeZone: $timeZone
+				})
 );
 
 /**
@@ -88,3 +92,14 @@ export const navigablePages = derived(
 	[hearthConfig, hiddenPages, hearthEditMode],
 	([$config, $hidden, $editing]) => shownPages($config.rooms, $hidden, $editing)
 );
+
+/**
+ * Shows the page `path` names (an id, a name or a Lovelace path), for tap
+ * actions and HEARTH events. A hidden page is not there to go to; false when
+ * nothing matches.
+ */
+export function showPage(path: string): boolean {
+	const id = resolvePage(get(navigablePages), path);
+	if (id) currentRoom.set(id);
+	return id !== undefined;
+}

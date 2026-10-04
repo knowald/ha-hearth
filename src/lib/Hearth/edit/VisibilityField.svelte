@@ -387,6 +387,13 @@
 		cursor: pointer;
 	}
 
+	@media (pointer: coarse) {
+		.weekday {
+			min-width: var(--h-touch-target);
+			min-height: var(--h-touch-target);
+		}
+	}
+
 	.weekday[aria-pressed='true'] {
 		background: rgb(var(--h-accent-rgb) / calc(0.16 * var(--h-accent-scale)));
 		border-color: rgb(var(--h-accent-rgb) / calc(0.4 * var(--h-accent-scale)));

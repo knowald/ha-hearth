@@ -13,13 +13,53 @@
 <script lang="ts">
 	import { ICON } from '../iconSizes';
 	import { fill, lang } from '$lib/core/i18n';
+	import { classListProblem } from '../config';
 	import { activateOnKeyboard } from '../interaction';
+	import { normalizeStyleRules } from '../normalizers';
+	import { styleColor } from '../visibility';
 	import Icon from '../Icon.svelte';
 	import IconField from './IconField.svelte';
 	import TextField from './TextField.svelte';
 	import VisibilityField from './VisibilityField.svelte';
 
-	let { value = $bindable([]) }: { value?: EditableStyleRule[] } = $props();
+	let {
+		value = $bindable([]),
+		valid = $bindable()
+	}: {
+		value?: EditableStyleRule[];
+		/** False while a rule would be dropped or changed on save; the sheet blocks Done. */
+		valid?: boolean;
+	} = $props();
+
+	function colorError(rule: EditableStyleRule): string | undefined {
+		return rule.color.trim() && !styleColor(rule.color)
+			? $lang('hearth_style_color_invalid')
+			: undefined;
+	}
+
+	function classError(rule: EditableStyleRule): string | undefined {
+		if (!rule.class.trim()) return undefined;
+		const problem = classListProblem(rule.class);
+		return problem === 'format'
+			? $lang('hearth_css_class_invalid')
+			: problem === 'reserved'
+				? $lang('hearth_css_class_reserved')
+				: undefined;
+	}
+
+	function ruleError(rule: EditableStyleRule): string | undefined {
+		if (!rule.color.trim() && !rule.icon.trim() && !rule.class.trim())
+			return $lang('hearth_style_rule_needs_change');
+		// what saving keeps of the rule's conditions, with a placeholder change
+		const kept = normalizeStyleRules([
+			{ conditions: $state.snapshot(rule.conditions), class: 'check' }
+		]);
+		return kept ? undefined : $lang('hearth_style_rule_needs_condition');
+	}
+
+	$effect(() => {
+		valid = value.every((rule) => !colorError(rule) && !classError(rule) && !ruleError(rule));
+	});
 
 	function addRule() {
 		value.push({ conditions: [{ entity: '', state: '' }], color: '', icon: '', class: '' });
@@ -51,10 +91,19 @@
 				label={$lang('hearth_style_color')}
 				placeholder="bad"
 				hint={$lang('hearth_style_color_hint')}
+				error={colorError(rule)}
 				bind:value={rule.color}
 			/>
 			<IconField label={$lang('hearth_icon_optional')} bind:value={rule.icon} />
-			<TextField label={$lang('hearth_css_class')} placeholder="unlocked" bind:value={rule.class} />
+			<TextField
+				label={$lang('hearth_css_class')}
+				placeholder="unlocked"
+				error={classError(rule)}
+				bind:value={rule.class}
+			/>
+			{#if ruleError(rule)}
+				<div class="field-error" role="alert">{ruleError(rule)}</div>
+			{/if}
 		</div>
 	</div>
 {/each}
