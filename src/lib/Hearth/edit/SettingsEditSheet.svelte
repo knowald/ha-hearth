@@ -8,9 +8,11 @@
 	import {
 		isTileUrl,
 		moveItem,
+		PHOTO_SECONDS,
 		RADAR_ZOOM,
 		railPositionOf,
 		type RailPosition,
+		type ScreensaverBackground,
 		type ScreensaverRadar
 	} from '../config';
 	import {
@@ -24,6 +26,7 @@
 	import EntityField from './EntityField.svelte';
 	import Icon from '../Icon.svelte';
 	import ImageField from './ImageField.svelte';
+	import PhotoListField from './PhotoListField.svelte';
 	import SelectField from './SelectField.svelte';
 	import SettingsRow from './SettingsRow.svelte';
 	import TextField from './TextField.svelte';
@@ -42,6 +45,15 @@
 	let background = $derived($hearthConfig.screensaver_background ?? 'none');
 	let backgroundImage = $derived($hearthConfig.screensaver_image ?? '');
 	let radar = $derived($hearthConfig.screensaver_radar ?? {});
+	let photos = $derived($hearthConfig.screensaver_photos ?? []);
+	let photoSeconds = $derived(
+		String($hearthConfig.screensaver_photo_seconds ?? PHOTO_SECONDS.fallback)
+	);
+	let photoOrder = $derived($hearthConfig.screensaver_photo_order ?? 'shuffle');
+	let mediaEntity = $derived($hearthConfig.screensaver_media_entity ?? '');
+	let mediaFallback = $derived($hearthConfig.screensaver_media_fallback ?? 'none');
+	// a media background shows its fallback's fields too, since that is what shows most of the time
+	let scene = $derived(background === 'media' ? mediaFallback : background);
 	let useHomeLocation = $derived(radar.latitude === undefined || radar.longitude === undefined);
 	// without a home location in Home Assistant, only custom coordinates can work
 	let homeKnown = $derived(
@@ -132,8 +144,30 @@
 	let BACKGROUND_OPTIONS = $derived([
 		{ value: 'none', label: $lang('hearth_sleep_background_none') },
 		{ value: 'image', label: $lang('hearth_sleep_background_image') },
-		{ value: 'radar', label: $lang('hearth_sleep_background_radar') }
+		{ value: 'radar', label: $lang('hearth_sleep_background_radar') },
+		{ value: 'photos', label: $lang('hearth_sleep_background_photos') },
+		{ value: 'sun', label: $lang('hearth_sleep_background_sun') },
+		{ value: 'media', label: $lang('hearth_sleep_background_media') }
 	]);
+	let MEDIA_FALLBACK_OPTIONS = $derived(
+		BACKGROUND_OPTIONS.filter((option) => option.value !== 'media')
+	);
+	let PHOTO_ORDER_OPTIONS = $derived([
+		{ value: 'shuffle', label: $lang('hearth_sleep_photo_order_shuffle') },
+		{ value: 'sequence', label: $lang('hearth_sleep_photo_order_sequence') }
+	]);
+	let PHOTO_SECONDS_OPTIONS = $derived(
+		withCurrent(
+			[
+				{ value: '10', label: $lang('hearth_every_10_seconds') },
+				{ value: '30', label: $lang('hearth_every_30_seconds') },
+				{ value: '60', label: $lang('hearth_every_minute') },
+				{ value: '300', label: $lang('hearth_every_5_minutes') }
+			],
+			photoSeconds,
+			$lang
+		)
+	);
 	let BASEMAP_OPTIONS = $derived([
 		{ value: 'dark', label: $lang('hearth_dark') },
 		{ value: 'light', label: $lang('hearth_light') }
@@ -186,9 +220,48 @@
 		});
 	}
 
+	const BACKGROUNDS = new Set<string>(['image', 'radar', 'photos', 'sun', 'media']);
+
 	function setBackground(value: string) {
 		updateConfig((config) => {
-			config.screensaver_background = value === 'image' || value === 'radar' ? value : undefined;
+			config.screensaver_background = BACKGROUNDS.has(value)
+				? (value as ScreensaverBackground)
+				: undefined;
+		});
+	}
+
+	function setPhotos(value: string[]) {
+		updateConfig((config) => {
+			config.screensaver_photos = value.length ? value : undefined;
+		});
+	}
+
+	function setPhotoSeconds(value: string) {
+		const seconds = integerFromInput(value);
+		updateConfig((config) => {
+			config.screensaver_photo_seconds =
+				seconds === PHOTO_SECONDS.fallback || seconds < PHOTO_SECONDS.min ? undefined : seconds;
+		});
+	}
+
+	function setPhotoOrder(value: string) {
+		updateConfig((config) => {
+			config.screensaver_photo_order = value === 'sequence' ? 'sequence' : undefined;
+		});
+	}
+
+	function setMediaEntity(value: string) {
+		updateConfig((config) => {
+			config.screensaver_media_entity = value.trim() || undefined;
+		});
+	}
+
+	function setMediaFallback(value: string) {
+		updateConfig((config) => {
+			config.screensaver_media_fallback =
+				value !== 'media' && BACKGROUNDS.has(value)
+					? (value as Exclude<ScreensaverBackground, 'media'>)
+					: undefined;
 		});
 	}
 
@@ -678,7 +751,41 @@
 						onchange={setBackground}
 					/>
 				</SettingsRow>
-				{#if background === 'radar'}
+				{#if background === 'media'}
+					<SettingsRow
+						label={$lang('hearth_sleep_media_fallback')}
+						sub={$lang('hearth_sleep_media_fallback_sub')}
+					>
+						<SelectField
+							inline
+							label={$lang('hearth_sleep_media_fallback')}
+							value={mediaFallback}
+							options={MEDIA_FALLBACK_OPTIONS}
+							onchange={setMediaFallback}
+						/>
+					</SettingsRow>
+				{/if}
+				{#if scene === 'photos'}
+					<SettingsRow label={$lang('hearth_sleep_photo_seconds')}>
+						<SelectField
+							inline
+							label={$lang('hearth_sleep_photo_seconds')}
+							value={photoSeconds}
+							options={PHOTO_SECONDS_OPTIONS}
+							onchange={setPhotoSeconds}
+						/>
+					</SettingsRow>
+					<SettingsRow label={$lang('hearth_sleep_photo_order')}>
+						<SelectField
+							inline
+							label={$lang('hearth_sleep_photo_order')}
+							value={photoOrder}
+							options={PHOTO_ORDER_OPTIONS}
+							onchange={setPhotoOrder}
+						/>
+					</SettingsRow>
+				{/if}
+				{#if scene === 'radar'}
 					<SettingsRow label={$lang('hearth_sleep_radar_map_style')}>
 						<SelectField
 							inline
@@ -740,7 +847,24 @@
 					{/if}
 				{/if}
 				<div class="row-fields">
-					{#if background === 'radar'}
+					{#if background === 'media'}
+						<EntityField
+							label={$lang('hearth_sleep_media_entity')}
+							hint={$lang('hearth_sleep_media_entity_hint')}
+							domains={['media_player']}
+							value={mediaEntity}
+							onchange={setMediaEntity}
+						/>
+					{/if}
+					{#if scene === 'photos'}
+						<PhotoListField
+							label={$lang('hearth_sleep_photos')}
+							hint={$lang('hearth_sleep_photos_hint')}
+							value={photos}
+							onchange={setPhotos}
+						/>
+					{/if}
+					{#if scene === 'radar'}
 						<TextField
 							label={$lang('hearth_sleep_tile_url')}
 							value={radar.tile_url ?? ''}
@@ -757,7 +881,7 @@
 							/>
 						{/if}
 					{/if}
-					{#if background === 'image'}
+					{#if scene === 'image'}
 						<ImageField
 							label={$lang('hearth_background_image')}
 							value={backgroundImage}

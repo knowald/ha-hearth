@@ -14,6 +14,7 @@ import { WebSocketServer } from 'ws';
  * POST /_test/state with { entity_id, state, attributes } patches one entity,
  * POST /_test/fire_event with an event data object fires a HEARTH event at
  * every subscribe_trigger subscription listening for it.
+ * GET /api/media_player_proxy/<entity> answers with a 1x1 PNG as album art.
  */
 
 const PORT = Number(process.env.FAKE_HASS_PORT ?? 8124);
@@ -779,7 +780,18 @@ function readBody(request) {
 	});
 }
 
+// one opaque pixel, enough for an <img> to load
+const ALBUM_ART = Buffer.from(
+	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+	'base64'
+);
+
 const http = createServer(async (request, response) => {
+	if (request.url?.startsWith('/api/media_player_proxy/')) {
+		response.setHeader('Content-Type', 'image/png');
+		response.end(ALBUM_ART);
+		return;
+	}
 	if (request.url === '/_test/calls') {
 		response.setHeader('Content-Type', 'application/json');
 		response.end(JSON.stringify(calls));

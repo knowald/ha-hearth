@@ -14,6 +14,7 @@ import {
 	DEFAULT_HEARTH_CONFIG,
 	normalizeVisibility,
 	isTileUrl,
+	PHOTO_SECONDS,
 	RADAR_ZOOM,
 	resizeCardColumns,
 	uniqueId
@@ -33,6 +34,7 @@ import {
 	widgetDefinition
 } from './model/registry';
 import { currentHearthConfig } from './format';
+import { imageFileOf } from '$lib/core/images';
 import { AlertRuleSchema, normalizeAlertRules } from './model/alerts';
 import * as v from 'valibot';
 import {
@@ -77,6 +79,17 @@ function normalizeTheme(raw: unknown): HearthTheme | undefined {
 }
 
 const SCREENSAVER_CLOCK_SIZES = new Set<unknown>(['small', 'medium', 'large']);
+// 'none' is the default and is stored as unset
+const SCREENSAVER_BACKGROUNDS = new Set<unknown>(['image', 'radar', 'photos', 'sun', 'media']);
+
+// only uploads: a slideshow must not reach out to other hosts on a wall tablet
+function normalizeScreensaverPhotos(raw: unknown): string[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const photos = [
+		...new Set(raw.map((entry) => (typeof entry === 'string' ? entry.trim() : '')))
+	].filter((entry) => imageFileOf(entry) !== undefined);
+	return photos.length ? photos : undefined;
+}
 
 function coordinate(raw: unknown, limit: number): number | undefined {
 	return typeof raw === 'number' && Number.isFinite(raw) && Math.abs(raw) <= limit
@@ -382,6 +395,11 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'screensaver_background',
 		'screensaver_image',
 		'screensaver_radar',
+		'screensaver_photos',
+		'screensaver_photo_seconds',
+		'screensaver_photo_order',
+		'screensaver_media_entity',
+		'screensaver_media_fallback',
 		'screensaver_show_date',
 		'screensaver_clock_size',
 		'screensaver_weather_entity',
@@ -418,12 +436,23 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 			Number.isFinite(config.screensaver_brightness)
 				? Math.min(100, Math.max(10, Math.round(config.screensaver_brightness)))
 				: undefined,
-		screensaver_background:
-			config.screensaver_background === 'image' || config.screensaver_background === 'radar'
-				? config.screensaver_background
-				: undefined,
+		screensaver_background: SCREENSAVER_BACKGROUNDS.has(config.screensaver_background)
+			? config.screensaver_background
+			: undefined,
 		screensaver_image: trimmedOrUndefined(config.screensaver_image),
 		screensaver_radar: normalizeScreensaverRadar(config.screensaver_radar),
+		screensaver_photos: normalizeScreensaverPhotos(config.screensaver_photos),
+		screensaver_photo_seconds: normalizeWholeNumber(
+			config.screensaver_photo_seconds,
+			PHOTO_SECONDS.min
+		),
+		screensaver_photo_order: config.screensaver_photo_order === 'sequence' ? 'sequence' : undefined,
+		screensaver_media_entity: trimmedOrUndefined(config.screensaver_media_entity),
+		screensaver_media_fallback:
+			config.screensaver_media_fallback !== 'media' &&
+			SCREENSAVER_BACKGROUNDS.has(config.screensaver_media_fallback)
+				? config.screensaver_media_fallback
+				: undefined,
 		screensaver_show_date:
 			typeof config.screensaver_show_date === 'boolean' ? config.screensaver_show_date : undefined,
 		screensaver_clock_size: SCREENSAVER_CLOCK_SIZES.has(config.screensaver_clock_size)

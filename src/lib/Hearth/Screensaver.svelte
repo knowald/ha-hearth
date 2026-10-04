@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import { motion } from '$lib/core/app/motion';
@@ -22,6 +23,10 @@
 	import { swallowNextClick } from '$lib/ui/gestures';
 	import { imageSource } from './images';
 	import { radarView } from './screensaver/radar';
+	import { PHOTO_SECONDS } from './config';
+	import { nowPlaying } from './screensaver/nowPlaying';
+	import { sunSky } from './screensaver/sun';
+	import PhotoFrame from './screensaver/PhotoFrame.svelte';
 	import { conditionIcon } from './widgets/weather/conditions';
 	import Icon from './Icon.svelte';
 	import { ICON } from './iconSizes';
@@ -120,9 +125,44 @@
 	let showDate = $derived($hearthConfig.screensaver_show_date ?? true);
 	let clockSize = $derived($hearthConfig.screensaver_clock_size ?? 'medium');
 	let background = $derived($hearthConfig.screensaver_background ?? 'none');
-	let image = $derived(
-		background === 'image' ? imageSource($hearthConfig.screensaver_image) : undefined
+	let media = $derived(
+		background === 'media' ? nowPlaying($states, $hearthConfig.screensaver_media_entity) : undefined
 	);
+	// while nothing plays, the media background hands over to its fallback
+	let scene = $derived(
+		background === 'media' && !media
+			? ($hearthConfig.screensaver_media_fallback ?? 'none')
+			: background
+	);
+	let image = $derived(
+		scene === 'image' ? imageSource($hearthConfig.screensaver_image) : undefined
+	);
+	let photos = $derived(
+		scene === 'photos'
+			? ($hearthConfig.screensaver_photos ?? [])
+					.map(imageSource)
+					.filter((source) => source !== undefined)
+			: []
+	);
+	let photosReady = $state(false);
+	$effect(() => {
+		if (!active || !photos.length) photosReady = false;
+	});
+	let minute = $derived(Math.floor(now.getTime() / 60_000));
+	let sunKnown = $derived(Boolean($states?.['sun.sun']));
+	// the sky moves once a minute, not on every sun.sun update in between
+	let sky = $derived.by(() => {
+		if (scene !== 'sun' || !sunKnown) return undefined;
+		void minute;
+		return untrack(() => sunSky($states?.['sun.sun']));
+	});
+	let artFailed = $state(false);
+	$effect(() => {
+		// new art, and every new sleep, gets another chance to load
+		void media?.picture;
+		if (active) artFailed = false;
+	});
+	let art = $derived(media?.picture && !artFailed ? media.picture : undefined);
 	let imageFailed = $state(false);
 	$effect(() => {
 		// a new image, and every new sleep, gets another chance to load
@@ -135,7 +175,7 @@
 		if (!active || !radar) radarReady = false;
 	});
 	let radar = $derived(
-		background === 'radar' ? radarView($hearthConfig.screensaver_radar, $haConfig) : undefined
+		scene === 'radar' ? radarView($hearthConfig.screensaver_radar, $haConfig) : undefined
 	);
 	let weatherId = $derived($hearthConfig.screensaver_weather_entity);
 	let weather = $derived(weatherId ? $states?.[weatherId] : undefined);
@@ -153,7 +193,15 @@
 		};
 	});
 	// the radar counts once it shows frames; offline it is the plain background
-	let hasBackground = $derived(Boolean((radar && radarReady) || (image && !imageFailed)));
+	let hasBackground = $derived(
+		Boolean(
+			(radar && radarReady) ||
+			(image && !imageFailed) ||
+			(photos.length && photosReady) ||
+			sky ||
+			art
+		)
+	);
 	// over a map or photo the dimmest settings would vanish, so text keeps a floor
 	let textBrightness = $derived(hasBackground ? Math.max(brightness, 60) : brightness);
 	let time = $derived(
@@ -196,8 +244,25 @@
 				{:catch}
 					<!-- offline or a failed chunk: the plain background stays -->
 				{/await}
+			{:else if photos.length}
+				<PhotoFrame
+					{photos}
+					seconds={$hearthConfig.screensaver_photo_seconds ?? PHOTO_SECONDS.fallback}
+					order={$hearthConfig.screensaver_photo_order ?? 'shuffle'}
+					onready={(ready) => (photosReady = ready)}
+				/>
+			{:else if sky}
+				<div
+					class="sky"
+					data-phase={sky.phase}
+					style:--sky-top={sky.top}
+					style:--sky-middle={sky.middle}
+					style:--sky-bottom={sky.bottom}
+				></div>
 			{:else if image && !imageFailed}
 				<img class="photo" src={image} alt="" onerror={() => (imageFailed = true)} />
+			{:else if art}
+				<img class="art-backdrop" src={art} alt="" />
 			{/if}
 		</div>
 		{#if hasBackground}<div class="scrim"></div>{/if}
@@ -212,6 +277,17 @@
 				<div class="weather">
 					<Icon name={weatherLine.icon} size={ICON.control} />
 					<span>{weatherLine.text}</span>
+				</div>
+			{/if}
+			{#if media}
+				<div class="now-playing">
+					{#if art}
+						<img class="art" src={art} alt="" onerror={() => (artFailed = true)} />
+					{/if}
+					<div class="track">
+						<div class="track-title">{media.title}</div>
+						{#if media.artist}<div class="track-artist">{media.artist}</div>{/if}
+					</div>
 				</div>
 			{/if}
 		</div>
@@ -242,6 +318,26 @@
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
+	}
+
+	.sky {
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(
+			to bottom,
+			var(--sky-top),
+			var(--sky-middle) 65%,
+			var(--sky-bottom)
+		);
+	}
+
+	/* the album art, blurred to a wash of its colours */
+	.art-backdrop {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		filter: blur(48px) saturate(1.2);
+		transform: scale(1.2);
 	}
 
 	/* darkens the middle so the clock reads over a busy map or photo */
@@ -311,6 +407,46 @@
 		align-items: center;
 		gap: 8px;
 		margin-top: 12px;
+		font-size: var(--h-type-subtitle);
+		color: rgb(var(--h-line-rgb) / calc(var(--screensaver-brightness) * 0.75));
+	}
+
+	.now-playing {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		max-width: min(560px, calc(80 * var(--h-vw))); /* literal ok: scales with the screen */
+		margin-top: 28px;
+	}
+
+	.art {
+		flex: none;
+		width: clamp(72px, calc(12 * var(--h-vw)), 128px); /* literal ok: scales with the screen */
+		aspect-ratio: 1;
+		object-fit: cover;
+		border-radius: var(--h-radius-xs);
+		opacity: calc(0.4 + 0.6 * var(--screensaver-brightness));
+	}
+
+	.track {
+		min-width: 0;
+	}
+
+	.track-title,
+	.track-artist {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.track-title {
+		font-size: var(--h-type-title);
+		font-weight: 600;
+		color: rgb(var(--h-line-rgb) / var(--screensaver-brightness));
+	}
+
+	.track-artist {
+		margin-top: 4px;
 		font-size: var(--h-type-subtitle);
 		color: rgb(var(--h-line-rgb) / calc(var(--screensaver-brightness) * 0.75));
 	}

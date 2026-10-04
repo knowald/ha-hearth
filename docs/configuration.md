@@ -117,6 +117,31 @@ This protects against accidents, not people. The PIN is sent to every browser wi
 
 Settings > Wall display > Sleep screen turns it on after a set number of minutes and sets its background. A screen can turn it off, or use another delay, under This screen. It does not come on in edit mode; the minutes count again from when editing ends. The weather radar background loads radar images from RainViewer and map tiles from OpenStreetMap in the browser, so the screen needs internet access for it. Set Map tiles to use another tile server.
 
+| `screensaver_background` | Behind the clock                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| unset or `none`          | Plain black.                                                                                           |
+| `image`                  | `screensaver_image`, a URL or an uploaded image.                                                       |
+| `radar`                  | An animated weather radar map, set up under `screensaver_radar`.                                       |
+| `photos`                 | A slideshow of the uploaded images in `screensaver_photos`.                                            |
+| `sun`                    | A sky gradient that follows `sun.sun`: deep blue at night, warm at dawn and dusk, light by day.        |
+| `media`                  | Album art and the track while a media player plays, `screensaver_media_fallback` the rest of the time. |
+
+The photo frame only shows images uploaded to Hearth, stored in `hearth-images/`. Add them under Photos in the sleep screen settings, several at once if you like. Each photo shows for `screensaver_photo_seconds` (30 when unset, at least 5), in a shuffled order or, with `screensaver_photo_order: sequence`, in the order listed. Photos crossfade and slowly zoom; with motion turned off under This screen they change without either.
+
+The sky changes once a minute. The now playing screen follows `screensaver_media_entity`, or any player that is playing when it is unset. Brightness applies to every background.
+
+```yaml
+screensaver_minutes: 10
+screensaver_background: media
+screensaver_media_entity: media_player.living_room
+screensaver_media_fallback: photos
+screensaver_photos:
+  - hearth-images/3f1c0d9a6b2e4f7a8c5d1e0b9a7f6c3d.webp
+  - hearth-images/a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5.webp
+screensaver_photo_seconds: 60
+screensaver_photo_order: sequence
+```
+
 ## Phone page strip
 
 On phones, and on any screen with the sidebar set to None, page buttons run along the top of the page. Settings > Layout and navigation > Clock in the phone page strip adds the time and a short date at the start of that strip, for small screens that have no room for a clock widget. In YAML it is `phone_clock: true`. It uses the time zone and hour format of the first clock widget in the sidebar, or the browser's when there is none.

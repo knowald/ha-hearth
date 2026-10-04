@@ -301,4 +301,152 @@ describe('Screensaver', () => {
 		expect(container.querySelector('.screensaver-content.clock-large')).not.toBeNull();
 		expect(container.querySelector('.weather')?.textContent).toContain('18°');
 	});
+	describe('photo frame', () => {
+		const FIRST = `hearth-images/${'a'.repeat(32)}.webp`;
+		const SECOND = `hearth-images/${'b'.repeat(32)}.jpg`;
+		const slides = (container: HTMLElement) =>
+			[...container.querySelectorAll<HTMLImageElement>('img.slide')].map((slide) =>
+				slide.src.split('/').pop()
+			);
+
+		afterEach(() => {
+			Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+		});
+
+		it('steps through the uploaded photos in order behind a scrim', async () => {
+			configure({
+				screensaver_background: 'photos',
+				screensaver_photos: [FIRST, SECOND],
+				screensaver_photo_order: 'sequence',
+				screensaver_photo_seconds: 10
+			});
+			const { container } = await showScreensaver();
+			expect(slides(container)).toEqual([`${'a'.repeat(32)}.webp`]);
+			// the scrim waits for a photo to load
+			expect(container.querySelector('.scrim')).toBeNull();
+			await fireEvent.load(container.querySelector('img.slide')!);
+			expect(container.querySelector('.scrim')).not.toBeNull();
+
+			vi.advanceTimersByTime(10_000);
+			await tick();
+			expect(slides(container)).toEqual([`${'b'.repeat(32)}.jpg`]);
+			vi.advanceTimersByTime(10_000);
+			await tick();
+			expect(slides(container)).toEqual([`${'a'.repeat(32)}.webp`]);
+		});
+
+		it('pans only with motion on', async () => {
+			configure({ screensaver_background: 'photos', screensaver_photos: [FIRST] });
+			const { container } = await showScreensaver();
+			expect(container.querySelector('img.slide')?.classList.contains('pan')).toBe(false);
+			motion.set(190);
+			await tick();
+			expect(container.querySelector('img.slide')?.classList.contains('pan')).toBe(true);
+		});
+
+		it('skips a photo that fails and falls back to black once all have', async () => {
+			configure({
+				screensaver_background: 'photos',
+				screensaver_photos: [FIRST, SECOND],
+				screensaver_photo_order: 'sequence'
+			});
+			const { container } = await showScreensaver();
+			await fireEvent.error(container.querySelector('img.slide')!);
+			expect(slides(container)).toEqual([`${'b'.repeat(32)}.jpg`]);
+			await fireEvent.error(container.querySelector('img.slide')!);
+			expect(container.querySelector('img.slide')).toBeNull();
+			expect(container.querySelector('.scrim')).toBeNull();
+		});
+
+		it('holds the photo while the page is hidden', async () => {
+			configure({
+				screensaver_background: 'photos',
+				screensaver_photos: [FIRST, SECOND],
+				screensaver_photo_order: 'sequence',
+				screensaver_photo_seconds: 10
+			});
+			const { container } = await showScreensaver();
+			Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+			document.dispatchEvent(new Event('visibilitychange'));
+			await tick();
+			expect(container.querySelector('.photos.paused')).not.toBeNull();
+			vi.advanceTimersByTime(60_000);
+			await tick();
+			expect(slides(container)).toEqual([`${'a'.repeat(32)}.webp`]);
+
+			Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+			document.dispatchEvent(new Event('visibilitychange'));
+			vi.advanceTimersByTime(10_000);
+			await tick();
+			expect(slides(container)).toEqual([`${'b'.repeat(32)}.jpg`]);
+		});
+	});
+
+	it('paints the sky from the sun', async () => {
+		states.set({
+			'sun.sun': {
+				entity_id: 'sun.sun',
+				state: 'below_horizon',
+				attributes: { elevation: -1, rising: false }
+			}
+		} as unknown as HassEntities);
+		configure({ screensaver_background: 'sun' });
+		const { container } = await showScreensaver();
+		const sky = container.querySelector('.sky') as HTMLElement;
+		expect(sky.dataset.phase).toBe('dusk');
+		expect(sky.style.getPropertyValue('--sky-bottom')).toMatch(/^rgb\(/);
+		expect(container.querySelector('.scrim')).not.toBeNull();
+	});
+
+	describe('now playing', () => {
+		const PLAYING = {
+			'media_player.living': {
+				entity_id: 'media_player.living',
+				state: 'playing',
+				attributes: {
+					media_title: 'Blue in Green',
+					media_artist: 'Miles Davis',
+					entity_picture: '/api/media_player_proxy/media_player.living'
+				}
+			}
+		};
+
+		it('shows the track over its blurred art', async () => {
+			states.set(PLAYING as unknown as HassEntities);
+			configure({ screensaver_background: 'media' });
+			const { container } = await showScreensaver();
+			expect(container.querySelector('.track-title')?.textContent).toBe('Blue in Green');
+			expect(container.querySelector('.track-artist')?.textContent).toBe('Miles Davis');
+			expect(container.querySelector('img.art-backdrop')).not.toBeNull();
+			expect(container.querySelector('img.art')).not.toBeNull();
+			expect(container.querySelector('.scrim')).not.toBeNull();
+		});
+
+		it('hands over to the fallback background once the music stops', async () => {
+			states.set(PLAYING as unknown as HassEntities);
+			configure({
+				screensaver_background: 'media',
+				screensaver_media_entity: 'media_player.living',
+				screensaver_media_fallback: 'image',
+				screensaver_image: 'https://example.com/a.jpg'
+			});
+			const { container } = await showScreensaver();
+			expect(container.querySelector('img.photo')).toBeNull();
+
+			states.set({
+				'media_player.living': { ...PLAYING['media_player.living'], state: 'paused' }
+			} as unknown as HassEntities);
+			await tick();
+			expect(container.querySelector('.now-playing')).toBeNull();
+			expect(container.querySelector('img.art-backdrop')).toBeNull();
+			expect(container.querySelector('img.photo')).not.toBeNull();
+		});
+
+		it('stays plain black while nothing plays and no fallback is set', async () => {
+			configure({ screensaver_background: 'media' });
+			const { container } = await showScreensaver();
+			expect(container.querySelector('.now-playing')).toBeNull();
+			expect(container.querySelector('.scrim')).toBeNull();
+		});
+	});
 });

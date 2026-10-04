@@ -162,3 +162,115 @@ test('animates only the newest frames, loading them one after another', async ({
 	// six frames of a 1280x800 screen in 512 px tiles stay far under RainViewer's burst of 300
 	expect(radarTiles.length).toBeLessThanOrEqual(6 * 12);
 });
+
+// two different single-pixel PNGs, so they store as two uploads
+const PHOTOS = [
+	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+].map((base64) => Buffer.from(base64, 'base64'));
+
+test('the photo frame steps through uploaded photos', async ({ page, request }) => {
+	const files: string[] = [];
+	for (const photo of PHOTOS) {
+		const response = await request.post('/_api/hearth_images', {
+			data: photo,
+			headers: { 'Content-Type': 'image/png' }
+		});
+		expect(response.ok()).toBe(true);
+		files.push((await response.json()).file);
+	}
+	try {
+		writeFileSync(
+			HEARTH_FILE,
+			`${HEARTH_FIXTURE}screensaver_minutes: 1\nscreensaver_background: photos\n` +
+				'screensaver_photo_order: sequence\nscreensaver_photo_seconds: 10\n' +
+				`screensaver_photos:\n${files.map((file) => `  - hearth-images/${file}\n`).join('')}`
+		);
+		await page.clock.install();
+		await page.reload();
+		await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+		await page.clock.fastForward('01:05');
+		const screensaver = page.getByRole('button', { name: 'Dismiss sleep screen' });
+		const slide = screensaver.locator('img.slide');
+		await expect(slide).toHaveAttribute('src', new RegExp(`/_api/hearth_images/${files[0]}$`));
+		await expect
+			.poll(() => slide.evaluate((image: HTMLImageElement) => image.naturalWidth))
+			.toBe(1);
+		await expect(screensaver.locator('.scrim')).toHaveCount(1);
+
+		await page.clock.fastForward('00:10');
+		await expect(slide).toHaveAttribute('src', new RegExp(`/_api/hearth_images/${files[1]}$`));
+		await page.clock.fastForward('00:10');
+		await expect(slide).toHaveAttribute('src', new RegExp(`/_api/hearth_images/${files[0]}$`));
+	} finally {
+		for (const file of files) await request.delete('/_api/hearth_images', { data: { file } });
+	}
+});
+
+test('photos added in the settings play in the preview', async ({ page, request }) => {
+	const before = new Set(
+		((await (await request.get('/_api/hearth_images')).json()) as { file: string }[]).map(
+			(image) => image.file
+		)
+	);
+	try {
+		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await page.getByRole('button', { name: 'Settings', exact: true }).click();
+		const sheet = page.getByRole('dialog', { name: 'Settings' });
+		await sheet.getByLabel('Background', { exact: true }).selectOption('photos');
+		await sheet.locator('input[type="file"][multiple]').setInputFiles(
+			PHOTOS.map((buffer, index) => ({
+				name: `photo-${index}.png`,
+				mimeType: 'image/png',
+				buffer
+			}))
+		);
+		await expect(sheet.getByRole('button', { name: /^Remove photo/ })).toHaveCount(2);
+		await sheet.getByRole('button', { name: 'Remove photo 1' }).click();
+		await expect(sheet.getByRole('button', { name: /^Remove photo/ })).toHaveCount(1);
+
+		await sheet.getByRole('button', { name: 'Preview sleep screen' }).click();
+		const screensaver = page.getByRole('button', { name: 'Dismiss sleep screen' });
+		await expect(screensaver.locator('img.slide')).toHaveAttribute(
+			'src',
+			/\/_api\/hearth_images\/[a-f0-9]{32}\.webp$/
+		);
+	} finally {
+		const after = (await (await request.get('/_api/hearth_images')).json()) as { file: string }[];
+		for (const { file } of after.filter((image) => !before.has(image.file)))
+			await request.delete('/_api/hearth_images', { data: { file } });
+	}
+});
+
+test('the now playing sleep screen shows the track while music plays', async ({
+	page,
+	request
+}) => {
+	await request.post(`${FAKE_HASS}/_test/state`, {
+		data: {
+			entity_id: 'media_player.living',
+			attributes: { entity_picture: '/api/media_player_proxy/media_player.living?token=e2e' }
+		}
+	});
+	writeFileSync(
+		HEARTH_FILE,
+		`${HEARTH_FIXTURE}screensaver_minutes: 1\nscreensaver_background: media\n` +
+			'screensaver_media_fallback: sun\n'
+	);
+	await page.clock.install();
+	await page.reload();
+	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+	await page.clock.fastForward('01:05');
+	const screensaver = page.getByRole('button', { name: 'Dismiss sleep screen' });
+	await expect(screensaver.getByText('Blue in Green')).toBeVisible();
+	await expect(screensaver.getByText('Miles Davis')).toBeVisible();
+	const art = screensaver.locator('img.art');
+	await expect.poll(() => art.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(1);
+	await expect(screensaver.locator('img.art-backdrop')).toHaveCount(1);
+
+	await request.post(`${FAKE_HASS}/_test/state`, {
+		data: { entity_id: 'media_player.living', state: 'paused' }
+	});
+	await expect(screensaver.getByText('Blue in Green')).toBeHidden();
+	await expect(screensaver.locator('.sky')).toHaveAttribute('data-phase', 'day');
+});
