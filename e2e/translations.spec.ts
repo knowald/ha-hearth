@@ -3,14 +3,13 @@ import { expect, test, type Page } from '@playwright/test';
 
 /*
  * Home Assistant's strings and Hearth's own live in separate files per
- * locale; the server merges them over English. The suite runs the build,
- * whose copy of a Hearth locale file is swapped here to show it is read.
+ * locale; the server merges them over English, which sits under _default.
  */
 
-const HEARTH_GERMAN = new URL('../build/client/translations/hearth/de.json', import.meta.url);
-const HEARTH_GERMAN_FILE = readFileSync(HEARTH_GERMAN, 'utf8');
+const SETTINGS_FILE = new URL('./fixture/data/configuration.yaml', import.meta.url);
+const SETTINGS_FIXTURE = readFileSync(SETTINGS_FILE, 'utf8');
 
-test.afterEach(() => writeFileSync(HEARTH_GERMAN, HEARTH_GERMAN_FILE));
+test.afterEach(() => writeFileSync(SETTINGS_FILE, SETTINGS_FIXTURE));
 
 async function openThisScreen(page: Page) {
 	await page.goto('/');
@@ -29,26 +28,52 @@ test('offers exactly the locales Home Assistant ships', async ({ request }) => {
 });
 
 test('refuses a locale outside the shipped list', async ({ request }) => {
-	for (const locale of ['xx', '../en', 'hearth/en']) {
+	for (const locale of ['xx', '../en', 'hearth/en', 'constructor']) {
 		const response = await request.post('/_api/get_translation', { data: { locale } });
-		expect(response.status()).toBe(500);
+		expect(response.status()).toBe(400);
 	}
+	const response = await request.post('/_api/get_translation', { data: {} });
+	expect(response.status()).toBe(400);
 });
 
-test('a language switch reads both files and falls back to English per key', async ({ page }) => {
+test('serves a locale with both English files beneath it', async ({ request }) => {
+	const response = await request.post('/_api/get_translation', { data: { locale: 'de' } });
+	const german = await response.json();
+	expect(german.language).toBe('Sprache');
+	expect(german._default.language).toBe('Language');
+	expect(german._default.hearth_keep_screen_awake).toBe('Keep screen awake');
+});
+
+test('a language switch falls back to English per key', async ({ page }) => {
+	// stands in for a German Hearth file, which the build does not have yet
+	await page.route('**/_api/get_translation', async (route) => {
+		const response = await route.fetch();
+		const body = await response.json();
+		await route.fulfill({
+			response,
+			json: { ...body, hearth_keep_screen_awake: 'Bildschirm wach halten' }
+		});
+	});
 	const sheet = await openThisScreen(page);
 	await sheet.getByLabel('Language').selectOption('de');
 	await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-	// Home Assistant's German, next to Hearth copy German does not have yet
 	await expect(sheet.getByLabel('Sprache')).toBeVisible();
-	await expect(sheet.getByLabel('Keep screen awake')).toBeVisible();
-
-	writeFileSync(
-		HEARTH_GERMAN,
-		JSON.stringify({ hearth_keep_screen_awake: 'Bildschirm wach halten' })
-	);
-	await page.reload();
-	await page.getByRole('button', { name: 'This screen' }).click();
 	await expect(sheet.getByLabel('Bildschirm wach halten')).toBeVisible();
-	await expect(sheet.getByLabel('Sprache')).toBeVisible();
+	// Hearth copy the locale lacks stays English
+	await expect(sheet.getByLabel('Reduce motion')).toBeVisible();
+});
+
+test('the error page loads its copy from the Hearth file', async ({ page }) => {
+	const response = await page.goto('/no-such-page');
+	expect(response?.status()).toBe(404);
+	await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Return to Hearth' })).toBeVisible();
+});
+
+test('an unknown configured locale shows English and says so', async ({ page }) => {
+	writeFileSync(SETTINGS_FILE, SETTINGS_FIXTURE.replace('locale: en', 'locale: xx'));
+	await page.goto('/');
+	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+	await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+	await expect(page.getByRole('button', { name: 'This screen' })).toBeVisible();
 });
