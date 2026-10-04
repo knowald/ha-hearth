@@ -74,7 +74,7 @@
 		});
 	}
 
-	let checkingRevision = false;
+	let checkingRevision = $state(false);
 
 	/*
 	 * A wall tablet can keep a page open for weeks, and editing a revision that
@@ -86,6 +86,8 @@
 		checkingRevision = true;
 		const revision = await fetchServerRevision();
 		checkingRevision = false;
+		// the import wizard may have handed a failed save to edit mode meanwhile
+		if ($hearthEditMode) return;
 		if (revision === undefined || revision <= $hearthRevision) {
 			enterEditMode();
 			return;
@@ -229,6 +231,8 @@
 		type="button"
 		class="edit-toggle pressable"
 		class:right={toggleRight}
+		class:busy={checkingRevision}
+		aria-busy={checkingRevision}
 		aria-label={$lang('hearth_edit_configuration')}
 		onclick={startEditing}
 	>
@@ -257,6 +261,13 @@
 		border: 0;
 		background: rgb(var(--h-surface-rgb) / calc(0.035 * var(--h-fill-scale)));
 		font-family: inherit;
+	}
+
+	/* waiting on the revision check; further taps are ignored */
+	.edit-toggle.busy,
+	.edit-toggle.busy:hover {
+		cursor: progress;
+		opacity: 0.45;
 	}
 
 	/* see breakpoints.ts: folded, there is no rail column to follow */

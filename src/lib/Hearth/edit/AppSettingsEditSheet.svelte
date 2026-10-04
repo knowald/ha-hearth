@@ -7,7 +7,7 @@
 	import { motion } from '$lib/core/app/motion';
 	import { MOTION } from '$lib/core/theme';
 	import { lang, selectedLanguage, translation } from '$lib/core/i18n';
-	import { editor, requestConfirmation } from '../store';
+	import { editor, hasUnsavedEdits, reloadDiscardingEdits, requestConfirmation } from '../store';
 	import { confirmDiscard } from './discard';
 	import EditSheet from './EditSheet.svelte';
 	import SelectField from './SelectField.svelte';
@@ -144,11 +144,14 @@
 	function handleLogout() {
 		requestConfirmation({
 			title: $lang('hearth_logout_confirm'),
-			message: $lang('hearth_logout_confirm_message'),
+			message: $lang(
+				hasUnsavedEdits() ? 'hearth_logout_confirm_edits_message' : 'hearth_logout_confirm_message'
+			),
 			confirmLabel: $lang('log_out'),
 			action: () => {
 				localStorage.removeItem('hearthTokens');
-				location.reload();
+				// the dialog already said what goes with the session
+				reloadDiscardingEdits();
 			}
 		});
 	}

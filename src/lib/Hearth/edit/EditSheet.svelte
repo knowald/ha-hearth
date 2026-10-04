@@ -18,7 +18,7 @@
 	import { clampToViewport, windowDrag, type WindowPosition } from '$lib/ui/actions/windowDrag';
 	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
 	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
-	import { hearthConfig, requestConfirmation } from '../store';
+	import { hearthConfig, reportSheetChanges, requestConfirmation } from '../store';
 	import { WIDE_QUERY } from '../breakpoints';
 	import { confirmDiscard } from './discard';
 	import './editor-fields.css';
@@ -41,7 +41,8 @@
 		split = false,
 		floating = false,
 		dismissible = true,
-		dirty = false
+		dirty = false,
+		backKeepsChanges = false
 	}: {
 		title: string;
 		children: Snippet;
@@ -64,14 +65,22 @@
 		dismissible?: boolean;
 		/** The form holds staged changes: every exit but Done asks before dropping them. */
 		dirty?: boolean;
+		/** The back arrow hands the staged changes back to the sheet it returns to, so it never asks. */
+		backKeepsChanges?: boolean;
 	} = $props();
+
+	// a reload drops the staged changes as surely as a close does
+	$effect(() => {
+		reportSheetChanges(dirty);
+		return () => reportSheetChanges(false);
+	});
 
 	function close() {
 		confirmDiscard(dirty, onclose);
 	}
 
 	function back() {
-		if (onback) confirmDiscard(dirty, onback);
+		if (onback) confirmDiscard(dirty && !backKeepsChanges, onback);
 	}
 
 	/*

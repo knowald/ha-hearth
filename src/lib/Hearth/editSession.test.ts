@@ -9,6 +9,8 @@ import {
 	guardUnload,
 	hearthConfig,
 	hearthEditMode,
+	hearthNeedsSetup,
+	reportSheetChanges,
 	saveFailure,
 	saveState,
 	updateConfig
@@ -43,13 +45,17 @@ describe('an edit session', () => {
 	});
 
 	it('keeps a failed save that is handed over, and cancels back to before it', () => {
-		const before = get(hearthConfig);
+		const before = { config: get(hearthConfig), needsSetup: true };
 		rename();
+		hearthNeedsSetup.set(false);
 		saveState.set('error');
 		enterEditMode(before);
 		expect(get(saveState)).toBe('error');
 		cancelEdit();
 		expect(get(hearthConfig).rooms[0].name).toBe(DEFAULT_HEARTH_CONFIG.rooms[0].name);
+		// the first-run offer comes back with the empty dashboard
+		expect(get(hearthNeedsSetup)).toBe(true);
+		hearthNeedsSetup.set(false);
 	});
 
 	it('holds reloads Home Assistant asks for until the session ends', () => {
@@ -72,6 +78,18 @@ describe('an edit session', () => {
 		guardUnload(edited);
 		expect(edited.defaultPrevented).toBe(true);
 	});
+
+	it('also asks while an open sheet holds changes Done has not applied', () => {
+		const event = () => new Event('beforeunload', { cancelable: true }) as BeforeUnloadEvent;
+		reportSheetChanges(true);
+		const typed = event();
+		guardUnload(typed);
+		expect(typed.defaultPrevented).toBe(true);
+		reportSheetChanges(false);
+		const closed = event();
+		guardUnload(closed);
+		expect(closed.defaultPrevented).toBe(false);
+	});
 });
 
 describe('fetchServerRevision', () => {
@@ -81,7 +99,10 @@ describe('fetchServerRevision', () => {
 		const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ revision: 7 }) });
 		vi.stubGlobal('fetch', fetchMock);
 		expect(await fetchServerRevision()).toBe(7);
-		expect(fetchMock).toHaveBeenCalledWith('/_api/hearth_versions', { cache: 'no-store' });
+		expect(fetchMock).toHaveBeenCalledWith('/_api/hearth_versions', {
+			cache: 'no-store',
+			signal: expect.any(AbortSignal)
+		});
 	});
 
 	it('cannot say when the request fails', async () => {

@@ -1156,5 +1156,6 @@
 	"hearth_newer_config_message": "Another screen saved the dashboard after this page loaded. Reload to edit the current version; edits to this one end in a conflict on save.",
 	"hearth_edit_anyway": "Edit anyway",
 	"hearth_reload_discard_title": "Reload and drop your edits?",
-	"hearth_reload_discard_message": "Reloading shows the version saved elsewhere and drops every change made in this session. Copy edits first to keep them."
+	"hearth_reload_discard_message": "Reloading shows the version saved elsewhere and drops every change made in this session. Copy edits first to keep them.",
+	"hearth_logout_confirm_edits_message": "You will need a token or a new sign-in to connect again. Your unsaved dashboard edits are dropped."
 }

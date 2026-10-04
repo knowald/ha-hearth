@@ -12,7 +12,6 @@
 	import './buttons.css';
 	import { applyImport, existingPageNames, pageNameKey, type ImportMode } from './importPlan';
 	import { buildProposal, type HearthProposal, type ProposedPage } from './proposal';
-	import type { HearthConfig } from './types';
 	import { fetchRegistry } from '$lib/core/ha/registry';
 	import {
 		editor,
@@ -23,7 +22,8 @@
 		requestConfirmation,
 		saveState,
 		saveWithFeedback,
-		updateConfig
+		updateConfig,
+		type UnsavedChange
 	} from './store';
 
 	/** `firstRun` opened itself on an empty dashboard, so a stray backdrop tap must not dismiss it. */
@@ -117,7 +117,7 @@
 		// every later mutation and proxies cannot be structured-cloned
 		const plain = $state.snapshot(proposal) as HearthProposal;
 		const chosen = plain.pages.filter((page) => included[page.room.id]);
-		const before = get(hearthConfig);
+		const before = { config: get(hearthConfig), needsSetup: get(hearthNeedsSetup) };
 		updateConfig((config) =>
 			applyImport(config, {
 				pages: chosen,
@@ -134,7 +134,7 @@
 		onclose();
 	}
 
-	async function persist(before: HearthConfig) {
+	async function persist(before: UnsavedChange) {
 		await saveWithFeedback();
 		// only the edit bar reports a failed or conflicting save, and it is the
 		// only way to retry one - so hand the still-unsaved import over to it,

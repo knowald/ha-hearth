@@ -115,13 +115,23 @@ export const editor = writable<Editor | null>(null);
 export const editedThemeSlot = writable<'day' | 'night'>('day');
 
 let editSnapshot: HearthConfig | null = null;
+// an import in the session clears the first-run state, which Cancel brings back
+let setupSnapshot = false;
+
+/** What the dashboard was before a change that was applied outside edit mode. */
+export interface UnsavedChange {
+	config: HearthConfig;
+	needsSetup: boolean;
+}
 
 /**
  * `unsaved` hands over a change that was applied and failed to save outside
- * edit mode: Cancel returns to `unsaved`, and the failure stays on the bar.
+ * edit mode: Cancel returns to what came before it, and the failure stays on
+ * the bar.
  */
-export function enterEditMode(unsaved?: HearthConfig) {
-	editSnapshot = structuredClone(unsaved ?? get(hearthConfig));
+export function enterEditMode(unsaved?: UnsavedChange) {
+	editSnapshot = structuredClone(unsaved?.config ?? get(hearthConfig));
+	setupSnapshot = unsaved?.needsSetup ?? get(hearthNeedsSetup);
 	undoStack.length = 0;
 	redoStack.length = 0;
 	syncHistoryFlags();
@@ -130,7 +140,10 @@ export function enterEditMode(unsaved?: HearthConfig) {
 }
 
 export function cancelEdit() {
-	if (editSnapshot) hearthConfig.set(editSnapshot);
+	if (editSnapshot) {
+		hearthConfig.set(editSnapshot);
+		hearthNeedsSetup.set(setupSnapshot);
+	}
 	editSnapshot = null;
 	undoStack.length = 0;
 	redoStack.length = 0;
@@ -143,7 +156,11 @@ export function cancelEdit() {
 /** The revision the server holds now, or undefined when it cannot say. */
 export async function fetchServerRevision(): Promise<number | undefined> {
 	try {
-		const response = await fetch(`${base}/_api/hearth_versions`, { cache: 'no-store' });
+		// a slow server must not keep the editor from opening
+		const response = await fetch(`${base}/_api/hearth_versions`, {
+			cache: 'no-store',
+			signal: AbortSignal.timeout(3000)
+		});
 		if (!response.ok) return undefined;
 		const { revision } = await response.json();
 		return Number.isInteger(revision) ? revision : undefined;
@@ -176,10 +193,16 @@ function clearSaveFeedback() {
 }
 
 let unloadAllowed = false;
+// an editor sheet holding typed changes that Done has not applied yet
+let sheetChanges = false;
+
+export function reportSheetChanges(dirty: boolean) {
+	sheetChanges = dirty;
+}
 
 /** beforeunload handler: the browser asks before a reload or a close drops unsaved edits. */
 export function guardUnload(event: BeforeUnloadEvent) {
-	if (unloadAllowed || !hasUnsavedEdits()) return;
+	if (unloadAllowed || !(sheetChanges || hasUnsavedEdits())) return;
 	event.preventDefault();
 	// older WebViews on wall tablets only ask when returnValue is set
 	event.returnValue = '';
@@ -264,6 +287,7 @@ async function performSave(force: boolean): Promise<boolean> {
 		// so the editor stays open with its history and Cancel now returns to
 		// what was just saved
 		editSnapshot = config;
+		setupSnapshot = false;
 		return true;
 	}
 	editSnapshot = null;
@@ -308,19 +332,29 @@ export interface RequestedConfirmation {
 	message: string;
 	confirmLabel: string;
 	action: () => void;
-	/** Names the dismiss button when dismissing does more than nothing. */
+	/** Names the cancel button when it does more than dismiss. */
 	cancelLabel?: string;
-	/** Runs on every dismissal: the button, Escape, back or a backdrop tap. */
+	/**
+	 * Runs from the cancel button only. Escape, back and a backdrop tap just
+	 * dismiss, so a stray one never picks this choice for the user.
+	 */
 	cancel?: () => void;
 }
 
 export const requestedConfirmation = writable<RequestedConfirmation | null>(null);
 
+/** Replaces any request still open; the replaced one is dismissed without running either choice. */
 export function requestConfirmation(request: RequestedConfirmation) {
+	requestedConfirmation.set(null);
 	requestedConfirmation.set(request);
 }
 
 export function dismissConfirmation() {
+	requestedConfirmation.set(null);
+}
+
+/** The dialog's cancel button: dismiss, then run the request's own cancel choice. */
+export function cancelRequestedAction() {
 	const request = get(requestedConfirmation);
 	requestedConfirmation.set(null);
 	request?.cancel?.();

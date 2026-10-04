@@ -8,7 +8,7 @@ import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import { get } from 'svelte/store';
 import { DEFAULT_HEARTH_CONFIG } from './config';
-import { cancelEdit, hearthConfig, hearthEditMode, saveState } from './store';
+import { cancelEdit, hearthConfig, hearthEditMode, hearthNeedsSetup, saveState } from './store';
 import SetupWizard from './SetupWizard.svelte';
 
 vi.mock('$lib/core/ha/registry', () => ({ fetchRegistry: vi.fn() }));
@@ -78,6 +78,7 @@ describe('SetupWizard', () => {
 	describe('an import whose save fails', () => {
 		beforeEach(() => {
 			hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+			hearthNeedsSetup.set(true);
 			states.set({ 'light.kitchen': hassEntity('light.kitchen', 'on') });
 			vi.mocked(fetchRegistry).mockResolvedValue({
 				floors: [],
@@ -102,6 +103,7 @@ describe('SetupWizard', () => {
 
 		afterEach(() => {
 			cancelEdit();
+			hearthNeedsSetup.set(false);
 			states.set({});
 			hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
 			vi.unstubAllGlobals();
@@ -118,6 +120,8 @@ describe('SetupWizard', () => {
 			expect(get(hearthConfig)).not.toEqual(DEFAULT_HEARTH_CONFIG);
 			cancelEdit();
 			expect(get(hearthConfig)).toEqual(DEFAULT_HEARTH_CONFIG);
+			// still a first run, so the dashboard offers the import again
+			expect(get(hearthNeedsSetup)).toBe(true);
 		});
 	});
 });

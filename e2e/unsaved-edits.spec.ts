@@ -76,16 +76,43 @@ test('the browser asks before a reload drops unsaved edits', async ({ page }) =>
 	await expect(page.getByRole('button', { name: 'Edit Hearth configuration' })).toBeVisible();
 });
 
+test('the browser also asks while a sheet holds typed changes', async ({ page }) => {
+	await open(page);
+	await startEditing(page);
+	await page.getByRole('button', { name: 'Add page' }).first().click();
+	await page.getByRole('dialog', { name: 'Add page' }).getByLabel('Name').fill('Garage');
+
+	const dialogs: string[] = [];
+	page.on('dialog', (dialog) => {
+		dialogs.push(dialog.type());
+		void dialog.accept();
+	});
+	await page.reload();
+	expect(dialogs).toEqual(['beforeunload']);
+});
+
 test('a refresh from Home Assistant waits for the edit session to end', async ({
 	page,
 	request
 }) => {
+	let refreshArrived = false;
+	page.on('websocket', (socket) =>
+		socket.on('framereceived', (frame) => {
+			if (String(frame.payload).includes('"refresh"')) refreshArrived = true;
+		})
+	);
 	await open(page);
 	await startEditing(page);
 	await page.evaluate(() => ((window as unknown as { marker: boolean }).marker = true));
 	await request.post(`${FAKE_HASS}/_test/fire_event`, { data: { event: 'refresh' } });
-	await page.waitForTimeout(500);
-	expect(await page.evaluate(() => (window as unknown as { marker?: boolean }).marker)).toBe(true);
+	await expect.poll(() => refreshArrived).toBe(true);
+	// a reload started by the event would destroy this context and fail the evaluate
+	expect(
+		await page.evaluate(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			return (window as unknown as { marker?: boolean }).marker;
+		})
+	).toBe(true);
 	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -100,8 +127,8 @@ test('the sleep screen stays away while editing', async ({ page }) => {
 	await open(page);
 	await startEditing(page);
 	await page.clock.fastForward('03:00');
-	// give a wrongly armed sleep screen the chance to fade in before checking
-	await page.waitForTimeout(300);
+	// the idle timer has fired by now; one round trip lets the page render what it set
+	await page.evaluate(() => new Promise((resolve) => queueMicrotask(() => resolve(null))));
 	const screensaver = page.getByRole('button', { name: 'Dismiss sleep screen' });
 	await expect(screensaver).toHaveCount(0);
 

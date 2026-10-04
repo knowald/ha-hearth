@@ -5,6 +5,7 @@ import en from '../../../../static/translations/en.json';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
 import {
 	cancelEdit,
+	cancelRequestedAction,
 	confirmRequestedAction,
 	copyState,
 	dismissConfirmation,
@@ -164,8 +165,51 @@ describe('EditBar', () => {
 			);
 			expect(get(hearthEditMode)).toBe(false);
 			// declining the reload edits the loaded revision anyway
-			dismissConfirmation();
+			cancelRequestedAction();
 			expect(get(hearthEditMode)).toBe(true);
+		});
+
+		it('stays out of edit mode when the offer is only dismissed', async () => {
+			serverAt(4);
+			await startEditing();
+			await waitFor(() => expect(get(requestedConfirmation)).not.toBeNull());
+			// what Escape, back and a backdrop tap call
+			dismissConfirmation();
+			expect(get(hearthEditMode)).toBe(false);
+		});
+
+		it('shows the check as busy and ignores taps until it answers', async () => {
+			let answer: (value: unknown) => void = () => {};
+			const fetchMock = vi.fn(() => new Promise((resolve) => (answer = resolve)));
+			vi.stubGlobal('fetch', fetchMock);
+			await startEditing();
+			const toggle = screen.getByRole('button', { name: en.hearth_edit_configuration });
+			expect(toggle.getAttribute('aria-busy')).toBe('true');
+			await fireEvent.click(toggle);
+			expect(fetchMock).toHaveBeenCalledOnce();
+			answer({ ok: true, json: async () => ({ revision: 3 }) });
+			await waitFor(() => expect(get(hearthEditMode)).toBe(true));
+		});
+
+		it('leaves a session that started during the check alone', async () => {
+			let answer: (value: unknown) => void = () => {};
+			vi.stubGlobal(
+				'fetch',
+				vi.fn(() => new Promise((resolve) => (answer = resolve)))
+			);
+			await startEditing();
+			// the import wizard handing a failed save over in the meantime
+			updateConfig((config) => {
+				config.rooms[0].name = 'Imported';
+			});
+			saveState.set('error');
+			enterEditMode({ config: structuredClone(DEFAULT_HEARTH_CONFIG), needsSetup: false });
+			answer({ ok: true, json: async () => ({ revision: 3 }) });
+			// let the check finish; a second enterEditMode would clear the failure
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			expect(get(saveState)).toBe('error');
+			cancelEdit();
+			expect(get(hearthConfig).rooms[0].name).toBe(DEFAULT_HEARTH_CONFIG.rooms[0].name);
 		});
 	});
 });

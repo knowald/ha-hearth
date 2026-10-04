@@ -1,42 +1,50 @@
 <script lang="ts">
 	import { ICON } from '../iconSizes';
 	import { lang } from '$lib/core/i18n';
-	import { confirmRequestedAction, dismissConfirmation, requestedConfirmation } from '../store';
+	import {
+		cancelRequestedAction,
+		confirmRequestedAction,
+		dismissConfirmation,
+		requestedConfirmation
+	} from '../store';
 	import Icon from '../Icon.svelte';
 	import { layer } from '$lib/ui/layers';
 	import '../buttons.css';
 </script>
 
+<!-- keyed, so a request that replaces another opens as a fresh layer with its own focus -->
 {#if $requestedConfirmation}
-	<div
-		class="confirm-backdrop"
-		role="presentation"
-		onclick={(event) => event.target === event.currentTarget && dismissConfirmation()}
-	>
+	{#key $requestedConfirmation}
 		<div
-			class="confirm-dialog"
-			role="alertdialog"
-			tabindex="-1"
-			aria-modal="true"
-			aria-labelledby="hearth-confirm-title"
-			use:layer={{ close: dismissConfirmation, trap: true, initialFocus: true }}
+			class="confirm-backdrop"
+			role="presentation"
+			onclick={(event) => event.target === event.currentTarget && dismissConfirmation()}
 		>
-			<Icon name="warning" size={ICON.tile} color="var(--h-bad-text)" />
-			<div class="confirm-copy">
-				<strong id="hearth-confirm-title">{$requestedConfirmation.title}</strong>
-				<span>{$requestedConfirmation.message}</span>
-			</div>
-			<!-- cancel comes first, so the safe action is the one that takes focus -->
-			<div class="confirm-actions">
-				<button type="button" class="hearth-button secondary" onclick={dismissConfirmation}>
-					{$requestedConfirmation.cancelLabel ?? $lang('cancel')}
-				</button>
-				<button type="button" class="hearth-button danger" onclick={confirmRequestedAction}>
-					{$requestedConfirmation.confirmLabel}
-				</button>
+			<div
+				class="confirm-dialog"
+				role="alertdialog"
+				tabindex="-1"
+				aria-modal="true"
+				aria-labelledby="hearth-confirm-title"
+				use:layer={{ close: dismissConfirmation, trap: true, initialFocus: true }}
+			>
+				<Icon name="warning" size={ICON.tile} color="var(--h-bad-text)" />
+				<div class="confirm-copy">
+					<strong id="hearth-confirm-title">{$requestedConfirmation.title}</strong>
+					<span>{$requestedConfirmation.message}</span>
+				</div>
+				<!-- cancel comes first, so the safe action is the one that takes focus -->
+				<div class="confirm-actions">
+					<button type="button" class="hearth-button secondary" onclick={cancelRequestedAction}>
+						{$requestedConfirmation.cancelLabel ?? $lang('cancel')}
+					</button>
+					<button type="button" class="hearth-button danger" onclick={confirmRequestedAction}>
+						{$requestedConfirmation.confirmLabel}
+					</button>
+				</div>
 			</div>
 		</div>
-	</div>
+	{/key}
 {/if}
 
 <style>
