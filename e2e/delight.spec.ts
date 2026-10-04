@@ -82,11 +82,20 @@ test('tile icons stay still under reduced motion', async ({ page }) => {
 });
 
 test('the header greets a person who comes home, until dismissed', async ({ page, request }) => {
-	// the copy follows the part of the day; at night it is a plain welcome
-	await page.clock.setFixedTime(today(18));
+	// the page keeps the real time, since the arrival is timed by the fake
+	// server's own clock; the copy follows the part of the day
+	const hour = new Date().getHours();
+	const copy =
+		hour >= 5 && hour < 12
+			? 'Good morning, Kevin'
+			: hour >= 12 && hour < 17
+				? 'Good afternoon, Kevin'
+				: hour >= 17 && hour < 22
+					? 'Good evening, Kevin'
+					: 'Welcome home, Kevin';
 	await page.goto('/');
 	await expect(page.locator('.tile[data-entity="fan.bedroom"]')).toBeVisible();
-	const greeting = page.getByRole('status').filter({ hasText: 'Good evening, Kevin' });
+	const greeting = page.getByRole('status').filter({ hasText: copy });
 	await expect(greeting).toHaveCount(0);
 
 	await setState(request, 'person.kevin', 'home');
