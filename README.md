@@ -17,7 +17,7 @@ Hearth is pre-1.0. The configuration format and features can still change betwee
 - Layouts for tablets, phones and desktops. A sidebar holds clocks, weather, page navigation, calendars, energy, timers, notifications and other widgets. Place it on the left, the right or both sides, or hide it.
 - Swipe between pages on phones, and with a mouse drag on wider screens.
 - Theme presets, background images and custom CSS.
-- Cards for entities, headers, sensors, climate, media, vacuums, cameras, images, scenes, web pages and more.
+- Cards for entities, headers, sensors, climate, media, vacuums, cameras, images, scenes, to-do lists, web pages and more.
 - Camera playback over WebRTC or HLS, with a still image as fallback.
 - Alerts from dashboard rules or Home Assistant automations, shown as popups and in the notifications widget.
 - Sleep screen with a clock, the current weather and an image or live weather radar map behind it.
@@ -25,7 +25,7 @@ Hearth is pre-1.0. The configuration format and features can still change betwee
 
 ## Not supported yet
 
-Hearth has no picture-elements card (an image with entity overlays), no calendar or to-do editing and no map of tracked devices. Entities without dedicated controls open a detail sheet with state, attributes and history.
+Hearth has no picture-elements card (an image with entity overlays), no calendar editing and no map of tracked devices. Entities without dedicated controls open a detail sheet with state, attributes and history.
 
 ## Install
 

@@ -264,6 +264,18 @@ type OverviewCardVariant =
 	  }
 	// days since an input_datetime was last reset, with a one-tap reset
 	| { id: string; type: 'days_since'; entity?: string; title?: string; icon?: string }
+	// a todo.* list: tick, add, rename and delete items as the list allows.
+	// Completed items sit in a section that starts open with show_completed.
+	| {
+			id: string;
+			type: 'todo';
+			entity?: string;
+			title?: string;
+			show_completed?: boolean;
+			/** Unset keeps the list's own order. */
+			sort?: 'alphabetical' | 'due';
+			hide_add?: boolean;
+	  }
 	// the media card for whichever listed player is active; a paused player
 	// keeps the card for timeout seconds before the next one takes over
 	| {

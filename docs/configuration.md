@@ -274,6 +274,29 @@ entities:
 
 Edit them under Style rules in an entity's options in the entities card editor.
 
+## To-do list card
+
+The `todo` card shows a Home Assistant to-do list, such as Shopping List, Local To-do or Google Tasks. Tick an item to complete it, type in the field at the top and press Enter to add one, tap an item's text to rename it and long-press an item (or press Delete on it) to remove it after a confirmation. Changes show at once and roll back if Home Assistant refuses them.
+
+```yaml
+- id: shopping
+  type: todo
+  entity: todo.shopping_list
+  title: Shopping
+  sort: due
+  show_completed: true
+```
+
+| Key              | Effect                                                                                              |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| `entity`         | The `todo.*` list. Required.                                                                        |
+| `title`          | Heading. Defaults to the list's name.                                                               |
+| `sort`           | `manual` keeps the list's own order (the default), `alphabetical` sorts by name, `due` by due date. |
+| `show_completed` | `true` opens the Completed section. Without it, completed items wait in a collapsed section.        |
+| `hide_add`       | `true` hides the add field.                                                                         |
+
+The card offers only what the list's integration supports: no add field on a list that cannot create items, no checkbox or rename where items cannot be updated, and no delete or Clear completed where they cannot be removed. Due dates show as a chip and turn red once overdue. Items arrive through `todo/item/subscribe`; on Home Assistant versions without it the card asks `todo.get_items` instead. A list that is missing or unavailable shows as List unavailable. Items an integration sends without an id are changed by their text, and are read-only when two of them share it. In edit mode a tap on the list opens the card editor.
+
 ## Custom CSS and JavaScript
 
 Edit custom CSS under Settings > Appearance > Custom CSS. Save writes the file at once and returns to Settings. Style against the `--h-*` tokens, not internal class names, which can change between releases.

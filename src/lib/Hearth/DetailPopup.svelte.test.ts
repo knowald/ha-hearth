@@ -225,7 +225,10 @@ describe('DetailPopup', () => {
 	});
 
 	it('highlights the pressed switch segment at once and pulses only that one', async () => {
-		calls.mockImplementation((_domain, _name, entityId) => markPending(entityId));
+		calls.mockImplementation(async (_domain, _name, entityId) => {
+			markPending(entityId);
+			return true;
+		});
 		states.set({ 'switch.fan': hassEntity('switch.fan', 'on') });
 		render(DetailPopup, { entity: 'switch.fan' });
 		const off = await screen.findByRole('button', { name: 'Turn off' });
