@@ -1,41 +1,17 @@
 <script lang="ts">
-	import { lang } from '$lib/core/i18n';
 	import type { CardEditorProps } from '../types';
 	import type { ImageCard } from './descriptor';
-	import EntityField from '../../edit/EntityField.svelte';
-	import TextField from '../../edit/TextField.svelte';
-	import { requireFields } from '../../edit/validation';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 
-	let { initial: initialProp, onchange }: CardEditorProps<ImageCard> = $props();
+	let { initial, onchange }: CardEditorProps<ImageCard> = $props();
 
 	// remounted per target and type, so the initial value is all the form needs
 	// svelte-ignore state_referenced_locally
-	const initial = initialProp;
-
-	let title = $state(initial?.title ?? '');
-	let entity = $state(initial?.entity ?? '');
-
-	let validity = $derived(
-		requireFields($lang('hearth_field_required'), {
-			label: $lang('entity'),
-			value: entity
-		})
-	);
-
-	$effect(() => {
-		onchange({
-			fields: {
-				title: title.trim() || undefined,
-				entity: entity.trim() || undefined
-			},
-			...validity
-		});
-	});
+	const form = new EditorForm(initial, [
+		{ key: 'title', kind: 'text', label: 'hearth_title', example: 'hearth_example_image_title' },
+		{ key: 'entity', kind: 'entity', required: true, domains: ['image'] }
+	]);
 </script>
 
-<TextField
-	label={$lang('hearth_title')}
-	bind:value={title}
-	placeholder={$lang('hearth_example_image_title')}
-/>
-<EntityField label={$lang('entity')} required bind:value={entity} domains={['image']} />
+<FormRenderer {form} {onchange} />

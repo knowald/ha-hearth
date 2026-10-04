@@ -6,9 +6,10 @@
 	import { activateOnKeyboard } from '../../interaction';
 	import EntityField from '../../edit/EntityField.svelte';
 	import EntityPicker from '../../edit/EntityPicker.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 	import Icon from '../../Icon.svelte';
 	import IconField from '../../edit/IconField.svelte';
-	import SelectField from '../../edit/SelectField.svelte';
 	import TextField from '../../edit/TextField.svelte';
 
 	let { initial: initialProp, onchange }: CardEditorProps<ScenesCard> = $props();
@@ -28,8 +29,20 @@
 		active_state: string;
 	};
 
-	let title = $state(initial?.title ?? '');
-	let style = $state<string>(initial?.style ?? 'chips');
+	const form = new EditorForm(initial, [
+		{ key: 'title', kind: 'text', label: 'hearth_title', example: 'hearth_example_scenes_title' },
+		{
+			key: 'style',
+			kind: 'select',
+			label: 'hearth_style',
+			default: 'chips',
+			options: [
+				{ value: 'chips', label: 'hearth_scene_chips' },
+				{ value: 'bar', label: 'hearth_scene_bar' }
+			]
+		}
+	]);
+	let style = $derived(form.values.style);
 	let scenes = $state<EditableSceneRef[]>(
 		(initial?.scenes ?? []).map((ref) => ({
 			entity: ref.entity ?? '',
@@ -54,8 +67,7 @@
 	$effect(() => {
 		onchange({
 			fields: {
-				title: title.trim() || undefined,
-				style: style === 'bar' ? 'bar' : undefined,
+				...form.stored,
 				scenes: scenes
 					.map((ref) => ({
 						entity: ref.entity.trim(),
@@ -71,19 +83,7 @@
 	});
 </script>
 
-<TextField
-	label={$lang('hearth_title')}
-	bind:value={title}
-	placeholder={$lang('hearth_example_scenes_title')}
-/>
-<SelectField
-	label={$lang('hearth_style')}
-	bind:value={style}
-	options={[
-		{ value: 'chips', label: $lang('hearth_scene_chips') },
-		{ value: 'bar', label: $lang('hearth_scene_bar') }
-	]}
-/>
+<FormRenderer {form} />
 {#if style === 'bar'}
 	<div class="hint">
 		{$lang('hearth_equal_width_tiles_on_one_row')}

@@ -3,9 +3,8 @@
 	import type { WidgetEditorProps } from '../types';
 	import type { StatusWidget } from './descriptor';
 	import ActionField from '../../edit/ActionField.svelte';
-	import EntityField from '../../edit/EntityField.svelte';
-	import IconField from '../../edit/IconField.svelte';
-	import TextField from '../../edit/TextField.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<StatusWidget> = $props();
 
@@ -13,22 +12,28 @@
 	// svelte-ignore state_referenced_locally
 	const initial = initialProp;
 
-	let text = $state(initial?.text ?? '');
-	let icon = $state(initial?.icon ?? '');
-	let entity = $state(initial?.entity ?? '');
+	const form = new EditorForm(initial, [
+		{ key: 'text', kind: 'text', example: 'hearth_example_status_text' },
+		{ key: 'icon', kind: 'icon', placeholder: 'eco', beside: true },
+		{
+			key: 'entity',
+			kind: 'entity',
+			label: 'hearth_entity_optional_appends_its_state',
+			hint: 'hearth_leave_text_and_entity_empty_to'
+		}
+	]);
+
 	let tapAction = $state(initial?.tap_action);
 	let holdAction = $state(initial?.hold_action);
 	let tapValid = $state<boolean>();
 	let holdValid = $state<boolean>();
 	// without text or an entity the widget lists open problems and has no pill to tap
-	let autoMode = $derived(!text.trim() && !entity.trim());
+	let autoMode = $derived(!form.stored.text && !form.stored.entity);
 
 	$effect(() => {
 		onchange({
 			fields: {
-				icon: icon.trim() || undefined,
-				text: text.trim() || undefined,
-				entity: entity.trim() || undefined,
+				...form.stored,
 				tap_action: autoMode ? undefined : tapAction,
 				hold_action: autoMode ? undefined : holdAction
 			},
@@ -37,22 +42,7 @@
 	});
 </script>
 
-<div class="row">
-	<div class="grow">
-		<TextField
-			label={$lang('text')}
-			bind:value={text}
-			placeholder={$lang('hearth_example_status_text')}
-		/>
-	</div>
-	<div class="icon-column">
-		<IconField label={$lang('icon')} bind:value={icon} placeholder="eco" />
-	</div>
-</div>
-<EntityField label={$lang('hearth_entity_optional_appends_its_state')} bind:value={entity} />
-<div class="hint">
-	{$lang('hearth_leave_text_and_entity_empty_to')}
-</div>
+<FormRenderer {form} />
 {#if !autoMode}
 	<ActionField label={$lang('hearth_tap_action')} bind:value={tapAction} bind:valid={tapValid} />
 	<ActionField label={$lang('hearth_hold_action')} bind:value={holdAction} bind:valid={holdValid} />

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { integerFromInput } from '../../edit/numbers';
 	import { ICON } from '../../iconSizes';
 	import { lang } from '$lib/core/i18n';
 	import { activateOnKeyboard } from '../../interaction';
@@ -7,8 +6,9 @@
 	import type { ConditionalMediaCard } from './descriptor';
 	import EntityField from '../../edit/EntityField.svelte';
 	import EntityPicker from '../../edit/EntityPicker.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 	import Icon from '../../Icon.svelte';
-	import TextField from '../../edit/TextField.svelte';
 
 	let { initial: initialProp, onchange }: CardEditorProps<ConditionalMediaCard> = $props();
 
@@ -20,14 +20,23 @@
 		(initial?.media_players ?? []).map((entity) => ({ entity }))
 	);
 	let pickingMany = $state(false);
-	let timeout = $state(initial?.timeout !== undefined ? String(initial.timeout) : '');
+	const form = new EditorForm(initial, [
+		{
+			key: 'timeout',
+			kind: 'number',
+			label: 'hearth_pause_timeout',
+			placeholder: '300',
+			inputmode: 'numeric',
+			integer: true,
+			min: 0
+		}
+	]);
 
 	$effect(() => {
-		const timeoutValue = integerFromInput(timeout);
 		onchange({
 			fields: {
 				media_players: players.map((row) => row.entity.trim()).filter(Boolean),
-				timeout: Number.isFinite(timeoutValue) && timeoutValue >= 0 ? timeoutValue : undefined
+				...form.stored
 			}
 		});
 	});
@@ -84,9 +93,4 @@
 		onclose={() => (pickingMany = false)}
 	/>
 {/if}
-<TextField
-	label={$lang('hearth_pause_timeout')}
-	bind:value={timeout}
-	placeholder="300"
-	inputmode="numeric"
-/>
+<FormRenderer {form} />

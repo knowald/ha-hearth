@@ -6,10 +6,11 @@
 	import { activateOnKeyboard } from '../../interaction';
 	import CheckField from '../../edit/CheckField.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 	import Icon from '../../Icon.svelte';
 	import IconField from '../../edit/IconField.svelte';
 	import TextField from '../../edit/TextField.svelte';
-	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: CardEditorProps<VacuumCard> = $props();
 
@@ -26,10 +27,22 @@
 		default: boolean;
 	};
 
-	let entity = $state(initial?.entity ?? '');
-	let batteryEntity = $state(initial?.battery_entity ?? '');
-	let binEntity = $state(initial?.bin_entity ?? '');
-	let quickAction = $state(initial?.quick_action ?? false);
+	const form = new EditorForm(initial, [
+		{ key: 'entity', kind: 'entity', required: true, domains: ['vacuum'] },
+		{
+			key: 'battery_entity',
+			kind: 'entity',
+			label: 'hearth_battery_entity_optional',
+			domains: ['sensor']
+		},
+		{
+			key: 'bin_entity',
+			kind: 'entity',
+			label: 'hearth_dustbin_entity_optional',
+			domains: ['sensor']
+		},
+		{ key: 'quick_action', kind: 'check', label: 'hearth_one_tap_clean_stop_button_on' }
+	]);
 	let modes = $state<EditableMode[]>(
 		(initial?.modes ?? []).map((ref) => ({
 			entity: ref.entity ?? '',
@@ -50,17 +63,10 @@
 		modes.push({ entity: '', name: '', icon: '', detail: '', duration: '', default: false });
 	}
 
-	let validity = $derived(
-		requireFields($lang('hearth_field_required'), {
-			label: $lang('entity'),
-			value: entity
-		})
-	);
-
 	$effect(() => {
 		onchange({
 			fields: {
-				entity: entity.trim() || undefined,
+				...form.stored,
 				modes: modes
 					.map((ref) => ({
 						entity: ref.entity.trim(),
@@ -70,28 +76,14 @@
 						duration: ref.duration.trim() || undefined,
 						default: ref.default || undefined
 					}))
-					.filter((ref) => ref.entity),
-				battery_entity: batteryEntity.trim() || undefined,
-				bin_entity: binEntity.trim() || undefined,
-				quick_action: quickAction || undefined
+					.filter((ref) => ref.entity)
 			},
-			...validity
+			...form.validity
 		});
 	});
 </script>
 
-<EntityField label={$lang('entity')} required bind:value={entity} domains={['vacuum']} />
-<EntityField
-	label={$lang('hearth_battery_entity_optional')}
-	bind:value={batteryEntity}
-	domains={['sensor']}
-/>
-<EntityField
-	label={$lang('hearth_dustbin_entity_optional')}
-	bind:value={binEntity}
-	domains={['sensor']}
-/>
-<CheckField label={$lang('hearth_one_tap_clean_stop_button_on')} bind:checked={quickAction} />
+<FormRenderer {form} />
 <div class="group-label">{$lang('hearth_cleaning_modes')}</div>
 <div class="hint">
 	{$lang('hearth_button_entities_launched_from_the_vacuum')}

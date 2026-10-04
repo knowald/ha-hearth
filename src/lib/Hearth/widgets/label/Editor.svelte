@@ -1,27 +1,17 @@
 <script lang="ts">
-	import { lang } from '$lib/core/i18n';
 	import type { WidgetEditorProps } from '../types';
 	import type { LabelWidget } from './descriptor';
-	import CheckField from '../../edit/CheckField.svelte';
-	import TextField from '../../edit/TextField.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 
-	let { initial: initialProp, onchange }: WidgetEditorProps<LabelWidget> = $props();
+	let { initial, onchange }: WidgetEditorProps<LabelWidget> = $props();
 
 	// remounted per target and type, so the initial value is all the form needs
 	// svelte-ignore state_referenced_locally
-	const initial = initialProp;
-
-	let text = $state(initial?.text ?? '');
-	let divider = $state(initial?.divider ?? false);
-
-	$effect(() => {
-		onchange({ fields: { text: text.trim() || undefined, divider: divider || undefined } });
-	});
+	const form = new EditorForm(initial, [
+		{ key: 'text', kind: 'text', example: 'hearth_example_label_text' },
+		{ key: 'divider', kind: 'check', label: 'hearth_divider_line' }
+	]);
 </script>
 
-<TextField
-	label={$lang('text')}
-	bind:value={text}
-	placeholder={$lang('hearth_example_label_text')}
-/>
-<CheckField label={$lang('hearth_divider_line')} bind:checked={divider} />
+<FormRenderer {form} {onchange} />
