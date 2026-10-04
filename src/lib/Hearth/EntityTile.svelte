@@ -31,6 +31,7 @@
 	let {
 		entity,
 		name = undefined,
+		stateOverride = undefined,
 		icon = undefined,
 		compact = false,
 		readonly = false,
@@ -44,6 +45,8 @@
 	}: {
 		entity: string;
 		name?: string;
+		/** shown in place of the state text, from a state_template */
+		stateOverride?: string;
 		icon?: string;
 		compact?: boolean;
 		/** display only: taps never send a command */
@@ -170,6 +173,7 @@
 	<LightTile
 		{entity}
 		{name}
+		{stateOverride}
 		{icon}
 		{compact}
 		{readonly}
@@ -183,6 +187,7 @@
 	<BlindTile
 		{entity}
 		{name}
+		{stateOverride}
 		{icon}
 		{compact}
 		{readonly}
@@ -217,7 +222,9 @@
 			<div class="text">
 				<div class="name">{label}</div>
 				<div class="state" class:on={on && available}>
-					{#if available}
+					{#if stateOverride !== undefined}
+						{stateOverride}
+					{:else if available}
 						<StateLogic entity_id={entity} />
 					{:else if availability === 'missing'}
 						{$lang('hearth_missing_entity')}

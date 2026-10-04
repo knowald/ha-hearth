@@ -18,6 +18,7 @@
 	let {
 		entity,
 		name = undefined,
+		stateOverride = undefined,
 		icon = undefined,
 		compact = false,
 		readonly = false,
@@ -29,6 +30,7 @@
 	}: {
 		entity: string;
 		name?: string;
+		stateOverride?: string;
 		icon?: string;
 		compact?: boolean;
 		/** display only: neither the tap nor the brightness drag sends a command */
@@ -133,7 +135,8 @@
 		<div class="text">
 			<div class="name">{label}</div>
 			<div class="state">
-				{available ? (view.on ? `${view.level}%` : capitalize($lang('off'))) : availabilityText}
+				{stateOverride ??
+					(available ? (view.on ? `${view.level}%` : capitalize($lang('off'))) : availabilityText)}
 			</div>
 		</div>
 	</div>

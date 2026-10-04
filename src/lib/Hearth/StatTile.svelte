@@ -14,6 +14,7 @@
 	let {
 		entity,
 		name = undefined,
+		stateOverride = undefined,
 		verdictBands = undefined,
 		readonly = false,
 		tapAction = undefined,
@@ -21,6 +22,8 @@
 	}: {
 		entity: string;
 		name?: string;
+		/** shown in place of the reading and its unit, from a state_template */
+		stateOverride?: string;
 		verdictBands?: false | VerdictBands;
 		readonly?: boolean;
 		tapAction?: HearthAction;
@@ -83,9 +86,10 @@
 			<div class="stat-verdict" data-tone={verdict.tone}>{verdict.label}</div>
 		{/if}
 	</div>
-	<div class="stat-value" class:muted={value === null}>
-		{display}{#if unit && value !== null}<span class="stat-unit" class:tight={unit === '%'}
-				>{unit}</span
+	<div class="stat-value" class:muted={value === null && stateOverride === undefined}>
+		{stateOverride ?? display}{#if unit && value !== null && stateOverride === undefined}<span
+				class="stat-unit"
+				class:tight={unit === '%'}>{unit}</span
 			>{/if}
 	</div>
 	{#if verdict}

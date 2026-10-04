@@ -688,13 +688,42 @@ function handleMessage(socket, message) {
 			reply(result);
 			return;
 		}
-		case 'render_template':
+		case 'render_template': {
+			const template = String(message.template ?? '');
+			// stands in for a Jinja error such as an undefined name
+			if (template.includes('undefined_function')) {
+				socket.send(
+					JSON.stringify({
+						id: message.id,
+						type: 'result',
+						success: false,
+						error: {
+							code: 'template_error',
+							message: "UndefinedError: 'undefined_function' is undefined"
+						}
+					})
+				);
+				return;
+			}
+			// states('entity') calls are filled in; any other template gets the
+			// fixed sample
+			let substituted = false;
+			const rendered = template.replace(
+				/\{\{\s*states\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}/g,
+				(_, entityId) => {
+					substituted = true;
+					return states[entityId]?.s ?? 'unknown';
+				}
+			);
 			reply(null);
 			event({
-				result: `**${states['sensor.temperature'].s} °C** inside, _${states['weather.home'].s}_ outside`,
+				result: substituted
+					? rendered
+					: `**${states['sensor.temperature'].s} °C** inside, _${states['weather.home'].s}_ outside`,
 				listeners: {}
 			});
 			return;
+		}
 		case 'camera/capabilities':
 			cameraRequests.push({ type: message.type, entity_id: message.entity_id });
 			reply({ frontend_stream_types: cameraStreamTypes[message.entity_id] ?? [] });

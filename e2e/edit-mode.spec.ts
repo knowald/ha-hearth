@@ -18,7 +18,8 @@ const CARD_NAMES = [
 	'Climate',
 	'Scenes',
 	'Days since',
-	'Now playing'
+	'Now playing',
+	'Template'
 ];
 const WIDGET_NAMES = [
 	'Clock',

@@ -199,16 +199,22 @@ export const EntityRefSchema = v.object({
 	verdict: v.optional(v.union([v.literal(false), VerdictBandsSchema], 'must be false or bands')),
 	// unset is the tile's own behaviour for its domain
 	tap_action: v.optional(ActionSchema),
-	hold_action: v.optional(ActionSchema)
+	hold_action: v.optional(ActionSchema),
+	// Home Assistant templates for the tile's name and state text; the normal
+	// text shows while they load or when they fail
+	name_template: OptionalText,
+	state_template: OptionalText
 });
 
 // the tile highlight fields mean something else on scenes and nothing on
-// modes, and neither takes configured actions
+// modes, and neither takes configured actions or templated text
 const RefSchema = v.omit(EntityRefSchema, [
 	'active_entity',
 	'active_states',
 	'tap_action',
-	'hold_action'
+	'hold_action',
+	'name_template',
+	'state_template'
 ]);
 
 export const SceneRefSchema = v.object({

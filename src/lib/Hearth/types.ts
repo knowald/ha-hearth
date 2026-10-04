@@ -248,6 +248,16 @@ type OverviewCardVariant =
 	// `bar` renders the persistent scene row: equal-width tiles, active one lit
 	| { id: string; type: 'scenes'; title?: string; style?: 'chips' | 'bar'; scenes: SceneRef[] }
 	| { id: string; type: 'iframe'; url?: string; title?: string; height?: number }
+	// Markdown rendered from a Home Assistant template; entities only names what
+	// the template reads, for the features that look up a card's entities
+	| {
+			id: string;
+			type: 'template';
+			content?: string;
+			title?: string;
+			icon?: string;
+			entities?: string[];
+	  }
 	// days since an input_datetime was last reset, with a one-tap reset
 	| { id: string; type: 'days_since'; entity?: string; title?: string; icon?: string }
 	// the media card for whichever listed player is active; a paused player

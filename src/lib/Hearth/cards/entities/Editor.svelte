@@ -34,6 +34,8 @@
 		active_entity: string;
 		active_states: string;
 		slider_updates: string;
+		name_template: string;
+		state_template: string;
 		// YAML-only field with no form control; carried so edits don't drop it
 		verdict?: EntityRef['verdict'];
 		tap_action?: EntityRef['tap_action'];
@@ -53,6 +55,8 @@
 			active_entity: ref.active_entity ?? '',
 			active_states: ref.active_states?.join(', ') ?? '',
 			slider_updates: ref.slider_updates ?? '',
+			name_template: ref.name_template ?? '',
+			state_template: ref.state_template ?? '',
 			verdict: ref.verdict,
 			tap_action: ref.tap_action,
 			hold_action: ref.hold_action
@@ -134,7 +138,9 @@
 			readonly: false,
 			active_entity: '',
 			active_states: '',
-			slider_updates: ''
+			slider_updates: '',
+			name_template: '',
+			state_template: ''
 		};
 	}
 
@@ -189,7 +195,9 @@
 								: undefined,
 						verdict: ref.verdict,
 						tap_action: ref.tap_action,
-						hold_action: ref.hold_action
+						hold_action: ref.hold_action,
+						name_template: ref.name_template.trim() ? ref.name_template : undefined,
+						state_template: ref.state_template.trim() ? ref.state_template : undefined
 					}))
 					.filter((ref) => ref.entity)
 			},
@@ -332,6 +340,17 @@
 							hint={ref.entity.trim() ? undefined : $lang('hearth_empty_row_removed')}
 						/>
 						<TextField label={$lang('hearth_name_optional')} bind:value={ref.name} />
+						<TextField
+							label={$lang('hearth_name_template_optional')}
+							bind:value={ref.name_template}
+							placeholder={"{{ state_attr('sensor.phone', 'friendly_name') }}"}
+						/>
+						<TextField
+							label={$lang('hearth_state_template_optional')}
+							bind:value={ref.state_template}
+							placeholder={"{{ states('sensor.power') | int }} W"}
+							hint={$lang('hearth_tile_template_hint')}
+						/>
 						<IconField label={$lang('hearth_icon_optional')} bind:value={ref.icon} />
 						{#if highlightable(ref)}
 							<EntityField

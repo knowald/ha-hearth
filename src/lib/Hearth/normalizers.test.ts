@@ -110,6 +110,21 @@ haptic: success
 		const scene = normalizeSceneRef({ entity: 'scene.a', tap_action: { action: 'toggle' } });
 		expect(scene).not.toHaveProperty('tap_action');
 	});
+
+	it('keeps tile templates verbatim on entity refs and drops blank ones and scene copies', () => {
+		const ref = normalizeEntityRef({
+			entity: 'switch.fan',
+			name_template: "Fan {{ states('switch.fan') }} ",
+			state_template: '   '
+		});
+		expect(ref?.name_template).toBe("Fan {{ states('switch.fan') }} ");
+		expect(ref?.state_template).toBeUndefined();
+		expect(normalizeEntityRef({ entity: 'switch.fan', name_template: 5 })?.name_template).toBe(
+			undefined
+		);
+		const scene = normalizeSceneRef({ entity: 'scene.a', name_template: '{{ 1 }}' });
+		expect(scene).not.toHaveProperty('name_template');
+	});
 });
 
 describe('normalizeEmbedUrl', () => {

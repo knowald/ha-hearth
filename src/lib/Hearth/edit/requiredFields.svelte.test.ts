@@ -9,6 +9,7 @@ import IframeCardEditor from '../cards/iframe/Editor.svelte';
 import ImageEditor from '../cards/image/Editor.svelte';
 import MediaEditor from '../cards/media/Editor.svelte';
 import TemperatureEditor from '../cards/temperature/Editor.svelte';
+import TemplateCardEditor from '../cards/template/Editor.svelte';
 import VacuumEditor from '../cards/vacuum/Editor.svelte';
 import CalendarEditor from '../widgets/calendar/Editor.svelte';
 import ChartEditor from '../widgets/chart/Editor.svelte';
@@ -37,6 +38,7 @@ const EDITORS: [type: string, editor: unknown, label: string, filled: Record<str
 	['temperature', TemperatureEditor, en.entity, { entity: 'sensor.temperature' }],
 	['vacuum', VacuumEditor, en.entity, { entity: 'vacuum.robot' }],
 	['iframe card', IframeCardEditor, en.hearth_url, { url: 'https://example.com' }],
+	['template card', TemplateCardEditor, en.hearth_template, { content: '{{ 1 }}' }],
 	['chart', ChartEditor, en.entity, { entity: 'sensor.power' }],
 	[
 		'energy',

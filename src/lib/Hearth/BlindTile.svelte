@@ -25,6 +25,7 @@
 	let {
 		entity,
 		name = undefined,
+		stateOverride = undefined,
 		icon = undefined,
 		compact = false,
 		readonly = false,
@@ -36,6 +37,7 @@
 	}: {
 		entity: string;
 		name?: string;
+		stateOverride?: string;
 		icon?: string;
 		compact?: boolean;
 		/** display only: taps never send a command */
@@ -176,7 +178,7 @@
 		/>
 		<div class="copy">
 			<div class="name">{label}</div>
-			<div class="state" class:open>{stateText}</div>
+			<div class="state" class:open>{stateOverride ?? stateText}</div>
 		</div>
 	</div>
 	{#if $hearthEditMode && onedit}
