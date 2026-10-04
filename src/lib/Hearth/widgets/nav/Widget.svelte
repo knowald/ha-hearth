@@ -5,7 +5,14 @@
 	import { lang } from '$lib/core/i18n';
 	import { PRESS_RIPPLE } from '../../config';
 	import type { HearthRoom } from '../../config';
-	import { currentRoom, editor, hearthConfig, hearthEditMode, updateConfig } from '../../store';
+	import {
+		currentRoom,
+		editor,
+		goToPage,
+		hearthConfig,
+		hearthEditMode,
+		updateConfig
+	} from '../../store';
 	import Icon from '../../Icon.svelte';
 	import { hiddenPages, navigablePages } from '../../pages';
 	import type { NavWidget } from './descriptor';
@@ -40,7 +47,7 @@
 			class:visibility-dimmed={$hearthEditMode && $hiddenPages.includes(room.id)}
 			aria-current={$currentRoom === room.id ? 'page' : undefined}
 			use:Ripple={PRESS_RIPPLE}
-			onclick={() => currentRoom.set(room.id)}
+			onclick={() => goToPage(room.id)}
 		>
 			<Icon name={room.icon} size={ICON.control} />
 			<span class="nav-name">{room.name}</span>

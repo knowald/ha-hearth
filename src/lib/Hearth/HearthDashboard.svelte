@@ -5,13 +5,15 @@
 	import { THEME_PRESETS, type HearthTheme } from '$lib/core/theme';
 	import {
 		currentRoom,
+		goToPage,
 		guardUnload,
 		hearthConfig,
 		hearthEditMode,
 		hearthLoadError,
 		hearthNeedsSetup,
 		screensaverPreview,
-		setupWizardOpen
+		setupWizardOpen,
+		setupWizardSource
 	} from './store';
 	import {
 		foldedRail,
@@ -58,6 +60,7 @@
 	import { layerDepth } from '$lib/ui/layers';
 	import { neighborRoom, swipeNav, type SwipeDirection } from './swipeNav';
 	import { loadEditBar, loadEditorHost } from './editLoader';
+	import { favoritesOpen, favoritesPageOffered } from './favorites';
 
 	let showSearch = $state(false);
 
@@ -88,10 +91,16 @@
 		return loading;
 	}
 
+	// the next opening, the first-run prompt's included, starts on the import
+	function closeSetupWizard() {
+		setupWizardOpen.set(false);
+		setupWizardSource.set('areas');
+	}
+
 	function loadSetupWizard() {
 		return import('./SetupWizard.svelte').catch((error) => {
 			console.warn('setup unavailable', error);
-			setupWizardOpen.set(false);
+			closeSetupWizard();
 			throw error;
 		});
 	}
@@ -163,6 +172,10 @@
 
 	let activeRoom = $derived($hearthConfig.rooms.find((room) => room.id === activeRoomId));
 
+	// this browser's favorites stand in for the page on phone-width screens only
+	let favoritesOffered = $derived($narrow && $favoritesPageOffered && !$hearthEditMode);
+	let showFavorites = $derived(favoritesOffered && $favoritesOpen);
+
 	// sideways swipes walk the pages in rail order; each layout has its own
 	// setting, since a mouse drag on a wall tablet is a different habit
 	let swipeEnabled = $derived(
@@ -172,10 +185,21 @@
 			$layerDepth === 0
 	);
 	let activeIndex = $derived(swipePages.findIndex((room) => room.id === activeRoomId));
+	// the favorites page, when offered, is the first position a swipe reaches
+	let swipeOffset = $derived(favoritesOffered ? 1 : 0);
+	let swipeIndex = $derived(showFavorites ? 0 : activeIndex + swipeOffset);
 
 	function swipeTo(direction: SwipeDirection) {
+		if (showFavorites) {
+			if (direction === 'next' && swipePages[0]) goToPage(swipePages[0].id);
+			return;
+		}
+		if (direction === 'previous' && swipeOffset && activeIndex === 0) {
+			favoritesOpen.set(true);
+			return;
+		}
 		const roomId = neighborRoom(swipePages, activeRoomId, direction);
-		if (roomId) currentRoom.set(roomId);
+		if (roomId) goToPage(roomId);
 	}
 
 	// a fill page clips whatever does not fit, which is invisible until you walk
@@ -303,7 +327,7 @@
 
 		const roomId = params.get('room');
 		if (roomId && $hearthConfig.rooms.some((room) => room.id === roomId)) {
-			currentRoom.set(roomId);
+			goToPage(roomId);
 		}
 
 		hideEditToggle = params.get('menu') === 'false';
@@ -345,13 +369,13 @@
 	<div class="main-wrap">
 		<main
 			class="main"
-			class:fill={activeRoom?.fill_screen}
+			class:fill={activeRoom?.fill_screen && !showFavorites}
 			bind:this={mainElement}
 			use:scrollEdges={{ report: (edges) => (mainCut = edges) }}
 			use:swipeNav={{
 				enabled: swipeEnabled,
-				hasPrevious: activeIndex > 0,
-				hasNext: activeIndex >= 0 && activeIndex < swipePages.length - 1,
+				hasPrevious: swipeIndex > 0,
+				hasNext: swipeIndex >= 0 && swipeIndex < swipePages.length + swipeOffset - 1,
 				onswipe: swipeTo
 			}}
 		>
@@ -365,7 +389,15 @@
 					/>
 				</div>
 			{/if}
-			<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+			{#if showFavorites}
+				{#await import('./FavoritesPage.svelte') then FavoritesPage}
+					<FavoritesPage.default />
+				{:catch}
+					<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+				{/await}
+			{:else}
+				<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+			{/if}
 		</main>
 		{#if edgeBlur}
 			<ScrollEdge edge="top" size={96} active={mainCut.top} />
@@ -454,10 +486,7 @@
 	{#if $setupWizardOpen}
 		<!-- discovery runs once per home, so it stays out of the eager bundle -->
 		{#await loadSetupWizard() then SetupWizard}
-			<SetupWizard.default
-				firstRun={$hearthNeedsSetup}
-				onclose={() => setupWizardOpen.set(false)}
-			/>
+			<SetupWizard.default firstRun={$hearthNeedsSetup} onclose={closeSetupWizard} />
 		{:catch}
 			<!-- offline or a stale deploy: closed, so the next open tries again -->
 		{/await}

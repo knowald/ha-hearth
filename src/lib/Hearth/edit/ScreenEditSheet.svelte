@@ -18,6 +18,8 @@
 	import SettingsRow from './SettingsRow.svelte';
 	import { sleepOptions, withCurrent, type Option } from './options';
 	import { zoomSupported } from '../zoom';
+	import Switch from '../Switch.svelte';
+	import { favorites, showFavoritesPage } from '../favorites';
 
 	/*
 	 * Settings this screen keeps for itself. Every row starts at "Same as
@@ -238,6 +240,16 @@
 					value={flagValue($screenOverrides.reduce_motion)}
 					options={flagOptions(!followed('reduce_motion').motion)}
 					onchange={(value) => setFlag('reduce_motion', value)}
+				/>
+			</SettingsRow>
+			<SettingsRow
+				label={$lang('hearth_show_favorites_page')}
+				sub={$lang('hearth_show_favorites_page_sub')}
+			>
+				<Switch
+					checked={$favorites.page}
+					label={$lang('hearth_show_favorites_page')}
+					onchange={showFavoritesPage}
 				/>
 			</SettingsRow>
 			<SettingsRow label={$lang('hearth_touch_feedback')} sub={$lang('hearth_touch_feedback_sub')}>

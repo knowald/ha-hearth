@@ -17,6 +17,7 @@
 	import DetailPopup from './DetailPopup.svelte';
 	import { domainIcon } from '$lib/core/domains';
 	import { domainCaption } from './details';
+	import { favorites, toggleFavorite } from './favorites';
 
 	/*
 	 * The header power switch, for the kinds whose sheet is about one on/off
@@ -44,6 +45,7 @@
 	}
 
 	let power = $derived($popup ? powerFor($popup) : null);
+	let starred = $derived($popup ? $favorites.entities.includes($popup.entity) : false);
 
 	// a drag that starts on a slider and ends over the backdrop is not a backdrop tap
 	let pressStartedOnBackdrop = false;
@@ -79,6 +81,16 @@
 						<div class="name">{$popup.name}</div>
 						<div class="sub">{domainCaption($popup.entity, $lang)}</div>
 					</div>
+					<button
+						type="button"
+						class="star"
+						class:starred
+						aria-label={$lang('hearth_favorite')}
+						aria-pressed={starred}
+						onclick={() => $popup && toggleFavorite($popup.entity)}
+					>
+						<Icon name="star" fill={starred} size={ICON.tile} />
+					</button>
 					{#if power}
 						<Switch
 							checked={power.checked}
@@ -152,6 +164,25 @@
 
 	.titles {
 		flex: 1;
+	}
+
+	.star {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border: 0;
+		border-radius: var(--h-radius-xs);
+		background: none;
+		color: var(--h-icon);
+		cursor: pointer;
+	}
+
+	.star.starred {
+		color: var(--h-accent-text);
 	}
 
 	.name {

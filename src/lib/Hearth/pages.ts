@@ -3,7 +3,7 @@ import { deviceName } from '$lib/core/app/device';
 import { states } from '$lib/core/ha/entities';
 import { mediaQuery } from '$lib/ui/mediaQuery';
 import { resolvePage, type HearthRoom, type VisibilityCondition } from './config';
-import { currentRoom, displayTimeZone, hearthConfig, hearthEditMode } from './store';
+import { displayTimeZone, goToPage, hearthConfig, hearthEditMode } from './store';
 import { clockFor, evaluateVisibility, mediaQueriesIn, type VisibilityContext } from './visibility';
 
 /*
@@ -100,6 +100,6 @@ export const navigablePages = derived(
  */
 export function showPage(path: string): boolean {
 	const id = resolvePage(get(navigablePages), path);
-	if (id) currentRoom.set(id);
+	if (id) goToPage(id);
 	return id !== undefined;
 }

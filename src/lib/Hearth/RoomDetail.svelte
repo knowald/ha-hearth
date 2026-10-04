@@ -1,6 +1,12 @@
 <script lang="ts">
-	import { ensureRoomCardColumns, type HearthConfig, type OverviewItem } from './config';
-	import { editor, hearthConfig, hearthEditMode } from './store';
+	import { untrack } from 'svelte';
+	import {
+		editLockOf,
+		ensureRoomCardColumns,
+		type HearthConfig,
+		type OverviewItem
+	} from './config';
+	import { editor, hearthConfig, hearthEditMode, hearthLoadError } from './store';
 	import CardColumns from './CardColumns.svelte';
 	import HeaderCard from './HeaderCard.svelte';
 
@@ -21,6 +27,25 @@
 		const target = config.rooms.find((entry) => entry.id === roomId);
 		return target ? ensureRoomCardColumns(target) : [];
 	}
+
+	// suggestions open on a page found empty and stay while cards are added
+	// from them, until another page is shown
+	let offeredFor = $state<string | null>(null);
+	$effect(() => {
+		const id = roomId;
+		const empty = !!room && !room.cards?.some((column) => column.length);
+		untrack(() => {
+			if (empty) offeredFor = id;
+			else if (offeredFor !== id) offeredFor = null;
+		});
+	});
+
+	// outside edit mode only where the edit button would open edit mode at a tap
+	let suggesting = $derived(
+		offeredFor === roomId &&
+			!$hearthLoadError &&
+			($hearthEditMode || editLockOf($hearthConfig) === 'off')
+	);
 </script>
 
 {#if room}
@@ -36,6 +61,14 @@
 					onedit={() => editor.set({ kind: 'room', id: roomId })}
 				/>
 			</div>
+		{/if}
+
+		{#if suggesting}
+			{#await import('./PageSuggestions.svelte') then PageSuggestions}
+				<PageSuggestions.default {roomId} />
+			{:catch}
+				<!-- offline or a stale deploy: the page works without suggestions -->
+			{/await}
 		{/if}
 
 		<CardColumns

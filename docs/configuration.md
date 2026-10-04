@@ -67,6 +67,28 @@ The Home Assistant app sets `HASS_URL` itself. For direct-port access, set its H
 
 These change presentation only. They are not access controls.
 
+## Import and starter layouts
+
+Settings > Pages > Import Home Assistant areas builds a page per area. It also opens on its own on the first run. With pages on the dashboard already, choose what happens to them:
+
+- Add new pages: areas without a page of the same name get one. Existing pages stay as they are.
+- Add new entities: the same, and a page named after an area also gets the area's entities it does not show yet. A new tile joins the first grid on the page that already holds its domain, otherwise a new grid. A thermostat, media player or camera gets its own card. Nothing on the page is moved or removed.
+- Replace pages: every page but the first is removed and rebuilt from the areas.
+
+Settings > Pages > Starter layouts builds pages for one kind of screen from your own entities:
+
+| Layout         | Pages                                                                                          | Sidebar                      |
+| -------------- | ---------------------------------------------------------------------------------------------- | ---------------------------- |
+| Kitchen tablet | The scene bar and the kitchen area's cards first, then a page per area                         | Weather, energy and calendar |
+| Phone remote   | One page with your scenes and a collapsed row per area that opens its controls                 | Unchanged                    |
+| Bedside        | The bedroom area's lights, covers and climate, locks and alarm panels, and scenes, on one page | Weather and calendar         |
+
+A starter never changes pages you already have. On a dashboard that is still the single empty page it started with, it replaces that page.
+
+Both end on Open on your tablet, once the result is saved: the address of the dashboard and a QR code for it. The address starts as the one this browser uses and can be changed; one without `http://` gets it added, and `localhost` or `127.0.0.1` gets a warning, since a tablet would reach itself. A device name entered there adds `?device=<name>` to the address. Through Ingress the address in the browser only works inside Home Assistant, so the field starts empty and asks for the address of the app's own port; set a port and Home Assistant URL for direct access (`hass_public_url`) in the app configuration first.
+
+An empty page named after an area (or one of its aliases) suggests the cards the import would give it. Each suggestion adds its card with one tap. Outside edit mode they show only when a tap would open edit mode (no edit lock and no `?menu=false`), and an added card is saved at once.
+
 ## Settings
 
 The Settings sheet in edit mode groups its rows by where they are kept. Each section says so under its title:
@@ -87,9 +109,10 @@ The This screen sheet keeps these per browser, in local storage:
 - Interface scale, and the scale at 900 px and narrower.
 - Language, reduce motion and touch feedback.
 - Mute alert sounds; see [alerts](alerts.md#sounds).
+- Show favorites page, see [favorites](#favorites).
 - Log out, which clears the Home Assistant session in this browser.
 
-Each row starts at Same as dashboard and follows the shared value from `hearth.yaml` or `configuration.yaml` until you pick another one. A shared row that this screen overrides says so in the Settings sheet. A scale picked here also applies at 900 px and narrower unless that row has a value of its own. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
+Each row except Device name and Show favorites page starts at Same as dashboard and follows the shared value from `hearth.yaml` or `configuration.yaml` until you pick another one. A shared row that this screen overrides says so in the Settings sheet. A scale picked here also applies at 900 px and narrower unless that row has a value of its own. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
 
 Open the sheet with the button next to Edit Hearth configuration. It does not need edit mode. With `?menu=false` both buttons are hidden; press and hold the bottom-left corner of the screen for 2 seconds instead. The corner works only with `?menu=false`, since the buttons sit there otherwise.
 
@@ -172,6 +195,10 @@ The energy sidebar widget shows today's total, its cost when a price is set, and
 ## Phone page strip
 
 On phones, and on any screen with the sidebar set to None, page buttons run along the top of the page. Settings > Layout and navigation > Clock in the phone page strip adds the time and a short date at the start of that strip, for small screens that have no room for a clock widget. In YAML it is `phone_clock: true`. It uses the time zone and hour format of the first clock widget in the sidebar, or the browser's when there is none.
+
+## Favorites
+
+The star in an entity's popup adds it to this browser's favorites. At 900 px and narrower, a Favorites button leads the page strip while the list has entities, and opens a page with a tile for each. The list is kept in local storage, not in `hearth.yaml`, so every phone has its own. With swipe between pages on phones turned on, it is the first page a swipe reaches. Edit favorites on the page lists them with a remove button each, and the page offers to remove favorites Home Assistant no longer has. The star is in the media popup too. This screen > Show favorites page hides the page without clearing the list. The page is not shown in edit mode.
 
 ## Interface scale and padding
 

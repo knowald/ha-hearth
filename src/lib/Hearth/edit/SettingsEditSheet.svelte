@@ -24,6 +24,7 @@
 		hearthConfig,
 		screensaverPreview,
 		setupWizardOpen,
+		setupWizardSource,
 		updateConfig
 	} from '../store';
 	import EditSheet from './EditSheet.svelte';
@@ -1133,7 +1134,19 @@
 					icon="auto_awesome"
 					label={$lang('hearth_setup')}
 					sub={$lang('hearth_setup_row_sub')}
-					onclick={() => setupWizardOpen.set(true)}
+					onclick={() => {
+						setupWizardSource.set('areas');
+						setupWizardOpen.set(true);
+					}}
+				/>
+				<SettingsRow
+					icon="dashboard_customize"
+					label={$lang('hearth_starter_layouts')}
+					sub={$lang('hearth_starter_layouts_sub')}
+					onclick={() => {
+						setupWizardSource.set('starter');
+						setupWizardOpen.set(true);
+					}}
 				/>
 			</div>
 		</section>

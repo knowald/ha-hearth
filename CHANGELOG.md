@@ -14,6 +14,11 @@
 - Play a short synthesized chime when an alert fires, chosen per rule or per severity with a volume, off by default; a screen can mute them under This screen
 - Greet people on the page header and the sleep screen for a while after they come home, with a greeting for the time of day
 - Show a badge on the energy widget while today's use is below the average of the previous 7 days over the same hours
+- End the setup with the wall tablet's address and a QR code for it, with an optional device name added as `?device=`
+- Start from a starter layout for a kitchen tablet, a phone remote or a bedside screen, built from your own entities
+- Add only the entities an area's page does not show yet when importing areas again, without touching the rest of the page
+- Suggest the cards of its area on an empty page named after one, each added with one tap
+- Star entities in their popup to get a favorites page on your phone, kept in that browser
 
 ### Changed
 
