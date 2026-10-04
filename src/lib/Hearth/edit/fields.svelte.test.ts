@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { states } from '$lib/core/ha/entities';
+import { hassEntity } from '$lib/core/ha/testing';
 import en from '../../../../static/translations/en.json';
 import CheckField from './CheckField.svelte';
 import EntityField from './EntityField.svelte';
@@ -42,6 +44,25 @@ describe.each([
 		renderField(Field, { label: 'Name', ...extra });
 		expect(screen.getByRole(role, { name: 'Name' }).getAttribute('aria-describedby')).toBeNull();
 		expect(screen.queryByRole('alert')).toBeNull();
+	});
+});
+
+describe.each([
+	['TextField', TextField, 'textbox', {}],
+	['SelectField', SelectField, 'combobox', { options: OPTIONS }],
+	['EntityField', EntityField, 'combobox', {}]
+] as const)('%s required', (_name, Field, role, extra) => {
+	it('marks the label and tells assistive tech, outside the accessible name', () => {
+		const { container } = renderField(Field, { label: 'Entity', required: true, ...extra });
+		const control = screen.getByRole(role, { name: 'Entity' });
+		expect(control.getAttribute('aria-required')).toBe('true');
+		expect(container.querySelector('.field-label.field-required')).not.toBeNull();
+	});
+
+	it('leaves an optional field unmarked', () => {
+		const { container } = renderField(Field, { label: 'Entity', ...extra });
+		expect(screen.getByRole(role, { name: 'Entity' }).getAttribute('aria-required')).toBeNull();
+		expect(container.querySelector('.field-required')).toBeNull();
 	});
 });
 
@@ -93,5 +114,57 @@ describe('IconField', () => {
 		expect(browse.getAttribute('aria-expanded')).toBe('true');
 		expect(screen.getByRole('textbox', { name: en.hearth_search_all_icons })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'lightbulb' })).toBeTruthy();
+	});
+});
+
+describe('EntityField entity feedback', () => {
+	beforeEach(() => {
+		states.set({
+			'sensor.temperature': hassEntity('sensor.temperature', '21.5', {
+				friendly_name: 'Living temperature',
+				unit_of_measurement: 'C'
+			}),
+			'light.desk': hassEntity('light.desk', 'on', { friendly_name: 'Desk lamp' })
+		});
+	});
+
+	it('shows the friendly name and the state with its unit under a known id', () => {
+		const { container } = render(EntityField, { label: 'Entity', value: 'sensor.temperature' });
+		const details = container.querySelector<HTMLElement>('.entity-details')!;
+		expect(details.textContent).toContain('Living temperature');
+		expect(details.textContent).toContain('21.5 C');
+		const input = screen.getByRole('combobox', { name: 'Entity' });
+		expect(input.getAttribute('aria-describedby')).toContain(details.id);
+	});
+
+	it('warns, without marking the field invalid, about an id Home Assistant does not report', () => {
+		render(EntityField, { label: 'Entity', value: 'sensor.gone' });
+		const warning = screen.getByText(en.hearth_entity_not_found);
+		const input = screen.getByRole('combobox', { name: 'Entity' });
+		expect(input.getAttribute('aria-invalid')).toBeNull();
+		expect(input.getAttribute('aria-describedby')).toBe(warning.id);
+		expect(warning.classList.contains('field-warning')).toBe(true);
+	});
+
+	it('warns about an id outside the allowed domains', () => {
+		render(EntityField, { label: 'Entity', value: 'light.desk', domains: ['scene', 'script'] });
+		expect(screen.getByText('Expected a Scene, Script entity')).toBeTruthy();
+		// still a real entity, so its name shows too
+		expect(screen.getByText('Desk lamp', { selector: '.entity-name' })).toBeTruthy();
+	});
+
+	it('holds the warning back while an id is being typed', async () => {
+		render(EntityField, { label: 'Entity', value: '' });
+		const input = screen.getByRole('combobox', { name: 'Entity' });
+		await fireEvent.input(input, { target: { value: 'sensor.temp' } });
+		expect(screen.queryByText(en.hearth_entity_not_found)).toBeNull();
+		await fireEvent.change(input);
+		expect(screen.getByText(en.hearth_entity_not_found)).toBeTruthy();
+	});
+
+	it('says nothing before the first states arrive', () => {
+		states.set({});
+		render(EntityField, { label: 'Entity', value: 'sensor.gone' });
+		expect(screen.queryByText(en.hearth_entity_not_found)).toBeNull();
 	});
 });

@@ -12,7 +12,8 @@
 		onchange,
 		inline = false,
 		hint = undefined,
-		error = undefined
+		error = undefined,
+		required = false
 	}: {
 		label: string;
 		value?: string;
@@ -23,6 +24,8 @@
 		/** Not shown inline, where the settings row carries the explanation. */
 		hint?: string;
 		error?: string | null;
+		/** Marks the label and tells assistive tech; the editor decides what blocks Done. */
+		required?: boolean;
 	} = $props();
 </script>
 
@@ -30,6 +33,7 @@
 	<select
 		aria-label={accessibleName}
 		aria-invalid={error ? true : undefined}
+		aria-required={required || undefined}
 		aria-describedby={inline ? undefined : describedBy(uid, hint, error)}
 		bind:value
 		onchange={() => onchange?.(value)}
@@ -48,7 +52,7 @@
 {:else}
 	<div class="field">
 		<label>
-			<span class="field-label">{label}</span>
+			<span class="field-label" class:field-required={required}>{label}</span>
 			{@render select()}
 		</label>
 		<FieldMessages id={uid} {hint} {error} />

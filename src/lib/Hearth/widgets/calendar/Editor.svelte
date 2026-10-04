@@ -5,6 +5,7 @@
 	import type { CalendarWidget } from './descriptor';
 	import EntityField from '../../edit/EntityField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<CalendarWidget> = $props();
 
@@ -18,6 +19,13 @@
 		typeof initial?.lookahead_hours === 'number' ? String(initial.lookahead_hours) : ''
 	);
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('hearth_calendar_entities_comma_separated'),
+			value: entities
+		})
+	);
+
 	$effect(() => {
 		const parsedHours = numberFromInput(lookaheadHours);
 		onchange({
@@ -28,13 +36,15 @@
 					.filter(Boolean),
 				travel_entity: travelEntity.trim() || undefined,
 				lookahead_hours: Number.isFinite(parsedHours) && parsedHours > 0 ? parsedHours : undefined
-			}
+			},
+			...validity
 		});
 	});
 </script>
 
 <TextField
 	label={$lang('hearth_calendar_entities_comma_separated')}
+	required
 	bind:value={entities}
 	placeholder="calendar.family, calendar.work"
 />

@@ -6,6 +6,7 @@
 	import IconField from '../../edit/IconField.svelte';
 	import SelectField from '../../edit/SelectField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<EntityWidget> = $props();
 
@@ -18,6 +19,13 @@
 	let icon = $state(initial?.icon ?? '');
 	let verticalPadding = $state(initial?.vertical_padding ?? '');
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('entity'),
+			value: entity
+		})
+	);
+
 	$effect(() => {
 		onchange({
 			fields: {
@@ -25,12 +33,13 @@
 				name: name.trim() || undefined,
 				icon: icon.trim() || undefined,
 				vertical_padding: verticalPadding === 'compact' ? 'compact' : undefined
-			}
+			},
+			...validity
 		});
 	});
 </script>
 
-<EntityField label={$lang('entity')} bind:value={entity} />
+<EntityField label={$lang('entity')} required bind:value={entity} />
 <div class="row">
 	<div class="grow">
 		<TextField label={$lang('hearth_name_optional')} bind:value={name} />

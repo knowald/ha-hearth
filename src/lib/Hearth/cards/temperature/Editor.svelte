@@ -5,6 +5,7 @@
 	import CheckField from '../../edit/CheckField.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: CardEditorProps<TemperatureCard> = $props();
 
@@ -21,6 +22,13 @@
 	// form edits as long as the verdict stays enabled
 	const initialBands = typeof initial?.verdict === 'object' ? initial.verdict : undefined;
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('entity'),
+			value: entity
+		})
+	);
+
 	$effect(() => {
 		onchange({
 			fields: {
@@ -29,7 +37,8 @@
 				unit: unit.trim() || undefined,
 				climate_entity: climateEntity.trim() || undefined,
 				verdict: verdict ? initialBands : false
-			}
+			},
+			...validity
 		});
 	});
 </script>
@@ -39,7 +48,7 @@
 	bind:value={label}
 	placeholder={$lang('hearth_example_temperature_label')}
 />
-<EntityField label={$lang('entity')} bind:value={entity} domains={['sensor']} />
+<EntityField label={$lang('entity')} required bind:value={entity} domains={['sensor']} />
 <TextField label={$lang('hearth_unit')} bind:value={unit} placeholder="°C" />
 <EntityField
 	label={$lang('hearth_thermostat_optional')}

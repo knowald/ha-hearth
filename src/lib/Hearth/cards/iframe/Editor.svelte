@@ -4,6 +4,7 @@
 	import type { IframeCard } from './descriptor';
 	import TextField from '../../edit/TextField.svelte';
 	import { normalizeEmbedUrl } from '../../normalizers';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: CardEditorProps<IframeCard> = $props();
 
@@ -15,6 +16,12 @@
 	let url = $state(initial?.url ?? '');
 
 	let urlValid = $derived(!url.trim() || normalizeEmbedUrl(url) !== undefined);
+	// a malformed address explains itself under the field
+	let validity = $derived(
+		urlValid
+			? requireFields($lang('hearth_field_required'), { label: $lang('hearth_url'), value: url })
+			: { valid: false }
+	);
 
 	$effect(() => {
 		onchange({
@@ -22,7 +29,7 @@
 				title: title.trim() || undefined,
 				url: normalizeEmbedUrl(url)
 			},
-			valid: urlValid
+			...validity
 		});
 	});
 </script>
@@ -34,6 +41,7 @@
 />
 <TextField
 	label={$lang('hearth_url')}
+	required
 	bind:value={url}
 	placeholder="https://"
 	error={urlValid ? undefined : $lang('hearth_embed_url_hint')}

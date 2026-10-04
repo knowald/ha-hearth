@@ -238,6 +238,13 @@
 	}
 }
 
+/* the required mark on a field label; generated, so it stays out of the label's
+   text, with empty alt text, since aria-required carries it for assistive tech */
+.field-required::after {
+	content: ' *' / '';
+	color: var(--h-accent-text);
+}
+
 /* the one hint style; sheets outside .editor-fields use .field-hint directly */
 .editor-fields .hint,
 .field-hint {

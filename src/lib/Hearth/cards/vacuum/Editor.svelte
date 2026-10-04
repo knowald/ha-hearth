@@ -9,6 +9,7 @@
 	import Icon from '../../Icon.svelte';
 	import IconField from '../../edit/IconField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: CardEditorProps<VacuumCard> = $props();
 
@@ -49,6 +50,13 @@
 		modes.push({ entity: '', name: '', icon: '', detail: '', duration: '', default: false });
 	}
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('entity'),
+			value: entity
+		})
+	);
+
 	$effect(() => {
 		onchange({
 			fields: {
@@ -66,12 +74,13 @@
 				battery_entity: batteryEntity.trim() || undefined,
 				bin_entity: binEntity.trim() || undefined,
 				quick_action: quickAction || undefined
-			}
+			},
+			...validity
 		});
 	});
 </script>
 
-<EntityField label={$lang('entity')} bind:value={entity} domains={['vacuum']} />
+<EntityField label={$lang('entity')} required bind:value={entity} domains={['vacuum']} />
 <EntityField
 	label={$lang('hearth_battery_entity_optional')}
 	bind:value={batteryEntity}
@@ -94,6 +103,7 @@
 				label={$lang('hearth_button_entity')}
 				bind:value={mode.entity}
 				domains={['button']}
+				hint={mode.entity.trim() ? undefined : $lang('hearth_empty_row_removed')}
 			/>
 			<TextField label={$lang('hearth_name_optional')} bind:value={mode.name} />
 			<IconField label={$lang('hearth_icon_optional')} bind:value={mode.icon} />

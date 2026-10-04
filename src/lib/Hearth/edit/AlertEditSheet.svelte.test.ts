@@ -67,4 +67,26 @@ describe('AlertEditSheet', () => {
 		render(AlertEditSheet, { index: null });
 		expect(screen.getByRole('button', { name: en.done })).toHaveProperty('disabled', true);
 	});
+
+	it('says why Done is disabled, the title first, then the conditions', async () => {
+		render(AlertEditSheet, { index: null });
+		const done = screen.getByRole('button', { name: en.done });
+		const titleReason = en.hearth_field_required.replace('{field}', en.hearth_title);
+		const reason = screen.getByText(titleReason);
+		expect(done.getAttribute('aria-describedby')).toBe(reason.id);
+		expect(screen.getByLabelText(en.hearth_title).getAttribute('aria-required')).toBe('true');
+		await fireEvent.input(screen.getByLabelText(en.hearth_title), {
+			target: { value: 'Door open' }
+		});
+		expect(screen.queryByText(titleReason)).toBeNull();
+		expect(screen.getByText(en.hearth_alert_needs_condition)).toBeTruthy();
+	});
+
+	it('points a bad delay back at its field', async () => {
+		render(AlertEditSheet, { index: 0 });
+		await fireEvent.input(screen.getByLabelText(en.hearth_alert_delay), {
+			target: { value: '-3' }
+		});
+		expect(screen.getByText(en.hearth_fix_marked_fields)).toBeTruthy();
+	});
 });

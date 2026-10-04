@@ -6,6 +6,7 @@
 	import IconField from '../../edit/IconField.svelte';
 	import SelectField from '../../edit/SelectField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<ProgressWidget> = $props();
 
@@ -32,6 +33,13 @@
 			.filter(Boolean);
 	}
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('hearth_status_entity'),
+			value: statusEntity
+		})
+	);
+
 	$effect(() => {
 		const parsedActive = list(activeStates);
 		const parsedCompleted = list(completedStates);
@@ -46,7 +54,8 @@
 				active_states: parsedActive.length ? parsedActive : undefined,
 				completed_states: parsedCompleted.length ? parsedCompleted : undefined,
 				completion_delay_minutes: Number(completionDelay)
-			}
+			},
+			...validity
 		});
 	});
 </script>
@@ -63,7 +72,7 @@
 		<IconField label={$lang('icon')} bind:value={icon} placeholder="local_laundry_service" />
 	</div>
 </div>
-<EntityField label={$lang('hearth_status_entity')} bind:value={statusEntity} />
+<EntityField label={$lang('hearth_status_entity')} required bind:value={statusEntity} />
 <EntityField label={$lang('hearth_progress_entity_0_100_optional')} bind:value={progressEntity} />
 <TextField
 	label={$lang('hearth_progress_unit_optional_shows_the_value')}

@@ -7,7 +7,8 @@
 		value = $bindable(''),
 		placeholder = '',
 		language = 'yaml',
-		expectMapping = language === 'yaml'
+		expectMapping = language === 'yaml',
+		required = false
 	}: {
 		label: string;
 		value?: string;
@@ -15,6 +16,8 @@
 		language?: 'yaml' | 'jinja2' | 'css';
 		/** Off for languages a YAML parser would reject, such as a bare template. */
 		expectMapping?: boolean;
+		/** Marks the label; the editor decides what blocks Done. */
+		required?: boolean;
 	} = $props();
 
 	let error = $derived.by(() => {
@@ -31,7 +34,7 @@
 </script>
 
 <div class="field code-field">
-	<span class="field-label">{label}</span>
+	<span class="field-label" class:field-required={required}>{label}</span>
 	<div class="code-workspace">
 		{#await import('$lib/ui/CodeEditor.svelte') then CodeEditor}
 			<CodeEditor.default

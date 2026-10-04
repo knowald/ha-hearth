@@ -5,6 +5,7 @@
 	import EntityField from '../../edit/EntityField.svelte';
 	import IconField from '../../edit/IconField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: CardEditorProps<DaysSinceCard> = $props();
 
@@ -16,13 +17,21 @@
 	let entity = $state(initial?.entity ?? '');
 	let icon = $state(initial?.icon ?? '');
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('entity'),
+			value: entity
+		})
+	);
+
 	$effect(() => {
 		onchange({
 			fields: {
 				title: title.trim() || undefined,
 				entity: entity.trim() || undefined,
 				icon: icon.trim() || undefined
-			}
+			},
+			...validity
 		});
 	});
 </script>
@@ -32,6 +41,6 @@
 	bind:value={title}
 	placeholder={$lang('hearth_example_days_since_title')}
 />
-<EntityField label={$lang('entity')} bind:value={entity} domains={['input_datetime']} />
+<EntityField label={$lang('entity')} required bind:value={entity} domains={['input_datetime']} />
 <div class="hint">{$lang('hearth_days_since_entity_hint')}</div>
 <IconField label={$lang('hearth_icon_optional')} bind:value={icon} />

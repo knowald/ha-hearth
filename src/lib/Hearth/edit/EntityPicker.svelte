@@ -11,42 +11,63 @@
 	import Icon from '../Icon.svelte';
 	import CloseButton from '../CloseButton.svelte';
 	import { layer } from '$lib/ui/layers';
+	import {
+		entityEntries,
+		loadEntityPlaces,
+		matchesQuery,
+		orderEntries,
+		recentEntities,
+		rememberEntities,
+		topAreas,
+		type EntityPlace
+	} from './entityDirectory';
+	import '../buttons.css';
 
 	let {
 		domains = [],
-		onselect,
+		deviceClass = undefined,
+		multiple = false,
+		onselect = undefined,
+		onselectmany = undefined,
 		onclose
 	}: {
 		domains?: string[];
-		onselect: (entityId: string) => void;
+		/** Only entities whose device_class matches, such as temperature sensors. */
+		deviceClass?: string;
+		/** Rows toggle instead of closing the picker, and one confirm hands over the picks in order. */
+		multiple?: boolean;
+		onselect?: (entityId: string) => void;
+		onselectmany?: (entityIds: string[]) => void;
 		onclose: () => void;
 	} = $props();
 
 	const uid = $props.id();
 	const MAX_ROWS = 100;
+	const recent = recentEntities();
 
 	let query = $state('');
 	// the row Enter picks, moved with the arrow keys while focus stays in the search
 	let active = $state(0);
 	let listbox = $state<HTMLElement>();
+	let area = $state<string | null>(null);
+	let picked = $state<string[]>([]);
+	let places = $state<Map<string, EntityPlace>>();
 
-	let matches = $derived.by(() => {
-		const needle = query.trim().toLowerCase();
-		return Object.entries($states ?? {})
-			.filter(([entityId]) => domains.length === 0 || domains.includes(entityId.split('.')[0]))
-			.map(([entityId, entity]) => ({
-				entityId,
-				name: String(entity.attributes?.friendly_name ?? entityId),
-				state: entity.state
-			}))
-			.filter(
-				(entry) =>
-					!needle ||
-					entry.name.toLowerCase().includes(needle) ||
-					entry.entityId.toLowerCase().includes(needle)
-			)
-			.sort((a, b) => a.name.localeCompare(b.name));
+	// without a connection the picker still searches names and ids
+	loadEntityPlaces()
+		.then((loaded) => (places = loaded))
+		.catch(() => {});
+
+	let entries = $derived(entityEntries($states ?? {}, { domains, deviceClass, places, recent }));
+	let found = $derived(entries.filter((entry) => matchesQuery(entry, query)));
+	let areas = $derived.by(() => {
+		const busiest = topAreas(found);
+		// a chosen area keeps its chip after the query has moved past it
+		return area && !busiest.includes(area) ? [area, ...busiest] : busiest;
 	});
+	let matches = $derived(
+		orderEntries(area ? found.filter((entry) => entry.area === area) : found, query, recent)
+	);
 
 	let visible = $derived(matches.slice(0, MAX_ROWS));
 	let activeIndex = $derived(Math.min(active, visible.length - 1));
@@ -55,9 +76,28 @@
 		listbox?.children[activeIndex]?.scrollIntoView?.({ block: 'nearest' });
 	});
 
-	function pick(entityId: string) {
-		onselect(entityId);
+	function choose(entityId: string) {
+		if (multiple) {
+			picked = picked.includes(entityId)
+				? picked.filter((entry) => entry !== entityId)
+				: [...picked, entityId];
+			return;
+		}
+		rememberEntities([entityId]);
+		onselect?.(entityId);
 		onclose();
+	}
+
+	function confirm() {
+		if (!picked.length) return;
+		rememberEntities(picked);
+		onselectmany?.(picked);
+		onclose();
+	}
+
+	function toggleArea(name: string) {
+		area = area === name ? null : name;
+		active = 0;
 	}
 
 	function navigate(event: KeyboardEvent) {
@@ -69,7 +109,7 @@
 			active = Math.max(0, Math.min(visible.length - 1, activeIndex + step));
 		} else if (event.key === 'Enter' && visible[activeIndex]) {
 			event.preventDefault();
-			pick(visible[activeIndex].entityId);
+			choose(visible[activeIndex].entityId);
 		}
 	}
 </script>
@@ -111,34 +151,62 @@
 			/>
 			<CloseButton onclick={onclose} />
 		</div>
+		{#if areas.length > 1 || area}
+			<div class="areas" role="group" aria-label={$lang('hearth_filter_by_area')}>
+				{#each areas as name (name)}
+					<button
+						type="button"
+						class="area-chip pressable"
+						class:active={area === name}
+						aria-pressed={area === name}
+						onclick={() => toggleArea(name)}
+					>
+						{name}
+					</button>
+				{/each}
+			</div>
+		{/if}
 		<div class="list">
 			<div
 				id="{uid}-list"
 				role="listbox"
 				aria-label={$lang('hearth_choose_entity')}
+				aria-multiselectable={multiple || undefined}
 				bind:this={listbox}
 			>
 				{#each visible as entry, index (entry.entityId)}
+					{@const chosen = picked.includes(entry.entityId)}
 					<div
 						id="{uid}-option-{index}"
 						class="row pressable"
 						class:active={index === activeIndex}
 						onpointermove={() => (active = index)}
 						use:Ripple={PRESS_RIPPLE}
-						onclick={() => pick(entry.entityId)}
+						onclick={() => choose(entry.entityId)}
 						role="option"
-						aria-selected={index === activeIndex}
+						aria-selected={multiple ? chosen : index === activeIndex}
 						tabindex="-1"
-						onkeydown={(event) => activateOnKeyboard(event, () => pick(entry.entityId))}
+						onkeydown={(event) => activateOnKeyboard(event, () => choose(entry.entityId))}
 					>
 						<span class="row-icon"
 							><Icon name={domainIcon(entry.entityId)} size={ICON.control} /></span
 						>
 						<span class="row-text">
 							<span class="row-name">{entry.name}</span>
-							<span class="row-id">{entry.entityId}</span>
+							<span class="row-meta">
+								<span class="row-id">{entry.entityId}</span>
+								{#if entry.area}<span class="row-area">{entry.area}</span>{/if}
+								{#if entry.recent && !query.trim()}
+									<span class="row-recent">{$lang('hearth_recently_picked')}</span>
+								{/if}
+							</span>
 						</span>
 						<span class="row-state">{entry.state}</span>
+						{#if multiple}
+							<span class="row-check" class:chosen>
+								<Icon name={chosen ? 'check_box' : 'check_box_outline_blank'} size={ICON.control} />
+							</span>
+						{/if}
 					</div>
 				{/each}
 			</div>
@@ -151,6 +219,22 @@
 				</div>
 			{/if}
 		</div>
+		{#if multiple}
+			<div class="footer">
+				<span class="picked-count" role="status">
+					{fill($lang('hearth_entities_picked'), { count: picked.length })}
+				</span>
+				<button
+					type="button"
+					class="hearth-button primary pressable"
+					disabled={!picked.length}
+					use:Ripple={PRESS_RIPPLE}
+					onclick={confirm}
+				>
+					{$lang('hearth_add_picked_entities')}
+				</button>
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -262,13 +346,85 @@
 		text-overflow: ellipsis;
 	}
 
-	.row-id {
-		font-family: var(--h-font-mono);
+	.row-meta {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+		min-width: 0;
 		font-size: var(--h-type-label);
 		color: var(--h-text-5);
 		white-space: nowrap;
+	}
+
+	/* the id gives way first; the area beside it is the shorter clue */
+	.row-id {
+		min-width: 0;
+		font-family: var(--h-font-mono);
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	.row-area,
+	.row-recent {
+		flex: none;
+	}
+
+	.row-recent {
+		color: var(--h-accent-text);
+	}
+
+	.row-check {
+		display: flex;
+		color: var(--h-icon-dim);
+	}
+
+	.row-check.chosen {
+		color: var(--h-accent-icon);
+	}
+
+	.areas {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-bottom: 12px;
+	}
+
+	.area-chip {
+		padding: 6px 12px;
+		border-radius: var(--h-radius-card);
+		border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
+		background: none;
+		color: var(--h-text-4);
+		font-family: inherit;
+		font-size: var(--h-type-secondary);
+		cursor: pointer;
+	}
+
+	.area-chip.active {
+		background: rgb(var(--h-accent-rgb) / calc(0.12 * var(--h-accent-scale)));
+		border-color: rgb(var(--h-accent-rgb) / calc(0.25 * var(--h-accent-scale)));
+		color: var(--h-accent-icon);
+	}
+
+	/* the interface scale must not shrink it under a finger */
+	@media (pointer: coarse) {
+		.area-chip {
+			min-height: var(--h-touch-target);
+		}
+	}
+
+	.footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding-top: 12px;
+		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
+	}
+
+	.picked-count {
+		font-size: var(--h-type-small);
+		color: var(--h-text-4);
 	}
 
 	.row-state {

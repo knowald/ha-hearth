@@ -5,6 +5,7 @@
 	import type { IframeWidget } from './descriptor';
 	import TextField from '../../edit/TextField.svelte';
 	import { normalizeEmbedUrl } from '../../normalizers';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<IframeWidget> = $props();
 
@@ -16,6 +17,12 @@
 	let height = $state(initial?.height ? String(initial.height) : '');
 
 	let urlValid = $derived(!url.trim() || normalizeEmbedUrl(url) !== undefined);
+	// a malformed address explains itself under the field
+	let validity = $derived(
+		urlValid
+			? requireFields($lang('hearth_field_required'), { label: $lang('hearth_url'), value: url })
+			: { valid: false }
+	);
 
 	$effect(() => {
 		const heightValue = integerFromInput(height);
@@ -24,13 +31,14 @@
 				url: normalizeEmbedUrl(url),
 				height: Number.isFinite(heightValue) && heightValue >= 40 ? heightValue : undefined
 			},
-			valid: urlValid
+			...validity
 		});
 	});
 </script>
 
 <TextField
 	label={$lang('hearth_url')}
+	required
 	bind:value={url}
 	placeholder="https://"
 	error={urlValid ? undefined : $lang('hearth_embed_url_hint')}

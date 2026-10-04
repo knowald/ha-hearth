@@ -6,6 +6,7 @@
 	import EntityField from '../../edit/EntityField.svelte';
 	import SelectField from '../../edit/SelectField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<ChartWidget> = $props();
 
@@ -20,6 +21,13 @@
 	let math = $state(initial?.math ?? '');
 	let stroke = $state(initial?.stroke ? String(initial.stroke) : '');
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('entity'),
+			value: entity
+		})
+	);
+
 	$effect(() => {
 		const strokeValue = integerFromInput(stroke);
 		onchange({
@@ -30,12 +38,13 @@
 				period: period === 'day' ? undefined : (period as ChartWidget['period']),
 				math: math.trim() || undefined,
 				stroke: Number.isFinite(strokeValue) && strokeValue > 0 ? strokeValue : undefined
-			}
+			},
+			...validity
 		});
 	});
 </script>
 
-<EntityField label={$lang('entity')} bind:value={entity} />
+<EntityField label={$lang('entity')} required bind:value={entity} />
 <TextField label={$lang('hearth_name_optional')} bind:value={name} />
 <SelectField
 	label={$lang('hearth_chart_style')}

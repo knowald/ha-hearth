@@ -4,6 +4,7 @@
 	import type { ClimateCard } from './descriptor';
 	import EntityField from '../../edit/EntityField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: CardEditorProps<ClimateCard> = $props();
 
@@ -14,12 +15,20 @@
 	let title = $state(initial?.title ?? '');
 	let entity = $state(initial?.entity ?? '');
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('entity'),
+			value: entity
+		})
+	);
+
 	$effect(() => {
 		onchange({
 			fields: {
 				title: title.trim() || undefined,
 				entity: entity.trim() || undefined
-			}
+			},
+			...validity
 		});
 	});
 </script>
@@ -29,4 +38,4 @@
 	bind:value={title}
 	placeholder={$lang('hearth_example_climate_title')}
 />
-<EntityField label={$lang('entity')} bind:value={entity} domains={['climate']} />
+<EntityField label={$lang('entity')} required bind:value={entity} domains={['climate']} />

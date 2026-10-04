@@ -6,6 +6,7 @@
 	import type { CardEditorProps } from '../types';
 	import type { ConditionalMediaCard } from './descriptor';
 	import EntityField from '../../edit/EntityField.svelte';
+	import EntityPicker from '../../edit/EntityPicker.svelte';
 	import Icon from '../../Icon.svelte';
 	import TextField from '../../edit/TextField.svelte';
 
@@ -18,6 +19,7 @@
 	let players = $state<{ entity: string }[]>(
 		(initial?.media_players ?? []).map((entity) => ({ entity }))
 	);
+	let pickingMany = $state(false);
 	let timeout = $state(initial?.timeout !== undefined ? String(initial.timeout) : '');
 
 	$effect(() => {
@@ -35,7 +37,12 @@
 {#each players as row, index (index)}
 	<div class="filter-row">
 		<div class="filter-fields">
-			<EntityField label={$lang('entity')} bind:value={row.entity} domains={['media_player']} />
+			<EntityField
+				label={$lang('entity')}
+				bind:value={row.entity}
+				domains={['media_player']}
+				hint={row.entity.trim() ? undefined : $lang('hearth_empty_row_removed')}
+			/>
 		</div>
 		<button
 			type="button"
@@ -57,6 +64,25 @@
 	<Icon name="add" size={ICON.control} />
 	<span>{$lang('hearth_add_player')}</span>
 </div>
+<div
+	class="add-filter"
+	role="button"
+	tabindex="0"
+	onclick={() => (pickingMany = true)}
+	onkeydown={(event) => activateOnKeyboard(event, () => (pickingMany = true))}
+>
+	<Icon name="playlist_add" size={ICON.control} />
+	<span>{$lang('hearth_pick_several_entities')}</span>
+</div>
+
+{#if pickingMany}
+	<EntityPicker
+		multiple
+		domains={['media_player']}
+		onselectmany={(entityIds) => players.push(...entityIds.map((entity) => ({ entity })))}
+		onclose={() => (pickingMany = false)}
+	/>
+{/if}
 <TextField
 	label={$lang('hearth_pause_timeout')}
 	bind:value={timeout}

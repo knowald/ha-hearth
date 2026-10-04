@@ -90,3 +90,22 @@ describe('EditSheet initial focus', () => {
 		expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Token' }));
 	});
 });
+
+describe('EditSheet done reason', () => {
+	it('shows the reason under a disabled Done and describes the button with it', () => {
+		renderSheet({ doneDisabled: true, doneReason: 'Entity is required' });
+		const done = screen.getByRole('button', { name: en.done });
+		const reason = screen.getByText('Entity is required');
+		expect(done).toHaveProperty('disabled', true);
+		expect(done.getAttribute('aria-describedby')).toBe(reason.id);
+		expect(reason.classList.contains('field-warning')).toBe(true);
+	});
+
+	it('drops the reason once Done is enabled', () => {
+		renderSheet({ doneDisabled: false, doneReason: 'Entity is required' });
+		expect(screen.queryByText('Entity is required')).toBeNull();
+		expect(
+			screen.getByRole('button', { name: en.done }).getAttribute('aria-describedby')
+		).toBeNull();
+	});
+});

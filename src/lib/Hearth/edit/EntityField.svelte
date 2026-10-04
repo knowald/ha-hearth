@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { ICON } from '../iconSizes';
-	import { lang } from '$lib/core/i18n';
+	import { fill, lang } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from '../config';
 	import Icon from '../Icon.svelte';
 	import EntityPicker from './EntityPicker.svelte';
 	import FieldMessages, { describedBy } from './FieldMessages.svelte';
+	import { stateText } from './entityDirectory';
 
 	const uid = $props.id();
 
@@ -14,6 +15,8 @@
 		label,
 		value = $bindable(''),
 		domains = [],
+		deviceClass = undefined,
+		required = false,
 		hint = undefined,
 		error = undefined,
 		onchange = undefined
@@ -21,6 +24,10 @@
 		label: string;
 		value?: string;
 		domains?: string[];
+		/** Narrows the suggestions and the picker, such as to temperature sensors. */
+		deviceClass?: string;
+		/** Marks the label and tells assistive tech; the editor decides what blocks Done. */
+		required?: boolean;
 		hint?: string;
 		error?: string | null;
 		/** Fires when a value is committed: typed and left, or picked. */
@@ -28,16 +35,44 @@
 	} = $props();
 
 	let pickerOpen = $state(false);
+	// a half-typed id is not worth a warning; it waits for the field to settle
+	let typing = $state(false);
 
 	let options = $derived(
-		Object.keys($states ?? {})
-			.filter((id) => domains.length === 0 || domains.includes(id.split('.')[0]))
+		Object.entries($states ?? {})
+			.filter(([id]) => domains.length === 0 || domains.includes(id.split('.')[0]))
+			.filter(([, entity]) => !deviceClass || entity.attributes?.device_class === deviceClass)
+			.map(([id]) => id)
 			.sort()
 	);
+
+	let entityId = $derived(value.trim());
+	let entity = $derived(entityId ? $states?.[entityId] : undefined);
+
+	/*
+	 * An id Home Assistant does not report, or one from another domain, may
+	 * still be what the user means (a device that is offline right now), so
+	 * these warn rather than block. Before the first states arrive every id
+	 * would look unknown, so nothing is said.
+	 */
+	let warning = $derived.by(() => {
+		if (!entityId || typing || !$states || !Object.keys($states).length) return null;
+		if (domains.length && !domains.includes(entityId.split('.')[0])) {
+			const names = domains.map((domain) => $lang(`hearth_domain_${domain}`));
+			return fill($lang('hearth_entity_wrong_domain'), { domains: names.join(', ') });
+		}
+		if (!entity) return $lang('hearth_entity_not_found');
+		return null;
+	});
+
+	function commit() {
+		typing = false;
+		onchange?.(value);
+	}
 </script>
 
 <div class="field">
-	<label class="field-label" for="{uid}-input">{label}</label>
+	<label class="field-label" class:field-required={required} for="{uid}-input">{label}</label>
 	<span class="input-wrap">
 		<input
 			id="{uid}-input"
@@ -46,9 +81,14 @@
 			list="entities-{uid}"
 			placeholder="entity_id"
 			spellcheck="false"
-			onchange={() => onchange?.(value)}
+			oninput={() => (typing = true)}
+			onchange={commit}
+			onblur={() => (typing = false)}
 			aria-invalid={error ? true : undefined}
-			aria-describedby={describedBy(uid, hint, error)}
+			aria-required={required || undefined}
+			aria-describedby={[entity && `${uid}-entity`, describedBy(uid, hint, error, warning)]
+				.filter(Boolean)
+				.join(' ') || undefined}
 		/>
 		<button
 			type="button"
@@ -65,15 +105,23 @@
 			<option value={option}>{$states?.[option]?.attributes?.friendly_name ?? ''}</option>
 		{/each}
 	</datalist>
-	<FieldMessages id={uid} {hint} {error} />
+	{#if entity}
+		<span class="entity-details" id="{uid}-entity">
+			<span class="entity-name">{entity.attributes?.friendly_name ?? entityId}</span>
+			<span class="entity-state">{stateText(entity)}</span>
+		</span>
+	{/if}
+	<FieldMessages id={uid} {hint} {error} {warning} />
 </div>
 
 {#if pickerOpen}
 	<EntityPicker
 		{domains}
-		onselect={(entityId) => {
-			value = entityId;
-			onchange?.(entityId);
+		{deviceClass}
+		onselect={(picked) => {
+			value = picked;
+			typing = false;
+			onchange?.(picked);
 		}}
 		onclose={() => (pickerOpen = false)}
 	/>
@@ -93,6 +141,26 @@
 		text-transform: uppercase;
 		color: var(--h-label);
 		margin-bottom: 6px;
+	}
+
+	.entity-details {
+		display: flex;
+		gap: 10px;
+		margin-top: 6px;
+		font-size: var(--h-type-small);
+		color: var(--h-text-4);
+	}
+
+	.entity-name {
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+
+	.entity-state {
+		flex: none;
+		color: var(--h-text-3);
 	}
 
 	.input-wrap {

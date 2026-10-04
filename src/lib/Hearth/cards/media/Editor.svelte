@@ -7,6 +7,7 @@
 	import EntityField from '../../edit/EntityField.svelte';
 	import Icon from '../../Icon.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: CardEditorProps<MediaCard> = $props();
 
@@ -28,6 +29,13 @@
 		shortcuts.push({ name: '', uri: '', image_url: '' });
 	}
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('entity'),
+			value: entity
+		})
+	);
+
 	$effect(() => {
 		const list = shortcuts
 			.map((shortcut) => ({
@@ -41,12 +49,13 @@
 				entity: entity.trim() || undefined,
 				shortcuts: list.length ? list : undefined,
 				default_device: defaultDevice.trim() || undefined
-			}
+			},
+			...validity
 		});
 	});
 </script>
 
-<EntityField label={$lang('entity')} bind:value={entity} domains={['media_player']} />
+<EntityField label={$lang('entity')} required bind:value={entity} domains={['media_player']} />
 <TextField
 	label={$lang('hearth_default_device')}
 	bind:value={defaultDevice}

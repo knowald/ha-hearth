@@ -5,6 +5,7 @@
 	import CheckField from '../../edit/CheckField.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: CardEditorProps<CameraCard> = $props();
 
@@ -16,13 +17,21 @@
 	let entity = $state(initial?.entity ?? '');
 	let stream = $state(initial?.stream ?? false);
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('entity'),
+			value: entity
+		})
+	);
+
 	$effect(() => {
 		onchange({
 			fields: {
 				title: title.trim() || undefined,
 				entity: entity.trim() || undefined,
 				stream: stream || undefined
-			}
+			},
+			...validity
 		});
 	});
 </script>
@@ -32,5 +41,5 @@
 	bind:value={title}
 	placeholder={$lang('hearth_example_camera_title')}
 />
-<EntityField label={$lang('entity')} bind:value={entity} domains={['camera']} />
+<EntityField label={$lang('entity')} required bind:value={entity} domains={['camera']} />
 <CheckField label={$lang('hearth_live_stream')} bind:checked={stream} />

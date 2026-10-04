@@ -21,6 +21,9 @@ export interface RegistryArea {
 export interface RegistryDevice {
 	id: string;
 	area_id: string | null;
+	name?: string | null;
+	// the user's rename wins over the integration's name
+	name_by_user?: string | null;
 }
 
 export interface RegistryEntity {

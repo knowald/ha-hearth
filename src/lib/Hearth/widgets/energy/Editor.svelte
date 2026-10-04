@@ -5,6 +5,7 @@
 	import type { EnergyWidget } from './descriptor';
 	import EntityField from '../../edit/EntityField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<EnergyWidget> = $props();
 
@@ -17,6 +18,13 @@
 	let priceEntity = $state(initial?.price_entity ?? '');
 	let currency = $state(initial?.currency ?? '');
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('hearth_energy_sensor_today_total_or_increasing'),
+			value: entity
+		})
+	);
+
 	$effect(() => {
 		const parsedPrice = numberFromInput(price);
 		onchange({
@@ -25,13 +33,15 @@
 				price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
 				price_entity: priceEntity.trim() || undefined,
 				currency: currency.trim() || undefined
-			}
+			},
+			...validity
 		});
 	});
 </script>
 
 <EntityField
 	label={$lang('hearth_energy_sensor_today_total_or_increasing')}
+	required
 	bind:value={entity}
 	domains={['sensor']}
 />
