@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
 import { GLASS_THEME, THEME_DEFAULTS } from '$lib/core/theme';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import {
 	confirmRequestedAction,
 	dismissConfirmation,

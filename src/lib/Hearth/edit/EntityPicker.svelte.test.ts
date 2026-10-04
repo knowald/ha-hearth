@@ -7,7 +7,7 @@ import { connection } from '$lib/core/ha/connection';
 import type { DisplayRegistry } from '$lib/core/ha/registry';
 import { confirmRequestedAction, dismissConfirmation, requestedConfirmation } from '../store';
 import { get } from 'svelte/store';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { forgetEntityPlaces } from './entityDirectory';
 
 const fetchRegistry = vi.fn<() => Promise<DisplayRegistry>>();

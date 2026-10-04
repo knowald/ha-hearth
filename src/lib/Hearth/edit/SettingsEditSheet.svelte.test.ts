@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import type { HassConfig } from 'home-assistant-js-websocket';
 import { config as haConfig } from '$lib/core/ha/connection';
 import { states } from '$lib/core/ha/entities';

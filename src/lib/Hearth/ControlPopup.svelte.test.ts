@@ -4,7 +4,7 @@ import { get } from 'svelte/store';
 import { afterEach, describe, expect, it } from 'vitest';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
-import en from '../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import ControlPopup from './ControlPopup.svelte';
 import { popup } from './store';
 import { favorites } from './favorites';

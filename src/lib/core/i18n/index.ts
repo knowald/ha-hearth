@@ -5,6 +5,21 @@ export interface Translations {
 }
 
 export const translation = writable<Translations>({});
+
+/**
+ * Combines the files of one locale (Home Assistant's strings, then Hearth's
+ * own) into the shape lang() reads. English goes under _default so every key
+ * a locale lacks falls back on its own.
+ */
+export function mergeTranslations(
+	english: Translations[],
+	local: Translations[] = []
+): Translations {
+	const fallback: Translations = Object.assign({}, ...english);
+	if (!local.length) return fallback;
+	return { ...Object.assign({}, ...local), _default: fallback };
+}
+
 export const selectedLanguage = writable<string>();
 
 /**

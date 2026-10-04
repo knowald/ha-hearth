@@ -23,7 +23,7 @@ import { get } from 'svelte/store';
 import { LAYERS } from '$lib/core/theme';
 import Toasts from './Toasts.svelte';
 import source from './Toasts.svelte?raw';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 
 function zIndexOf(selector: string) {
 	const rule = source.match(new RegExp(`\\n\\t${selector.replace('.', '\\.')} \\{([^}]*)\\}`));

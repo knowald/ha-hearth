@@ -14,6 +14,6 @@
 		use:pressFeedback={entity}
 		onclick={() => callEntityService(domain, 'press', entity)}
 	>
-		{$lang('press')}
+		{$lang('hearth_press')}
 	</button>
 </div>

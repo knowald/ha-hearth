@@ -36,6 +36,9 @@ jobs:
       - name: Style tokens
         run: pnpm check:style
 
+      - name: Translations
+        run: pnpm check:translations
+
       - name: Hearth accessibility check
         run: pnpm check:hearth-a11y
 
