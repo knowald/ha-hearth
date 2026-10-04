@@ -135,8 +135,12 @@ test('the sleep screen stays away while editing', async ({ page }) => {
 	await expect(screensaver).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-	await page.clock.fastForward('01:05');
-	await expect(screensaver).toBeVisible();
+	// see the radar test in sleep-screen.spec.ts: the timer exists only once the
+	// sleep screen has mounted, so each try moves past a full timeout
+	await expect(async () => {
+		await page.clock.fastForward('01:05');
+		await expect(screensaver).toBeVisible({ timeout: 1000 });
+	}).toPass();
 });
 
 test('offers a reload before editing a configuration saved elsewhere', async ({ page }) => {
