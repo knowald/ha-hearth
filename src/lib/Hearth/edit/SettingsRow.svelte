@@ -88,7 +88,7 @@
 
 	.row-sub {
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		margin-top: 2px;
 	}
 

@@ -3,6 +3,7 @@
 	import { lang } from '$lib/core/i18n';
 	import type { WidgetEditorProps } from '../types';
 	import { SPACER_MIN_HEIGHT, type SpacerWidget } from '../../model/widgets/spacer';
+	import CheckField from '../../edit/CheckField.svelte';
 	import TextField from '../../edit/TextField.svelte';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<SpacerWidget> = $props();
@@ -26,17 +27,19 @@
 	});
 </script>
 
-<TextField label={$lang('hearth_height_px')} bind:value={height} placeholder="24" />
+<TextField
+	label={$lang('hearth_height_px')}
+	bind:value={height}
+	placeholder="24"
+	inputmode="numeric"
+/>
 <div class="hint">{$lang('hearth_spacer_height_hint')}</div>
-<label class="check">
-	<input type="checkbox" bind:checked={line} />
-	<span>{$lang('hearth_divider_line')}</span>
-</label>
+<CheckField label={$lang('hearth_divider_line')} bind:checked={line} />
 
 <style>
 	.hint {
 		margin: -8px 0 14px;
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 </style>

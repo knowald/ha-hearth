@@ -71,7 +71,7 @@
 	{#each entities as ref, index (`${ref.entity}-${index}`)}
 		<div class="entity-slot" data-id={JSON.stringify([cardId, index])}>
 			{#if $hearthEditMode && cardId && showDragHandles}
-				<div class="entity-drag-handle" aria-label={$lang('hearth_rearrange_entity')}>
+				<div class="entity-drag-handle" role="img" aria-label={$lang('hearth_rearrange_entity')}>
 					<Icon name="drag_indicator" size={ICON.inline} />
 				</div>
 			{/if}
@@ -164,8 +164,9 @@
 			position: absolute;
 			top: 50%;
 			left: 50%;
-			width: 44px;
-			height: 44px;
+			/* capped so a small interface scale cannot spread it over the neighbours */
+			width: min(var(--h-touch-target), 56px);
+			height: min(var(--h-touch-target), 56px);
 			transform: translate(-50%, -50%);
 		}
 	}

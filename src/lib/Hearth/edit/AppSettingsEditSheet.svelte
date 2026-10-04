@@ -278,7 +278,7 @@
 	.section-note,
 	.error {
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-bad-text);
 	}
 
 	.error {

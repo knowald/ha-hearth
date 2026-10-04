@@ -4,6 +4,7 @@
 	import type { CardEditorProps } from '../types';
 	import type { VacuumCard } from './descriptor';
 	import { activateOnKeyboard } from '../../interaction';
+	import CheckField from '../../edit/CheckField.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
 	import Icon from '../../Icon.svelte';
 	import IconField from '../../edit/IconField.svelte';
@@ -81,10 +82,7 @@
 	bind:value={binEntity}
 	domains={['sensor']}
 />
-<label class="check">
-	<input type="checkbox" bind:checked={quickAction} />
-	<span>{$lang('hearth_one_tap_clean_stop_button_on')}</span>
-</label>
+<CheckField label={$lang('hearth_one_tap_clean_stop_button_on')} bind:checked={quickAction} />
 <div class="group-label">{$lang('hearth_cleaning_modes')}</div>
 <div class="hint">
 	{$lang('hearth_button_entities_launched_from_the_vacuum')}
@@ -109,24 +107,20 @@
 				bind:value={mode.duration}
 				placeholder="26 min"
 			/>
-			<label class="check">
-				<input
-					type="checkbox"
-					checked={mode.default}
-					onchange={(event) => setDefaultMode(modeIndex, event.currentTarget.checked)}
-				/>
-				<span>{$lang('hearth_recommended_mode')}</span>
-			</label>
+			<CheckField
+				label={$lang('hearth_recommended_mode')}
+				checked={mode.default}
+				onchange={(checked) => setDefaultMode(modeIndex, checked)}
+			/>
 		</div>
-		<span
+		<button
+			type="button"
 			class="remove"
-			role="button"
-			tabindex="0"
+			aria-label={$lang('hearth_remove_cleaning_mode')}
 			onclick={() => modes.splice(modeIndex, 1)}
-			onkeydown={(event) => activateOnKeyboard(event, () => modes.splice(modeIndex, 1))}
 		>
 			<Icon name="delete" size={ICON.control} />
-		</span>
+		</button>
 	</div>
 {/each}
 <div

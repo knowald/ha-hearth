@@ -49,3 +49,31 @@ describe('EditSheet remove action', () => {
 		expect(onremove).toHaveBeenCalledOnce();
 	});
 });
+
+describe('EditSheet initial focus', () => {
+	const field = createRawSnippet(() => ({
+		render: () => '<input aria-label="Title" data-autofocus />'
+	}));
+
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('focuses a field that asks for it under a mouse or trackpad', () => {
+		vi.stubGlobal('matchMedia', (query: string) => ({
+			matches: query === '(pointer: fine)',
+			addEventListener: () => {},
+			removeEventListener: () => {}
+		}));
+		renderSheet({ children: field });
+		expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Title' }));
+	});
+
+	it('focuses Done instead on a touch screen, so no keyboard rises', () => {
+		vi.stubGlobal('matchMedia', () => ({
+			matches: false,
+			addEventListener: () => {},
+			removeEventListener: () => {}
+		}));
+		renderSheet({ children: field });
+		expect(document.activeElement).toBe(screen.getByRole('button', { name: en.done }));
+	});
+});

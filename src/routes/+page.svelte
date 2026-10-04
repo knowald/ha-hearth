@@ -7,7 +7,8 @@
 	import { onDestroy } from 'svelte';
 	import { configuration } from '$lib/core/app/configuration';
 	import { disposeHaptics, haptics, startPressFeedback } from '$lib/core/app/haptics';
-	import { motion } from '$lib/core/app/motion';
+	import { motion, motionLevel } from '$lib/core/app/motion';
+	import { mediaQuery } from '$lib/ui/mediaQuery';
 	import {
 		connected,
 		connectionError,
@@ -78,16 +79,14 @@
 	$selectedLanguage = data?.configuration?.locale || 'en';
 	if (browser) document.documentElement.lang = $selectedLanguage;
 
-	// motion:false in configuration.yaml disables transitions app-wide, and so
-	// does the OS reduced-motion setting unless motion is explicitly true
-	const reducedMotion = browser && matchMedia('(prefers-reduced-motion: reduce)').matches;
+	// set before the first render, then again whenever the configuration or
+	// the OS reduced-motion setting changes
+	const prefersReducedMotion = mediaQuery('(prefers-reduced-motion: reduce)');
 	// svelte-ignore state_referenced_locally
-	if (
-		data?.configuration?.motion === false ||
-		(reducedMotion && data?.configuration?.motion !== true)
-	) {
-		motion.set(0);
-	}
+	motion.set(motionLevel(data?.configuration?.motion, get(prefersReducedMotion)));
+	$effect(() => {
+		motion.set(motionLevel($configuration?.motion, $prefersReducedMotion));
+	});
 
 	// svelte-ignore state_referenced_locally
 	haptics.set(data?.configuration?.haptics === true);

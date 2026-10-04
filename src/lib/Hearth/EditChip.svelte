@@ -1,35 +1,32 @@
 <script lang="ts">
 	import { ICON } from './iconSizes';
-	import { lang } from '$lib/core/i18n';
-	import { activateOnKeyboard } from './interaction';
 	import Icon from './Icon.svelte';
 
-	let { onedit }: { onedit: () => void } = $props();
+	let {
+		label,
+		onedit
+	}: {
+		/** The edit button's accessible name, naming what it edits. */
+		label: string;
+		onedit: () => void;
+	} = $props();
 </script>
 
 <!-- the drag handle must NOT stop propagation - SortableJS listens on the container -->
 <div class="chip">
 	<span class="drag-handle"><Icon name="drag_indicator" size={ICON.inline} /></span>
-	<span
+	<button
+		type="button"
 		class="pencil pressable"
+		aria-label={label}
 		onclick={(event) => {
 			event.stopPropagation();
 			onedit();
 		}}
 		onpointerdown={(event) => event.stopPropagation()}
-		role="button"
-		tabindex="0"
-		aria-label={$lang('edit')}
-		onkeydown={(event) =>
-			activateOnKeyboard(event, () =>
-				((event) => {
-					event.stopPropagation();
-					onedit();
-				})(event)
-			)}
 	>
 		<Icon name="edit" size={ICON.inline} />
-	</span>
+	</button>
 </div>
 
 <style>
@@ -52,13 +49,22 @@
 	}
 
 	.drag-handle {
+		position: relative;
 		cursor: grab;
 		display: inline-flex;
+		/* the browser would take a touch on the handle as a scroll */
+		touch-action: none;
 	}
 
 	.pencil {
+		position: relative;
 		cursor: pointer;
 		display: inline-flex;
+		padding: 0;
+		border: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
 	}
 
 	@media (hover: hover) {
@@ -74,6 +80,36 @@
 			right: 8px;
 			padding: 4px 6px;
 			gap: 2px;
+		}
+	}
+
+	/*
+	 * Finger-sized hit areas around the small visible icons. The two sit a
+	 * gap apart, so each area grows away from the other: the handle's to the
+	 * left, the pencil's to the right, meeting in the middle of the gap.
+	 */
+	@media (pointer: coarse) {
+		.chip {
+			gap: 4px;
+		}
+
+		.drag-handle::before,
+		.pencil::before {
+			content: '';
+			position: absolute;
+			top: 50%;
+			/* capped so a small interface scale cannot spread it over the neighbours */
+			width: min(var(--h-touch-target), 56px);
+			height: min(var(--h-touch-target), 56px);
+			transform: translateY(-50%);
+		}
+
+		.drag-handle::before {
+			right: -2px;
+		}
+
+		.pencil::before {
+			left: -2px;
 		}
 	}
 </style>

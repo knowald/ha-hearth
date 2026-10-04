@@ -3,6 +3,7 @@ import type { Options as SortableOptions, SortableEvent, GroupOptions } from 'so
 import type { Action, ActionReturn } from 'svelte/action';
 import { get } from 'svelte/store';
 import { motion } from '$lib/core/app/motion';
+import { coarsePointer } from '$lib/core/app/pointer';
 import { MOTION } from '$lib/core/theme';
 
 export interface DndReceiveDetail {
@@ -141,7 +142,8 @@ export function sortable<T>(
 	function buildSortableOptions(): SortableOptions {
 		return {
 			group: options.group,
-			animation: options.animation ?? (get(motion) ? MOTION.fast : 0),
+			// the live motion setting gates this in the getter below
+			animation: options.animation ?? MOTION.fast,
 			disabled: options.disabled ?? false,
 			ghostClass: options.ghostClass ?? 'sortable-ghost',
 			chosenClass: options.chosenClass ?? 'sortable-chosen',
@@ -149,6 +151,10 @@ export function sortable<T>(
 			handle: options.handle,
 			filter: options.filter,
 			fallbackOnBody: options.fallbackOnBody ?? true,
+			// native drag and drop does not start from a touch in most mobile
+			// webviews; Sortable picks its own fallback on iOS by user agent, but
+			// iPadOS reports a desktop Mac one, so the pointer decides
+			forceFallback: coarsePointer(),
 			swapThreshold: options.swapThreshold ?? 0.65,
 			direction: options.direction,
 
@@ -244,7 +250,8 @@ export function sortable<T>(
 	Object.defineProperty(instance.options, 'animation', {
 		configurable: true,
 		enumerable: true,
-		get: () => ((node.currentCSSZoom ?? 1) === 1 ? animation : 0),
+		// reduced motion can switch on while the list is mounted, so read it live too
+		get: () => (get(motion) && (node.currentCSSZoom ?? 1) === 1 ? animation : 0),
 		set: (value: number | undefined) => {
 			animation = value;
 		}
@@ -257,7 +264,7 @@ export function sortable<T>(
 				instance.option('disabled', newOptions.disabled ?? false);
 			}
 			if (newOptions.animation !== options.animation) {
-				instance.option('animation', newOptions.animation ?? (get(motion) ? MOTION.fast : 0));
+				instance.option('animation', newOptions.animation ?? MOTION.fast);
 			}
 			if (JSON.stringify(newOptions.group) !== JSON.stringify(options.group)) {
 				instance.option('group', newOptions.group);

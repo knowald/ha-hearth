@@ -8,6 +8,7 @@
 	import { activateOnKeyboard } from '../../interaction';
 	import type { CardEditorProps } from '../types';
 	import type { EntitiesCard } from './descriptor';
+	import CheckField from '../../edit/CheckField.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
 	import Icon from '../../Icon.svelte';
 	import IconField from '../../edit/IconField.svelte';
@@ -211,31 +212,16 @@
 		{ value: 'release', label: $lang('hearth_on_release') }
 	]}
 />
-<label class="check">
-	<input type="checkbox" bind:checked={showCount} />
-	<span>{$lang('hearth_show_active_count_in_header')}</span>
-</label>
-<label class="check">
-	<input type="checkbox" bind:checked={groupActions} />
-	<span>{$lang('hearth_header_actions_for_groups_all_off')}</span>
-</label>
-<label class="check">
-	<input type="checkbox" bind:checked={tuneButtons} />
-	<span>{$lang('hearth_controls_glyph_on_tiles_long_press')}</span>
-</label>
-<label class="check">
-	<input type="checkbox" bind:checked={readonly} />
-	<span>{$lang('hearth_display_only_no_tile_ever_sends')}</span>
-</label>
+<CheckField label={$lang('hearth_show_active_count_in_header')} bind:checked={showCount} />
+<CheckField label={$lang('hearth_header_actions_for_groups_all_off')} bind:checked={groupActions} />
+<CheckField label={$lang('hearth_controls_glyph_on_tiles_long_press')} bind:checked={tuneButtons} />
+<CheckField label={$lang('hearth_display_only_no_tile_ever_sends')} bind:checked={readonly} />
 <TextField
 	label={$lang('hearth_entity_wildcard_optional')}
 	bind:value={wildcard}
 	placeholder="light.kitchen_*"
 />
-<label class="check">
-	<input type="checkbox" bind:checked={collapsed} />
-	<span>{$lang('hearth_collapse_into_a_summary_row_details')}</span>
-</label>
+<CheckField label={$lang('hearth_collapse_into_a_summary_row_details')} bind:checked={collapsed} />
 
 {#if collapsed}
 	<IconField label={$lang('hearth_summary_row_icon_optional')} bind:value={icon} />
@@ -344,10 +330,7 @@
 							]}
 						/>
 						{#if !readonly}
-							<label class="check">
-								<input type="checkbox" bind:checked={ref.readonly} />
-								<span>{$lang('display_only')}</span>
-							</label>
+							<CheckField label={$lang('display_only')} bind:checked={ref.readonly} />
 						{/if}
 					</div>
 				{/if}

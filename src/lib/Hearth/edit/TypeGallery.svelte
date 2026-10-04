@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
+	import { autofocus } from '$lib/ui/actions/autofocus';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { layer } from '$lib/ui/layers';
 	import { PRESS_RIPPLE } from '../config';
@@ -58,10 +59,6 @@
 		open = false;
 		search = '';
 	}
-
-	function focusOnMount(node: HTMLInputElement) {
-		node.focus();
-	}
 </script>
 
 <div class="type-gallery" class:open>
@@ -71,10 +68,11 @@
 				<Icon name="search" size={ICON.inline} />
 				<input
 					type="text"
+					aria-label={searchPlaceholder}
 					bind:value={search}
 					placeholder={searchPlaceholder}
 					spellcheck="false"
-					use:focusOnMount
+					use:autofocus
 				/>
 				{#if current}
 					<button
@@ -215,6 +213,13 @@
 		color: var(--h-text-6);
 	}
 
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		.search input {
+			font-size: max(var(--h-input-floor), var(--h-type-body));
+		}
+	}
+
 	.collapse {
 		display: grid;
 		place-items: center;
@@ -258,7 +263,7 @@
 
 	.kind-sub {
 		font-size: var(--h-type-label);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 
 	.kind.selected {
@@ -275,7 +280,7 @@
 		grid-column: 1 / -1;
 		padding: 12px;
 		font-size: var(--h-type-secondary);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		text-align: center;
 	}
 

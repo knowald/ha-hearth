@@ -3,6 +3,7 @@
 	import { validTimeZone, type ClockHourFormat } from '../../clock';
 	import type { WidgetEditorProps } from '../types';
 	import type { ClockWidget } from './descriptor';
+	import CheckField from '../../edit/CheckField.svelte';
 	import SelectField from '../../edit/SelectField.svelte';
 	import TextField from '../../edit/TextField.svelte';
 
@@ -29,8 +30,12 @@
 	});
 </script>
 
-<TextField label={$lang('hearth_time_zone')} bind:value={timezone} placeholder="Europe/Warsaw" />
-{#if !timezoneValid}<div class="field-error">{$lang('hearth_use_an_iana_time_zone_such')}</div>{/if}
+<TextField
+	label={$lang('hearth_time_zone')}
+	bind:value={timezone}
+	placeholder="Europe/Warsaw"
+	error={timezoneValid ? undefined : $lang('hearth_use_an_iana_time_zone_such')}
+/>
 <SelectField
 	label={$lang('hearth_hour_format')}
 	bind:value={hourFormat}
@@ -40,6 +45,4 @@
 		{ value: '24', label: $lang('hearth_24_hour') }
 	]}
 />
-<label class="check"
-	><input type="checkbox" bind:checked={showSeconds} /> {$lang('hearth_show_seconds')}</label
->
+<CheckField label={$lang('hearth_show_seconds')} bind:checked={showSeconds} />

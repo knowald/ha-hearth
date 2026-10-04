@@ -20,6 +20,13 @@
 	-webkit-user-select: none;
 }
 
+/* the interface scale must not shrink it under a finger */
+@media (pointer: coarse) {
+	.hearth-button {
+		min-height: var(--h-touch-target);
+	}
+}
+
 .hearth-button.primary {
 	background: linear-gradient(135deg, var(--h-accent-deep), var(--h-accent-bright));
 	color: var(--h-on-accent);

@@ -5,6 +5,7 @@
 	import { activateOnKeyboard } from '../interaction';
 	import type { VisibilityCondition } from '../config';
 	import Icon from '../Icon.svelte';
+	import CheckField from './CheckField.svelte';
 	import EntityField from './EntityField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
@@ -156,14 +157,11 @@
 					placeholder="on"
 					bind:value={() => stateValue(index), (state) => setState(index, state)}
 				/>
-				<label class="check">
-					<input
-						type="checkbox"
-						checked={isStateNot(index)}
-						onchange={(event) => setStateNot(index, event.currentTarget.checked)}
-					/>
-					<span>{$lang('hearth_must_not_match')}</span>
-				</label>
+				<CheckField
+					label={$lang('hearth_must_not_match')}
+					checked={isStateNot(index)}
+					onchange={(notMatch) => setStateNot(index, notMatch)}
+				/>
 			{:else if rowType(condition) === 'numeric'}
 				<EntityField
 					label={$lang('entity')}
@@ -190,15 +188,14 @@
 				/>
 			{/if}
 		</div>
-		<span
+		<button
+			type="button"
 			class="remove"
+			aria-label={$lang('hearth_remove_condition')}
 			onclick={() => removeRow(index)}
-			role="button"
-			tabindex="0"
-			onkeydown={(event) => activateOnKeyboard(event, () => removeRow(index))}
 		>
 			<Icon name="delete" size={ICON.control} />
-		</span>
+		</button>
 	</div>
 {/each}
 <div
@@ -236,26 +233,25 @@
 		flex: 1;
 	}
 
-	.check {
+	.remove {
 		display: flex;
 		align-items: center;
-		gap: 10px;
-		font-size: var(--h-type-body);
-		color: var(--h-text-3);
-		margin: -4px 0 14px;
-		cursor: pointer;
-	}
-
-	.check input {
-		accent-color: var(--h-accent-deep);
-		width: 16px;
-		height: 16px;
-	}
-
-	.remove {
+		justify-content: center;
+		padding: 0;
+		border: 0;
+		background: none;
 		color: var(--h-icon);
 		cursor: pointer;
 		margin-top: 32px;
+	}
+
+	/* a finger-sized button, centered on the first field's input */
+	@media (pointer: coarse) {
+		.remove {
+			min-width: var(--h-touch-target);
+			min-height: var(--h-touch-target);
+			margin-top: 20px;
+		}
 	}
 
 	@media (hover: hover) {
@@ -272,14 +268,14 @@
 		padding: 12px;
 		border-radius: var(--h-radius-xs);
 		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		font-size: var(--h-type-body);
 		cursor: pointer;
 	}
 
 	@media (hover: hover) {
 		.add-row:hover {
-			color: var(--h-text-4);
+			color: var(--h-text-3);
 		}
 	}
 </style>

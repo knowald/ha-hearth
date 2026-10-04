@@ -108,6 +108,8 @@
 		margin-left: auto;
 		color: var(--h-icon-dim);
 		cursor: grab;
+		/* the browser would take a touch on the handle as a scroll */
+		touch-action: none;
 	}
 
 	/* phones (the rail's own fold): rooms become a horizontal chip row

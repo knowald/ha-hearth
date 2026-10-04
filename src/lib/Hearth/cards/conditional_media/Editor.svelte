@@ -37,15 +37,14 @@
 		<div class="filter-fields">
 			<EntityField label={$lang('entity')} bind:value={row.entity} domains={['media_player']} />
 		</div>
-		<span
+		<button
+			type="button"
 			class="remove"
-			role="button"
-			tabindex="0"
+			aria-label={$lang('hearth_remove_player')}
 			onclick={() => players.splice(index, 1)}
-			onkeydown={(event) => activateOnKeyboard(event, () => players.splice(index, 1))}
 		>
 			<Icon name="delete" size={ICON.control} />
-		</span>
+		</button>
 	</div>
 {/each}
 <div
@@ -58,4 +57,9 @@
 	<Icon name="add" size={ICON.control} />
 	<span>{$lang('hearth_add_player')}</span>
 </div>
-<TextField label={$lang('hearth_pause_timeout')} bind:value={timeout} placeholder="300" />
+<TextField
+	label={$lang('hearth_pause_timeout')}
+	bind:value={timeout}
+	placeholder="300"
+	inputmode="numeric"
+/>

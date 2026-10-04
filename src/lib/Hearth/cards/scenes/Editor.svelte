@@ -112,15 +112,14 @@
 				placeholder="on"
 			/>
 		</div>
-		<span
+		<button
+			type="button"
 			class="remove"
-			role="button"
-			tabindex="0"
+			aria-label={$lang('hearth_remove_scene')}
 			onclick={() => scenes.splice(refIndex, 1)}
-			onkeydown={(event) => activateOnKeyboard(event, () => scenes.splice(refIndex, 1))}
 		>
 			<Icon name="delete" size={ICON.control} />
-		</span>
+		</button>
 	</div>
 {/each}
 <div class="hint">

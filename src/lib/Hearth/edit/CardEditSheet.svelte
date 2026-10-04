@@ -241,6 +241,7 @@
 						label={$lang('hearth_height_in_px_optional')}
 						bind:value={height}
 						placeholder="240"
+						inputmode="numeric"
 						hint={$lang(descriptor.heightHint ?? 'hearth_height_hint_fill')}
 					/>
 				{/if}

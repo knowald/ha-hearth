@@ -220,6 +220,22 @@
 		transform: scale(1.12);
 	}
 
+	/* finger-sized strip and swatches */
+	@media (pointer: coarse) {
+		.hue {
+			height: 28px;
+		}
+
+		.swatches {
+			gap: 8px;
+		}
+
+		.swatch {
+			width: var(--h-touch-target);
+			height: var(--h-touch-target);
+		}
+	}
+
 	.hex {
 		display: flex;
 		align-items: center;
@@ -246,5 +262,12 @@
 		font-size: var(--h-type-secondary);
 		letter-spacing: 1px;
 		text-transform: lowercase;
+	}
+
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		.hex input {
+			font-size: max(var(--h-input-floor), var(--h-type-secondary));
+		}
 	}
 </style>

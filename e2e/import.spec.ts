@@ -27,7 +27,7 @@ test('adds the selected pages and leaves the existing one alone', async ({ page 
 	const dialog = page.getByRole('dialog', { name: 'Import Home Assistant areas' });
 	// the fixture already has an Office page; importing the area again would
 	// duplicate it
-	await dialog.getByRole('checkbox').last().uncheck();
+	await dialog.getByRole('switch').last().click();
 	await dialog.getByRole('button', { name: 'Apply' }).click();
 
 	await expect(dialog).toBeHidden();

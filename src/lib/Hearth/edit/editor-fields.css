@@ -73,7 +73,7 @@
 	padding: 2px 6px;
 	border-radius: var(--h-radius-pill);
 	background: rgb(var(--h-surface-rgb) / calc(0.07 * var(--h-fill-scale)));
-	color: var(--h-text-6);
+	color: var(--h-text-4);
 	font-family: var(--h-font-mono);
 	font-size: var(--h-type-caption);
 }
@@ -136,7 +136,7 @@
 }
 
 .editor-fields .entity-row-copy small {
-	color: var(--h-text-6);
+	color: var(--h-text-4);
 	font-size: var(--h-type-label);
 }
 
@@ -168,6 +168,12 @@
 }
 
 .editor-fields .remove {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: 0;
+	background: none;
 	color: var(--h-icon);
 	cursor: pointer;
 	margin-top: 32px;
@@ -176,6 +182,30 @@
 @media (hover: hover) {
 	.editor-fields .remove:hover {
 		color: var(--h-bad-text);
+	}
+}
+
+/* finger-sized row buttons; they sit edge to edge, so the boxes themselves grow */
+@media (pointer: coarse) {
+	.editor-fields .entity-row-actions {
+		gap: 0;
+	}
+
+	.editor-fields .entity-row-actions button,
+	.editor-fields .remove {
+		min-width: var(--h-touch-target);
+		min-height: var(--h-touch-target);
+		justify-content: center;
+		align-items: center;
+	}
+
+	.editor-fields .entity-row-actions .remove {
+		margin: 0;
+	}
+
+	/* centered on the first field's input rather than topped at its edge */
+	.editor-fields .filter-row > .remove {
+		margin-top: 20px;
 	}
 }
 
@@ -191,22 +221,6 @@
 	}
 }
 
-.editor-fields .check {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	font-size: var(--h-type-body);
-	color: var(--h-text-3);
-	margin: 4px 0 10px;
-	cursor: pointer;
-}
-
-.editor-fields .check input {
-	accent-color: var(--h-accent-deep);
-	width: 16px;
-	height: 16px;
-}
-
 .editor-fields .add-filter {
 	display: flex;
 	align-items: center;
@@ -215,14 +229,14 @@
 	padding: 12px;
 	border-radius: var(--h-radius-xs);
 	border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
-	color: var(--h-text-6);
+	color: var(--h-text-4);
 	font-size: var(--h-type-body);
 	cursor: pointer;
 }
 
 @media (hover: hover) {
 	.editor-fields .add-filter:hover {
-		color: var(--h-text-4);
+		color: var(--h-text-3);
 	}
 }
 
@@ -230,7 +244,7 @@
 .editor-fields .hint,
 .field-hint {
 	font-size: var(--h-type-small);
-	color: var(--h-text-6);
+	color: var(--h-text-4);
 	margin: 4px 0 12px;
 }
 

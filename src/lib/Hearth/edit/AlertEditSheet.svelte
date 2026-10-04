@@ -4,6 +4,7 @@
 	import { MAX_ALERT_SECONDS, normalizeVisibility, slugify, uniqueId } from '../config';
 	import type { AlertRule, AlertSeverity, VisibilityCondition } from '../types';
 	import { editor, hearthConfig, updateConfig } from '../store';
+	import CheckField from './CheckField.svelte';
 	import EditSheet from './EditSheet.svelte';
 	import EntityField from './EntityField.svelte';
 	import IconField from './IconField.svelte';
@@ -139,6 +140,7 @@
 			label={$lang('hearth_alert_delay')}
 			bind:value={seconds}
 			placeholder="0"
+			inputmode="numeric"
 			hint={$lang('hearth_alert_delay_hint')}
 			error={delayError}
 		/>
@@ -148,13 +150,7 @@
 			bind:value={entity}
 			hint={$lang('hearth_alert_entity_hint')}
 		/>
-		<label class="check">
-			<input type="checkbox" bind:checked={popup} />
-			<span>{$lang('hearth_alert_popup')}</span>
-		</label>
-		<label class="check">
-			<input type="checkbox" bind:checked={autoClose} />
-			<span>{$lang('hearth_alert_auto_close')}</span>
-		</label>
+		<CheckField label={$lang('hearth_alert_popup')} bind:checked={popup} />
+		<CheckField label={$lang('hearth_alert_auto_close')} bind:checked={autoClose} />
 	</div>
 </EditSheet>
