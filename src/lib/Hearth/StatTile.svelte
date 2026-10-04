@@ -7,17 +7,24 @@
 	import { openEntityDetail } from './details';
 	import { airQualityVerdict } from '$lib/core/domains/sensor';
 	import { entityAvailability, sensorNumber } from '$lib/core/ha/entities';
+	import { customAction, runSurfaceAction } from './actions';
+	import { longPress } from './interaction';
+	import type { HearthAction } from './types';
 
 	let {
 		entity,
 		name = undefined,
 		verdictBands = undefined,
-		readonly = false
+		readonly = false,
+		tapAction = undefined,
+		holdAction = undefined
 	}: {
 		entity: string;
 		name?: string;
 		verdictBands?: false | VerdictBands;
 		readonly?: boolean;
+		tapAction?: HearthAction;
+		holdAction?: HearthAction;
 	} = $props();
 
 	let stateObj = $derived($states?.[entity]);
@@ -41,10 +48,30 @@
 	// a numeric readout earns a tap: its detail sheet with the 24h history.
 	// The sheet of a writable entity (input_number) has controls, which read
 	// only removes
-	let openable = $derived(value !== null && !$hearthEditMode);
+	let readable = $derived(value !== null);
+	let openable = $derived(
+		!$hearthEditMode && (readable || customAction(tapAction) || customAction(holdAction))
+	);
 
-	function openHistory() {
-		if (openable) openEntityDetail(entity, name, { readonly });
+	function surface(fallback: () => void) {
+		return { entity, name, detail: { readonly }, fallback };
+	}
+
+	function tap() {
+		if (!$hearthEditMode)
+			runSurfaceAction(
+				tapAction,
+				surface(() => readable && openEntityDetail(entity, name, { readonly }))
+			);
+	}
+
+	// a stat box has no hold of its own
+	function hold() {
+		if (!$hearthEditMode)
+			runSurfaceAction(
+				holdAction,
+				surface(() => {})
+			);
 	}
 </script>
 
@@ -75,7 +102,15 @@
 {/snippet}
 
 {#if openable}
-	<button type="button" class="stat openable" onclick={openHistory}>
+	<button
+		type="button"
+		class="stat openable"
+		onclick={tap}
+		use:longPress={{
+			hold,
+			disabled: !customAction(holdAction) || holdAction?.action === 'none'
+		}}
+	>
 		{@render body()}
 	</button>
 {:else}

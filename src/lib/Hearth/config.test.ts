@@ -297,6 +297,42 @@ describe('hearthConfigIssues', () => {
 		]);
 	});
 
+	it('reports tap and hold actions that miss what they need', () => {
+		const issues = hearthConfigIssues({
+			rail: [{ id: 'status', type: 'status', tap_action: { action: 'url' } }],
+			rooms: [
+				{
+					id: 'home',
+					cards: [
+						[
+							{
+								id: 'e',
+								type: 'entities',
+								entities: [
+									{ entity: 'switch.a', tap_action: { action: 'perform-action' } },
+									{ entity: 'switch.b', hold_action: { action: 'call-service', service: 'x' } },
+									{ entity: 'switch.c', tap_action: { action: 'fire-dom-event' } },
+									{
+										entity: 'switch.d',
+										tap_action: { action: 'call-service', service: 'script.turn_on' },
+										hold_action: { action: 'navigate', navigation_path: '/lovelace/kitchen' }
+									}
+								]
+							}
+						]
+					]
+				}
+			]
+		});
+		const path = 'rooms[0].cards[0][0].entities';
+		expect(issues).toEqual([
+			'rail[0].tap_action needs url_path for url',
+			`${path}[0].tap_action needs perform_action for perform-action`,
+			`${path}[1].hold_action.service must be a domain.service name, like script.turn_on`,
+			`${path}[2].tap_action.action must be default, toggle, more-info, perform-action, navigate, url or none`
+		]);
+	});
+
 	it('accepts the scalar spellings the normalizer accepts', () => {
 		expect(
 			hearthConfigIssues({

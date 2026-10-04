@@ -12,6 +12,8 @@
 	import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
 	import { lightViewFor, setLightLevel, toggleLight } from '$lib/core/domains/light';
 	import TuneButton from './TuneButton.svelte';
+	import { customAction, runSurfaceAction } from './actions';
+	import type { HearthAction } from './types';
 
 	let {
 		entity,
@@ -21,6 +23,8 @@
 		readonly = false,
 		sliderUpdates = 'continuous',
 		showTune = false,
+		tapAction = undefined,
+		holdAction = undefined,
 		onedit = undefined
 	}: {
 		entity: string;
@@ -32,6 +36,8 @@
 		sliderUpdates?: SliderUpdateMode;
 		/** restores the controls glyph beside the long-press gesture */
 		showTune?: boolean;
+		tapAction?: HearthAction;
+		holdAction?: HearthAction;
 		onedit?: () => void;
 	} = $props();
 
@@ -52,7 +58,33 @@
 				: 'var(--h-icon-dim)'
 	);
 	let pending = $derived($pendingEntities[entity] !== undefined);
-	let interactive = $derived($hearthEditMode || (!readonly && controllable));
+	// the tile's own tap, hold and drag; configured actions run regardless
+	let ownControls = $derived(!readonly && controllable);
+	let interactive = $derived(
+		$hearthEditMode || ownControls || customAction(tapAction) || customAction(holdAction)
+	);
+
+	function openControls() {
+		popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates });
+	}
+
+	function surface(fallback: () => void) {
+		return { entity, name, detail: { icon, sliderUpdates, readonly }, fallback };
+	}
+
+	function tap() {
+		runSurfaceAction(
+			tapAction,
+			surface(() => ownControls && toggleLight(entity))
+		);
+	}
+
+	function hold() {
+		runSurfaceAction(
+			holdAction,
+			surface(() => ownControls && openControls())
+		);
+	}
 </script>
 
 <div
@@ -71,17 +103,17 @@
 	onkeydown={(event) =>
 		activateOnKeyboard(event, () => {
 			if ($hearthEditMode) onedit?.();
-			else if (readonly || !controllable) return;
-			else if (event.shiftKey)
-				popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates });
-			else toggleLight(entity);
+			else if (event.shiftKey) hold();
+			else tap();
 		})}
 	use:horizontalDrag={{
-		set: (value, commit) => setLightLevel(entity, value, commit),
+		set: (value, commit) => {
+			if (ownControls) setLightLevel(entity, value, commit);
+		},
 		updateMode: sliderUpdates,
-		tap: () => toggleLight(entity),
-		hold: () => popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates }),
-		disabled: $hearthEditMode || readonly || !controllable,
+		tap,
+		hold: holdAction?.action === 'none' ? undefined : hold,
+		disabled: $hearthEditMode || !interactive,
 		ignore: '.tune'
 	}}
 >
@@ -98,10 +130,7 @@
 	{#if $hearthEditMode && onedit}
 		<TuneButton icon="edit" onopen={onedit} alignEdge />
 	{:else if showTune && !$hearthEditMode && !readonly && controllable}
-		<TuneButton
-			alignEdge
-			onopen={() => popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates })}
-		/>
+		<TuneButton alignEdge onopen={openControls} />
 	{/if}
 </div>
 

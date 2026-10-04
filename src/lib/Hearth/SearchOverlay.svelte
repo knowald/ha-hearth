@@ -1,7 +1,7 @@
 <script lang="ts">
 	import EmptyState from './EmptyState.svelte';
 	import { ICON } from './iconSizes';
-	import { lang } from '$lib/core/i18n';
+	import { fill, lang } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from './config';
@@ -11,6 +11,7 @@
 	import Icon from './Icon.svelte';
 	import CloseButton from './CloseButton.svelte';
 	import { layer } from '$lib/ui/layers';
+	import { runSurfaceAction } from './actions';
 
 	let { onclose }: { onclose: () => void } = $props();
 
@@ -85,6 +86,24 @@
 		rowEls[activeIndex]?.scrollIntoView({ block: 'nearest' });
 	});
 
+	// scenes and scripts run straight from the list, like a command palette
+	function runnable(result: Result): boolean {
+		return result.kind === 'entity' && ['scene', 'script'].includes(result.entityId.split('.')[0]);
+	}
+
+	function runResult(result: Result) {
+		if (result.kind !== 'entity') return;
+		onclose();
+		runSurfaceAction(
+			{
+				action: 'perform-action',
+				perform_action: `${result.entityId.split('.')[0]}.turn_on`,
+				target: { entity_id: result.entityId }
+			},
+			{ entity: result.entityId, fallback: () => {} }
+		);
+	}
+
 	function selectResult(result: Result) {
 		if (result.kind === 'room') {
 			currentRoom.set(result.id);
@@ -110,7 +129,8 @@
 		} else if (event.key === 'Enter') {
 			event.preventDefault();
 			const result = results[activeIndex];
-			if (result) selectResult(result);
+			if (result && runnable(result)) runResult(result);
+			else if (result) selectResult(result);
 		}
 	}
 </script>
@@ -139,32 +159,45 @@
 		</div>
 		<div class="list">
 			{#each results as result, index (result.kind === 'room' ? `room:${result.id}` : `entity:${result.entityId}`)}
-				<button
-					type="button"
-					class="row pressable"
-					class:active={index === activeIndex}
-					aria-current={index === activeIndex ? 'true' : undefined}
-					use:Ripple={PRESS_RIPPLE}
-					bind:this={rowEls[index]}
-					onmouseenter={() => (activeIndex = index)}
-					onclick={() => selectResult(result)}
-				>
-					<span class="row-icon">
-						<Icon
-							name={result.kind === 'room' ? result.icon : domainIcon(result.entityId)}
-							size={ICON.control}
-						/>
-					</span>
-					<span class="row-text">
-						<span class="row-name">{result.name}</span>
-						<span class="row-id"
-							>{result.kind === 'room' ? $lang('hearth_page') : result.entityId}</span
+				<div class="row" class:active={index === activeIndex}>
+					<button
+						type="button"
+						class="row-main pressable"
+						aria-current={index === activeIndex ? 'true' : undefined}
+						use:Ripple={PRESS_RIPPLE}
+						bind:this={rowEls[index]}
+						onmouseenter={() => (activeIndex = index)}
+						onclick={() => selectResult(result)}
+					>
+						<span class="row-icon">
+							<Icon
+								name={result.kind === 'room' ? result.icon : domainIcon(result.entityId)}
+								size={ICON.control}
+							/>
+						</span>
+						<span class="row-text">
+							<span class="row-name">{result.name}</span>
+							<span class="row-id"
+								>{result.kind === 'room' ? $lang('hearth_page') : result.entityId}</span
+							>
+						</span>
+						{#if result.kind === 'entity' && !runnable(result)}
+							<span class="row-state">{result.state}</span>
+						{/if}
+					</button>
+					{#if runnable(result)}
+						<button
+							type="button"
+							class="row-run pressable"
+							aria-label={fill($lang('hearth_run_named'), { name: result.name })}
+							use:Ripple={PRESS_RIPPLE}
+							onclick={() => runResult(result)}
 						>
-					</span>
-					{#if result.kind === 'entity'}
-						<span class="row-state">{result.state}</span>
+							<Icon name="play_arrow" size={ICON.inline} />
+							{$lang('hearth_run')}
+						</button>
 					{/if}
-				</button>
+				</div>
 			{:else}
 				<EmptyState
 					inline
@@ -252,15 +285,40 @@
 	.row {
 		display: flex;
 		align-items: center;
+		gap: 8px;
+		border-radius: var(--h-radius-xs);
+	}
+
+	.row-main {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		align-items: center;
 		gap: 12px;
 		padding: 10px 10px;
 		border-radius: var(--h-radius-xs);
 		cursor: pointer;
-		width: 100%;
 		border: 0;
 		background: none;
 		font: inherit;
 		text-align: left;
+	}
+
+	.row-run {
+		display: flex;
+		align-items: center;
+		flex: none;
+		gap: 6px;
+		margin-right: 6px;
+		padding: 8px 12px;
+		border-radius: var(--h-radius-pill);
+		border: 1px solid rgb(var(--h-line-rgb) / calc(0.09 * var(--h-line-scale)));
+		background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));
+		color: var(--h-text-3);
+		font: inherit;
+		font-size: var(--h-type-secondary);
+		font-weight: 500;
+		cursor: pointer;
 	}
 
 	.row.active {

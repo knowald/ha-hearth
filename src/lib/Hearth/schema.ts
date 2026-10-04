@@ -1,4 +1,5 @@
 import * as v from 'valibot';
+import type { ActionTarget, HaAction } from '$lib/core/ha/commands';
 import { isTileUrl, RADAR_ZOOM } from './config';
 
 /*
@@ -58,6 +59,123 @@ export const VerdictBandsSchema = v.pipe(
 	v.check((bands) => bands.good < bands.fair, 'good must be below fair')
 );
 
+function isMapping(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+const ACTION_KINDS = [
+	'default',
+	'toggle',
+	'more-info',
+	'perform-action',
+	// Lovelace's name for perform-action before Home Assistant 2024.8
+	'call-service',
+	'navigate',
+	'url',
+	'none'
+] as const;
+
+const ServiceNameSchema = v.pipe(
+	v.string('must be a domain.service name'),
+	v.trim(),
+	v.regex(/^[a-z0-9_]+\.[a-z0-9_]+$/, 'must be a domain.service name, like script.turn_on')
+);
+
+const ActionDataSchema = v.custom<Record<string, unknown>>(isMapping, 'must be a mapping');
+
+const TargetIdsSchema = v.optional(
+	v.union([EntityIdSchema, v.array(EntityIdSchema)], 'must be an id or a list of ids')
+);
+
+const ActionTargetSchema = v.object({
+	entity_id: TargetIdsSchema,
+	device_id: TargetIdsSchema,
+	area_id: TargetIdsSchema,
+	floor_id: TargetIdsSchema,
+	label_id: TargetIdsSchema
+});
+
+/** Drops empty target keys; nothing left means no target. */
+function compactTarget(raw: v.InferOutput<typeof ActionTargetSchema> | undefined) {
+	const entries = Object.entries(raw ?? {}).filter(
+		([, ids]) => ids !== undefined && (!Array.isArray(ids) || ids.length > 0)
+	);
+	return entries.length ? (Object.fromEntries(entries) as ActionTarget) : undefined;
+}
+
+/**
+ * A tap or hold action, in Lovelace's own shape so one pasted from a Home
+ * Assistant card works: `call-service`, `service` and `service_data` are read
+ * as `perform-action`, `perform_action` and `data`.
+ */
+export const ActionSchema = v.pipe(
+	v.object({
+		action: v.picklist(
+			ACTION_KINDS,
+			'must be default, toggle, more-info, perform-action, navigate, url or none'
+		),
+		entity: OptionalEntityId,
+		perform_action: v.optional(ServiceNameSchema),
+		service: v.optional(ServiceNameSchema),
+		target: v.optional(ActionTargetSchema),
+		data: v.optional(ActionDataSchema),
+		service_data: v.optional(ActionDataSchema),
+		navigation_path: v.optional(
+			v.pipe(v.string('must be text'), v.trim(), v.minLength(1, 'must not be empty'))
+		),
+		url_path: v.optional(
+			v.pipe(
+				v.string('must be text'),
+				v.trim(),
+				v.regex(/^(https?:\/\/|\/(?!\/))/i, 'must be an http(s) URL or a path on this host')
+			)
+		),
+		confirmation: v.optional(
+			v.union(
+				[v.boolean(), v.object({ text: OptionalText })],
+				'must be true, false or a mapping with text'
+			)
+		)
+	}),
+	v.check(
+		(raw) =>
+			(raw.action !== 'perform-action' && raw.action !== 'call-service') ||
+			Boolean(raw.perform_action ?? raw.service),
+		'needs perform_action for perform-action'
+	),
+	v.check(
+		(raw) => raw.action !== 'navigate' || Boolean(raw.navigation_path),
+		'needs navigation_path for navigate'
+	),
+	v.check((raw) => raw.action !== 'url' || Boolean(raw.url_path), 'needs url_path for url'),
+	v.transform((raw): HaAction => {
+		const text = isMapping(raw.confirmation) ? raw.confirmation.text?.trim() : undefined;
+		const confirmation = text ? { text } : raw.confirmation ? (true as const) : undefined;
+		switch (raw.action) {
+			case 'perform-action':
+			case 'call-service': {
+				const data = { ...raw.service_data, ...raw.data };
+				return {
+					action: 'perform-action',
+					perform_action: (raw.perform_action ?? raw.service)!,
+					target: compactTarget(raw.target),
+					data: Object.keys(data).length ? data : undefined,
+					confirmation
+				};
+			}
+			case 'navigate':
+				return { action: 'navigate', navigation_path: raw.navigation_path!, confirmation };
+			case 'url':
+				return { action: 'url', url_path: raw.url_path!, confirmation };
+			case 'toggle':
+			case 'more-info':
+				return { action: raw.action, entity: raw.entity, confirmation };
+			default:
+				return { action: raw.action, confirmation };
+		}
+	})
+);
+
 export const EntityRefSchema = v.object({
 	entity: EntityIdSchema,
 	name: OptionalText,
@@ -78,11 +196,20 @@ export const EntityRefSchema = v.object({
 	),
 	// stat readouts judge known air sensors by device_class; false suppresses
 	// that, custom bands extend it to any ascending numeric sensor
-	verdict: v.optional(v.union([v.literal(false), VerdictBandsSchema], 'must be false or bands'))
+	verdict: v.optional(v.union([v.literal(false), VerdictBandsSchema], 'must be false or bands')),
+	// unset is the tile's own behaviour for its domain
+	tap_action: v.optional(ActionSchema),
+	hold_action: v.optional(ActionSchema)
 });
 
-// the tile highlight fields mean something else on scenes and nothing on modes
-const RefSchema = v.omit(EntityRefSchema, ['active_entity', 'active_states']);
+// the tile highlight fields mean something else on scenes and nothing on
+// modes, and neither takes configured actions
+const RefSchema = v.omit(EntityRefSchema, [
+	'active_entity',
+	'active_states',
+	'tap_action',
+	'hold_action'
+]);
 
 export const SceneRefSchema = v.object({
 	...RefSchema.entries,

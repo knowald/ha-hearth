@@ -19,6 +19,8 @@
 	import TuneButton from './TuneButton.svelte';
 	import { horizontalDrag } from './drag';
 	import { activateOnKeyboard } from './interaction';
+	import { customAction, runSurfaceAction } from './actions';
+	import type { HearthAction } from './types';
 
 	let {
 		entity,
@@ -28,6 +30,8 @@
 		readonly = false,
 		sliderUpdates = 'continuous',
 		showTune = false,
+		tapAction = undefined,
+		holdAction = undefined,
 		onedit = undefined
 	}: {
 		entity: string;
@@ -39,6 +43,8 @@
 		sliderUpdates?: SliderUpdateMode;
 		/** restores the controls glyph beside the long-press gesture */
 		showTune?: boolean;
+		tapAction?: HearthAction;
+		holdAction?: HearthAction;
 		onedit?: () => void;
 	} = $props();
 
@@ -59,12 +65,31 @@
 	);
 
 	let pending = $derived($pendingEntities[entity] !== undefined);
-	let interactive = $derived($hearthEditMode || (!readonly && controllable));
+	// the tile's own tap, hold and drag; configured actions run regardless
+	let ownControls = $derived(!readonly && controllable);
+	let interactive = $derived(
+		$hearthEditMode || ownControls || customAction(tapAction) || customAction(holdAction)
+	);
 	let accessPoint = $derived(coverIsAccessPoint($states?.[entity]));
+
+	function surface(fallback: () => void) {
+		return { entity, name, detail: { icon, sliderUpdates, readonly }, fallback };
+	}
 
 	function handleClick() {
 		if ($hearthEditMode) return onedit?.();
-		if (readonly || !controllable) return;
+		runSurfaceAction(tapAction, surface(defaultTap));
+	}
+
+	function handleHold() {
+		runSurfaceAction(
+			holdAction,
+			surface(() => ownControls && openControls())
+		);
+	}
+
+	function defaultTap() {
+		if (!ownControls) return;
 		const opening = !open;
 		guardCoverMotion(
 			[entity],
@@ -109,16 +134,16 @@
 	onclick={() => $hearthEditMode && onedit?.()}
 	onkeydown={(event) =>
 		activateOnKeyboard(event, () =>
-			event.shiftKey && controllable && !readonly && !$hearthEditMode
-				? openControls()
-				: handleClick()
+			event.shiftKey && !$hearthEditMode ? handleHold() : handleClick()
 		)}
 	use:horizontalDrag={{
-		set: slide,
+		set: (value, commit) => {
+			if (ownControls) slide(value, commit);
+		},
 		updateMode: accessPoint ? 'release' : sliderUpdates,
 		tap: handleClick,
-		hold: openControls,
-		disabled: $hearthEditMode || readonly || !controllable,
+		hold: holdAction?.action === 'none' ? undefined : handleHold,
+		disabled: $hearthEditMode || !interactive,
 		ignore: '.tune'
 	}}
 >

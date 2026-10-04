@@ -25,6 +25,8 @@
 	import LightTile from './LightTile.svelte';
 	import TuneButton from './TuneButton.svelte';
 	import { activateOnKeyboard, longPress } from './interaction';
+	import { customAction, runSurfaceAction } from './actions';
+	import type { HearthAction } from './types';
 
 	let {
 		entity,
@@ -36,6 +38,8 @@
 		activeStates = undefined,
 		sliderUpdates = 'continuous',
 		showTune = false,
+		tapAction = undefined,
+		holdAction = undefined,
 		onedit = undefined
 	}: {
 		entity: string;
@@ -49,6 +53,9 @@
 		sliderUpdates?: SliderUpdateMode;
 		/** restores the controls glyph beside the long-press gesture */
 		showTune?: boolean;
+		/** configured actions run as set; `readonly` only quiets the tile's own behaviour */
+		tapAction?: HearthAction;
+		holdAction?: HearthAction;
 		onedit?: () => void;
 	} = $props();
 
@@ -90,7 +97,16 @@
 	);
 	// read only means no commands: a history chart still opens, controls do not
 	let opens = $derived(!readonly || tapSurface === 'history');
-	let interactive = $derived($hearthEditMode || (opens && controllable && tapSurface !== 'none'));
+	let interactive = $derived(
+		$hearthEditMode ||
+			customAction(tapAction) ||
+			customAction(holdAction) ||
+			(opens && controllable && tapSurface !== 'none')
+	);
+	let holdDisabled = $derived(
+		$hearthEditMode ||
+			(customAction(holdAction) ? holdAction?.action === 'none' : !opens || !controllable)
+	);
 	// a toggle whose detail sheet only repeats the tap earns no tune glyph
 	let tunable = $derived(
 		!readonly &&
@@ -99,14 +115,24 @@
 			(tapSurface !== 'toggle' || detailOffersMore(entity))
 	);
 
+	let detail = $derived({ icon, sliderUpdates, readonly });
+
 	function openDetail() {
-		openEntityDetail(entity, name, { icon, sliderUpdates, readonly });
+		openEntityDetail(entity, name, detail);
 	}
 
 	function handleClick() {
-		if ($hearthEditMode) {
-			onedit?.();
-		} else if (!controllable || !opens) {
+		if ($hearthEditMode) onedit?.();
+		else runSurfaceAction(tapAction, { entity, name, detail, fallback: defaultTap });
+	}
+
+	function handleHold() {
+		if ($hearthEditMode) return;
+		runSurfaceAction(holdAction, { entity, name, detail, fallback: openControls });
+	}
+
+	function defaultTap() {
+		if (!controllable || !opens) {
 			return;
 		} else if (tapSurface === 'history') {
 			openDetail();
@@ -131,9 +157,31 @@
 </script>
 
 {#if domainDescriptor(domain).tile === 'light'}
-	<LightTile {entity} {name} {icon} {compact} {readonly} {sliderUpdates} {showTune} {onedit} />
+	<LightTile
+		{entity}
+		{name}
+		{icon}
+		{compact}
+		{readonly}
+		{sliderUpdates}
+		{showTune}
+		{tapAction}
+		{holdAction}
+		{onedit}
+	/>
 {:else if domainDescriptor(domain).tile === 'cover'}
-	<BlindTile {entity} {name} {icon} {compact} {readonly} {sliderUpdates} {showTune} {onedit} />
+	<BlindTile
+		{entity}
+		{name}
+		{icon}
+		{compact}
+		{readonly}
+		{sliderUpdates}
+		{showTune}
+		{tapAction}
+		{holdAction}
+		{onedit}
+	/>
 {:else}
 	<div
 		class="tile"
@@ -146,12 +194,9 @@
 		tabindex={interactive ? 0 : -1}
 		aria-pressed={pressed}
 		use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
-		use:longPress={{
-			hold: openControls,
-			disabled: $hearthEditMode || !opens || !controllable
-		}}
+		use:longPress={{ hold: handleHold, disabled: holdDisabled }}
 		onclick={handleClick}
-		onkeydown={(event) => activateOnKeyboard(event, event.shiftKey ? openControls : handleClick)}
+		onkeydown={(event) => activateOnKeyboard(event, event.shiftKey ? handleHold : handleClick)}
 	>
 		<div class="content">
 			<Icon name={icon || domainIcon(entity)} size={ICON.tile} color={iconColor} fill={on} />

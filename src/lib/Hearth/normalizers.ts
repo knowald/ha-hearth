@@ -1,5 +1,7 @@
-import type { EntityRef, SceneRef, VacuumModeRef, VerdictBands } from './types';
+import * as v from 'valibot';
+import type { EntityRef, HearthAction, SceneRef, VacuumModeRef, VerdictBands } from './types';
 import { uniqueId } from './config';
+import { ActionSchema } from './schema';
 
 /*
  * Field-level normalizers that card and widget descriptors compose. Nothing
@@ -46,16 +48,30 @@ export function normalizeVerdict(raw: unknown): false | VerdictBands | undefined
 	return undefined;
 }
 
-type RefFields = Omit<EntityRef, 'active_entity' | 'active_states'>;
+/**
+ * A tap or hold action in Hearth's or Lovelace's spelling, rewritten to the
+ * current Lovelace keys. An action missing what it needs, such as a
+ * perform-action without a service, is dropped, so the surface keeps its own
+ * behaviour.
+ */
+export function normalizeAction(raw: unknown): HearthAction | undefined {
+	const parsed = v.safeParse(ActionSchema, raw);
+	return parsed.success ? parsed.output : undefined;
+}
+
+type RefFields = Omit<EntityRef, 'active_entity' | 'active_states' | 'tap_action' | 'hold_action'>;
 
 function normalizeRefFields(raw: any): RefFields | null {
 	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
 	const entity = trimmedOrUndefined(raw.entity);
 	if (!entity) return null;
-	// the tile highlight fields are typed per ref kind by its own normalizer
+	// the tile highlight and action fields are typed per ref kind by its own
+	// normalizer
 	const rest = { ...raw };
 	delete rest.active_entity;
 	delete rest.active_states;
+	delete rest.tap_action;
+	delete rest.hold_action;
 	return {
 		...rest,
 		entity,
@@ -79,7 +95,9 @@ export function normalizeEntityRef(raw: unknown): EntityRef | null {
 	return {
 		...ref,
 		active_entity: trimmedOrUndefined(raw.active_entity),
-		active_states: normalizeStateList(raw.active_states)
+		active_states: normalizeStateList(raw.active_states),
+		tap_action: normalizeAction(raw.tap_action),
+		hold_action: normalizeAction(raw.hold_action)
 	};
 }
 
