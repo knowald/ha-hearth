@@ -313,10 +313,10 @@ function normalizeScale(raw: unknown): number | undefined {
 	return Math.min(200, Math.max(50, Math.round(raw)));
 }
 
-// an unquoted PIN arrives from YAML as a number, which keeps no leading zero
+// an unquoted PIN arrives from YAML as a number, which has lost any leading
+// zero; the issue checker asks for quotes, and until then there is no PIN
 function normalizePin(raw: unknown): string | undefined {
-	const pin = typeof raw === 'number' && Number.isInteger(raw) ? String(raw) : raw;
-	return typeof pin === 'string' && /^\d{4,8}$/.test(pin.trim()) ? pin.trim() : undefined;
+	return typeof raw === 'string' && /^\d{4,8}$/.test(raw.trim()) ? raw.trim() : undefined;
 }
 
 /**

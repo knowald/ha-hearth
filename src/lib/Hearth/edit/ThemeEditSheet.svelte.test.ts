@@ -150,6 +150,8 @@ describe('ThemeEditSheet fonts and background shade', () => {
 		expect(shade.value).toBe('none');
 		await fireEvent.change(shade, { target: { value: GLASS_THEME.background_scrim } });
 		expect(get(hearthConfig).theme?.background_scrim).toBe(GLASS_THEME.background_scrim);
+		await fireEvent.change(shade, { target: { value: 'none' } });
+		expect(get(hearthConfig).theme).toEqual({ background_image: 'url(/room.jpg)' });
 	});
 
 	it('sets the fonts and shows a stack from YAML by its first family', async () => {
@@ -164,6 +166,8 @@ describe('ThemeEditSheet fonts and background shade', () => {
 			target: { value: 'var(--h-font-ui)' }
 		});
 		expect(get(hearthConfig).theme?.font_mono).toBe('var(--h-font-ui)');
-		expect(THEME_DEFAULTS.font_ui).toContain('Hanken');
+		// the default is no override at all, not a copy of the default stack
+		await fireEvent.change(text, { target: { value: THEME_DEFAULTS.font_ui } });
+		expect(get(hearthConfig).theme).toEqual({ font_mono: 'var(--h-font-ui)' });
 	});
 });

@@ -81,7 +81,7 @@
 			label={$lang('hearth_long_lived_token')}
 			type="password"
 			autocomplete="new-password"
-			autofocus
+			autofocus="always"
 			bind:value={token}
 		/>
 		<p class="status" role="status">{checking ? $lang('hearth_token_checking') : ''}</p>

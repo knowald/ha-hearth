@@ -243,11 +243,10 @@ export const RootSettingsSchema = v.looseObject({
 	screensaver_weather_entity: OptionalEntityId,
 	keep_screen_on: OptionalFlag,
 	edit_lock: v.optional(v.picklist(['hold', 'pin'], 'must be hold or pin')),
-	// YAML reads an unquoted 1234 as a number; the digits are what count
+	// YAML reads an unquoted 0815 as the number 815, so only quoted text is a PIN
 	edit_pin: v.optional(
 		v.pipe(
-			v.union([v.string(), v.number()], 'must be 4 to 8 digits'),
-			v.transform((value) => String(value)),
+			v.string("must be quoted, like '0815': unquoted, YAML drops leading zeros"),
 			v.regex(/^\d{4,8}$/, 'must be 4 to 8 digits')
 		)
 	),

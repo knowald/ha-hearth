@@ -815,13 +815,15 @@ describe('interface scale', () => {
 });
 
 describe('edit lock', () => {
-	it('keeps a PIN that YAML read as a number, and drops anything else', () => {
+	it('keeps a quoted PIN and drops anything else', () => {
 		const normalize = (raw: Record<string, unknown>) =>
 			normalizeHearthConfig({ rail: [], rooms: [], ...raw });
-		expect(normalize({ edit_lock: 'pin', edit_pin: 4821 })).toMatchObject({
+		expect(normalize({ edit_lock: 'pin', edit_pin: '4821' })).toMatchObject({
 			edit_lock: 'pin',
 			edit_pin: '4821'
 		});
+		// YAML has already turned an unquoted 0815 into 815
+		expect(normalize({ edit_pin: 815 }).edit_pin).toBeUndefined();
 		expect(normalize({ edit_pin: '0042' }).edit_pin).toBe('0042');
 		expect(normalize({ edit_pin: '12' }).edit_pin).toBeUndefined();
 		expect(normalize({ edit_pin: 12.5 }).edit_pin).toBeUndefined();
@@ -832,7 +834,10 @@ describe('edit lock', () => {
 		const issues = hearthConfigIssues({ rail: [], rooms: [], edit_lock: 'face', edit_pin: 'abcd' });
 		expect(issues).toContain('edit_lock must be hold or pin');
 		expect(issues).toContain('edit_pin must be 4 to 8 digits');
-		expect(hearthConfigIssues({ rail: [], rooms: [], edit_lock: 'pin', edit_pin: 1234 })).toEqual(
+		expect(hearthConfigIssues({ rail: [], rooms: [], edit_pin: 1234 })).toEqual([
+			"edit_pin must be quoted, like '0815': unquoted, YAML drops leading zeros"
+		]);
+		expect(hearthConfigIssues({ rail: [], rooms: [], edit_lock: 'pin', edit_pin: '1234' })).toEqual(
 			[]
 		);
 	});

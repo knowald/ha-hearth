@@ -99,6 +99,15 @@
 		writeTheme((current) => ({ ...current, ...patch }));
 	}
 
+	/** Sets one knob, dropping it again when the choice is its default. */
+	function setKnob(key: string, value: string) {
+		writeTheme((current) => {
+			const next = { ...current, [key]: value };
+			if (value === THEME_DEFAULTS[key]) delete next[key];
+			return next;
+		});
+	}
+
 	function applyPreset(preset: HearthTheme | null) {
 		writeTheme(() =>
 			preset ? { ...preset } : slot === 'night' ? { ...THEME_DEFAULTS } : undefined
@@ -527,7 +536,7 @@
 				$lang,
 				$lang('hearth_custom_scrim')
 			)}
-			onchange={(value) => patchTheme({ background_scrim: value })}
+			onchange={(value) => setKnob('background_scrim', value)}
 		/>
 	{/if}
 
@@ -540,7 +549,7 @@
 			$lang,
 			familyName(knob('font_ui'))
 		)}
-		onchange={(value) => patchTheme({ font_ui: value })}
+		onchange={(value) => setKnob('font_ui', value)}
 	/>
 
 	<SelectField
@@ -552,7 +561,7 @@
 			$lang,
 			familyName(knob('font_mono'))
 		)}
-		onchange={(value) => patchTheme({ font_mono: value })}
+		onchange={(value) => setKnob('font_mono', value)}
 	/>
 
 	<SelectField

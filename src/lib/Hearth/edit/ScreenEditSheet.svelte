@@ -17,6 +17,7 @@
 	import SelectField from './SelectField.svelte';
 	import SettingsRow from './SettingsRow.svelte';
 	import { sleepOptions, withCurrent, type Option } from './options';
+	import { zoomSupported } from '../zoom';
 
 	/*
 	 * Settings this screen keeps for itself. Every row starts at "Same as
@@ -110,13 +111,15 @@
 	let mobileShown = $derived(mobileFollowed.mobileScale ?? mobileFollowed.scale);
 
 	let sharedLocale = $derived(followed('locale').locale);
-	let languageOptions = $derived(
-		withCurrent(
-			[same(languageName(sharedLocale)), ...languages],
-			$screenOverrides.locale ?? '',
-			$lang
-		)
-	);
+	// the stored choice shows by name while the list is still loading
+	let languageOptions = $derived.by(() => {
+		const chosen = $screenOverrides.locale;
+		const unlisted =
+			chosen && !languages.some((option) => option.value === chosen)
+				? [{ value: chosen, label: languageName(chosen) }]
+				: [];
+		return [same(languageName(sharedLocale)), ...languages, ...unlisted];
+	});
 
 	function handleLogout() {
 		requestConfirmation({
@@ -181,7 +184,10 @@
 					onchange={(value) => setNumber('screensaver_minutes', value)}
 				/>
 			</SettingsRow>
-			<SettingsRow label={$lang('hearth_interface_scale')}>
+			<SettingsRow
+				label={$lang('hearth_interface_scale')}
+				sub={zoomSupported ? undefined : $lang('hearth_scale_unsupported')}
+			>
 				<SelectField
 					inline
 					label={$lang('hearth_interface_scale')}
@@ -192,7 +198,7 @@
 			</SettingsRow>
 			<SettingsRow
 				label={$lang('hearth_scale_at_900_px_and_narrower')}
-				sub={$lang('hearth_screen_mobile_scale_sub')}
+				sub={$lang(zoomSupported ? 'hearth_screen_mobile_scale_sub' : 'hearth_scale_unsupported')}
 			>
 				<SelectField
 					inline

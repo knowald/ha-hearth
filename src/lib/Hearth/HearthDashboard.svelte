@@ -253,7 +253,10 @@
 
 		hideEditToggle = params.get('menu') === 'false';
 		roomParamRead = true;
+	});
 
+	$effect(() => {
+		if (!hideEditToggle) return;
 		return startCornerHold(() => {
 			if (!$hearthEditMode) screenSheetOpen.set(true);
 		});

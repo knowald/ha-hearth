@@ -81,6 +81,18 @@ describe('ScreenEditSheet', () => {
 		);
 	});
 
+	it('says where the browser cannot scale', () => {
+		render(ScreenEditSheet);
+		// jsdom has no standardized CSS zoom
+		expect(screen.getAllByText(en.hearth_scale_unsupported)).toHaveLength(2);
+	});
+
+	it('names a chosen language even before or without the list', () => {
+		screenOverrides.set({ locale: 'pl' });
+		render(ScreenEditSheet);
+		expect(select(en.language).selectedOptions[0].textContent).toBe('Polski');
+	});
+
 	it('names this device', async () => {
 		render(ScreenEditSheet);
 		await fireEvent.change(screen.getByLabelText(en.hearth_device_name), {

@@ -1,4 +1,4 @@
-import { derived, writable } from 'svelte/store';
+import { derived, readable, writable } from 'svelte/store';
 import { base } from '$app/paths';
 import { configuration, type Configuration } from '$lib/core/app/configuration';
 import { haptics } from '$lib/core/app/haptics';
@@ -7,6 +7,7 @@ import { screenOverrides, type ScreenOverrides } from '$lib/core/app/screen';
 import { selectedLanguage, translation } from '$lib/core/i18n';
 import { MOTION } from '$lib/core/theme';
 import { mediaQuery } from '$lib/ui/mediaQuery';
+import { swallowNextClick } from '$lib/ui/gestures';
 import type { HearthConfig } from './config';
 import { hearthConfig } from './store';
 
@@ -47,8 +48,13 @@ export function resolveScreenSettings(
 	};
 }
 
-/** The OS reduced-motion setting, kept live. */
-export const prefersReducedMotion = mediaQuery('(prefers-reduced-motion: reduce)');
+/**
+ * The OS reduced-motion setting, kept live. The query is made on first
+ * subscription rather than at import, which can run before a window exists.
+ */
+export const prefersReducedMotion = readable(false, (set) =>
+	mediaQuery('(prefers-reduced-motion: reduce)').subscribe(set)
+);
 
 export const screenSettings = derived(
 	[hearthConfig, configuration, screenOverrides, prefersReducedMotion],
@@ -59,27 +65,41 @@ export const screenSettings = derived(
 /**
  * Feeds the resolved language, motion and touch feedback into the app-wide
  * stores. The server rendered the shared language, so another one is
- * fetched; a reply that arrives after a newer choice is dropped.
+ * fetched. The language and <html lang> only switch once its copy is in, so
+ * they always match the text on screen; a failed fetch leaves both alone
+ * and the next change of settings, picking the language again included,
+ * tries again. A reply that arrives after a newer choice is dropped.
  */
 export function startScreenSettings(loadedLocale: string) {
-	let wanted = loadedLocale;
+	let shown = loadedLocale;
+	let requested: string | undefined;
 	return screenSettings.subscribe(async (settings) => {
 		motion.set(settings.motion ? MOTION.base : 0);
 		haptics.set(settings.haptics);
-		if (settings.locale === wanted) return;
-		const requested = (wanted = settings.locale);
-		selectedLanguage.set(requested);
-		document.documentElement.lang = requested;
+		const locale = settings.locale;
+		if (locale === shown) {
+			requested = undefined;
+			return;
+		}
+		if (locale === requested) return;
+		requested = locale;
 		try {
 			const response = await fetch(`${base}/_api/get_translation`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ locale: requested })
+				body: JSON.stringify({ locale })
 			});
-			const loaded = response.ok && (await response.json());
-			if (loaded && requested === wanted) translation.set(loaded);
+			if (!response.ok) throw new Error(`translation ${locale} failed with ${response.status}`);
+			const loaded = await response.json();
+			if (requested !== locale) return;
+			translation.set(loaded);
+			selectedLanguage.set(locale);
+			document.documentElement.lang = locale;
+			shown = locale;
 		} catch (error) {
 			console.error(error);
+		} finally {
+			if (requested === locale) requested = undefined;
 		}
 	});
 }
@@ -92,8 +112,10 @@ const CORNER = 64;
 
 /**
  * A press held still in the bottom-left corner opens This screen, for kiosk
- * frames started with ?menu=false where no button leads there. It listens on
- * the window instead of covering the corner, so taps there still land.
+ * frames started with ?menu=false where no button leads there; the dashboard
+ * arms it only then, since the edit toggle sits in that corner otherwise. It
+ * listens on the window instead of covering the corner, so taps there still
+ * land, and the click that ends the hold is swallowed.
  */
 export function startCornerHold(open: () => void) {
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -107,11 +129,14 @@ export function startCornerHold(open: () => void) {
 
 	function handleDown(event: PointerEvent) {
 		cancel();
+		if (event.button !== 0) return;
 		if (event.clientX > CORNER || event.clientY < innerHeight - CORNER) return;
+		if ((event.target as Element | null)?.closest?.('.edit-entry')) return;
 		startX = event.clientX;
 		startY = event.clientY;
 		timer = setTimeout(() => {
 			timer = undefined;
+			swallowNextClick();
 			open();
 		}, HOLD_MS);
 	}

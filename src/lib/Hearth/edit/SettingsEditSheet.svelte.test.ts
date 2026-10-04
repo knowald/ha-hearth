@@ -90,6 +90,12 @@ describe('SettingsEditSheet', () => {
 		expect(screen.getByText(en.hearth_this_screen_uses_its_own)).toBeTruthy();
 	});
 
+	it('marks both scale rows when this screen picked its own scale', () => {
+		screenOverrides.set({ scale: 130 });
+		render(SettingsEditSheet);
+		expect(screen.getAllByText(en.hearth_this_screen_uses_its_own)).toHaveLength(2);
+	});
+
 	it('sets an edit lock and only keeps a PIN of 4 to 8 digits', async () => {
 		render(SettingsEditSheet);
 		await fireEvent.change(screen.getByLabelText(en.hearth_edit_lock), {

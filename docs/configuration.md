@@ -88,7 +88,7 @@ The This screen sheet keeps these per browser, in local storage:
 
 Each row starts at Same as dashboard and follows the shared value from `hearth.yaml` or `configuration.yaml` until you pick another one. A shared row that this screen overrides says so in the Settings sheet. A scale picked here also applies at 900 px and narrower unless that row has a value of its own. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
 
-Open the sheet with the button next to Edit Hearth configuration. It does not need edit mode. With `?menu=false` both buttons are hidden; press and hold the bottom-left corner of the screen for 2 seconds instead. The corner keeps working with the buttons shown.
+Open the sheet with the button next to Edit Hearth configuration. It does not need edit mode. With `?menu=false` both buttons are hidden; press and hold the bottom-left corner of the screen for 2 seconds instead. The corner works only with `?menu=false`, since the buttons sit there otherwise.
 
 ## Edit lock
 
@@ -97,7 +97,7 @@ A wall tablet takes stray taps. Settings > Wall display > Edit lock makes the ed
 | `edit_lock` | Effect                                                |
 | ----------- | ----------------------------------------------------- |
 | unset       | A tap opens edit mode.                                |
-| `hold`      | The button has to be held for 2 seconds.              |
+| `hold`      | The button has to be pressed and held for 2 seconds.  |
 | `pin`       | The button asks for `edit_pin`, 4 to 8 digits, first. |
 
 ```yaml
@@ -105,7 +105,9 @@ edit_lock: pin
 edit_pin: '0815'
 ```
 
-Quote the PIN in YAML, or a leading zero is lost. A `pin` lock without a valid `edit_pin` asks for a hold instead.
+Quote the PIN in YAML. Unquoted, YAML reads it as a number and drops any leading zero, so Hearth reports an unquoted PIN as an error. A `pin` lock without a valid `edit_pin` asks for a hold instead.
+
+With `hold`, a tap only shows "Hold for 2 seconds to edit". Keep a finger or the mouse button down on the edit button until the bar along its foot fills. Holding Enter or Space works too.
 
 This protects against accidents, not people. The PIN is sent to every browser with the rest of the dashboard, and anyone who can reach Hearth can still change `hearth.yaml`. See the security note in the README.
 

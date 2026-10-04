@@ -1,9 +1,17 @@
-import { act, fireEvent, render, screen } from '@testing-library/svelte';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '../../../../static/translations/en.json';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from '../config';
-import { cancelEdit, hearthConfig, hearthEditMode, hearthLoadError } from '../store';
+import {
+	cancelEdit,
+	dismissConfirmation,
+	hearthConfig,
+	hearthEditMode,
+	hearthLoadError,
+	hearthRevision,
+	requestedConfirmation
+} from '../store';
 import { HOLD_MS, screenSheetOpen } from '../screen';
 import EditToggle from './EditToggle.svelte';
 
@@ -13,8 +21,25 @@ function withLock(lock: Partial<HearthConfig>) {
 
 const toggle = () => screen.getByRole('button', { name: en.hearth_edit_configuration });
 
+// the server's revision, which startEditing checks before edit mode opens
+let serverRevision = 0;
+
 describe('EditToggle', () => {
+	beforeEach(() => {
+		serverRevision = 0;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({
+				ok: true,
+				json: async () => ({ revision: serverRevision, versions: [] })
+			}))
+		);
+	});
+
 	afterEach(() => {
+		dismissConfirmation();
+		hearthRevision.set(0);
+		vi.unstubAllGlobals();
 		cancelEdit();
 		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
 		hearthLoadError.set(null);
@@ -26,7 +51,19 @@ describe('EditToggle', () => {
 		withLock({});
 		render(EditToggle);
 		await fireEvent.click(toggle());
-		expect(get(hearthEditMode)).toBe(true);
+		await waitFor(() => expect(get(hearthEditMode)).toBe(true));
+	});
+
+	it('offers a newer saved revision before editing an old one', async () => {
+		withLock({ edit_lock: 'hold' });
+		serverRevision = 5;
+		vi.useFakeTimers();
+		render(EditToggle);
+		await fireEvent.pointerDown(toggle(), { button: 0 });
+		await act(() => vi.advanceTimersByTime(HOLD_MS));
+		vi.useRealTimers();
+		await waitFor(() => expect(get(requestedConfirmation)).not.toBeNull());
+		expect(get(hearthEditMode)).toBe(false);
 	});
 
 	it('opens This screen, also while the dashboard cannot be edited', async () => {
@@ -51,7 +88,8 @@ describe('EditToggle', () => {
 		await act(() => vi.advanceTimersByTime(HOLD_MS - 100));
 		expect(get(hearthEditMode)).toBe(false);
 		await act(() => vi.advanceTimersByTime(100));
-		expect(get(hearthEditMode)).toBe(true);
+		vi.useRealTimers();
+		await waitFor(() => expect(get(hearthEditMode)).toBe(true));
 	});
 
 	it('takes a keyboard hold too', async () => {
@@ -60,7 +98,8 @@ describe('EditToggle', () => {
 		render(EditToggle);
 		await fireEvent.keyDown(toggle(), { key: 'Enter' });
 		await act(() => vi.advanceTimersByTime(HOLD_MS));
-		expect(get(hearthEditMode)).toBe(true);
+		vi.useRealTimers();
+		await waitFor(() => expect(get(hearthEditMode)).toBe(true));
 	});
 
 	it('asks for the PIN under the PIN lock', async () => {
@@ -75,6 +114,6 @@ describe('EditToggle', () => {
 
 		await fireEvent.input(input, { target: { value: '2468' } });
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_unlock }));
-		expect(get(hearthEditMode)).toBe(true);
+		await waitFor(() => expect(get(hearthEditMode)).toBe(true));
 	});
 });

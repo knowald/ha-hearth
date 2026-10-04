@@ -127,10 +127,40 @@ describe('startScreenSettings', () => {
 		);
 		stop = startScreenSettings('en');
 		screenOverrides.set({ locale: 'de' });
+		// nothing switches before the copy is in
+		expect(get(selectedLanguage)).toBe('en');
+		await vi.waitFor(() => expect(get(translation)).toBe(loaded));
 		expect(get(selectedLanguage)).toBe('de');
 		expect(document.documentElement.lang).toBe('de');
-		await vi.waitFor(() => expect(get(translation)).toBe(loaded));
 		translation.set(before);
+		document.documentElement.lang = 'en';
+	});
+
+	it('keeps the shown language when the fetch fails, and tries again on the next pick', async () => {
+		const before = get(translation);
+		const fetchMock = vi.fn(
+			async (): Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }> => ({
+				ok: false,
+				status: 503,
+				json: async () => null
+			})
+		);
+		vi.stubGlobal('fetch', fetchMock);
+		const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+		stop = startScreenSettings('en');
+		screenOverrides.set({ locale: 'de' });
+		await vi.waitFor(() => expect(logged).toHaveBeenCalled());
+		expect(get(selectedLanguage)).toBe('en');
+		expect(get(translation)).toBe(before);
+
+		const loaded = { ...before, hearth_close: 'Schliessen' };
+		fetchMock.mockImplementation(async () => ({ ok: true, status: 200, json: async () => loaded }));
+		screenOverrides.set({ locale: 'de' });
+		await vi.waitFor(() => expect(get(selectedLanguage)).toBe('de'));
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		translation.set(before);
+		document.documentElement.lang = 'en';
+		vi.restoreAllMocks();
 	});
 });
 
@@ -138,8 +168,8 @@ describe('startCornerHold', () => {
 	let stop: () => void;
 	const open = vi.fn();
 
-	function press(type: string, x: number, y: number) {
-		window.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y }));
+	function press(type: string, x: number, y: number, init: PointerEventInit = {}) {
+		window.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, ...init }));
 	}
 
 	beforeEach(() => {
@@ -159,6 +189,26 @@ describe('startCornerHold', () => {
 		expect(open).not.toHaveBeenCalled();
 		vi.advanceTimersByTime(1);
 		expect(open).toHaveBeenCalledOnce();
+
+		// the click that ends the hold must not reach what sits in the corner
+		press('pointerup', 10, innerHeight - 10);
+		const click = new MouseEvent('click', { cancelable: true });
+		window.dispatchEvent(click);
+		expect(click.defaultPrevented).toBe(true);
+	});
+
+	it('leaves secondary buttons and the edit entry alone', () => {
+		press('pointerdown', 10, innerHeight - 10, { button: 2 });
+		vi.advanceTimersByTime(HOLD_MS);
+		const entry = document.createElement('div');
+		entry.className = 'edit-entry';
+		document.body.append(entry);
+		entry.dispatchEvent(
+			new PointerEvent('pointerdown', { bubbles: true, clientX: 10, clientY: innerHeight - 10 })
+		);
+		vi.advanceTimersByTime(HOLD_MS);
+		entry.remove();
+		expect(open).not.toHaveBeenCalled();
 	});
 
 	it('ignores presses elsewhere, short ones and ones that move', () => {

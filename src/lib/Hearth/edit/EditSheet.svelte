@@ -160,10 +160,12 @@
 	 * A modal sheet takes focus and keeps Tab inside. A form field that asks
 	 * for focus with data-autofocus gets it under a mouse or trackpad; otherwise
 	 * the done button does, so opening an editor never raises an on-screen
-	 * keyboard by itself.
+	 * keyboard by itself. data-autofocus="always" is for a field the sheet
+	 * exists to fill, where the keyboard is coming anyway.
 	 */
 	function initialFocus(node: HTMLElement) {
 		return (
+			node.querySelector<HTMLElement>('[data-autofocus="always"]') ??
 			(finePointer() ? node.querySelector<HTMLElement>('[data-autofocus]') : null) ??
 			node.querySelector<HTMLElement>('.header .primary:not(:disabled)')
 		);

@@ -334,7 +334,9 @@
 			// the mobile row's hint is the only place that explains the mobile rows,
 			// so the unsupported note goes on the main row alone
 			sub:
-				$screenOverrides[key] !== undefined
+				// a screen's own scale also applies at narrow widths (see screen.ts)
+				$screenOverrides[key] !== undefined ||
+				(key === 'mobile_scale' && $screenOverrides.scale !== undefined)
 					? 'hearth_this_screen_uses_its_own'
 					: zoomSupported || key === 'mobile_scale'
 						? labels.sub
