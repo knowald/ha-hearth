@@ -2,7 +2,13 @@
 	import { integerFromInput } from './numbers';
 	import { fill, lang } from '$lib/core/i18n';
 	import { get } from 'svelte/store';
-	import { resizeCardColumns, slugify, uniqueId } from '../config';
+	import {
+		normalizeVisibility,
+		resizeCardColumns,
+		slugify,
+		uniqueId,
+		type VisibilityCondition
+	} from '../config';
 	import { duplicateRoom, shiftItem } from '../model/layoutEdits';
 	import { confirmDiscard } from './discard';
 	import { currentRoom, editor, hearthConfig, updateConfig } from '../store';
@@ -12,6 +18,7 @@
 	import IconField from './IconField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
+	import VisibilitySection from './VisibilitySection.svelte';
 	import { requireFields } from './validation';
 
 	let { id }: { id: string | null } = $props();
@@ -33,6 +40,9 @@
 	let moveBy = $state(0);
 	let roomIndex = $derived($hearthConfig.rooms.findIndex((entry) => entry.id === id));
 	let stagedIndex = $derived(roomIndex + moveBy);
+	let visibility = $state<VisibilityCondition[]>(
+		(initial?.visibility ?? []).map((condition) => ({ ...condition }))
+	);
 
 	function staged() {
 		return {
@@ -44,7 +54,8 @@
 			hideHeader,
 			fillScreen,
 			columns,
-			moveBy
+			moveBy,
+			visibility
 		};
 	}
 
@@ -77,6 +88,7 @@
 				room.hide_header = hideHeader || undefined;
 				room.fill_screen = fillScreen === 'fill' || undefined;
 				room.columns = roomColumns;
+				room.visibility = normalizeVisibility($state.snapshot(visibility));
 				if (roomColumns !== undefined && room.cards?.length && room.cards.length !== roomColumns) {
 					room.cards = resizeCardColumns(room.cards, roomColumns);
 				}
@@ -95,6 +107,7 @@
 					hide_header: hideHeader || undefined,
 					fill_screen: fillScreen === 'fill' || undefined,
 					columns: roomColumns,
+					visibility: normalizeVisibility($state.snapshot(visibility)),
 					cards: Array.from({ length: roomColumns ?? 1 }, () => [])
 				});
 			}
@@ -199,4 +212,7 @@
 			{$lang('hearth_this_is_the_last_page_so')}
 		{/if}
 	</div>
+
+	<VisibilitySection bind:value={visibility} />
+	<div class="field-hint">{$lang('hearth_page_visibility_hint')}</div>
 </EditSheet>

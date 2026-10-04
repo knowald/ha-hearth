@@ -24,7 +24,7 @@
 </script>
 
 {#if room}
-	<div class="page" class:fill={fillScreen}>
+	<div class="page" class:fill={fillScreen} data-page={roomId}>
 		{#if !room.hide_header || $hearthEditMode}
 			<div class="header-slot" class:hidden-header={room.hide_header}>
 				<HeaderCard

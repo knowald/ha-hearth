@@ -14,6 +14,12 @@ import type {
 
 export type * from './types';
 
+export const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+export type Weekday = (typeof WEEKDAYS)[number];
+
+/** A time of day as HH:MM on the 24 hour clock. */
+export const CLOCK_TIME = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
 /** A gap with no height is the one that absorbs the rail's leftover space. */
 function isFlexibleGap(widget: RailWidget): boolean {
 	return widget.type === 'spacer' && !widget.height;
@@ -256,8 +262,41 @@ function normalizeVisibilityCondition(raw: any): VisibilityCondition | null {
 	if (typeof raw.media === 'string' && raw.media.trim()) {
 		return { media: raw.media };
 	}
+	if ('device' in raw) {
+		// the editor keeps a list as comma-separated text until it is saved
+		const listed = typeof raw.device === 'string' ? raw.device.split(',') : raw.device;
+		const names = (Array.isArray(listed) ? listed : [])
+			.filter((name: unknown): name is string => typeof name === 'string')
+			.map((name: string) => name.trim())
+			.filter(Boolean);
+		if (!names.length) return null;
+		return { device: names.length === 1 && !Array.isArray(raw.device) ? names[0] : names };
+	}
+	/*
+	 * A time window that cannot be read is kept as it is, so it holds never
+	 * (see inTimeWindow): dropping it would show the item at every hour. The
+	 * issue checker reports it.
+	 */
+	if ('time' in raw) {
+		const source = raw.time && typeof raw.time === 'object' ? raw.time : {};
+		const time: { after?: string; before?: string; weekdays?: Weekday[] } = {};
+		for (const key of ['after', 'before'] as const) {
+			if (source[key] !== undefined && source[key] !== null && source[key] !== '')
+				time[key] = String(source[key]).trim();
+		}
+		if (Array.isArray(source.weekdays) && source.weekdays.length) {
+			const days = source.weekdays.map((day: unknown) => String(day).trim().toLowerCase());
+			time.weekdays = [
+				...WEEKDAYS.filter((day) => days.includes(day)),
+				...days.filter((day: string) => !(WEEKDAYS as readonly string[]).includes(day))
+			];
+		}
+		return { time };
+	}
 	if (typeof raw.entity === 'string' && raw.entity.trim()) {
 		const condition: VisibilityCondition = { entity: raw.entity };
+		if (typeof raw.attribute === 'string' && raw.attribute.trim())
+			condition.attribute = raw.attribute.trim();
 		if (typeof raw.state === 'string' && raw.state !== '') condition.state = raw.state;
 		if (typeof raw.state_not === 'string' && raw.state_not !== '')
 			condition.state_not = raw.state_not;
@@ -266,6 +305,67 @@ function normalizeVisibilityCondition(raw: any): VisibilityCondition | null {
 		return condition;
 	}
 	return null;
+}
+
+export function usesMedia(conditions: VisibilityCondition[]): boolean {
+	return conditions.some(
+		(condition) => 'media' in condition || ('or' in condition && usesMedia(condition.or))
+	);
+}
+
+/*
+ * Alert rules are checked when states change, not when the window resizes,
+ * so a media query would read whatever the screen was at the last state
+ * change; style rules follow states the same way. Media conditions are left
+ * out of both; an or-group left empty goes with them.
+ */
+export function withoutMedia(conditions: VisibilityCondition[]): VisibilityCondition[] {
+	return conditions.flatMap((condition): VisibilityCondition[] => {
+		if ('media' in condition) return [];
+		if (!('or' in condition)) return [condition];
+		const or = withoutMedia(condition.or);
+		return or.length ? [{ or }] : [];
+	});
+}
+
+// one class name or several, separated by spaces
+const CLASS_LIST = /^-?[_a-zA-Z][\w-]*(\s+-?[_a-zA-Z][\w-]*)*$/;
+
+/*
+ * Classes Hearth itself puts on a tile, its wrapper and the grid around it.
+ * A style rule that reused one would switch Hearth's own styling on or off.
+ */
+const RESERVED_CLASSES = new Set([
+	'active',
+	'compact',
+	'content',
+	'editing',
+	'empty',
+	'entity-slot',
+	'fill',
+	'fixed',
+	'grid',
+	'hidden',
+	'on',
+	'open',
+	'openable',
+	'pending',
+	'pressable',
+	'stat',
+	'styled',
+	'tile',
+	'unreachable'
+]);
+
+/** What is wrong with a style rule's class list, or undefined when it is usable. */
+export function classListProblem(value: string): 'format' | 'reserved' | undefined {
+	const trimmed = value.trim();
+	if (!CLASS_LIST.test(trimmed)) return 'format';
+	return trimmed
+		.split(/\s+/)
+		.some((name) => RESERVED_CLASSES.has(name) || name.startsWith('svelte-'))
+		? 'reserved'
+		: undefined;
 }
 
 /** Drops the field entirely rather than keeping an empty array. */

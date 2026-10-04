@@ -222,9 +222,73 @@ entities:
 
 The result replaces the tile's name or state text, or a stat box's reading and unit. Until it renders, when it fails, and when it renders blank, the tile shows its normal name and state. The normal state text also comes back while the entity is unavailable and while a light or cover is being dragged or a command is in flight. A stat box's air quality verdict and band still follow the entity's real value, not the template. The rendered name is also the name the tile's details and controls use.
 
+## Visibility conditions
+
+Cards, sidebar widgets and pages take a `visibility` list. Every condition in it has to hold. In edit mode hidden items stay on screen, dimmed, so they can still be edited.
+
+| Condition                                       | Holds when                                                                                                  |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `entity` with `state` or `state_not`            | The entity's state is, or is not, that text. A missing entity never holds.                                  |
+| `entity` with `above` and/or `below`            | The state is a number in that range.                                                                        |
+| `entity` with `attribute`                       | The same checks, on one attribute of the entity instead of its state.                                       |
+| `media`                                         | The CSS media query matches. Not allowed in alert rules.                                                    |
+| `device`                                        | This screen's device name (This screen > Device name, or `?device=`) is the name, or one of a list.         |
+| `time` with `after`, `before` and/or `weekdays` | The time is from `after` up to `before`, on one of the `weekdays` (`mon` to `sun`). All three are optional. |
+| `or`                                            | At least one of the nested conditions holds.                                                                |
+
+Times are `HH:MM` on the 24 hour clock, read in the time zone the clocks show: the first clock widget's, or the browser's. The same time for `after` and `before` is the whole day. A window whose `after` is later than its `before` runs past midnight, and the hours after midnight count as the day the window started: Friday 22:00 to 06:00 still holds at 02:00 on Saturday. Time conditions are checked again every minute. A time condition that cannot be read, such as `after: 7pm`, never holds, and the editor reports it.
+
+```yaml
+visibility:
+  - device: [kitchen, hallway]
+  - time:
+      after: '06:00'
+      before: '10:00'
+      weekdays: [mon, tue, wed, thu, fri]
+  - entity: climate.living_room
+    attribute: hvac_action
+    state: heating
+```
+
+A page with `visibility` leaves the nav widget, the phone page strip, search and swiping while its conditions do not hold. A page that becomes hidden while it is on screen stays there until you leave it, and so does a hidden page that edit mode ends on. A `?room=` link to a hidden page opens the first page shown instead, and a `navigate` tap action or HEARTH event does nothing for a hidden page. When every page is hidden the first page stays. Set it under Conditions in the page editor.
+
+## Style rules
+
+An entity in an entities card takes a `style` list. The first rule whose `conditions` hold restyles the tile; the others are skipped. Conditions are the same as for visibility, except that media queries are not allowed. Each rule sets at least one of:
+
+- `color`: `accent`, `cool`, `good`, `bad`, or a CSS color such as `#e53935`. It colors the icon and the outline of a tile, and the value of a stat box.
+- `icon`: replaces the tile's icon.
+- `class`: one or more class names, added to the element around the tile for custom CSS. Names Hearth uses itself, such as `tile`, `styled`, `entity-slot`, `pressable`, `hidden` or `editing`, are refused; an unusable class is dropped and the rest of the rule kept.
+
+```yaml
+entities:
+  - entity: lock.front_door
+    style:
+      - conditions:
+          - entity: lock.front_door
+            state: unlocked
+        color: bad
+        icon: lock_open
+        class: front-door-open
+```
+
+Edit them under Style rules in an entity's options in the entities card editor.
+
 ## Custom CSS and JavaScript
 
 Edit custom CSS under Settings > Appearance > Custom CSS. Save writes the file at once and returns to Settings. Style against the `--h-*` tokens, not internal class names, which can change between releases.
+
+Tiles and stat boxes carry `data-entity` (the entity id), `data-domain` and `data-state` (the raw Home Assistant state), and each page carries `data-page` with its id. These follow the live state, so custom CSS can react to it:
+
+```css
+[data-domain='lock'][data-state='unlocked'] {
+	border-color: rgb(var(--h-bad-rgb));
+}
+
+[data-page='cameras'] [data-entity='binary_sensor.doorbell'][data-state='on'] {
+	background: rgb(var(--h-accent-rgb) / calc(0.2 * var(--h-accent-scale)));
+}
+```
 
 For custom JavaScript, edit `custom_javascript.js` in the data directory and turn on Custom JavaScript in Server settings. It runs on every page load.
 

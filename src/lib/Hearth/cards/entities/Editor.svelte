@@ -17,6 +17,8 @@
 	import IconField from '../../edit/IconField.svelte';
 	import SelectField from '../../edit/SelectField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import type { EditableStyleRule } from '../../edit/StyleRulesField.svelte';
+	import { normalizeStyleRules } from '../../normalizers';
 
 	let { initial: initialProp, onchange }: CardEditorProps<EntitiesCard> = $props();
 
@@ -44,6 +46,8 @@
 		// false while that action's form does not hold a usable action
 		tapValid?: boolean;
 		holdValid?: boolean;
+		styleValid?: boolean;
+		style: EditableStyleRule[];
 	};
 
 	function editable(ref: EntityRef): EditableRef {
@@ -60,7 +64,13 @@
 			state_template: ref.state_template ?? '',
 			verdict: ref.verdict,
 			tap_action: ref.tap_action,
-			hold_action: ref.hold_action
+			hold_action: ref.hold_action,
+			style: (ref.style ?? []).map((rule) => ({
+				conditions: structuredClone(rule.conditions),
+				color: rule.color ?? '',
+				icon: rule.icon ?? '',
+				class: rule.class ?? ''
+			}))
 		};
 	}
 
@@ -141,7 +151,8 @@
 			active_states: '',
 			slider_updates: '',
 			name_template: '',
-			state_template: ''
+			state_template: '',
+			style: []
 		};
 	}
 
@@ -159,6 +170,7 @@
 	let actionsValid = $derived(
 		entities.every((ref) => ref.tapValid !== false && ref.holdValid !== false)
 	);
+	let stylesValid = $derived(entities.every((ref) => ref.styleValid !== false));
 
 	$effect(() => {
 		const columnCount = integerFromInput(columns);
@@ -198,13 +210,18 @@
 						tap_action: ref.tap_action,
 						hold_action: ref.hold_action,
 						name_template: ref.name_template.trim() ? ref.name_template : undefined,
-						state_template: ref.state_template.trim() ? ref.state_template : undefined
+						state_template: ref.state_template.trim() ? ref.state_template : undefined,
+						style: normalizeStyleRules($state.snapshot(ref.style))
 					}))
 					.filter((ref) => ref.entity)
 			},
-			valid: actionsValid,
-			// the broken action may sit in a collapsed row, out of sight
-			reason: actionsValid ? undefined : $lang('hearth_action_fix_reason')
+			valid: actionsValid && stylesValid,
+			// the broken action or rule may sit in a collapsed row, out of sight
+			reason: !actionsValid
+				? $lang('hearth_action_fix_reason')
+				: !stylesValid
+					? $lang('hearth_style_rule_fix_reason')
+					: undefined
 		});
 	});
 </script>
@@ -397,6 +414,9 @@
 							bind:value={ref.hold_action}
 							bind:valid={ref.holdValid}
 						/>
+						{#await import('../../edit/StyleRulesField.svelte') then StyleRulesField}
+							<StyleRulesField.default bind:value={ref.style} bind:valid={ref.styleValid} />
+						{/await}
 					</div>
 				{/if}
 			</div>

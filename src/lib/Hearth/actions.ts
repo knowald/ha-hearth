@@ -10,9 +10,9 @@ import {
 	toggleBlind
 } from '$lib/core/domains/cover';
 import { guardLockCommand } from '$lib/core/domains/lock';
-import { resolvePage } from './config';
+import { showPage } from './pages';
 import { openEntityDetail, type DetailOptions } from './details';
-import { currentRoom, hearthConfig, requestConfirmation } from './store';
+import { requestConfirmation } from './store';
 
 /*
  * The dashboard half of configured tap and hold actions: core's runAction
@@ -121,10 +121,7 @@ export function runSurfaceAction(action: HaAction | undefined, surface: ActionSu
 			entityId === surface.entity
 				? openEntityDetail(entityId, surface.name, surface.detail)
 				: openEntityDetail(entityId),
-		navigate: (path) => {
-			const roomId = resolvePage(get(hearthConfig).rooms, path);
-			if (roomId) currentRoom.set(roomId);
-		},
+		navigate: (path) => showPage(path),
 		confirm: (confirmed, run) => {
 			const $lang = get(lang);
 			const { confirmation } = confirmed;
