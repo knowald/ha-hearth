@@ -110,6 +110,9 @@
 	<button
 		type="button"
 		class="stat openable"
+		data-entity={entity}
+		data-domain={entity.split('.')[0]}
+		data-state={stateObj?.state}
 		onclick={tap}
 		use:longPress={{
 			hold,
@@ -121,7 +124,12 @@
 		{@render body()}
 	</button>
 {:else}
-	<div class="stat">
+	<div
+		class="stat"
+		data-entity={entity}
+		data-domain={entity.split('.')[0]}
+		data-state={stateObj?.state}
+	>
 		{@render body()}
 	</div>
 {/if}
@@ -159,7 +167,8 @@
 	.stat-value {
 		font-size: var(--h-type-stat);
 		font-weight: 600;
-		color: var(--h-text-1);
+		/* a matching style rule's color (see EntityGrid) */
+		color: var(--tile-accent, var(--h-text-1));
 		margin-top: 4px;
 	}
 

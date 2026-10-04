@@ -10,6 +10,8 @@ import {
 	hearthEditMode,
 	popup,
 	requestWake,
+	screensaverPreview,
+	showPage,
 	type HearthAlert,
 	type Popup
 } from './store';
@@ -34,6 +36,8 @@ export interface AlertHost {
 	openDetail: (entityId: string, name?: string) => void;
 	/** Whether visibility conditions hold for these states (visibility.ts). */
 	holds: (conditions: VisibilityCondition[], $states: HassEntities | undefined) => boolean;
+	/** The minute clock while conditions read the time (visibility.ts). */
+	clockFor: typeof import('./visibility').clockFor;
 	layer: typeof import('$lib/ui/layers').layer;
 	loadMarkdown: typeof import('./markdown').loadMarkdownRenderer;
 }
@@ -282,7 +286,10 @@ export type HearthAction =
 	  }
 	| { action: 'dismiss_alert'; tag: string }
 	| { action: 'open_popup'; entity: string; name?: string }
-	| { action: 'close_popup'; entity?: string };
+	| { action: 'close_popup'; entity?: string }
+	| { action: 'navigate'; page: string }
+	| { action: 'wake' }
+	| { action: 'sleep' };
 
 function text(value: unknown): string | undefined {
 	return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -328,6 +335,14 @@ export function parseHearthEvent(
 			return entity ? { action: 'open_popup', entity, name: text(data.name) } : null;
 		case 'close_popup':
 			return { action: 'close_popup', entity };
+		case 'navigate': {
+			// navigation_path is the key Lovelace's own navigate action uses
+			const page = text(data.page) ?? text(data.navigation_path);
+			return page ? { action: 'navigate', page } : null;
+		}
+		case 'wake':
+		case 'sleep':
+			return { action: data.action };
 		default:
 			return null;
 	}
@@ -363,6 +378,16 @@ export function handleHearthAction(action: HearthAction) {
 			return;
 		case 'close_popup':
 			if (!action.entity || get(popup)?.entity === action.entity) closePopup();
+			return;
+		// edit mode keeps the page and the screen the editor is working on
+		case 'navigate':
+			if (!get(hearthEditMode)) showPage(action.page);
+			return;
+		case 'wake':
+			requestWake();
+			return;
+		case 'sleep':
+			if (!get(hearthEditMode)) screensaverPreview.set(true);
 	}
 }
 
@@ -377,9 +402,14 @@ export function resetAlerts() {
 /** Starts checking rules and listening for HEARTH events; returns the stop function. */
 export function startAlerts(services: AlertHost): () => void {
 	setAlertHost(services);
-	const stopRules = derived([hearthConfig, states], (values) => values).subscribe(
-		([$config, $states]) => syncRules($config.alerts ?? [], $states)
+	// rules that read the time are checked again on every new minute
+	const clock = services.clockFor(
+		derived(hearthConfig, ($config) => ($config.alerts ?? []).flatMap((rule) => rule.conditions))
 	);
+	const stopRules = derived(
+		[hearthConfig, states, clock, deviceName],
+		(values) => values
+	).subscribe(([$config, $states]) => syncRules($config.alerts ?? [], $states));
 	const stopEvents = subscribeHearthEvents((data) => {
 		const action = parseHearthEvent(data, get(deviceName));
 		if (action) handleHearthAction(action);

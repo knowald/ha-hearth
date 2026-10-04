@@ -1,8 +1,10 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { minuteTimer } from '$lib/core/app/clock';
+	import { deviceName } from '$lib/core/app/device';
 	import { states } from '$lib/core/ha/entities';
 	import type { VisibilityCondition } from './config';
-	import { evaluateVisibility } from './visibility';
+	import { evaluateVisibility, mediaQueriesIn, usesTime } from './visibility';
 
 	let {
 		conditions,
@@ -14,9 +16,7 @@
 	// (re)subscribes to just the media queries this item's conditions use,
 	// tearing down the previous set's listeners whenever conditions change
 	$effect(() => {
-		const queries = (conditions ?? [])
-			.filter((condition): condition is { media: string } => 'media' in condition)
-			.map((condition) => condition.media);
+		const queries = mediaQueriesIn(conditions ?? []);
 
 		if (queries.length === 0) {
 			mediaMatches = {};
@@ -45,7 +45,19 @@
 		};
 	});
 
-	let visible = $derived(evaluateVisibility(conditions, $states, mediaMatches));
+	// only items with a time condition follow the shared minute clock
+	let now = $state<Date | undefined>();
+	$effect(() => {
+		if (!usesTime(conditions)) {
+			now = undefined;
+			return;
+		}
+		return minuteTimer.subscribe((value) => (now = value));
+	});
+
+	let visible = $derived(
+		evaluateVisibility(conditions, $states, mediaMatches, { device: $deviceName, now })
+	);
 </script>
 
 {@render children(visible)}

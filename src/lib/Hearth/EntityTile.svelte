@@ -207,6 +207,9 @@
 		class:unreachable={!controllable}
 		class:pending
 		class:pressable={interactive}
+		data-entity={entity}
+		data-domain={domain}
+		data-state={stateObj?.state}
 		role="button"
 		tabindex={interactive ? 0 : -1}
 		aria-pressed={tapToggles(tapAction, entity) ? pressed : undefined}
@@ -220,7 +223,12 @@
 		onkeydown={(event) => activateOnKeyboard(event, event.shiftKey ? handleHold : handleClick)}
 	>
 		<div class="content">
-			<Icon name={icon || domainIcon(entity)} size={ICON.tile} color={iconColor} fill={on} />
+			<Icon
+				name={icon || domainIcon(entity)}
+				size={ICON.tile}
+				color="var(--tile-accent, {iconColor})"
+				fill={on}
+			/>
 			<div class="text">
 				<div class="name">{label}</div>
 				<div class="state" class:on={on && available}>

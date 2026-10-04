@@ -18,16 +18,19 @@ import { openEntityDetail } from './details';
 import { ALERT_SEVERITIES } from './model/alerts';
 import { loadMarkdownRenderer } from './markdown';
 import { layer } from '$lib/ui/layers';
-import { conditionsHold } from './visibility';
+import { clockFor, conditionsHold } from './visibility';
 import {
 	activeAlerts,
 	cancelEdit,
+	currentRoom,
 	enterEditMode,
 	hearthConfig,
 	hearthEditMode,
 	popup,
+	screensaverPreview,
 	wakeScreen
 } from './store';
+import { deviceName } from '$lib/core/app/device';
 import type { AlertRule } from './types';
 
 const START = new Date('2026-09-27T12:00:00Z');
@@ -49,6 +52,7 @@ function door(state: string, changedSecondsAgo = 0): HassEntities {
 const host = {
 	openDetail: openEntityDetail,
 	holds: conditionsHold,
+	clockFor,
 	layer,
 	loadMarkdown: loadMarkdownRenderer
 };
@@ -303,10 +307,117 @@ describe('alert rules', () => {
 	});
 });
 
+describe('alert rules that read the clock or the device', () => {
+	afterEach(() => {
+		resetAlerts();
+		deviceName.set('');
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+		vi.useRealTimers();
+	});
+
+	it('raises a time rule when the minute it waits for comes round', () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-10-02T21:59:30'));
+		const night: AlertRule = {
+			id: 'night',
+			title: 'Night mode',
+			severity: 'info',
+			conditions: [{ time: { after: '22:00', before: '06:00' } }]
+		};
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), alerts: [night] });
+		health.set('connected');
+		const stop = startAlerts(host);
+		states.set({});
+		expect(keys()).toEqual([]);
+		vi.advanceTimersByTime(31_000);
+		expect(keys()).toEqual(['rule:night']);
+		stop();
+		setAlertHost(host);
+	});
+
+	it('follows the device name of this screen', () => {
+		const here: AlertRule = {
+			id: 'here',
+			title: 'Kitchen only',
+			severity: 'info',
+			conditions: [{ device: 'kitchen' }]
+		};
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), alerts: [here] });
+		health.set('connected');
+		const stop = startAlerts(host);
+		states.set({});
+		expect(keys()).toEqual([]);
+		deviceName.set('kitchen');
+		expect(keys()).toEqual(['rule:here']);
+		stop();
+		setAlertHost(host);
+	});
+});
+
 describe('HEARTH events', () => {
 	afterEach(() => {
 		resetAlerts();
 		popup.set(null);
+		screensaverPreview.set(false);
+		if (get(hearthEditMode)) cancelEdit();
+	});
+
+	it('reads navigate, wake and sleep', () => {
+		expect(parseHearthEvent({ action: 'navigate', page: ' cameras ' }, '')).toEqual({
+			action: 'navigate',
+			page: 'cameras'
+		});
+		expect(
+			parseHearthEvent({ action: 'navigate', navigation_path: '/lovelace/cameras' }, '')
+		).toEqual({ action: 'navigate', page: '/lovelace/cameras' });
+		expect(parseHearthEvent({ action: 'navigate' }, '')).toBeNull();
+		expect(parseHearthEvent({ action: 'wake' }, '')).toEqual({ action: 'wake' });
+		expect(parseHearthEvent({ action: 'sleep' }, '')).toEqual({ action: 'sleep' });
+	});
+
+	it('targets navigate, wake and sleep at one device like every other action', () => {
+		for (const event of [
+			{ action: 'navigate', page: 'cameras' },
+			{ action: 'wake' },
+			{ action: 'sleep' }
+		]) {
+			expect(parseHearthEvent({ ...event, device: 'hall' }, 'hall')).not.toBeNull();
+			expect(parseHearthEvent({ ...event, device: ['hall', 'kitchen'] }, 'kitchen')).not.toBeNull();
+			expect(parseHearthEvent({ ...event, device: 'hall' }, 'kitchen')).toBeNull();
+		}
+	});
+
+	it('shows the page a navigate event names, by id or by name', () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			rooms: [
+				{ id: 'home', name: 'Home', icon: 'home', cards: [[]] },
+				{ id: 'cameras', name: 'Front cameras', icon: 'videocam', cards: [[]] }
+			]
+		});
+		currentRoom.set('home');
+		handleHearthAction({ action: 'navigate', page: 'Front cameras' });
+		expect(get(currentRoom)).toBe('cameras');
+		handleHearthAction({ action: 'navigate', page: 'home' });
+		expect(get(currentRoom)).toBe('home');
+		handleHearthAction({ action: 'navigate', page: 'garage' });
+		expect(get(currentRoom)).toBe('home');
+		enterEditMode();
+		handleHearthAction({ action: 'navigate', page: 'cameras' });
+		expect(get(currentRoom)).toBe('home');
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+	});
+
+	it('wakes the screen and starts the sleep screen', () => {
+		const before = get(wakeScreen);
+		handleHearthAction({ action: 'wake' });
+		expect(get(wakeScreen)).toBe(before + 1);
+		handleHearthAction({ action: 'sleep' });
+		expect(get(screensaverPreview)).toBe(true);
+		screensaverPreview.set(false);
+		enterEditMode();
+		handleHearthAction({ action: 'sleep' });
+		expect(get(screensaverPreview)).toBe(false);
 	});
 
 	it('reads an alert with defaults for what it leaves out', () => {

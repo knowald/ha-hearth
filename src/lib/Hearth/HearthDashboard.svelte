@@ -21,7 +21,8 @@
 		type RailPosition,
 		type RailSide
 	} from './config';
-	import { conditionsHold, mediaQueriesIn, railWidgetShown } from './visibility';
+	import { clockFor, conditionsHold, mediaQueriesIn, railWidgetShown } from './visibility';
+	import { navigablePages } from './pages';
 	import type { AlertHost } from './alertEngine';
 	import { openEntityDetail } from './details';
 	import { loadMarkdownRenderer } from './markdown';
@@ -127,11 +128,12 @@
 	let layoutCut = $state<ScrollEdges>(NOTHING_CUT);
 	let edgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
 
-	// the selected page, or the first one when it was renamed away or deleted
+	// the selected page, or the first one when it was renamed away, deleted or
+	// hidden by its visibility conditions
 	let activeRoomId = $derived(
-		$hearthConfig.rooms.some((room) => room.id === $currentRoom)
+		$navigablePages.some((room) => room.id === $currentRoom)
 			? $currentRoom
-			: ($hearthConfig.rooms[0]?.id ?? '')
+			: ($navigablePages[0]?.id ?? '')
 	);
 
 	let activeRoom = $derived($hearthConfig.rooms.find((room) => room.id === activeRoomId));
@@ -144,10 +146,10 @@
 			!$hearthEditMode &&
 			$layerDepth === 0
 	);
-	let activeIndex = $derived($hearthConfig.rooms.findIndex((room) => room.id === activeRoomId));
+	let activeIndex = $derived($navigablePages.findIndex((room) => room.id === activeRoomId));
 
 	function swipeTo(direction: SwipeDirection) {
-		const roomId = neighborRoom($hearthConfig.rooms, activeRoomId, direction);
+		const roomId = neighborRoom($navigablePages, activeRoomId, direction);
 		if (roomId) currentRoom.set(roomId);
 	}
 
@@ -287,6 +289,7 @@
 	const alertHost: AlertHost = {
 		openDetail: openEntityDetail,
 		holds: conditionsHold,
+		clockFor,
 		layer,
 		loadMarkdown: loadMarkdownRenderer
 	};
@@ -313,7 +316,7 @@
 			use:swipeNav={{
 				enabled: swipeEnabled,
 				hasPrevious: activeIndex > 0,
-				hasNext: activeIndex >= 0 && activeIndex < $hearthConfig.rooms.length - 1,
+				hasNext: activeIndex >= 0 && activeIndex < $navigablePages.length - 1,
 				onswipe: swipeTo
 			}}
 		>

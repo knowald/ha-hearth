@@ -163,6 +163,50 @@ describe('HearthDashboard navigation', () => {
 		expect(new URL(location.href).searchParams.get('room')).toBe('home');
 	});
 
+	it('leaves a hidden page out of the nav widget and the phone strip, dimmed while editing', async () => {
+		const config = withRooms([{ id: 'nav', type: 'nav' }]);
+		config.rooms[1].visibility = [{ entity: 'input_boolean.cooking', state: 'on' }];
+		hearthConfig.set(config);
+		const { container } = render(HearthDashboard);
+		await act();
+		const pages = () => ({
+			rail: [...container.querySelectorAll<HTMLElement>('.rail-scroll .nav-item')].map(
+				(node) => node.dataset.id
+			),
+			strip: [...container.querySelectorAll('.phone-nav .page')].map(
+				(node) => node.lastElementChild?.textContent
+			)
+		});
+		expect(pages()).toEqual({ rail: ['home'], strip: ['Home'] });
+
+		await act(() => states.set({ 'input_boolean.cooking': { state: 'on' } } as never));
+		expect(pages().rail).toEqual(['home', 'kitchen']);
+
+		await act(() => states.set({}));
+		await act(() => enterEditMode());
+		const kitchen = container.querySelector('.rail-scroll [data-id="kitchen"]')!;
+		expect(kitchen.classList.contains('visibility-dimmed')).toBe(true);
+		expect(container.querySelectorAll('.phone-nav .page.visibility-dimmed')).toHaveLength(1);
+	});
+
+	it('sends a ?room= link to a hidden page to the first page shown', async () => {
+		history.replaceState(null, '', '/?room=kitchen');
+		const config = withRooms([{ id: 'nav', type: 'nav' }]);
+		config.rooms.unshift({
+			id: 'night',
+			name: 'Night',
+			icon: 'bedtime',
+			visibility: [{ entity: 'input_boolean.night', state: 'on' }],
+			cards: [[]]
+		});
+		config.rooms[2].visibility = [{ entity: 'input_boolean.cooking', state: 'on' }];
+		hearthConfig.set(config);
+		render(HearthDashboard);
+		await act();
+		expect(get(currentRoom)).toBe('home');
+		expect(new URL(location.href).searchParams.get('room')).toBe('home');
+	});
+
 	it('closes the search overlay on back', async () => {
 		hearthConfig.set(withRooms([{ id: 'search', type: 'search' }]));
 		render(HearthDashboard);

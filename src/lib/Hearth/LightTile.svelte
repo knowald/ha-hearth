@@ -108,6 +108,9 @@
 	class:unreachable={!controllable}
 	class:pending
 	data-id={entity}
+	data-entity={entity}
+	data-domain={entity.split('.')[0]}
+	data-state={$states?.[entity]?.state}
 	role="button"
 	tabindex={interactive ? 0 : -1}
 	aria-pressed={tapToggles(tapAction, entity) ? view.on : undefined}
@@ -140,7 +143,12 @@
 >
 	<div class="fill" style:width="{view.on ? view.level : 0}%"></div>
 	<div class="content">
-		<Icon name={icon || 'lightbulb'} size={ICON.tile} color={iconColor} fill={view.on} />
+		<Icon
+			name={icon || 'lightbulb'}
+			size={ICON.tile}
+			color="var(--tile-accent, {iconColor})"
+			fill={view.on}
+		/>
 		<div class="text">
 			<div class="name">{label}</div>
 			<div class="state">

@@ -320,7 +320,7 @@ describe('hearthConfigIssues', () => {
 			'rail[0].hour_format must be auto, 12 or 24',
 			'rooms[0].columns must be 1 to 3',
 			'rooms[0].cards[0][0].direction must be horizontal or vertical',
-			'rooms[0].cards[0][0].cards[0].visibility[0] must name an entity, a media query or an or-group',
+			'rooms[0].cards[0][0].cards[0].visibility[0] must name an entity, a media query, a device, a time or an or-group',
 			'rooms[0].cards[0][0].cards[0].fill must be at least 0',
 			'rooms[0].cards[0][1].media_players must be a list of entity ids',
 			'rooms[0].cards[0][1].timeout must be at least 0'

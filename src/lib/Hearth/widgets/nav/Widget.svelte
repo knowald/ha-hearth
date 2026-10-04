@@ -7,6 +7,7 @@
 	import type { HearthRoom } from '../../config';
 	import { currentRoom, editor, hearthConfig, hearthEditMode, updateConfig } from '../../store';
 	import Icon from '../../Icon.svelte';
+	import { hiddenPages, navigablePages } from '../../pages';
 	import type { NavWidget } from './descriptor';
 
 	let { widget }: { widget: NavWidget } = $props();
@@ -30,12 +31,13 @@
 			})
 	}}
 >
-	{#each $hearthConfig.rooms as room (room.id)}
+	{#each $navigablePages as room (room.id)}
 		<button
 			type="button"
 			class="nav-item pressable"
 			data-id={room.id}
 			class:active={$currentRoom === room.id}
+			class:visibility-dimmed={$hearthEditMode && $hiddenPages.includes(room.id)}
 			aria-current={$currentRoom === room.id ? 'page' : undefined}
 			use:Ripple={PRESS_RIPPLE}
 			onclick={() => currentRoom.set(room.id)}
@@ -91,6 +93,11 @@
 		backdrop-filter: var(--h-surface-blur);
 		border-color: rgb(var(--h-accent-rgb) / calc(0.22 * var(--h-accent-scale)));
 		color: var(--h-accent-text);
+	}
+
+	/* hidden by its visibility conditions; only edit mode lists it */
+	.nav-item.visibility-dimmed {
+		opacity: 0.45;
 	}
 
 	.nav-item.add {

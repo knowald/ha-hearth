@@ -303,6 +303,7 @@ function normalizeRoom(raw: any, index: number, taken: string[], takenItems: str
 		hide_header: raw?.hide_header === true ? true : undefined,
 		fill_screen: raw?.fill_screen === true ? true : undefined,
 		columns,
+		visibility: normalizeVisibility(raw?.visibility),
 		cards: normalizeRoomCards(raw, id, columns, takenItems)
 	};
 }

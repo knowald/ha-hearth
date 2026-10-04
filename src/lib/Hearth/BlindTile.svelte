@@ -147,6 +147,9 @@
 	class:unreachable={!controllable}
 	class:pending
 	data-id={entity}
+	data-entity={entity}
+	data-domain={entity.split('.')[0]}
+	data-state={$states?.[entity]?.state}
 	role="button"
 	tabindex={interactive ? 0 : -1}
 	aria-pressed={tapToggles(tapAction, entity) ? open : undefined}
@@ -179,11 +182,13 @@
 		<Icon
 			name={icon || 'blinds'}
 			size={ICON.tile}
-			color={!controllable
-				? 'var(--h-icon-dim)'
-				: open
-					? 'var(--h-accent-dim-text)'
-					: 'var(--h-icon-dim)'}
+			color={`var(--tile-accent, ${
+				!controllable
+					? 'var(--h-icon-dim)'
+					: open
+						? 'var(--h-accent-dim-text)'
+						: 'var(--h-icon-dim)'
+			})`}
 		/>
 		<div class="copy">
 			<div class="name">{label}</div>

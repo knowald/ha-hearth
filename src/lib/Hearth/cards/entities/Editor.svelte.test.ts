@@ -20,6 +20,36 @@ async function expandRow(entity: string) {
 	await fireEvent.click(screen.getByRole('button', { name: new RegExp(entity) }));
 }
 
+describe('entities card editor style rules', () => {
+	it('adds a rule under a row and keeps an existing one', async () => {
+		const unlocked = {
+			conditions: [{ entity: 'lock.front', state: 'unlocked' }],
+			color: 'bad'
+		};
+		const lastEntities = renderEditor([
+			{ entity: 'lock.front', style: [unlocked] },
+			{ entity: 'lock.back' }
+		]);
+		expect(lastEntities()[0].style).toEqual([unlocked]);
+
+		await expandRow('lock.back');
+		await fireEvent.click(await screen.findByRole('button', { name: en.hearth_add_style_rule }));
+		// a rule that restyles nothing is not stored yet
+		expect(lastEntities()[1].style).toBeUndefined();
+		// the row's own entity field comes first, the condition's last
+		await fireEvent.input(screen.getAllByLabelText(en.entity, { selector: 'input' }).at(-1)!, {
+			target: { value: 'lock.back' }
+		});
+		await fireEvent.input(screen.getByLabelText(en.state), { target: { value: 'unlocked' } });
+		await fireEvent.input(screen.getByLabelText(en.hearth_css_class), {
+			target: { value: 'open-lock' }
+		});
+		expect(lastEntities()[1].style).toEqual([
+			{ conditions: [{ entity: 'lock.back', state: 'unlocked' }], class: 'open-lock' }
+		]);
+	});
+});
+
 describe('entities card editor tile highlight', () => {
 	it('stores a trimmed highlight entity and the non-empty states', async () => {
 		const lastEntities = renderEditor([{ entity: 'sensor.washer' }]);

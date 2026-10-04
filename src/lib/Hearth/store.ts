@@ -7,6 +7,7 @@ import { holdReloads } from '$lib/core/app/reload';
 import { lang } from '$lib/core/i18n';
 import {
 	DEFAULT_HEARTH_CONFIG,
+	resolvePage,
 	type AlertSeverity,
 	type HearthConfig,
 	type RailSide
@@ -385,6 +386,13 @@ export const displayTimeZone = derived(railClock, ($clock) => validTimeZone($clo
 /* navigation & popups */
 
 export const currentRoom = writable<string>('home');
+
+/** Shows the page `path` names (an id, a name or a Lovelace path); false when none matches. */
+export function showPage(path: string): boolean {
+	const id = resolvePage(get(hearthConfig).rooms, path);
+	if (id) currentRoom.set(id);
+	return id !== undefined;
+}
 
 export type Popup = {
 	kind: 'light' | 'blind' | 'fan' | 'media' | 'detail';

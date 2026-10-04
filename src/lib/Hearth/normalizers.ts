@@ -1,7 +1,14 @@
 import * as v from 'valibot';
-import type { EntityRef, HearthAction, SceneRef, VacuumModeRef, VerdictBands } from './types';
-import { isLinkUrl, uniqueId } from './config';
-import { ActionSchema } from './schema';
+import type {
+	EntityRef,
+	HearthAction,
+	SceneRef,
+	StyleRule,
+	VacuumModeRef,
+	VerdictBands
+} from './types';
+import { isLinkUrl, normalizeVisibility, uniqueId } from './config';
+import { ActionSchema, StyleRuleSchema } from './schema';
 
 /*
  * Field-level normalizers that card and widget descriptors compose. Nothing
@@ -67,6 +74,7 @@ type RefFields = Omit<
 	| 'hold_action'
 	| 'name_template'
 	| 'state_template'
+	| 'style'
 >;
 
 function normalizeRefFields(raw: any): RefFields | null {
@@ -82,6 +90,7 @@ function normalizeRefFields(raw: any): RefFields | null {
 	delete rest.hold_action;
 	delete rest.name_template;
 	delete rest.state_template;
+	delete rest.style;
 	return {
 		...rest,
 		entity,
@@ -109,8 +118,28 @@ export function normalizeEntityRef(raw: unknown): EntityRef | null {
 		tap_action: normalizeAction(raw.tap_action),
 		hold_action: normalizeAction(raw.hold_action),
 		name_template: normalizeTemplate(raw.name_template),
-		state_template: normalizeTemplate(raw.state_template)
+		state_template: normalizeTemplate(raw.state_template),
+		style: normalizeStyleRules(raw.style)
 	};
+}
+
+/**
+ * Tile style rules. A rule left without conditions once the unusable ones
+ * are dropped, or that restyles nothing, is dropped with them.
+ */
+export function normalizeStyleRules(raw: unknown): StyleRule[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const rules = raw.flatMap((entry): StyleRule[] => {
+		if (!isRecord(entry)) return [];
+		const parsed = v.safeParse(StyleRuleSchema, {
+			conditions: normalizeVisibility(entry.conditions) ?? [],
+			color: trimmedOrUndefined(entry.color),
+			icon: trimmedOrUndefined(entry.icon),
+			class: trimmedOrUndefined(entry.class)
+		});
+		return parsed.success ? [parsed.output] : [];
+	});
+	return rules.length ? rules : undefined;
 }
 
 /** A list of HA states; YAML scalars such as `on` or `22` count as their text. */

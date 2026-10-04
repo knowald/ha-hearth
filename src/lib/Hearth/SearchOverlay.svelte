@@ -6,7 +6,8 @@
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from './config';
 	import { domainIcon } from '$lib/core/domains';
-	import { currentRoom, hearthConfig } from './store';
+	import { currentRoom } from './store';
+	import { navigablePages } from './pages';
 	import { openEntityDetail } from '$lib/Hearth/details';
 	import Icon from './Icon.svelte';
 	import CloseButton from './CloseButton.svelte';
@@ -37,7 +38,7 @@
 		const needle = query.trim().toLowerCase();
 		if (!needle) return [];
 
-		const rooms = $hearthConfig.rooms
+		const rooms = $navigablePages
 			.filter((room) => room.name.toLowerCase().includes(needle))
 			.map((room) => ({
 				result: { kind: 'room', id: room.id, name: room.name, icon: room.icon } as Result,

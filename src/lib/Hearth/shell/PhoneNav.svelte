@@ -5,6 +5,7 @@
 	import { states } from '$lib/core/ha/entities';
 	import { currentRoom, editor, hearthConfig, hearthEditMode } from '../store';
 	import { searchAvailable } from '../visibility';
+	import { hiddenPages, navigablePages } from '../pages';
 	import Icon from '../Icon.svelte';
 	import PhoneClock from './PhoneClock.svelte';
 	import { mediaQuery } from '$lib/ui/mediaQuery';
@@ -43,11 +44,12 @@
 		<PhoneClock />
 	{/if}
 	<div class="pages">
-		{#each $hearthConfig.rooms as room (room.id)}
+		{#each $navigablePages as room (room.id)}
 			<button
 				type="button"
 				class="page pressable"
 				class:active={$currentRoom === room.id}
+				class:visibility-dimmed={$hearthEditMode && $hiddenPages.includes(room.id)}
 				aria-current={$currentRoom === room.id ? 'page' : undefined}
 				bind:this={pills[room.id]}
 				onclick={() => currentRoom.set(room.id)}
@@ -158,6 +160,11 @@
 	.page.add {
 		border-style: dashed;
 		color: var(--h-text-5);
+	}
+
+	/* hidden by its visibility conditions; only edit mode lists it */
+	.page.visibility-dimmed {
+		opacity: 0.45;
 	}
 
 	.page.active {

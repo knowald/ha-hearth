@@ -1,6 +1,6 @@
 import * as v from 'valibot';
 import type { ActionTarget, HaAction } from '$lib/core/ha/commands';
-import { isLinkUrl, isTileUrl, RADAR_ZOOM } from './config';
+import { CLOCK_TIME, isLinkUrl, isTileUrl, RADAR_ZOOM, WEEKDAYS, type Weekday } from './config';
 
 /*
  * Field-level schemas for the shapes that recur across card and widget types.
@@ -176,6 +176,37 @@ export const ActionSchema = v.pipe(
 	})
 );
 
+// one class name or several, separated by spaces
+const CLASS_LIST = /^-?[_a-zA-Z][\w-]*(\s+-?[_a-zA-Z][\w-]*)*$/;
+
+/**
+ * Restyles a tile while its conditions hold. Lazy because the condition
+ * schema is declared further down.
+ */
+export const StyleRuleSchema = v.lazy(() =>
+	v.pipe(
+		v.object({
+			conditions: v.pipe(
+				v.array(VisibilityConditionSchema, 'must be a list of conditions'),
+				v.minLength(1, 'must have at least one condition')
+			),
+			color: OptionalText,
+			icon: OptionalText,
+			class: v.optional(
+				v.pipe(
+					v.string('must be text'),
+					v.trim(),
+					v.regex(CLASS_LIST, 'must be CSS class names separated by spaces')
+				)
+			)
+		}),
+		v.check(
+			(rule) => Boolean(rule.color?.trim() || rule.icon?.trim() || rule.class),
+			'needs a color, an icon or a class'
+		)
+	)
+);
+
 export const EntityRefSchema = v.object({
 	entity: EntityIdSchema,
 	name: OptionalText,
@@ -203,7 +234,9 @@ export const EntityRefSchema = v.object({
 	// Home Assistant templates for the tile's name and state text; the normal
 	// text shows while they load or when they fail
 	name_template: OptionalText,
-	state_template: OptionalText
+	state_template: OptionalText,
+	// the first rule whose conditions hold restyles the tile
+	style: v.optional(v.array(StyleRuleSchema, 'must be a list of style rules'))
 });
 
 // the tile highlight fields mean something else on scenes and nothing on
@@ -214,7 +247,8 @@ const RefSchema = v.omit(EntityRefSchema, [
 	'tap_action',
 	'hold_action',
 	'name_template',
-	'state_template'
+	'state_template',
+	'style'
 ]);
 
 export const SceneRefSchema = v.object({
@@ -243,28 +277,78 @@ export const VacuumModeRefSchema = v.object({
 
 /**
  * Per-item visibility condition:
- * an entity state match, a numeric window on an entity, a media query, or an
- * `or` group of conditions. All conditions on an item AND together.
+ * an entity state match or numeric window (on the state, or on one attribute
+ * of it), a media query, this screen's device name, a time window, or an `or`
+ * group of conditions. All conditions on an item AND together.
  */
 export type VisibilityConditionInput =
-	| { entity: string; state?: string; state_not?: string; above?: number; below?: number }
+	| {
+			entity: string;
+			attribute?: string;
+			state?: string;
+			state_not?: string;
+			above?: number;
+			below?: number;
+	  }
 	| { media: string }
+	| { device: string | string[] }
+	| { time: { after?: string; before?: string; weekdays?: Weekday[] } }
 	| { or: VisibilityConditionInput[] };
+
+const ClockTimeSchema = v.optional(
+	v.pipe(v.string('must be a time like 22:00'), v.regex(CLOCK_TIME, 'must be a time like 22:00'))
+);
+
+const DeviceNameSchema = v.pipe(
+	v.string('must be a device name'),
+	v.trim(),
+	v.minLength(1, 'must not be empty')
+);
 
 export const VisibilityConditionSchema: v.GenericSchema<VisibilityConditionInput> = v.lazy(() =>
 	v.union(
 		[
 			v.object({
 				entity: EntityIdSchema,
+				attribute: v.optional(
+					v.pipe(v.string('must be text'), v.trim(), v.minLength(1, 'must not be empty'))
+				),
 				state: OptionalText,
 				state_not: OptionalText,
 				above: v.optional(v.number('must be a number')),
 				below: v.optional(v.number('must be a number'))
 			}),
 			v.object({ media: v.string('must be a media query') }),
+			v.object({
+				device: v.union(
+					[
+						DeviceNameSchema,
+						v.pipe(v.array(DeviceNameSchema), v.minLength(1, 'must name at least one device'))
+					],
+					'must be a device name or a list of names'
+				)
+			}),
+			v.object({
+				time: v.pipe(
+					v.object({
+						after: ClockTimeSchema,
+						before: ClockTimeSchema,
+						weekdays: v.optional(
+							v.array(
+								v.picklist(WEEKDAYS, 'must be mon, tue, wed, thu, fri, sat or sun'),
+								'must be a list of weekdays'
+							)
+						)
+					}),
+					v.check(
+						(time) => Boolean(time.after || time.before || time.weekdays?.length),
+						'needs after, before or weekdays'
+					)
+				)
+			}),
 			v.object({ or: v.array(VisibilityConditionSchema, 'must be a list of conditions') })
 		],
-		'must name an entity, a media query or an or-group'
+		'must name an entity, a media query, a device, a time or an or-group'
 	)
 );
 
@@ -320,6 +404,7 @@ export const RoomSchema = v.looseObject({
 	humidity_entity: OptionalEntityId,
 	hide_header: OptionalFlag,
 	fill_screen: OptionalFlag,
+	visibility: VisibilityListSchema,
 	columns: v.optional(
 		v.pipe(
 			v.number('must be a number'),

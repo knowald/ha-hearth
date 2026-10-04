@@ -14,6 +14,12 @@ import type {
 
 export type * from './types';
 
+export const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+export type Weekday = (typeof WEEKDAYS)[number];
+
+/** A time of day as HH:MM on the 24 hour clock. */
+export const CLOCK_TIME = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
 /** A gap with no height is the one that absorbs the rail's leftover space. */
 function isFlexibleGap(widget: RailWidget): boolean {
 	return widget.type === 'spacer' && !widget.height;
@@ -256,8 +262,32 @@ function normalizeVisibilityCondition(raw: any): VisibilityCondition | null {
 	if (typeof raw.media === 'string' && raw.media.trim()) {
 		return { media: raw.media };
 	}
+	if ('device' in raw) {
+		// the editor keeps a list as comma-separated text until it is saved
+		const listed = typeof raw.device === 'string' ? raw.device.split(',') : raw.device;
+		const names = (Array.isArray(listed) ? listed : [])
+			.filter((name: unknown): name is string => typeof name === 'string')
+			.map((name: string) => name.trim())
+			.filter(Boolean);
+		if (!names.length) return null;
+		return { device: names.length === 1 && !Array.isArray(raw.device) ? names[0] : names };
+	}
+	if (raw.time && typeof raw.time === 'object') {
+		const time: { after?: string; before?: string; weekdays?: Weekday[] } = {};
+		for (const key of ['after', 'before'] as const) {
+			const value = typeof raw.time[key] === 'string' ? raw.time[key].trim() : '';
+			if (CLOCK_TIME.test(value)) time[key] = value;
+		}
+		const weekdays = Array.isArray(raw.time.weekdays)
+			? WEEKDAYS.filter((day) => raw.time.weekdays.includes(day))
+			: [];
+		if (weekdays.length) time.weekdays = weekdays;
+		return Object.keys(time).length ? { time } : null;
+	}
 	if (typeof raw.entity === 'string' && raw.entity.trim()) {
 		const condition: VisibilityCondition = { entity: raw.entity };
+		if (typeof raw.attribute === 'string' && raw.attribute.trim())
+			condition.attribute = raw.attribute.trim();
 		if (typeof raw.state === 'string' && raw.state !== '') condition.state = raw.state;
 		if (typeof raw.state_not === 'string' && raw.state_not !== '')
 			condition.state_not = raw.state_not;

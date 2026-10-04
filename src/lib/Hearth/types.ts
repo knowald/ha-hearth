@@ -5,6 +5,7 @@ import type {
 	EntityRefSchema,
 	MediaShortcutSchema,
 	SceneRefSchema,
+	StyleRuleSchema,
 	VacuumModeRefSchema,
 	VisibilityConditionSchema
 } from './schema';
@@ -37,6 +38,8 @@ export interface HearthRoom {
 	fill_screen?: boolean;
 	// fixes the page's card column count
 	columns?: number;
+	// the page leaves navigation while these do not hold; edit mode keeps it
+	visibility?: VisibilityCondition[];
 	cards: OverviewItem[][];
 }
 
@@ -44,6 +47,7 @@ export interface HearthRoom {
 export type HearthAction = v.InferOutput<typeof ActionSchema>;
 export type EntityRef = v.InferOutput<typeof EntityRefSchema>;
 export type SceneRef = v.InferOutput<typeof SceneRefSchema>;
+export type StyleRule = v.InferOutput<typeof StyleRuleSchema>;
 export type VacuumModeRef = v.InferOutput<typeof VacuumModeRefSchema>;
 export type VisibilityCondition = v.InferOutput<typeof VisibilityConditionSchema>;
 export type MediaShortcut = v.InferOutput<typeof MediaShortcutSchema>;
