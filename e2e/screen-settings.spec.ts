@@ -31,6 +31,8 @@ test.describe('phone', () => {
 		});
 		await page.clock.install();
 		await open(page);
+		// decided as the page renders: this screen never loads the sleep screen
+		await expect(page.locator('.frame')).toHaveAttribute('data-sleep', 'off');
 		await page.clock.fastForward('01:30');
 		await expect(sleepScreen(page)).toHaveCount(0);
 
@@ -40,12 +42,10 @@ test.describe('phone', () => {
 		await sheet.getByLabel('Sleep screen turns on').selectOption('');
 		await sheet.getByRole('button', { name: 'Close' }).first().click();
 		await expect(sheet).toBeHidden();
-		// the sleep screen mounts on demand and only then starts its timer; each
-		// try moves past a full timeout, so the first after the mount lands
-		await expect(async () => {
-			await page.clock.fastForward('01:30');
-			await expect(sleepScreen(page)).toBeVisible({ timeout: 1000 });
-		}).toPass();
+		// the sleep screen mounts on demand and only then starts its timer
+		await expect(page.locator('html')).toHaveAttribute('data-sleep-timer', 'armed');
+		await page.clock.fastForward('01:30');
+		await expect(sleepScreen(page)).toBeVisible();
 	});
 });
 

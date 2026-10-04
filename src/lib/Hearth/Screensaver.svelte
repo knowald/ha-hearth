@@ -47,12 +47,31 @@
 	// nor does it cover an edit session, whose draft sits unsaved under it
 	let editing = false;
 
+	// whether the idle timer is running; awake only, `active` covers asleep
+	let idleState = $state<'armed' | 'held' | 'off'>('off');
+
 	function scheduleIdle() {
 		clearTimeout(idleTimer);
-		if (active || alertShowing || editing || !minutes) return;
+		if (active || alertShowing || editing || !minutes) {
+			if (!active) idleState = minutes ? 'held' : 'off';
+			return;
+		}
+		idleState = 'armed';
 		const remaining = Math.max(0, minutes * 60_000 - (Date.now() - lastActivity));
 		idleTimer = setTimeout(() => (active = true), remaining);
 	}
+
+	/*
+	 * Published on <html> for custom CSS and for the browser tests, which can
+	 * only tell "stays awake" from "has not loaded yet" by it: armed (the idle
+	 * timer runs), held (an alert or an edit session pauses it), off (no
+	 * timeout, preview only) or asleep.
+	 */
+	$effect(() => {
+		const root = document.documentElement;
+		root.dataset.sleepTimer = active ? 'asleep' : idleState;
+		return () => delete root.dataset.sleepTimer;
+	});
 
 	// pointermove fires continuously, so cap timestamp writes to one per second
 	function recordActivity() {

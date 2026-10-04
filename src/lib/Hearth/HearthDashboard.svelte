@@ -376,7 +376,13 @@
 	</div>
 {/snippet}
 
-<section class="frame" use:wakeLock={$screenSettings.keepScreenOn}>
+<!-- data-sleep says whether this screen loads the sleep screen at all, for the
+     browser tests' "stays awake" checks -->
+<section
+	class="frame"
+	data-sleep={$screenSettings.sleepMinutes > 0 ? 'on' : 'off'}
+	use:wakeLock={$screenSettings.keepScreenOn}
+>
 	<div
 		class="layout"
 		class:editing={$hearthEditMode}
