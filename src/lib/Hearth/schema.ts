@@ -436,7 +436,7 @@ export const RoomSchema = v.looseObject({
 });
 
 // v.record alone accepts arrays, which are objects to it
-const ThemeSchema = v.pipe(
+export const ThemeSchema = v.pipe(
 	v.custom<Record<string, unknown>>(
 		(value) => !!value && typeof value === 'object' && !Array.isArray(value),
 		'must be a mapping of tokens'

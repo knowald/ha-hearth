@@ -322,6 +322,35 @@ The `todo` card shows a Home Assistant to-do list, such as Shopping List, Local 
 
 The card offers only what the list's integration supports: no add field on a list that cannot create items, no checkbox or rename where items cannot be updated, and no delete or Clear completed where they cannot be removed. Due dates show as a chip and turn red once overdue. Items arrive through `todo/item/subscribe`; on Home Assistant versions without it the card asks `todo.get_items` instead. A list that is missing or unavailable shows as List unavailable. Items an integration sends without an id are changed by their text, and are read-only when two of them share it. In edit mode a tap on the list opens the card editor.
 
+## Sharing cards and themes
+
+The card and widget sheets have a Form and a YAML view. YAML shows the item as it is saved, id included, and takes every option, also ones the form has no field for, such as `verdict` bands on an entity or a temperature card. It is checked like `hearth.yaml`: while it has an issue, Done and the way back to the form stay disabled and the issue names the line. The id of an existing item cannot change here.
+
+Copy as YAML, in the sheet's footer, puts the item on the clipboard. Add card and Add widget take it back under Paste YAML: one item, or a list of them, each with a new id. A Lovelace card pastes only where it is already a valid Hearth card; nothing is converted. Over plain HTTP on the LAN the browser keeps the clipboard from Hearth, so Copy shows the text selected for copying by hand, and Paste takes text pasted into its box.
+
+```yaml
+- type: entities
+  title: Air
+  style: stat
+  entities:
+    - entity: sensor.living_room_co2
+      verdict:
+        good: 800
+        fair: 1200
+- type: iframe
+  url: https://example.com/weather
+  height: 240
+```
+
+Under Theme > Share, Copy as YAML and Download write the open theme (day or night) in the format of a saved theme in `hearth-themes/`. Import takes such a file, or a bare mapping of theme tokens, shows a preview, and applies it on Apply as a step you can undo.
+
+```yaml
+name: Moss
+theme:
+  accent: '#3a7d44'
+  cool: '#4a90a4'
+```
+
 ## Custom CSS and JavaScript
 
 Edit custom CSS under Settings > Appearance > Custom CSS. Save writes the file at once and returns to Settings. Style against the `--h-*` tokens, not internal class names, which can change between releases.

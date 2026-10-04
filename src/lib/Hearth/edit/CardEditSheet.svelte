@@ -28,9 +28,14 @@
 		roomColumnCount,
 		shiftItem
 	} from '../model/layoutEdits';
-	import { editor, hearthConfig, offerUndo, updateConfig } from '../store';
+	import { editor, hearthConfig, offerUndo, reportCopy, updateConfig } from '../store';
+	import { itemDocument, itemFromDocument, pastedCards } from '../snippets';
+	import { copyText } from '$lib/ui/clipboard';
 	import { confirmDiscard } from './discard';
 	import CardPreview from './CardPreview.svelte';
+	import CodeField from './CodeField.svelte';
+	import CopyFallback from './CopyFallback.svelte';
+	import EditorMode from './EditorMode.svelte';
 	import EditSheet from './EditSheet.svelte';
 	import FormSection from './FormSection.svelte';
 	import TypeGallery from './TypeGallery.svelte';
@@ -67,6 +72,8 @@
 	// svelte-ignore state_referenced_locally
 	const initial = id !== null ? findOverviewCard(get(hearthConfig), id, roomId) : undefined;
 
+	// what the form starts from: the saved card, or one the YAML tab handed back
+	let base = $state.raw<OverviewCard | undefined>(initial);
 	let type = $state<OverviewCard['type']>(initial?.type ?? 'entities');
 	// a new card opens on the gallery; an existing one on its fields
 	// svelte-ignore state_referenced_locally
@@ -136,9 +143,23 @@
 	let editorRef = $state<{ applyPreviewReorder?: (entities: EntityRef[]) => void }>();
 
 	let descriptor = $derived(cardDescriptor(type));
-	let editorInitial = $derived(initial?.type === type ? initial : undefined);
+	let editorInitial = $derived(base?.type === type ? base : undefined);
+
+	/*
+	 * The YAML tab edits the whole card, options without a form field
+	 * included. While it is open its document is the card, and going back to
+	 * the form re-reads it, which remounts the type's editor on the result.
+	 */
+	let mode = $state<'form' | 'yaml'>('form');
+	let yamlText = $state('');
+	let yamlOpened = $state('');
+	let yamlApplied = $state(false);
+	let editorRound = $state(0);
+	let yamlCard = $derived(mode === 'yaml' ? itemFromDocument('card', yamlText, id) : null);
+	let yamlIssue = $derived(yamlCard?.issue ?? null);
 
 	function buildCard(cardId: string): OverviewCard {
+		if (yamlCard?.value) return { ...yamlCard.value, id: cardId };
 		const heightValue = integerFromInput(height);
 		const fillValue = fill === '' ? undefined : Number(fill);
 		// Unknown extension keys survive a no-op form edit. Switching type starts
@@ -146,7 +167,7 @@
 		// snapshot: the draft is $state and its nested arrays are proxies,
 		// which the store's structuredClone cannot copy
 		const fields = {
-			...(initial?.type === type ? initial : {}),
+			...(base?.type === type ? base : {}),
 			...$state.snapshot(draft.fields)
 		};
 		return {
@@ -179,7 +200,9 @@
 	let untouchedType = $state(initial?.type ?? 'entities');
 	let untouchedFields = $state<string>();
 	let dirty = $derived(
-		type !== untouchedType ||
+		yamlApplied ||
+			(mode === 'yaml' && yamlText !== yamlOpened) ||
+			type !== untouchedType ||
 			layout() !== untouchedLayout ||
 			(untouchedFields !== undefined && JSON.stringify(draft.fields) !== untouchedFields)
 	);
@@ -215,7 +238,8 @@
 			} else {
 				const cards = insertionList(config);
 				if (!cards) return;
-				cards.push(buildCard(uniqueId(slugify(type), takenCardIds(config))));
+				const card = buildCard('');
+				cards.push({ ...card, id: uniqueId(slugify(card.type), takenCardIds(config)) });
 			}
 		});
 		close();
@@ -250,6 +274,51 @@
 		});
 	}
 
+	function showYaml() {
+		yamlText = itemDocument(buildCard(id ?? ''), id !== null);
+		yamlOpened = yamlText;
+		mode = 'yaml';
+	}
+
+	function showForm() {
+		const card = yamlCard?.value;
+		if (!card) return;
+		if (yamlText !== yamlOpened) {
+			base = card;
+			type = card.type;
+			fill = typeof card.fill === 'number' ? String(card.fill) : '';
+			height = 'height' in card && card.height ? String(card.height) : '';
+			visibility = (card.visibility ?? []).map((condition) => ({ ...condition }));
+			draft = { fields: {} as CardDraft<OverviewCard>['fields'] };
+			editorRound += 1;
+			yamlApplied = true;
+		}
+		mode = 'form';
+	}
+
+	// shown for copying by hand where the clipboard is out of reach
+	let copyFallback = $state<string | null>(null);
+
+	async function copyYaml() {
+		if (id === null) return;
+		const text = itemDocument(buildCard(id));
+		if (await copyText(text)) reportCopy('copied');
+		else copyFallback = text;
+	}
+
+	// one card or stack, or a list, lands at the end of the column the sheet was opened for
+	function paste(text: string): string | null {
+		const result = pastedCards(text, takenCardIds(get(hearthConfig)), stackId !== undefined);
+		if (result.issue !== null) return result.issue;
+		updateConfig((config) => {
+			const room = config.rooms.find((entry) => entry.id === roomId);
+			if (room) ensureRoomCardColumns(room);
+			(insertionList(config) as OverviewItem[] | undefined)?.push(...result.value);
+		});
+		close();
+		return null;
+	}
+
 	function selectType(value: string) {
 		if (id === null && value !== type) {
 			untouchedType = value as OverviewCard['type'];
@@ -261,37 +330,72 @@
 	}
 </script>
 
+{#snippet copyAction()}
+	<button
+		type="button"
+		class="hearth-button secondary pressable"
+		disabled={yamlIssue !== null}
+		onclick={copyYaml}
+	>
+		{$lang('hearth_copy_as_yaml')}
+	</button>
+{/snippet}
+
 <EditSheet
 	title={$lang(id !== null ? 'hearth_edit_card' : 'hearth_add_card')}
 	onclose={close}
 	ondone={done}
 	{dirty}
-	doneDisabled={typeOpen || draft.valid === false}
-	doneReason={!typeOpen && draft.valid === false
-		? (draft.reason ?? $lang('hearth_fix_marked_fields'))
-		: null}
+	doneDisabled={typeOpen || (mode === 'yaml' ? yamlIssue !== null : draft.valid === false)}
+	doneReason={typeOpen
+		? null
+		: mode === 'yaml'
+			? yamlIssue && $lang('hearth_fix_the_yaml')
+			: draft.valid === false
+				? (draft.reason ?? $lang('hearth_fix_marked_fields'))
+				: null}
 	onremove={id !== null ? remove : undefined}
 	onmoveup={id !== null ? () => move(-1) : undefined}
 	onmovedown={id !== null ? () => move(1) : undefined}
 	moveUpDisabled={stagedIndex <= 0}
 	moveDownDisabled={stagedIndex >= position.length - 1}
 	onduplicate={id !== null ? duplicate : undefined}
+	actions={id !== null ? copyAction : undefined}
 	confirmRemove={false}
 	wide
 >
-	<TypeGallery
-		kinds={CARD_TYPES}
-		selected={type}
-		label="hearth_card_type"
-		searchPlaceholder={$lang('hearth_search_cards')}
-		noMatch={$lang('hearth_no_cards_match')}
-		bind:open={typeOpen}
-		onselect={selectType}
-	/>
+	{#if copyFallback !== null}
+		<CopyFallback text={copyFallback} onclose={() => (copyFallback = null)} />
+	{/if}
+	{#if mode === 'form'}
+		<TypeGallery
+			kinds={CARD_TYPES}
+			selected={type}
+			label="hearth_card_type"
+			searchPlaceholder={$lang('hearth_search_cards')}
+			noMatch={$lang('hearth_no_cards_match')}
+			bind:open={typeOpen}
+			onselect={selectType}
+			onpaste={id === null ? paste : undefined}
+			pasteHint={$lang('hearth_paste_cards_hint')}
+		/>
+	{/if}
+	{#if !typeOpen}
+		<EditorMode {mode} formBlocked={yamlIssue} onform={showForm} onyaml={showYaml} />
+	{/if}
 	<div class="card-editor-layout editor-layout" class:hidden={typeOpen}>
-		<div class="card-settings editor-fields">
-			<!-- keyed so a type switch mounts a fresh editor with fresh field state -->
-			{#key type}
+		{#if mode === 'yaml'}
+			<div class="card-settings editor-fields">
+				<div class="hint">{$lang('hearth_yaml_tab_hint')}</div>
+				<CodeField label={$lang('hearth_card_yaml')} bind:value={yamlText} expectMapping={false} />
+				{#if yamlIssue}
+					<div class="field-error" role="alert">{yamlIssue}</div>
+				{/if}
+			</div>
+		{/if}
+		<div class="card-settings editor-fields" class:hidden={mode === 'yaml'}>
+			<!-- keyed so a type switch, or a card read back from YAML, mounts a fresh editor -->
+			{#key `${type}:${editorRound}`}
 				{#await descriptor.editor() then Editor}
 					<Editor.default bind:this={editorRef} initial={editorInitial} onchange={report} />
 				{:catch}
@@ -366,7 +470,8 @@
 	}
 
 	/* the open gallery is the whole sheet; fields and preview wait underneath */
-	.card-editor-layout.hidden {
+	.card-editor-layout.hidden,
+	.card-settings.hidden {
 		display: none;
 	}
 
