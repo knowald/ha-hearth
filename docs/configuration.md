@@ -295,7 +295,7 @@ The `todo` card shows a Home Assistant to-do list, such as Shopping List, Local 
 | `show_completed` | `true` opens the Completed section. Without it, completed items wait in a collapsed section.        |
 | `hide_add`       | `true` hides the add field.                                                                         |
 
-The card offers only what the list's integration supports: no add field on a list that cannot create items, no checkbox or rename where items cannot be updated, and no delete or Clear completed where they cannot be removed. Due dates show as a chip and turn red once overdue. Items arrive through `todo/item/subscribe`; on Home Assistant versions without it the card asks `todo.get_items` instead. In edit mode the list ignores taps.
+The card offers only what the list's integration supports: no add field on a list that cannot create items, no checkbox or rename where items cannot be updated, and no delete or Clear completed where they cannot be removed. Due dates show as a chip and turn red once overdue. Items arrive through `todo/item/subscribe`; on Home Assistant versions without it the card asks `todo.get_items` instead. A list that is missing or unavailable shows as List unavailable. Items an integration sends without an id are changed by their text, and are read-only when two of them share it. In edit mode a tap on the list opens the card editor.
 
 ## Custom CSS and JavaScript
 

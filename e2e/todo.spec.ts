@@ -143,11 +143,52 @@ test('search lists the to-do list like any entity', async ({ page }) => {
 	await expect(search.getByText('Shopping list')).toBeVisible();
 });
 
-test('the list ignores taps in edit mode', async ({ page, request }) => {
+test('a tap on the list in edit mode opens the card editor', async ({ page, request }) => {
 	const card = await open(page);
 	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
-	// inert passes the tap to whatever the card sits in
+	// edit mode loads its editors first; a tap before that reaches nothing
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+	// inert passes the tap to the card slot, which opens the editor
 	await card.getByText('Milk').click({ force: true });
+	await expect(page.getByRole('dialog', { name: 'Edit card' })).toBeVisible();
 	await expect(card.getByRole('textbox', { name: 'Rename Milk' })).toBeHidden();
 	expect(await todoCalls(request)).toEqual([]);
+});
+
+test('a list Home Assistant does not know shows as unavailable', async ({ page }) => {
+	writeFileSync(HEARTH_FILE, WITH_TODO.replace('todo.shopping', 'todo.broken'));
+	await page.goto('/');
+	const card = page.getByRole('region', { name: 'Groceries' });
+	await expect(card.getByText('List unavailable')).toBeVisible();
+	await expect(card.getByRole('textbox', { name: 'Add an item' })).toBeHidden();
+});
+
+test.describe('without todo/item/subscribe', () => {
+	test.beforeEach(async ({ request }) => {
+		await request.post(`${FAKE_HASS}/_test/todo_subscribe`, { data: { supported: false } });
+	});
+
+	test('reads the list through todo.get_items and keeps changes', async ({ page, request }) => {
+		const card = await open(page);
+		await card.getByRole('checkbox', { name: 'Milk' }).click();
+		await expect(card.getByRole('button', { name: 'Completed (2)' })).toBeVisible();
+		const field = card.getByRole('textbox', { name: 'Add an item' });
+		await field.fill('Eggs');
+		await field.press('Enter');
+		await expect(card.getByRole('checkbox', { name: 'Eggs' })).toBeVisible();
+		await expect
+			.poll(async () => (await todoCalls(request)).map((call) => call.service))
+			.toEqual(expect.arrayContaining(['get_items', 'update_item', 'add_item']));
+		// a fresh read shows what Home Assistant holds, not just what the card guessed
+		await page.reload();
+		await expect(card.getByRole('checkbox', { name: 'Eggs' })).toBeVisible();
+		await expect(card.getByRole('button', { name: 'Completed (2)' })).toBeVisible();
+	});
+
+	test('shows a list get_items cannot find as unavailable', async ({ page }) => {
+		writeFileSync(HEARTH_FILE, WITH_TODO.replace('todo.shopping', 'todo.broken'));
+		await page.goto('/');
+		const card = page.getByRole('region', { name: 'Groceries' });
+		await expect(card.getByText('List unavailable')).toBeVisible();
+	});
 });

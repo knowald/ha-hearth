@@ -7,17 +7,23 @@ import { hassEntity } from '../ha/testing';
 import {
 	createTodoList,
 	homeAssistantTodoSource,
+	nextStamp,
 	parseTodoItems,
 	sortTodoItems,
 	todoAbilities,
 	todoDue,
+	type TodoFeedHandlers,
 	type TodoItem,
 	type TodoSource
 } from './todo';
 
-const milk: TodoItem = { uid: 'a', summary: 'Milk', status: 'needs_action' };
-const bread: TodoItem = { uid: 'b', summary: 'bread', status: 'needs_action', due: '2026-10-06' };
-const eggs: TodoItem = { uid: 'c', summary: 'Eggs', status: 'completed', due: '2026-10-05' };
+function item(uid: string, summary: string, extra: Partial<TodoItem> = {}): TodoItem {
+	return { key: `uid:${uid}`, target: uid, summary, status: 'needs_action', ...extra };
+}
+
+const milk = item('a', 'Milk');
+const bread = item('b', 'bread', { due: '2026-10-06' });
+const eggs = item('c', 'Eggs', { status: 'completed', due: '2026-10-05' });
 
 describe('todoAbilities', () => {
 	it('reads each TodoListEntityFeature bit', () => {
@@ -49,15 +55,24 @@ describe('parseTodoItems', () => {
 			parseTodoItems([
 				{ uid: 'a', summary: 'Milk', status: 'needs_action', due: null },
 				{ uid: 'b', summary: 'Tea', status: 'completed', description: 'green' },
-				{ summary: 'no uid' },
+				{ uid: 'c' },
 				null,
 				'text'
 			])
-		).toEqual([
-			{ uid: 'a', summary: 'Milk', status: 'needs_action' },
-			{ uid: 'b', summary: 'Tea', status: 'completed', description: 'green' }
-		]);
+		).toEqual([item('a', 'Milk'), item('b', 'Tea', { status: 'completed', description: 'green' })]);
 		expect(parseTodoItems(undefined)).toEqual([]);
+	});
+
+	it('names an item without a uid by its summary, unless the summary repeats', () => {
+		const [jam, first, second] = parseTodoItems([
+			{ summary: 'Jam', status: 'needs_action' },
+			{ summary: 'Tea', status: 'needs_action' },
+			{ uid: '', summary: 'Tea', status: 'completed' }
+		]);
+		expect(jam).toMatchObject({ key: 'summary:0:Jam', target: 'Jam' });
+		expect(first.key).not.toBe(second.key);
+		expect(first.target).toBeUndefined();
+		expect(second.target).toBeUndefined();
 	});
 });
 
@@ -70,7 +85,7 @@ describe('sortTodoItems', () => {
 	});
 
 	it('sorts alphabetically regardless of case', () => {
-		expect(sortTodoItems(items, 'alphabetical').map((item) => item.summary)).toEqual([
+		expect(sortTodoItems(items, 'alphabetical').map((entry) => entry.summary)).toEqual([
 			'bread',
 			'Eggs',
 			'Milk'
@@ -78,8 +93,8 @@ describe('sortTodoItems', () => {
 	});
 
 	it('sorts by due date with undated items last in list order', () => {
-		const tea: TodoItem = { uid: 'd', summary: 'Tea', status: 'needs_action' };
-		expect(sortTodoItems([milk, bread, tea, eggs], 'due').map((item) => item.uid)).toEqual([
+		const tea = item('d', 'Tea');
+		expect(sortTodoItems([milk, bread, tea, eggs], 'due').map((entry) => entry.target)).toEqual([
 			'c',
 			'b',
 			'a',
@@ -108,16 +123,18 @@ describe('todoDue', () => {
 	});
 });
 
-/** A list whose pushes and service results the test controls. */
-function fakeSource() {
-	let push: (items: TodoItem[]) => void = () => {};
+/** A list whose lists and service results the test controls. */
+function fakeSource(pushes = true) {
+	let handlers: TodoFeedHandlers | null = null;
 	const results: ((ok: boolean) => void)[] = [];
-	const refresh = vi.fn();
+	// a poll asked now answers later, with the stamp of the asking
+	const asked: number[] = [];
+	const refresh = vi.fn(() => asked.push(nextStamp()));
 	const stop = vi.fn();
 	const source: TodoSource = {
-		subscribe: vi.fn(async (_entityId, onItems) => {
-			push = onItems;
-			return { stop, refresh };
+		subscribe: vi.fn((_entityId, next) => {
+			handlers = next;
+			return { stop, refresh, pushes };
 		}),
 		call: vi.fn(
 			() =>
@@ -128,7 +145,12 @@ function fakeSource() {
 	};
 	return {
 		source,
-		push: (items: TodoItem[]) => push(items),
+		/** A list asked for (and so stamped) now. */
+		push: (items: TodoItem[]) => handlers?.items(items, nextStamp()),
+		/** Stamps a poll now, answered later through `answerPoll`. */
+		ask: () => asked.push(nextStamp()),
+		answerPoll: (items: TodoItem[]) => handlers?.items(items, asked.shift()!),
+		unavailable: () => handlers?.unavailable(),
 		/** Answers the oldest call still waiting. */
 		answer: async (ok: boolean) => {
 			results.shift()?.(ok);
@@ -142,86 +164,138 @@ function fakeSource() {
 
 describe('createTodoList', () => {
 	let fake: ReturnType<typeof fakeSource>;
+	const onRollback = vi.fn();
 
 	beforeEach(() => {
 		vi.useFakeTimers();
 		fake = fakeSource();
+		onRollback.mockClear();
 	});
 
 	afterEach(() => vi.useRealTimers());
 
-	async function started() {
-		const list = createTodoList('todo.shopping', fake.source);
-		await Promise.resolve();
+	function started() {
+		const list = createTodoList('todo.shopping', { source: fake.source, onRollback });
 		fake.push([milk, eggs]);
 		return list;
 	}
 
 	it('shows nothing until the first list arrives', () => {
-		const list = createTodoList('todo.shopping', fake.source);
+		const list = createTodoList('todo.shopping', { source: fake.source });
+		expect(get(list.items)).toBeNull();
+		expect(get(list.status)).toBe('loading');
+		fake.push([]);
+		expect(get(list.status)).toBe('ready');
+	});
+
+	it('reports a list Home Assistant does not know', () => {
+		const list = started();
+		fake.unavailable();
+		expect(get(list.status)).toBe('unavailable');
 		expect(get(list.items)).toBeNull();
 	});
 
-	it('shows an added item at once and sends add_item', async () => {
-		const list = await started();
+	it('shows an added item at once and sends add_item', () => {
+		const list = started();
 		list.add('  Bread ');
-		expect(get(list.items)?.map((item) => item.summary)).toEqual(['Milk', 'Eggs', 'Bread']);
+		expect(get(list.items)?.map((entry) => entry.summary)).toEqual(['Milk', 'Eggs', 'Bread']);
 		expect(get(list.items)?.[2].local).toBe(true);
 		expect(fake.source.call).toHaveBeenCalledWith('todo.shopping', 'add_item', { item: 'Bread' });
 	});
 
 	it('does not double an added item when the push beats the result', async () => {
-		const list = await started();
+		const list = started();
 		list.add('Bread');
-		fake.push([milk, eggs, { uid: 'z', summary: 'Bread', status: 'needs_action' }]);
-		expect(get(list.items)?.map((item) => item.uid)).toEqual(['a', 'c', 'z']);
+		fake.push([milk, eggs, item('z', 'Bread')]);
+		expect(get(list.items)?.map((entry) => entry.key)).toEqual(['uid:a', 'uid:c', 'uid:z']);
 		await fake.answer(true);
-		expect(get(list.items)?.map((item) => item.uid)).toEqual(['a', 'c', 'z']);
+		expect(get(list.items)?.map((entry) => entry.key)).toEqual(['uid:a', 'uid:c', 'uid:z']);
 	});
 
-	it('completes an item at once and keeps it completed until the list confirms', async () => {
-		const list = await started();
-		list.setStatus('a', 'completed');
+	it('shows both of two quick adds of the same text', () => {
+		const list = started();
+		list.add('Bread');
+		list.add('Bread');
+		expect(get(list.items)?.filter((entry) => entry.summary === 'Bread')).toHaveLength(2);
+		// the first echo arrives: one item is real, the other still local
+		fake.push([milk, eggs, item('y', 'Bread')]);
+		const breads = get(list.items)?.filter((entry) => entry.summary === 'Bread');
+		expect(breads?.map((entry) => Boolean(entry.local))).toEqual([false, true]);
+		fake.push([milk, eggs, item('y', 'Bread'), item('z', 'Bread')]);
+		expect(get(list.items)?.filter((entry) => entry.summary === 'Bread')).toHaveLength(2);
+	});
+
+	it('completes an item at once and keeps it completed until a list confirms', async () => {
+		const list = started();
+		list.setStatus('uid:a', 'completed');
 		expect(get(list.items)?.[0].status).toBe('completed');
 		expect(fake.source.call).toHaveBeenCalledWith('todo.shopping', 'update_item', {
 			item: 'a',
 			status: 'completed'
 		});
 		await fake.answer(true);
-		// accepted, but no list has shown it yet: the change holds and a poll is asked for
 		expect(get(list.items)?.[0].status).toBe('completed');
-		expect(fake.refresh).toHaveBeenCalled();
 		fake.push([{ ...milk, status: 'completed' }, eggs]);
-		// a later list without the change wins, since the change was confirmed and dropped
+		// confirmed and dropped: a later list without the change wins
 		fake.push([milk, eggs]);
 		expect(get(list.items)?.[0].status).toBe('needs_action');
 	});
 
-	it('rolls a failed change back', async () => {
-		const list = await started();
-		list.setStatus('a', 'completed');
-		list.remove('c');
-		expect(get(list.items)?.map((item) => [item.uid, item.status])).toEqual([['a', 'completed']]);
-		await fake.answer(false);
-		expect(get(list.items)?.map((item) => [item.uid, item.status])).toEqual([
-			['a', 'needs_action']
-		]);
-		await fake.answer(false);
-		expect(get(list.items)).toEqual([milk, eggs]);
+	it('edits an item without a uid by its summary', () => {
+		const list = createTodoList('todo.shopping', { source: fake.source });
+		const [jam] = parseTodoItems([{ summary: 'Jam', status: 'needs_action' }]);
+		fake.push([jam]);
+		list.setStatus(jam.key, 'completed');
+		list.remove(jam.key);
+		expect(fake.source.call).toHaveBeenNthCalledWith(1, 'todo.shopping', 'update_item', {
+			item: 'Jam',
+			status: 'completed'
+		});
+		expect(fake.source.call).toHaveBeenNthCalledWith(2, 'todo.shopping', 'remove_item', {
+			item: ['Jam']
+		});
 	});
 
-	it('gives way to the list when no confirming push arrives', async () => {
-		const list = await started();
-		list.rename('a', 'Oat milk');
+	it('leaves items it cannot name alone', () => {
+		const list = started();
+		list.add('Bread');
+		const local = get(list.items)![2];
+		vi.mocked(fake.source.call).mockClear();
+		list.setStatus(local.key, 'completed');
+		list.remove(local.key);
+		list.rename('uid:a', 'Milk');
+		expect(fake.source.call).not.toHaveBeenCalled();
+	});
+
+	it('rolls a failed change back and says so', async () => {
+		const list = started();
+		list.setStatus('uid:a', 'completed');
+		list.remove('uid:c');
+		expect(get(list.items)?.map((entry) => [entry.target, entry.status])).toEqual([
+			['a', 'completed']
+		]);
+		await fake.answer(false);
+		expect(get(list.items)?.map((entry) => [entry.target, entry.status])).toEqual([
+			['a', 'needs_action']
+		]);
+		expect(onRollback).toHaveBeenCalledWith('Milk');
+		await fake.answer(false);
+		expect(get(list.items)).toEqual([milk, eggs]);
+		expect(onRollback).toHaveBeenLastCalledWith('Eggs');
+	});
+
+	it('gives way to the list when no confirming list arrives', async () => {
+		const list = started();
+		list.rename('uid:a', 'Oat milk');
 		await fake.answer(true);
 		expect(get(list.items)?.[0].summary).toBe('Oat milk');
 		vi.advanceTimersByTime(5000);
 		expect(get(list.items)?.[0].summary).toBe('Milk');
 	});
 
-	it('sends uids for removals and clears only completed items', async () => {
-		const list = await started();
-		list.remove('a');
+	it('sends uids for removals and clears only completed items', () => {
+		const list = started();
+		list.remove('uid:a');
 		expect(fake.source.call).toHaveBeenLastCalledWith('todo.shopping', 'remove_item', {
 			item: ['a']
 		});
@@ -234,50 +308,80 @@ describe('createTodoList', () => {
 		expect(get(list.items)).toEqual([]);
 	});
 
-	it('ignores blank text and stops its feed on destroy', async () => {
-		const list = await started();
+	it('ignores blank text and stops its feed on destroy', () => {
+		const list = started();
 		list.add('   ');
-		list.rename('a', '');
+		list.rename('uid:a', '');
 		expect(fake.source.call).not.toHaveBeenCalled();
 		list.destroy();
 		expect(fake.stop).toHaveBeenCalled();
 	});
+
+	describe('while polling', () => {
+		beforeEach(() => {
+			fake = fakeSource(false);
+		});
+
+		it('only counts a list asked for after the change was accepted', async () => {
+			const list = started();
+			list.setStatus('uid:a', 'completed');
+			// asked after sending but before Home Assistant took the change
+			fake.ask();
+			await fake.answer(true);
+			expect(fake.refresh).toHaveBeenCalled();
+			fake.answerPoll([milk, eggs]);
+			expect(get(list.items)?.[0].status).toBe('completed');
+			// the refresh after acceptance holds the change, and confirms it
+			fake.answerPoll([{ ...milk, status: 'completed' }, eggs]);
+			fake.push([milk, eggs]);
+			expect(get(list.items)?.[0].status).toBe('needs_action');
+		});
+	});
 });
 
 describe('homeAssistantTodoSource', () => {
-	afterEach(() => connection.set(undefined));
+	const handlers = () => ({ items: vi.fn(), unavailable: vi.fn() });
+
+	afterEach(() => {
+		vi.useRealTimers();
+		connection.set(undefined);
+	});
 
 	it('subscribes to todo/item/subscribe for live items', async () => {
 		const stop = vi.fn(async () => {});
 		const subscribeMessage = vi.fn(async (callback: (message: unknown) => void) => {
-			callback({ items: [milk] });
+			callback({ items: [{ uid: 'a', summary: 'Milk', status: 'needs_action' }] });
 			return stop;
 		});
 		connection.set({ subscribeMessage } as unknown as Connection);
-		const onItems = vi.fn();
-		const feed = await homeAssistantTodoSource.subscribe('todo.shopping', onItems);
+		const listener = handlers();
+		const feed = homeAssistantTodoSource.subscribe('todo.shopping', listener);
+		await vi.waitFor(() => expect(listener.items).toHaveBeenCalledWith([milk], expect.any(Number)));
 		expect(subscribeMessage).toHaveBeenCalledWith(expect.any(Function), {
 			type: 'todo/item/subscribe',
 			entity_id: 'todo.shopping'
 		});
-		expect(onItems).toHaveBeenCalledWith([milk]);
+		expect(feed.pushes).toBe(true);
 		feed.stop();
 		expect(stop).toHaveBeenCalled();
 	});
 
-	it('falls back to todo.get_items when the subscription is refused', async () => {
+	it('falls back to todo.get_items only where the command is unknown', async () => {
 		const sendMessagePromise = vi.fn(async () => ({
-			response: { 'todo.shopping': { items: [milk, eggs] } }
+			response: {
+				'todo.shopping': { items: [{ uid: 'a', summary: 'Milk', status: 'needs_action' }] }
+			}
 		}));
 		connection.set({
 			subscribeMessage: vi.fn(async () => {
-				throw { code: 'unknown_command' };
+				throw { code: 'unknown_command', message: 'Unknown command.' };
 			}),
 			sendMessagePromise
 		} as unknown as Connection);
-		const onItems = vi.fn();
-		const feed = await homeAssistantTodoSource.subscribe('todo.shopping', onItems);
-		await vi.waitFor(() => expect(onItems).toHaveBeenCalledWith([milk, eggs]));
+		const listener = handlers();
+		const feed = homeAssistantTodoSource.subscribe('todo.shopping', listener);
+		await vi.waitFor(() => expect(listener.items).toHaveBeenCalledWith([milk], expect.any(Number)));
+		expect(feed.pushes).toBe(false);
 		expect(sendMessagePromise).toHaveBeenCalledWith(
 			expect.objectContaining({
 				type: 'call_service',
@@ -296,5 +400,47 @@ describe('homeAssistantTodoSource', () => {
 		states.set({ 'todo.shopping': hassEntity('todo.shopping', '4') });
 		await Promise.resolve();
 		expect(sendMessagePromise).toHaveBeenCalledTimes(3);
+	});
+
+	it('reports a polled list that never answers as unavailable', async () => {
+		connection.set({
+			subscribeMessage: vi.fn(async () => {
+				throw { code: 'unknown_command' };
+			}),
+			sendMessagePromise: vi.fn(async () => {
+				throw {
+					code: 'service_validation_error',
+					message: 'Service call requested response data but did not match any entities'
+				};
+			})
+		} as unknown as Connection);
+		const listener = handlers();
+		const feed = homeAssistantTodoSource.subscribe('todo.gone', listener);
+		await vi.waitFor(() => expect(listener.unavailable).toHaveBeenCalled());
+		feed.stop();
+	});
+
+	it('marks a missing list unavailable and retries other refusals with a growing pause', async () => {
+		vi.useFakeTimers();
+		const subscribeMessage = vi
+			.fn()
+			.mockRejectedValueOnce({ code: 'not_found', message: 'Entity not found' })
+			.mockRejectedValueOnce({ code: 'home_assistant_error', message: 'busy' })
+			.mockResolvedValue(async () => {});
+		connection.set({ subscribeMessage } as unknown as Connection);
+		const listener = handlers();
+		const feed = homeAssistantTodoSource.subscribe('todo.shopping', listener);
+		await vi.advanceTimersByTimeAsync(0);
+		expect(listener.unavailable).toHaveBeenCalledTimes(1);
+		expect(subscribeMessage).toHaveBeenCalledTimes(1);
+		await vi.advanceTimersByTimeAsync(2000);
+		expect(subscribeMessage).toHaveBeenCalledTimes(2);
+		// the second pause is twice as long
+		await vi.advanceTimersByTimeAsync(2000);
+		expect(subscribeMessage).toHaveBeenCalledTimes(2);
+		await vi.advanceTimersByTimeAsync(2000);
+		expect(subscribeMessage).toHaveBeenCalledTimes(3);
+		expect(listener.unavailable).toHaveBeenCalledTimes(1);
+		feed.stop();
 	});
 });

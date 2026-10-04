@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { ICON } from '../../iconSizes';
 	import { lang, fill, selectedLanguage } from '$lib/core/i18n';
 	import { timer } from '$lib/core/app/clock';
 	import { connection } from '$lib/core/ha/connection';
-	import { states } from '$lib/core/ha/entities';
+	import { entityControllable, states } from '$lib/core/ha/entities';
 	import {
 		createTodoList,
 		sortTodoItems,
@@ -11,7 +12,8 @@
 		todoDue,
 		type TodoDue,
 		type TodoItem,
-		type TodoList
+		type TodoList,
+		type TodoListStatus
 	} from '$lib/core/domains/todo';
 	import { getHearthInteractionMode, longPress } from '../../interaction';
 	import { hearthEditMode, requestConfirmation } from '../../store';
@@ -25,25 +27,37 @@
 	// inert hands every tap to the card slot underneath, which edit mode owns
 	let locked = $derived(preview || $hearthEditMode);
 
+	let entityId = $derived(card.entity);
+	let connected = $derived(Boolean($connection));
+	// undefined until the first states arrive, so a slow start is not "unavailable"
+	let reachable = $derived($states && entityId ? entityControllable($states[entityId]) : undefined);
+
 	let list = $state<TodoList | null>(null);
 	let items = $state<TodoItem[] | null>(null);
+	let listStatus = $state<TodoListStatus>('loading');
+	let announcement = $state('');
 
+	// keyed on the entity alone, so editing the title does not resubscribe
 	$effect(() => {
-		const entityId = card.entity;
-		if (!entityId || !$connection) return;
-		const current = createTodoList(entityId);
+		const id = entityId;
+		if (!id || !connected || !reachable) return;
+		const current = createTodoList(id, { onRollback: announceRollback });
 		list = current;
-		const unsubscribe = current.items.subscribe((value) => (items = value));
+		const stopItems = current.items.subscribe((value) => (items = value));
+		const stopStatus = current.status.subscribe((value) => (listStatus = value));
 		return () => {
-			unsubscribe();
+			stopItems();
+			stopStatus();
 			current.destroy();
 			list = null;
 			items = null;
+			listStatus = 'loading';
 		};
 	});
 
+	let unavailable = $derived(reachable === false || listStatus === 'unavailable');
 	let abilities = $derived(
-		todoAbilities(card.entity ? $states?.[card.entity]?.attributes?.supported_features : 0)
+		todoAbilities(entityId ? $states?.[entityId]?.attributes?.supported_features : 0)
 	);
 	let open = $derived(
 		sortTodoItems(
@@ -62,9 +76,32 @@
 	let completedToggled = $state<boolean | null>(null);
 	let completedOpen = $derived(completedToggled ?? card.show_completed ?? false);
 
+	let body = $state<HTMLElement>();
+	let addField = $state<HTMLInputElement>();
 	let draft = $state('');
 	let renaming = $state<string | null>(null);
 	let renameDraft = $state('');
+
+	async function announceRollback(summary: string) {
+		// a live region only announces a change, so the same message twice needs a clear between
+		announcement = '';
+		await tick();
+		announcement = summary
+			? fill($lang('hearth_todo_change_undone'), { item: summary })
+			: $lang('hearth_todo_clear_undone');
+	}
+
+	async function focusRow(key: string | undefined) {
+		await tick();
+		const row = [...(body?.querySelectorAll<HTMLElement>('[data-todo-key]') ?? [])].find(
+			(element) => element.dataset.todoKey === key
+		);
+		const target =
+			row?.querySelector<HTMLElement>('button.text') ??
+			row?.querySelector<HTMLElement>('button:not(:disabled)') ?? // copy ok: CSS selector
+			addField;
+		target?.focus();
+	}
 
 	function add(event: SubmitEvent) {
 		event.preventDefault();
@@ -74,42 +111,48 @@
 	}
 
 	function toggle(item: TodoItem) {
-		list?.setStatus(item.uid, item.status === 'completed' ? 'needs_action' : 'completed');
+		list?.setStatus(item.key, item.status === 'completed' ? 'needs_action' : 'completed');
 	}
 
 	function startRename(item: TodoItem) {
-		if (!abilities.update || item.local) return;
-		renaming = item.uid;
+		if (!abilities.update || !item.target) return;
+		renaming = item.key;
 		renameDraft = item.summary;
 	}
 
-	function finishRename(save: boolean) {
-		const uid = renaming;
+	function finishRename(save: boolean, refocus: boolean) {
+		const key = renaming;
 		renaming = null;
-		if (!save || !uid) return;
-		const item = items?.find((entry) => entry.uid === uid);
-		const text = renameDraft.trim();
-		if (item && text && text !== item.summary) list?.rename(uid, text);
+		if (!key) return;
+		if (save) list?.rename(key, renameDraft);
+		// a blur went somewhere on purpose; Enter and Escape leave focus with the item
+		if (refocus) void focusRow(key);
 	}
 
 	function renameKey(event: KeyboardEvent) {
 		if (event.key === 'Enter' && !event.isComposing) {
 			event.preventDefault();
-			finishRename(true);
+			finishRename(true, true);
 		} else if (event.key === 'Escape') {
 			// the sheet or dialog around a card must not close with it
 			event.stopPropagation();
-			finishRename(false);
+			finishRename(false, true);
 		}
 	}
 
 	function askRemove(item: TodoItem) {
-		if (!abilities.delete || item.local) return;
+		if (!abilities.delete || !item.target) return;
+		const section = item.status === 'completed' ? completed : open;
+		const index = section.findIndex((entry) => entry.key === item.key);
+		const neighbour = section[index + 1] ?? section[index - 1];
 		requestConfirmation({
 			title: $lang('hearth_todo_remove_title'),
 			message: fill($lang('hearth_todo_remove_message'), { item: item.summary }),
 			confirmLabel: $lang('remove'),
-			action: () => list?.remove(item.uid)
+			action: () => {
+				list?.remove(item.key);
+				void focusRow(neighbour?.key);
+			}
 		});
 	}
 
@@ -154,11 +197,12 @@
 {#snippet row(item: TodoItem)}
 	{@const done = item.status === 'completed'}
 	{@const due = todoDue(item.due, $timer)}
-	{@const removable = abilities.delete && !item.local}
+	{@const removable = abilities.delete && Boolean(item.target)}
 	<li
 		class="item"
 		class:done
 		class:local={item.local}
+		data-todo-key={item.key}
 		use:longPress={{ hold: () => askRemove(item), disabled: !removable || locked }}
 	>
 		<button
@@ -167,14 +211,14 @@
 			class="check"
 			aria-checked={done}
 			aria-label={item.summary}
-			disabled={!abilities.update || item.local}
+			disabled={!abilities.update || !item.target}
 			onclick={() => toggle(item)}
 		>
 			<span class="mark">
 				{#if done}<Icon name="check" size={ICON.inline} />{/if}
 			</span>
 		</button>
-		{#if renaming === item.uid}
+		{#if renaming === item.key}
 			<input
 				class="rename"
 				type="text"
@@ -184,9 +228,9 @@
 				autocomplete="off"
 				use:focusOnMount
 				onkeydown={renameKey}
-				onblur={() => finishRename(true)}
+				onblur={() => finishRename(true, false)}
 			/>
-		{:else if (abilities.update || removable) && !item.local}
+		{:else if (abilities.update || removable) && item.target}
 			<button
 				type="button"
 				class="text"
@@ -212,58 +256,64 @@
 	</li>
 {/snippet}
 
-<div class="body" inert={locked}>
-	{#if abilities.create && !card.hide_add}
-		<form class="add" onsubmit={add}>
-			<input
-				type="text"
-				bind:value={draft}
-				placeholder={$lang('hearth_todo_add_placeholder')}
-				aria-label={$lang('hearth_todo_add_placeholder')}
-				enterkeyhint="done"
-				autocomplete="off"
-				disabled={!list}
-			/>
-			<button
-				type="submit"
-				class="add-button"
-				aria-label={$lang('hearth_todo_add')}
-				disabled={!list || !draft.trim()}
-			>
-				<Icon name="add" size={ICON.control} />
-			</button>
-		</form>
-	{/if}
-
-	{#if items && open.length === 0 && completed.length === 0}
-		<EmptyState inline icon="task_alt" text={$lang('hearth_todo_empty')} />
-	{:else if items}
-		{#if open.length}
-			<ul class="items">
-				{#each open as item (item.uid)}{@render row(item)}{/each}
-			</ul>
-		{/if}
-		{#if completed.length}
-			<div class="completed-header">
+<div class="body" inert={locked} bind:this={body}>
+	<div class="announcer" role="status">{announcement}</div>
+	{#if unavailable}
+		<EmptyState inline icon="cloud_off" text={$lang('hearth_todo_unavailable')} />
+	{:else}
+		{#if abilities.create && !card.hide_add}
+			<form class="add" onsubmit={add}>
+				<input
+					type="text"
+					bind:this={addField}
+					bind:value={draft}
+					placeholder={$lang('hearth_todo_add_placeholder')}
+					aria-label={$lang('hearth_todo_add_placeholder')}
+					enterkeyhint="done"
+					autocomplete="off"
+					disabled={!list}
+				/>
 				<button
-					type="button"
-					class="completed-toggle"
-					aria-expanded={completedOpen}
-					onclick={() => (completedToggled = !completedOpen)}
+					type="submit"
+					class="add-button"
+					aria-label={$lang('hearth_todo_add')}
+					disabled={!list || !draft.trim()}
 				>
-					<Icon name={completedOpen ? 'expand_less' : 'expand_more'} size={ICON.control} />
-					{fill($lang('hearth_todo_completed'), { count: completed.length })}
+					<Icon name="add" size={ICON.control} />
 				</button>
-				{#if completedOpen && abilities.delete}
-					<button type="button" class="clear" onclick={askClearCompleted}>
-						{$lang('hearth_todo_clear_completed')}
-					</button>
-				{/if}
-			</div>
-			{#if completedOpen}
+			</form>
+		{/if}
+
+		{#if items && open.length === 0 && completed.length === 0}
+			<EmptyState inline icon="task_alt" text={$lang('hearth_todo_empty')} />
+		{:else if items}
+			{#if open.length}
 				<ul class="items">
-					{#each completed as item (item.uid)}{@render row(item)}{/each}
+					{#each open as item (item.key)}{@render row(item)}{/each}
 				</ul>
+			{/if}
+			{#if completed.length}
+				<div class="completed-header">
+					<button
+						type="button"
+						class="completed-toggle"
+						aria-expanded={completedOpen}
+						onclick={() => (completedToggled = !completedOpen)}
+					>
+						<Icon name={completedOpen ? 'expand_less' : 'expand_more'} size={ICON.control} />
+						{fill($lang('hearth_todo_completed'), { count: completed.length })}
+					</button>
+					{#if abilities.delete}
+						<button type="button" class="clear" onclick={askClearCompleted}>
+							{$lang('hearth_todo_clear_completed')}
+						</button>
+					{/if}
+				</div>
+				{#if completedOpen}
+					<ul class="items">
+						{#each completed as item (item.key)}{@render row(item)}{/each}
+					</ul>
+				{/if}
 			{/if}
 		{/if}
 	{/if}
@@ -271,9 +321,19 @@
 
 <style>
 	.body {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
+	}
+
+	.announcer {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
 	}
 
 	.add {

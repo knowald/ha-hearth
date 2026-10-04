@@ -9,13 +9,17 @@ import { WebSocketServer } from 'ws';
  * weather forecasts are synthesized so data-driven widgets have something to
  * draw. Camera capabilities and WebRTC signaling are answered without media.
  * To-do lists answer todo/item/subscribe and the todo.* services, pushing
- * the changed list to every subscriber.
+ * the changed list to every subscriber. todo.broken is in the state machine
+ * but not a list the todo integration knows, so it gets Home Assistant's
+ * errors.
  * Test endpoints: GET /_test/calls lists received service calls,
  * GET /_test/camera lists received camera/* messages,
  * POST /_test/reset restores the initial states and clears the call log,
  * POST /_test/state with { entity_id, state, attributes } patches one entity,
  * POST /_test/fire_event with an event data object fires a HEARTH event at
- * every subscribe_trigger subscription listening for it.
+ * every subscribe_trigger subscription listening for it,
+ * POST /_test/todo_subscribe with { supported: false } answers
+ * todo/item/subscribe the way a Home Assistant without it does.
  */
 
 const PORT = Number(process.env.FAKE_HASS_PORT ?? 8124);
@@ -290,6 +294,7 @@ function initialStates() {
 		'calendar.family': { s: 'off', a: { friendly_name: 'Family' } },
 		// create, delete, update and due dates; no reordering
 		'todo.shopping': { s: '2', a: { friendly_name: 'Shopping list', supported_features: 23 } },
+		'todo.broken': { s: '0', a: { friendly_name: 'Broken list', supported_features: 23 } },
 		'sun.sun': { s: 'above_horizon', a: { friendly_name: 'Sun' } }
 	};
 }
@@ -306,6 +311,7 @@ function initialTodoItems() {
 
 let states = initialStates();
 let todoItems = initialTodoItems();
+let todoSubscribeSupported = true;
 let calls = [];
 let cameraRequests = [];
 // Stream types as Home Assistant reports them through camera/capabilities; the
@@ -705,6 +711,21 @@ function handleMessage(socket, message) {
 			}
 			if (domain === 'todo' && service === 'get_items') {
 				const entityId = [].concat(merged.entity_id ?? [])[0];
+				if (!todoItems[entityId]) {
+					// what Home Assistant answers when return_response matches no entity
+					socket.send(
+						JSON.stringify({
+							id: message.id,
+							type: 'result',
+							success: false,
+							error: {
+								code: 'service_validation_error',
+								message: 'Service call requested response data but did not match any entities'
+							}
+						})
+					);
+					return;
+				}
 				reply({
 					context: { id: 'ctx' },
 					response: { [entityId]: { items: todoItems[entityId] ?? [] } }
@@ -731,15 +752,11 @@ function handleMessage(socket, message) {
 			return;
 		}
 		case 'todo/item/subscribe': {
-			if (!todoItems[message.entity_id]) {
-				socket.send(
-					JSON.stringify({
-						id: message.id,
-						type: 'result',
-						success: false,
-						error: { code: 'invalid_entity_id', message: 'To-do list entity not found' }
-					})
-				);
+			if (!todoSubscribeSupported || !todoItems[message.entity_id]) {
+				const error = todoSubscribeSupported
+					? { code: 'not_found', message: 'Entity not found' }
+					: { code: 'unknown_command', message: 'Unknown command.' };
+				socket.send(JSON.stringify({ id: message.id, type: 'result', success: false, error }));
 				return;
 			}
 			if (!todoSubscribers.has(socket)) todoSubscribers.set(socket, new Map());
@@ -910,6 +927,7 @@ const http = createServer(async (request, response) => {
 	if (request.url === '/_test/reset' && request.method === 'POST') {
 		states = initialStates();
 		todoItems = initialTodoItems();
+		todoSubscribeSupported = true;
 		calls = [];
 		cameraRequests = [];
 		for (const entityId of Object.keys(states)) pushChange(entityId);
@@ -935,6 +953,11 @@ const http = createServer(async (request, response) => {
 		if (patch.state !== undefined) entity.s = patch.state;
 		if (patch.attributes) Object.assign(entity.a, patch.attributes);
 		pushChange(patch.entity_id);
+		response.end('ok');
+		return;
+	}
+	if (request.url === '/_test/todo_subscribe' && request.method === 'POST') {
+		todoSubscribeSupported = JSON.parse((await readBody(request)) || '{}').supported !== false;
 		response.end('ok');
 		return;
 	}
