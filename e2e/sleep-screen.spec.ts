@@ -107,9 +107,18 @@ test('an alert from Home Assistant wakes the radar sleep screen', async ({ page,
 	await page.clock.install();
 	await page.reload();
 	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
-	await page.clock.fastForward('01:05');
 	const screensaver = page.getByRole('button', { name: 'Dismiss sleep screen' });
-	await expect(screensaver).toBeVisible();
+	/*
+	 * The sleep screen loads on demand and starts its idle timer when it
+	 * mounts. A visible dashboard does not mean it has mounted yet, and a
+	 * fast-forward that lands before its timer exists moves nothing. Each try
+	 * moves the clock past a full timeout, so the first one after the mount
+	 * puts it to sleep.
+	 */
+	await expect(async () => {
+		await page.clock.fastForward('01:05');
+		await expect(screensaver).toBeVisible({ timeout: 1000 });
+	}).toPass();
 	await expect(screensaver.getByTestId('radar-map')).toBeAttached();
 	await request.post(`${FAKE_HASS}/_test/fire_event`, {
 		data: { action: 'alert', tag: 'door', title: 'Front door open' }

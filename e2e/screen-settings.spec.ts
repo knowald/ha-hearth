@@ -40,8 +40,12 @@ test.describe('phone', () => {
 		await sheet.getByLabel('Sleep screen turns on').selectOption('');
 		await sheet.getByRole('button', { name: 'Close' }).first().click();
 		await expect(sheet).toBeHidden();
-		await page.clock.fastForward('01:30');
-		await expect(sleepScreen(page)).toBeVisible();
+		// the sleep screen mounts on demand and only then starts its timer; each
+		// try moves past a full timeout, so the first after the mount lands
+		await expect(async () => {
+			await page.clock.fastForward('01:30');
+			await expect(sleepScreen(page)).toBeVisible({ timeout: 1000 });
+		}).toPass();
 	});
 });
 

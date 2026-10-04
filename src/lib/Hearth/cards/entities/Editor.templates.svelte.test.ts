@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import en from '../../../../../static/translations/en.json';
 import type { EntitiesCard } from './descriptor';
 import Editor from './Editor.svelte';
@@ -14,6 +14,19 @@ function renderEditor(initial: Partial<EntitiesCard>) {
 }
 
 describe('entities editor tile templates', () => {
+	/*
+	 * The code fields and the style rules load on demand. Transforming
+	 * CodeMirror cold under a loaded suite can outlast findBy's timeout, so
+	 * the modules are loaded here first; the {#await} blocks then resolve on
+	 * the next tick.
+	 */
+	beforeAll(async () => {
+		await Promise.all([
+			import('$lib/ui/CodeEditor.svelte'),
+			import('../../edit/StyleRulesField.svelte')
+		]);
+	});
+
 	it('keeps stored templates verbatim, newlines included, and offers code fields for them', async () => {
 		const nameTemplate = "{% if is_state('switch.fan', 'on') %}\nFan on\n{% endif %}";
 		const last = renderEditor({

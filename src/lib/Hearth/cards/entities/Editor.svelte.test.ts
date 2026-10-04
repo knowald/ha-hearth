@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import en from '../../../../../static/translations/en.json';
@@ -19,6 +19,15 @@ function renderEditor(entities: EntityRef[], style?: 'stat') {
 async function expandRow(entity: string) {
 	await fireEvent.click(screen.getByRole('button', { name: new RegExp(entity) }));
 }
+
+// an expanded row loads its code fields and style rules on demand; loading
+// them up front keeps a cold transform under a loaded suite out of findBy
+beforeAll(async () => {
+	await Promise.all([
+		import('$lib/ui/CodeEditor.svelte'),
+		import('../../edit/StyleRulesField.svelte')
+	]);
+});
 
 describe('entities card editor style rules', () => {
 	it('adds a rule under a row and keeps an existing one', async () => {

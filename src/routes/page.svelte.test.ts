@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { get } from 'svelte/store';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import translations from '../../static/translations/en.json';
 import {
 	connectionError,
@@ -25,6 +25,12 @@ const data = {
 } as unknown as Parameters<typeof Page>[1]['data'];
 
 describe('boot screen', () => {
+	// the page loads the token prompt on demand; under a loaded suite its cold
+	// transform can outlast findBy's timeout, so it is loaded before the tests
+	beforeAll(async () => {
+		await import('$lib/Hearth/TokenPrompt.svelte');
+	});
+
 	beforeEach(() =>
 		vi.stubGlobal('matchMedia', () => ({
 			matches: false,
