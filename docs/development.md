@@ -70,7 +70,7 @@ The check reports missing, outdated, extra and empty keys, placeholders that dif
 
 `just hooks` points Git at `.githooks/`. Its pre-commit hook runs when a commit touches translation files or their scripts, and checks the staged versions of the translation files with the flags of `pnpm check:translations`. It needs only Node.js. Nothing installs the hook for you.
 
-CI runs `pnpm check:translations` as well. Until every locale is translated, that script passes `--warn-only`. Removing the flag from `package.json` makes missing and outdated translations fail both CI and the hook.
+CI runs `pnpm check:translations` as well, so a missing or outdated translation fails both CI and the hook. Add every new English string to all locales in the same change.
 
 ## Conventions
 

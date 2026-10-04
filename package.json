@@ -23,7 +23,7 @@
 		"readme:image": "playwright test --config playwright.readme.config.ts",
 		"style:inventory": "node scripts/style-inventory.mjs",
 		"check:style": "node scripts/check-style-tokens.mjs",
-		"check:translations": "node scripts/check-translations.mjs --warn-only"
+		"check:translations": "node scripts/check-translations.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
