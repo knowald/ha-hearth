@@ -8,7 +8,7 @@ import {
 	placeholders,
 	serialize,
 	sourceHash,
-	tidy
+	prune
 } from './lib.mjs';
 
 const english = {
@@ -117,16 +117,34 @@ describe('checkLocale', () => {
 		});
 		expect(kinds(issues)).toEqual(['warning identical hearth_long']);
 	});
+	it('reads inherited names such as constructor as absent', () => {
+		const issues = checkLocale({
+			english: { constructor: 'Builder', toString: 'Text' },
+			translated: {},
+			hashes: {}
+		});
+		expect(kinds(issues)).toEqual(['error missing constructor', 'error missing toString']);
+	});
 });
 
 describe('checkEnglish', () => {
-	it('reports empty values, keys the generated file has and unsorted keys', () => {
-		const issues = checkEnglish({ hearth_b: '', delete: 'Delete', hearth_a: 'A' }, { delete: 'x' });
+	it('reports empty values, unprefixed keys, keys the generated file has and unsorted keys', () => {
+		const issues = checkEnglish(
+			{ hearth_b: '', delete: 'Delete', hearth_a: 'A', hearth_close: 'Close' },
+			{ delete: 'x', hearth_close: 'Close' }
+		);
 		expect(kinds(issues)).toEqual([
 			'error empty hearth_b',
+			'error prefix delete',
 			'error duplicate delete',
+			'error duplicate hearth_close',
 			'error unsorted'
 		]);
+	});
+
+	it('does not take inherited names for keys of the generated file', () => {
+		expect(checkEnglish({ hearth_a: 'A' }, {})).toEqual([]);
+		expect(kinds(checkEnglish({ toString: 'Text' }, {}))).toEqual(['error prefix toString']);
 	});
 });
 
@@ -150,14 +168,18 @@ describe('applyTranslations', () => {
 			english,
 			translated: { hearth_save: 'Speichern' },
 			hashes: hashed(['hearth_save']),
-			filled: { hearth_ok: 'OK', hearth_greeting: 'Hallo {name}, {count} Meldungen' }
+			filled: { hearth_greeting: 'Hallo {name}, {count} Meldungen' }
 		});
 		expect(result.errors).toEqual([]);
-		expect(Object.keys(result.translated)).toEqual(['hearth_greeting', 'hearth_ok', 'hearth_save']);
-		expect(result.hashes).toEqual(hashed(['hearth_greeting', 'hearth_ok', 'hearth_save']));
-		expect(checkLocale({ english, translated: result.translated, hashes: result.hashes })).toEqual(
-			[]
-		);
+		expect(Object.keys(result.translated)).toEqual(['hearth_greeting', 'hearth_save']);
+		expect(result.hashes).toEqual(hashed(['hearth_greeting', 'hearth_save']));
+		expect(
+			checkLocale({
+				english: { hearth_greeting: english.hearth_greeting, hearth_save: english.hearth_save },
+				translated: result.translated,
+				hashes: result.hashes
+			})
+		).toEqual([]);
 	});
 
 	it('applies nothing when any entry is unusable', () => {
@@ -167,29 +189,52 @@ describe('applyTranslations', () => {
 			translated,
 			hashes: {},
 			filled: {
-				hearth_ok: 'OK',
 				hearth_greeting: 'Hallo {name}',
 				hearth_new: 'Neu',
-				hearth_save: ' '
+				hearth_save: ' ',
+				constructor: 'Bauer'
 			}
 		});
 		expect(result.translated).toBe(translated);
 		expect(result.errors).toEqual([
 			'hearth_greeting: placeholders {name} differ from English {count}, {name}',
 			'hearth_new: not in English',
-			'hearth_save: empty value'
+			'hearth_save: empty value',
+			'constructor: not in English'
 		]);
+	});
+
+	it('refuses text identical to English unless told it is right', () => {
+		const input = { english, translated: {}, hashes: {}, filled: { hearth_ok: 'OK' } };
+		const refused = applyTranslations(input);
+		expect(refused.errors).toEqual(['hearth_ok: same as English']);
+		expect(refused.identical).toEqual(['hearth_ok']);
+		const allowed = applyTranslations({ ...input, allowIdentical: true });
+		expect(allowed.errors).toEqual([]);
+		expect(allowed.identical).toEqual(['hearth_ok']);
+		expect(allowed.translated).toEqual({ hearth_ok: 'OK' });
+		expect(allowed.hashes).toEqual(hashed(['hearth_ok']));
 	});
 });
 
-describe('tidy', () => {
-	it('drops keys English no longer has and their hashes, and sorts', () => {
-		const result = tidy(
+describe('prune', () => {
+	it('drops keys English no longer has and their hashes, naming each', () => {
+		const result = prune(
 			{ hearth_a: 'A', hearth_b: 'B' },
 			{ hearth_b: 'B2', hearth_gone: 'X', hearth_a: 'A2' },
 			{ hearth_gone: '1', hearth_b: '2', hearth_c: '3' }
 		);
-		expect(serialize(result.translated)).toBe('{\n\t"hearth_a": "A2",\n\t"hearth_b": "B2"\n}\n');
+		expect(result.translated).toEqual({ hearth_b: 'B2', hearth_a: 'A2' });
 		expect(result.hashes).toEqual({ hearth_b: '2' });
+		expect(result.dropped).toEqual(['hearth_gone']);
+		expect(result.droppedHashes).toEqual(['hearth_gone', 'hearth_c']);
+	});
+});
+
+describe('serialize', () => {
+	it('writes sorted keys, tabs and a final newline', () => {
+		expect(serialize({ hearth_b: 'B', hearth_a: 'A' })).toBe(
+			'{\n\t"hearth_a": "A",\n\t"hearth_b": "B"\n}\n'
+		);
 	});
 });

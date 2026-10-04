@@ -1,7 +1,19 @@
 #!/bin/sh
-# Opt in with `just hooks`. Runs the translation check when the commit
-# touches translation files or the scripts that check them.
+# Opt in with `just hooks`. When a commit touches translations or the scripts
+# that check them, checks the staged translation files, so changes left
+# unstaged in the working tree neither hide nor cause a failure.
 
-if git diff --cached --name-only | grep -qE '^(static/translations/|scripts/translations/|scripts/check-translations\.mjs)'; then
-	pnpm --silent check:translations || exit 1
-fi
+git diff --cached --name-only |
+	grep -qE '^(static/translations/|scripts/(translations/|check-translations\.mjs|translations-))' ||
+	exit 0
+
+staged=$(mktemp -d) || exit 1
+trap 'rm -rf "$staged"' EXIT
+git ls-files -z -- static/translations scripts/translations/hashes |
+	xargs -0 git checkout-index --prefix="$staged/" -- || exit 1
+
+# the same flags as `pnpm check:translations`, so package.json stays the one
+# place that decides whether missing translations fail
+flags=$(node -p "require('./package.json').scripts['check:translations'].split(' ').slice(2).join(' ')") || exit 1
+# shellcheck disable=SC2086
+TRANSLATIONS_ROOT="$staged" node scripts/check-translations.mjs $flags

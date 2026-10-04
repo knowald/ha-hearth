@@ -13,7 +13,10 @@ import { join, resolve } from 'node:path';
  * hash no longer matches and the translation is reported as outdated.
  */
 
-const ROOT = resolve(import.meta.dirname, '../..');
+// the pre-commit hook points this at a copy of the staged files
+const ROOT = process.env.TRANSLATIONS_ROOT
+	? resolve(process.env.TRANSLATIONS_ROOT)
+	: resolve(import.meta.dirname, '../..');
 export const HOME_DIR = join(ROOT, 'static/translations');
 export const HEARTH_DIR = join(HOME_DIR, 'hearth');
 export const HASH_DIR = join(ROOT, 'scripts/translations/hashes');
@@ -21,6 +24,8 @@ export const HASH_DIR = join(ROOT, 'scripts/translations/hashes');
 // shorter English text that matches the translation is usually a word that
 // reads the same in both languages, such as "OK" or "Auto"
 const IDENTICAL_MIN_LENGTH = 16;
+
+export const PREFIX = 'hearth_';
 
 /** @typedef {Record<string, string>} Strings */
 /** @typedef {{ severity: 'error' | 'warning', kind: string, key?: string, message: string }} Issue */
@@ -95,6 +100,13 @@ export const hearthFile = (/** @type {string} */ locale) => join(HEARTH_DIR, `${
 export const hashFile = (/** @type {string} */ locale) => join(HASH_DIR, `${locale}.json`);
 
 /**
+ * A value the object holds itself; inherited names such as `constructor`
+ * read as absent.
+ * @param {Strings} object @param {string} key
+ */
+const own = (object, key) => (Object.hasOwn(object, key) ? object[key] : undefined);
+
+/**
  * Whether a translated key needs (re)translating, and why.
  * @param {string} source the English text
  * @param {string | undefined} translated
@@ -121,8 +133,8 @@ export function checkLocale({ english, translated, hashes, warnOnly = false }) {
 	const issues = [];
 	const debt = warnOnly ? 'warning' : 'error';
 	for (const [key, source] of Object.entries(english)) {
-		const value = translated[key];
-		const state = keyState(source, value, hashes[key]);
+		const value = own(translated, key);
+		const state = keyState(source, value, own(hashes, key));
 		if (state === 'missing') {
 			issues.push({ severity: debt, kind: 'missing', key, message: 'not translated' });
 		} else if (state === 'empty') {
@@ -140,7 +152,7 @@ export function checkLocale({ english, translated, hashes, warnOnly = false }) {
 				kind: 'outdated',
 				key,
 				message:
-					hashes[key] === undefined
+					own(hashes, key) === undefined
 						? 'no source hash recorded, apply it with translations-apply'
 						: 'English text changed since it was translated'
 			});
@@ -150,12 +162,12 @@ export function checkLocale({ english, translated, hashes, warnOnly = false }) {
 		}
 	}
 	for (const key of Object.keys(translated)) {
-		if (!(key in english)) {
+		if (!Object.hasOwn(english, key)) {
 			issues.push({ severity: 'error', kind: 'extra', key, message: 'not in English' });
 		}
 	}
 	for (const key of Object.keys(hashes)) {
-		if (!(key in translated)) {
+		if (!Object.hasOwn(translated, key)) {
 			issues.push({
 				severity: 'error',
 				kind: 'stale-hash',
@@ -174,8 +186,9 @@ export function checkLocale({ english, translated, hashes, warnOnly = false }) {
 }
 
 /**
- * English, checked on its own: no empty values, sorted, and no key the
- * generated Home Assistant file already has, since the Hearth one would hide it.
+ * English, checked on its own: no empty values, sorted, every key prefixed
+ * hearth_ so it can never collide with a generated Home Assistant key, and
+ * none the generated file already has, since the Hearth one would hide it.
  * @param {Strings} english
  * @param {Strings} home
  * @returns {Issue[]}
@@ -187,7 +200,15 @@ export function checkEnglish(english, home) {
 		if (typeof value !== 'string' || value.trim() === '') {
 			issues.push({ severity: 'error', kind: 'empty', key, message: 'empty value' });
 		}
-		if (key in home) {
+		if (!key.startsWith(PREFIX)) {
+			issues.push({
+				severity: 'error',
+				kind: 'prefix',
+				key,
+				message: `Hearth keys start with ${PREFIX}`
+			});
+		}
+		if (Object.hasOwn(home, key)) {
 			issues.push({
 				severity: 'error',
 				kind: 'duplicate',
@@ -211,7 +232,7 @@ export function pendingKeys(english, translated, hashes) {
 	return sortKeys(
 		Object.fromEntries(
 			Object.entries(english).filter(
-				([key, source]) => keyState(source, translated[key], hashes[key]) !== null
+				([key, source]) => keyState(source, own(translated, key), own(hashes, key)) !== null
 			)
 		)
 	);
@@ -219,41 +240,56 @@ export function pendingKeys(english, translated, hashes) {
 
 /**
  * Merges filled-in translations into a locale and records the English each
- * one was made from. Nothing is merged when any entry is unusable.
- * @param {{ english: Strings, translated: Strings, hashes: Strings, filled: Record<string, unknown> }} input
- * @returns {{ translated: Strings, hashes: Strings, errors: string[] }}
+ * one was made from. Nothing is merged when any entry is unusable. A value
+ * identical to English is usually an untranslated leftover, so it counts as
+ * unusable unless `allowIdentical` says the words really are the same.
+ * @param {{ english: Strings, translated: Strings, hashes: Strings, filled: Record<string, unknown>, allowIdentical?: boolean }} input
+ * @returns {{ translated: Strings, hashes: Strings, errors: string[], identical: string[] }}
  */
-export function applyTranslations({ english, translated, hashes, filled }) {
+export function applyTranslations({ english, translated, hashes, filled, allowIdentical = false }) {
 	const errors = [];
+	const identical = [];
 	for (const [key, value] of Object.entries(filled)) {
-		if (!(key in english)) errors.push(`${key}: not in English`);
+		if (!Object.hasOwn(english, key)) errors.push(`${key}: not in English`);
 		else if (typeof value !== 'string' || value.trim() === '') errors.push(`${key}: empty value`);
-		else if (placeholders(value).join() !== placeholders(english[key]).join()) {
+		else if (value === english[key]) {
+			identical.push(key);
+			if (!allowIdentical) errors.push(`${key}: same as English`);
+		} else if (placeholders(value).join() !== placeholders(english[key]).join()) {
 			errors.push(
 				`${key}: placeholders {${placeholders(value).join('}, {')}} differ from English {${placeholders(english[key]).join('}, {')}}`
 			);
 		}
 	}
-	if (errors.length) return { translated, hashes, errors };
+	if (errors.length) return { translated, hashes, errors, identical };
 	const nextTranslated = { ...translated };
 	const nextHashes = { ...hashes };
 	for (const [key, value] of Object.entries(filled)) {
 		nextTranslated[key] = /** @type {string} */ (value);
 		nextHashes[key] = sourceHash(english[key]);
 	}
-	return { translated: sortKeys(nextTranslated), hashes: sortKeys(nextHashes), errors };
+	return {
+		translated: sortKeys(nextTranslated),
+		hashes: sortKeys(nextHashes),
+		errors,
+		identical
+	};
 }
 
 /**
  * Drops keys English no longer has and hashes of keys that are not
- * translated, and sorts both files.
+ * translated, and names what it dropped.
  * @param {Strings} english @param {Strings} translated @param {Strings} hashes
  */
-export function tidy(english, translated, hashes) {
-	const kept = Object.fromEntries(Object.entries(translated).filter(([key]) => key in english));
+export function prune(english, translated, hashes) {
+	const kept = Object.fromEntries(
+		Object.entries(translated).filter(([key]) => Object.hasOwn(english, key))
+	);
 	return {
-		translated: sortKeys(kept),
-		hashes: sortKeys(Object.fromEntries(Object.entries(hashes).filter(([key]) => key in kept)))
+		translated: kept,
+		hashes: Object.fromEntries(Object.entries(hashes).filter(([key]) => Object.hasOwn(kept, key))),
+		dropped: Object.keys(translated).filter((key) => !Object.hasOwn(kept, key)),
+		droppedHashes: Object.keys(hashes).filter((key) => !Object.hasOwn(kept, key))
 	};
 }
 

@@ -9,7 +9,9 @@ OUTPUT_PATH = sys.argv[1]
 translations = json.load(sys.stdin)
 
 # Hearth's own copy lives in static/translations/hearth/ and is never
-# generated; only plain <locale>.json files are written here
+# generated; only plain <locale>.json files are written here, plus an empty
+# Hearth file for a locale Home Assistant newly ships
+HEARTH_PATH = os.path.join(OUTPUT_PATH, "hearth")
 LOCALE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]+)*$")
 
 for language_code in translations:
@@ -22,3 +24,9 @@ for language_code, translation_data in translations.items():
     with open(output_file_path, "w", encoding="utf-8") as output_file:
         json.dump(translation_data, output_file, indent="\t")
         output_file.write("\n")
+
+    hearth_file_path = os.path.join(HEARTH_PATH, f"{language_code}.json")
+    if not os.path.exists(hearth_file_path):
+        os.makedirs(HEARTH_PATH, exist_ok=True)
+        with open(hearth_file_path, "w", encoding="utf-8") as hearth_file:
+            hearth_file.write("{}\n")

@@ -12,8 +12,8 @@ import {
 	jsonFiles,
 	readStrings,
 	serialize,
+	prune,
 	sortKeys,
-	tidy,
 	writeHashes
 } from './translations/lib.mjs';
 
@@ -23,17 +23,24 @@ import {
  * key order. See docs/development.md#translations.
  *
  *   --locale xx  check one locale and list every issue
- *   --warn-only  report missing and outdated translations without failing
- *   --fix        sort keys and drop keys English no longer has
+ *   --warn-only  report missing and outdated translations and missing locale
+ *                files without failing
+ *   --fix        sort keys and create missing locale files
+ *   --prune      with --fix, also drop keys English no longer has, naming each
  */
 
 const { values: options } = parseArgs({
 	options: {
 		locale: { type: 'string' },
 		'warn-only': { type: 'boolean', default: false },
-		fix: { type: 'boolean', default: false }
+		fix: { type: 'boolean', default: false },
+		prune: { type: 'boolean', default: false }
 	}
 });
+if (options.prune && !options.fix) {
+	console.error('--prune only works together with --fix');
+	process.exit(1);
+}
 
 // a full run lists the first few errors of each kind and counts warnings;
 // --locale lists everything
@@ -118,7 +125,7 @@ for (const locale of options.locale ? [options.locale] : locales) {
 		} else {
 			report(locale, [
 				{
-					severity: 'error',
+					severity: options['warn-only'] ? 'warning' : 'error',
 					kind: 'no-file',
 					message: `hearth/${locale}.json is missing, run with --fix to create it`
 				}
@@ -135,8 +142,14 @@ for (const locale of options.locale ? [options.locale] : locales) {
 		continue;
 	}
 	let files = { translated: translated.value, hashes: hashes.value };
+	if (options.prune) {
+		const pruned = prune(englishStrings, files.translated, files.hashes);
+		for (const key of pruned.dropped) console.log(`${locale}: dropped ${key}`);
+		for (const key of pruned.droppedHashes) console.log(`${locale}: dropped hash of ${key}`);
+		files = pruned;
+	}
 	if (options.fix) {
-		files = tidy(englishStrings, files.translated, files.hashes);
+		files = { translated: sortKeys(files.translated), hashes: sortKeys(files.hashes) };
 		writeFileSync(path, serialize(files.translated));
 		writeHashes(locale, files.hashes);
 	}
