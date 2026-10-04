@@ -45,22 +45,22 @@ test('serves a locale with both English files beneath it', async ({ request }) =
 });
 
 test('a language switch falls back to English per key', async ({ page }) => {
-	// stands in for a German Hearth file, which the build does not have yet
+	// drops one German key, as a locale that has not caught up with English yet would
 	await page.route('**/_api/get_translation', async (route) => {
 		const response = await route.fetch();
 		const body = await response.json();
-		await route.fulfill({
-			response,
-			json: { ...body, hearth_keep_screen_awake: 'Bildschirm wach halten' }
-		});
+		delete body.hearth_reduce_motion;
+		await route.fulfill({ response, json: body });
 	});
 	const sheet = await openThisScreen(page);
 	await sheet.getByLabel('Language').selectOption('de');
 	await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-	await expect(sheet.getByLabel('Sprache')).toBeVisible();
-	await expect(sheet.getByLabel('Bildschirm wach halten')).toBeVisible();
+	// the sheet title is translated too, so find it by its German name
+	const german = page.getByRole('dialog', { name: 'Dieser Bildschirm' });
+	await expect(german.getByLabel('Sprache')).toBeVisible();
+	await expect(german.getByLabel('Bildschirm wach halten')).toBeVisible();
 	// Hearth copy the locale lacks stays English
-	await expect(sheet.getByLabel('Reduce motion')).toBeVisible();
+	await expect(german.getByLabel('Reduce motion')).toBeVisible();
 });
 
 test('the error page loads its copy from the Hearth file', async ({ page }) => {
