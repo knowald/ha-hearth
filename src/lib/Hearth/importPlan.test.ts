@@ -214,4 +214,28 @@ describe('applyImport in merge mode', () => {
 		expect(draft.rooms[0].cards).toEqual([[]]);
 		expect(newEntityIds(draft.rooms[1], officeProposal())).toEqual([]);
 	});
+
+	it('finds the page an area has under one of its aliases', () => {
+		const study = { ...officePage(), id: 'study', name: 'Study' };
+		const draft = config(study);
+
+		applyImport(draft, {
+			pages: [{ ...officeProposal(), aliases: ['study'] }],
+			mode: 'merge'
+		});
+
+		expect(draft.rooms.map((room) => room.id)).toEqual(['study']);
+		expect(newEntityIds(draft.rooms[0], officeProposal())).toEqual([]);
+	});
+
+	it('counts what a wildcard grid shows as already there', () => {
+		const room = officePage();
+		room.cards[0].push({ id: 'all', type: 'entities', wildcard: 'fan.*', entities: [] });
+		const known = ['fan.tower', 'light.lamp', 'climate.office'];
+
+		expect(newEntityIds(room, officeProposal(), known)).toEqual(['light.lamp', 'climate.office']);
+
+		applyImport(config(room), { pages: [officeProposal()], mode: 'merge', known });
+		expect(room.cards.flat().some((card) => card.id === 'office-devices')).toBe(false);
+	});
 });

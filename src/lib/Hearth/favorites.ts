@@ -1,5 +1,7 @@
 import { derived, get, writable } from 'svelte/store';
-import { currentRoom, hearthEditMode } from './store';
+import { currentRoom, favoritesOpen, hearthEditMode } from './store';
+
+export { favoritesOpen };
 
 /*
  * Entities this browser starred from their popup, shown on a page of their
@@ -62,6 +64,13 @@ export function toggleFavorite(entity: string) {
 	}));
 }
 
+export function removeFavorites(entities: string[]) {
+	store((current) => ({
+		...current,
+		entities: current.entities.filter((entry) => !entities.includes(entry))
+	}));
+}
+
 export function showFavoritesPage(show: boolean) {
 	store((current) => ({ ...current, page: show }));
 }
@@ -72,10 +81,7 @@ export const favoritesPageOffered = derived(
 	($favorites) => $favorites.page && $favorites.entities.length > 0
 );
 
-/** The favorites page is on screen in place of the current page. */
-export const favoritesOpen = writable(false);
-
-// any other page being picked, from the strip, search or a swipe, leaves it,
+// another page being picked leaves it (goToPage covers the page it covers),
 // and so do edit mode, which arranges shared pages only, and an emptied list
 const leave = (stay: unknown) => {
 	if (!stay) favoritesOpen.set(false);

@@ -172,4 +172,21 @@ describe('applyStarter', () => {
 		expect(config.rooms.map((room) => room.name)).toEqual(['Home', 'Bedside']);
 		expect(config.rooms[0].cards[0][0].id).toBe('note');
 	});
+
+	it("gives the starter's own page a free name, but adds no second page for an area", () => {
+		const config: HearthConfig = {
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			rooms: [
+				{ id: 'kitchen', name: 'Kitchen', icon: 'countertops', cards: [[]] },
+				{ id: 'office', name: 'Office', icon: 'desk', cards: [[]] }
+			]
+		};
+		applyStarter(config, build('kitchen'));
+		expect(config.rooms.map((room) => room.name)).toEqual([
+			'Kitchen',
+			'Office',
+			'Kitchen 2',
+			'Bedroom'
+		]);
+	});
 });

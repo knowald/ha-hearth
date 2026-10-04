@@ -1,8 +1,14 @@
 <script lang="ts">
-	import { base } from '$app/paths';
 	import { fill, lang } from '$lib/core/i18n';
 	import TextField from './edit/TextField.svelte';
-	import { directAddress, isIngressPath, qrModules, qrPath, tabletUrl } from './tabletLink';
+	import {
+		directAddress,
+		isIngressPath,
+		isLocalAddress,
+		qrModules,
+		qrPath,
+		tabletUrl
+	} from './tabletLink';
 
 	/*
 	 * The setup wizard's last step: the address a wall tablet opens, as text
@@ -10,21 +16,33 @@
 	 */
 
 	const ingress = isIngressPath(location.pathname);
-	let address = $state(directAddress(location, base) ?? '');
+	let address = $state(directAddress(location) ?? '');
 	let device = $state('');
 	let url = $derived(tabletUrl(address, device));
 	let modules = $state<boolean[][] | null>(null);
+	let qrFailed = $state(false);
+
+	let addressHint = $derived(
+		url && isLocalAddress(url) ? $lang('hearth_tablet_localhost') : undefined
+	);
+	let addressError = $derived(
+		address.trim() && !url ? $lang('hearth_tablet_address_invalid') : undefined
+	);
 
 	$effect(() => {
 		const text = url;
 		modules = null;
+		qrFailed = false;
 		if (!text) return;
 		let current = true;
 		qrModules(text).then(
 			(result) => {
 				if (current) modules = result;
 			},
-			(error) => console.warn('QR code unavailable', error)
+			(error) => {
+				console.warn('QR code unavailable', error);
+				if (current) qrFailed = true;
+			}
 		);
 		return () => {
 			current = false;
@@ -36,13 +54,15 @@
 	<p class="intro">{$lang('hearth_tablet_intro')}</p>
 	{#if ingress}
 		<p class="note">{$lang('hearth_tablet_ingress_hint')}</p>
-		<TextField
-			label={$lang('hearth_tablet_address')}
-			bind:value={address}
-			placeholder="http://homeassistant.local:5050"
-			autocomplete="off"
-		/>
 	{/if}
+	<TextField
+		label={$lang('hearth_tablet_address')}
+		bind:value={address}
+		placeholder="http://homeassistant.local:5050"
+		autocomplete="off"
+		hint={addressHint}
+		error={addressError}
+	/>
 	<TextField
 		label={$lang('hearth_device_name')}
 		hint={$lang('hearth_tablet_device_hint')}
@@ -52,18 +72,22 @@
 	/>
 	{#if url}
 		<figure class="code">
-			<div class="qr">
-				{#if modules}
-					<svg
-						role="img"
-						aria-label={fill($lang('hearth_tablet_qr'), { url })}
-						viewBox="-2 -2 {modules.length + 4} {modules.length + 4}"
-						shape-rendering="crispEdges"
-					>
-						<path d={qrPath(modules)} />
-					</svg>
-				{/if}
-			</div>
+			{#if qrFailed}
+				<p class="note" role="alert">{$lang('hearth_tablet_qr_failed')}</p>
+			{:else}
+				<div class="qr">
+					{#if modules}
+						<svg
+							role="img"
+							aria-label={fill($lang('hearth_tablet_qr'), { url })}
+							viewBox="-2 -2 {modules.length + 4} {modules.length + 4}"
+							shape-rendering="crispEdges"
+						>
+							<path d={qrPath(modules)} />
+						</svg>
+					{/if}
+				</div>
+			{/if}
 			<figcaption class="url">{url}</figcaption>
 		</figure>
 	{/if}

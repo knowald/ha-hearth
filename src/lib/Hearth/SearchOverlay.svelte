@@ -6,7 +6,7 @@
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from './config';
 	import { domainIcon } from '$lib/core/domains';
-	import { currentRoom } from './store';
+	import { goToPage } from './store';
 	import { navigablePages } from './pages';
 	import { openEntityDetail } from '$lib/Hearth/details';
 	import Icon from './Icon.svelte';
@@ -107,7 +107,7 @@
 
 	function selectResult(result: Result) {
 		if (result.kind === 'room') {
-			currentRoom.set(result.id);
+			goToPage(result.id);
 			onclose();
 		} else {
 			// close first: the entity modal portals outside .frame

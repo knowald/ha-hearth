@@ -138,6 +138,26 @@ test.describe('on a phone', () => {
 		await expect(page).toHaveURL(/[?&]room=office\b/);
 	});
 
+	test('the favorites page is the first a swipe reaches, and the way back', async ({ page }) => {
+		await page.evaluate(() =>
+			localStorage.setItem('hearthFavorites', JSON.stringify({ entities: ['light.shelf'] }))
+		);
+		await page.reload();
+		const strip = page.getByRole('navigation', { name: 'Pages' });
+		const favorites = strip.getByRole('button', { name: 'Favorites' });
+		await expect(favorites).toBeVisible();
+		const start = await pageHeading(page);
+
+		await touchDrag(page, { x: start.x - 120, y: start.y }, { x: start.x + 120, y: start.y });
+		await expect(favorites).toHaveAttribute('aria-current', 'page');
+
+		await touchDrag(page, { x: start.x + 120, y: start.y }, { x: start.x - 120, y: start.y });
+		await expect(strip.getByRole('button', { name: 'Office' })).toHaveAttribute(
+			'aria-current',
+			'page'
+		);
+	});
+
 	test('the first page does not wrap around to the last', async ({ page }) => {
 		const start = await pageHeading(page);
 		await touchDrag(page, { x: start.x - 120, y: start.y }, { x: start.x + 120, y: start.y });

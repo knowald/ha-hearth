@@ -13,13 +13,8 @@
 	import TabletStep from './TabletStep.svelte';
 	import './buttons.css';
 	import { applyNow } from './applyNow';
-	import {
-		applyImport,
-		existingPageNames,
-		newEntityIds,
-		pageNameKey,
-		type ImportMode
-	} from './importPlan';
+	import type { HassEntities } from 'home-assistant-js-websocket';
+	import { applyImport, existingPageFor, newEntityIds, type ImportMode } from './importPlan';
 	import { buildProposal, type HearthProposal, type ProposedPage } from './proposal';
 	import {
 		applyStarter,
@@ -43,6 +38,10 @@
 	let status = $state<'disconnected' | 'loading' | 'error' | 'ready'>('loading');
 	let errorMessage = $state('');
 	let registry = $state.raw<RegistrySnapshot | null>(null);
+	// the states the proposal was built from, so the plans hold still while
+	// entities change under them
+	let loadedStates = $state.raw<HassEntities>({});
+	let busy = $state(false);
 	let proposal = $state<HearthProposal | null>(null);
 	let included = $state<Record<string, boolean>>({});
 	let includeGlanceables = $state(true);
@@ -55,22 +54,20 @@
 	// pages past the first one are what a replace would overwrite
 	let replacedCount = $derived(Math.max(0, $hearthConfig.rooms.length - 1));
 
-	let existingNames = $derived(existingPageNames($hearthConfig));
-
-	/** Pages whose area already has a dashboard page of the same name. */
+	/** Pages whose area already has a dashboard page, by its name or an alias. */
 	function isExisting(page: ProposedPage) {
-		return existingNames.has(pageNameKey(page.room.name));
+		return existingPageFor($hearthConfig.rooms, page) !== undefined;
 	}
 
 	let hasExisting = $derived(proposal?.pages.some(isExisting) ?? false);
 
 	/** How many of each area's entities its existing page does not show yet. */
 	let newCounts = $derived.by(() => {
-		const rooms = new Map($hearthConfig.rooms.map((room) => [pageNameKey(room.name), room]));
+		const known = Object.keys(loadedStates);
 		return new Map(
 			(proposal?.pages ?? []).map((page) => {
-				const room = rooms.get(pageNameKey(page.room.name));
-				return [page.room.id, room ? newEntityIds(room, page).length : 0];
+				const room = existingPageFor($hearthConfig.rooms, page);
+				return [page.room.id, room ? newEntityIds(room, page, known).length : 0];
 			})
 		);
 	});
@@ -93,7 +90,7 @@
 		return Object.fromEntries(
 			STARTER_LAYOUTS.map((layout) => [
 				layout.id,
-				buildStarter(layout.id, plain, snapshot, $states ?? {})
+				buildStarter(layout.id, plain, snapshot, loadedStates)
 			])
 		);
 	});
@@ -135,7 +132,8 @@
 		try {
 			const snapshot = await fetchRegistry();
 			registry = snapshot;
-			proposal = buildProposal(snapshot, $states ?? {});
+			loadedStates = get(states) ?? {};
+			proposal = buildProposal(snapshot, loadedStates);
 			// an untouched dashboard has nothing worth keeping; one the user has
 			// already built on defaults to leaving those pages alone
 			mode = replacedCount > 0 || proposal.pages.some(isExisting) ? 'add' : 'replace';
@@ -192,11 +190,21 @@
 		return plan.pages.map((page) => page.room.name).join(', ');
 	}
 
-	function finish(mutate: Parameters<typeof applyNow>[0]) {
-		void applyNow(mutate, () => hearthNeedsSetup.set(false));
-		// opened from the settings sheet, which would otherwise cover the new pages
-		editor.set(null);
-		step = 'tablet';
+	/*
+	 * The tablet step follows only once the dashboard holds the result. A
+	 * save that failed went to the edit bar, which the wizard would cover;
+	 * a change declined for a newer revision leaves the wizard as it was.
+	 */
+	async function finish(mutate: Parameters<typeof applyNow>[0]) {
+		busy = true;
+		const outcome = await applyNow(mutate, () => {
+			hearthNeedsSetup.set(false);
+			// opened from the settings sheet, which would otherwise cover the new pages
+			editor.set(null);
+		});
+		busy = false;
+		if (outcome === 'applied') step = 'tablet';
+		else if (outcome === 'unsaved') onclose();
 	}
 
 	function runImport() {
@@ -209,7 +217,8 @@
 			applyImport(config, {
 				pages: chosen,
 				glanceables: includeGlanceables ? plain.glanceables : [],
-				mode
+				mode,
+				known: Object.keys(loadedStates)
 			})
 		);
 	}
@@ -250,7 +259,7 @@
 		{onclose}
 		ondone={apply}
 		doneLabel={$lang('hearth_apply')}
-		doneDisabled={status !== 'ready' || !canApply}
+		doneDisabled={status !== 'ready' || !canApply || busy}
 		dismissible={!firstRun}
 	>
 		<div class="wizard">

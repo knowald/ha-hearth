@@ -388,6 +388,18 @@ export const displayTimeZone = derived(railClock, ($clock) => validTimeZone($clo
 
 export const currentRoom = writable<string>('home');
 
+/** This browser's favorites page is on screen in place of the current page; see favorites.ts. */
+export const favoritesOpen = writable(false);
+
+/**
+ * Shows a page, leaving the favorites page. Setting currentRoom alone would
+ * not, when the page asked for is the one the favorites page covers.
+ */
+export function goToPage(id: string) {
+	favoritesOpen.set(false);
+	currentRoom.set(id);
+}
+
 export type Popup = {
 	kind: 'light' | 'blind' | 'fan' | 'media' | 'detail';
 	entity: string;

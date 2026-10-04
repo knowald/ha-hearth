@@ -8,7 +8,7 @@
 	import { PRESS_RIPPLE } from './config';
 	import { ICON } from './iconSizes';
 	import Icon from './Icon.svelte';
-	import { applyNow } from './applyNow';
+	import { applying, applyNow } from './applyNow';
 	import { roomEntityIds } from './importPlan';
 	import { cardDefinition } from './model/registry';
 	import { addSuggestedCard, suggestCards, type CardSuggestion } from './pageSuggestions';
@@ -43,10 +43,12 @@
 
 	let room = $derived($hearthConfig.rooms.find((entry) => entry.id === roomId));
 
-	// built once per registry load and page name, not on every state change
+	// built once per registry load, page name and arrival of the states, not
+	// on every state change
 	let roomName = $derived(room?.name);
+	let statesLoaded = $derived($states !== undefined);
 	let offered = $derived(
-		registry && roomName !== undefined
+		registry && roomName !== undefined && statesLoaded
 			? suggestCards({ name: roomName }, registry, get(states) ?? {})
 			: []
 	);
@@ -54,7 +56,7 @@
 	// a suggestion whose entities the page already shows has been taken
 	let suggestions = $derived.by(() => {
 		if (!room) return [];
-		const shown = roomEntityIds(room);
+		const shown = roomEntityIds(room, statesLoaded ? Object.keys(get(states)) : []);
 		return offered.filter((suggestion) =>
 			(cardDefinition(suggestion.card.type)?.entityIds(suggestion.card as never) ?? []).some(
 				(entity) => !shown.has(entity)
@@ -85,6 +87,7 @@
 					class="chip pressable"
 					use:Ripple={PRESS_RIPPLE}
 					aria-label={fill($lang('hearth_add_named'), { name: label(suggestion) })}
+					disabled={$applying}
 					onclick={() => add(suggestion)}
 				>
 					<Icon name={cardDefinition(suggestion.card.type)?.icon ?? 'add'} size={ICON.inline} />
@@ -131,5 +134,11 @@
 		font: inherit;
 		font-size: var(--h-type-secondary);
 		cursor: pointer;
+	}
+
+	/* the card before it is still being saved */
+	.chip:disabled {
+		opacity: 0.5;
+		cursor: progress;
 	}
 </style>

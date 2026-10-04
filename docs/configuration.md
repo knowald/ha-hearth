@@ -85,7 +85,7 @@ Settings > Pages > Starter layouts builds pages for one kind of screen from your
 
 A starter never changes pages you already have. On a dashboard that is still the single empty page it started with, it replaces that page.
 
-Both end on Open on your tablet: the address of the dashboard and a QR code for it. A device name entered there adds `?device=<name>` to the address. Through Ingress the address in the browser only works inside Home Assistant, so the step asks for the address of the app's own port instead; set a port and Home Assistant URL for direct access (`hass_public_url`) in the app configuration first.
+Both end on Open on your tablet, once the result is saved: the address of the dashboard and a QR code for it. The address starts as the one this browser uses and can be changed; one without `http://` gets it added, and `localhost` or `127.0.0.1` gets a warning, since a tablet would reach itself. A device name entered there adds `?device=<name>` to the address. Through Ingress the address in the browser only works inside Home Assistant, so the field starts empty and asks for the address of the app's own port; set a port and Home Assistant URL for direct access (`hass_public_url`) in the app configuration first.
 
 An empty page named after an area (or one of its aliases) suggests the cards the import would give it. Each suggestion adds its card with one tap. Outside edit mode they show only when a tap would open edit mode (no edit lock and no `?menu=false`), and an added card is saved at once.
 
@@ -171,7 +171,7 @@ On phones, and on any screen with the sidebar set to None, page buttons run alon
 
 ## Favorites
 
-The star in an entity's popup adds it to this browser's favorites. At 900 px and narrower, a Favorites button leads the page strip while the list has entities, and opens a page with a tile for each. The list is kept in local storage, not in `hearth.yaml`, so every phone has its own. This screen > Show favorites page hides the page without clearing the list. The page is not shown in edit mode.
+The star in an entity's popup adds it to this browser's favorites. At 900 px and narrower, a Favorites button leads the page strip while the list has entities, and opens a page with a tile for each. The list is kept in local storage, not in `hearth.yaml`, so every phone has its own. With swipe between pages on phones turned on, it is the first page a swipe reaches. Edit favorites on the page lists them with a remove button each, and the page offers to remove favorites Home Assistant no longer has. The star is in the media popup too. This screen > Show favorites page hides the page without clearing the list. The page is not shown in edit mode.
 
 ## Interface scale and padding
 

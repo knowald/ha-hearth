@@ -58,6 +58,26 @@ describe('favorites', () => {
 		expect(get(favoritesPageOffered)).toBe(true);
 	});
 
+	it('removes several favorites at once', async () => {
+		const { favorites, removeFavorites, toggleFavorite } = await freshModules();
+		toggleFavorite('light.desk');
+		toggleFavorite('switch.fan');
+		toggleFavorite('sensor.gone');
+		removeFavorites(['sensor.gone', 'light.desk']);
+		expect(get(favorites).entities).toEqual(['switch.fan']);
+	});
+
+	it('closes when a page is asked for, even the one it covers', async () => {
+		const { currentRoom, favoritesOpen, goToPage, toggleFavorite } = await freshModules();
+		toggleFavorite('light.desk');
+		currentRoom.set('office');
+		favoritesOpen.set(true);
+
+		goToPage('office');
+		expect(get(favoritesOpen)).toBe(false);
+		expect(get(currentRoom)).toBe('office');
+	});
+
 	it('keeps the list while the page is turned off', async () => {
 		const { favoritesPageOffered, showFavoritesPage, toggleFavorite } = await freshModules();
 		toggleFavorite('light.desk');

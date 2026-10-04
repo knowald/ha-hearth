@@ -13,6 +13,7 @@ import {
 	hearthConfig,
 	hearthEditMode,
 	hearthNeedsSetup,
+	hearthRevision,
 	saveState,
 	setupWizardSource
 } from './store';
@@ -118,12 +119,16 @@ describe('SetupWizard', () => {
 		});
 
 		it('hands the import to edit mode, where Cancel returns to the dashboard from before it', async () => {
-			render(SetupWizard, { onclose: vi.fn() });
+			const onclose = vi.fn();
+			render(SetupWizard, { onclose });
 			const apply = screen.getByRole('button', { name: en.hearth_apply }) as HTMLButtonElement;
 			await waitFor(() => expect(apply.disabled).toBe(false));
 			await fireEvent.click(apply);
 			await waitFor(() => expect(get(hearthEditMode)).toBe(true));
 			expect(get(saveState)).toBe('error');
+			// the edit bar reports the failure, so the wizard gets out of its way
+			await waitFor(() => expect(onclose).toHaveBeenCalled());
+			expect(screen.queryByRole('dialog', { name: en.hearth_tablet_title })).toBeNull();
 			expect(get(hearthConfig)).not.toEqual(DEFAULT_HEARTH_CONFIG);
 			cancelEdit();
 			expect(get(hearthConfig)).toEqual(DEFAULT_HEARTH_CONFIG);
@@ -152,13 +157,20 @@ describe('SetupWizard', () => {
 					hidden_by: null
 				}))
 			} as never);
+			hearthRevision.set(1);
+			// the server holds the revision this page loaded, and each save adds one
 			vi.stubGlobal(
 				'fetch',
-				vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ revision: 2 }) })
+				vi.fn(async (url: string) => ({
+					ok: true,
+					status: 200,
+					json: async () => ({ revision: url.endsWith('/_api/hearth_versions') ? 1 : 2 })
+				}))
 			);
 		});
 
 		afterEach(() => {
+			hearthRevision.set(0);
 			setupWizardSource.set('areas');
 			states.set({});
 			hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));

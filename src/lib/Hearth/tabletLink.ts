@@ -10,21 +10,25 @@ export function isIngressPath(pathname: string): boolean {
 /**
  * The address the tablet can open directly, or undefined under Ingress: an
  * Ingress address is tied to a Home Assistant session and only works inside
- * its frontend, so the app's own port has to be entered instead.
+ * its frontend, so the app's own port has to be entered instead. The page's
+ * directory, since the app may be served below a path of its own.
  */
-export function directAddress(location: Pick<Location, 'origin' | 'pathname'>, base: string) {
+export function directAddress(location: Pick<Location, 'href' | 'pathname'>) {
 	if (isIngressPath(location.pathname)) return undefined;
-	return `${location.origin}${base}/`;
+	return new URL('.', location.href).href;
 }
 
 /**
  * The dashboard address with the device name the tablet should answer to, or
- * undefined for anything that is not an http(s) address.
+ * undefined for anything that is not an http(s) address. An address typed
+ * without a scheme, such as homeassistant.local:5050, is taken as http.
  */
 export function tabletUrl(address: string, device = ''): string | undefined {
+	const trimmed = address.trim();
+	if (!trimmed) return undefined;
 	let url: URL;
 	try {
-		url = new URL(address.trim());
+		url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`);
 	} catch {
 		return undefined;
 	}
@@ -33,6 +37,12 @@ export function tabletUrl(address: string, device = ''): string | undefined {
 	if (name) url.searchParams.set('device', name);
 	else url.searchParams.delete('device');
 	return url.href;
+}
+
+/** An address that names this device itself, which a tablet would resolve to itself. */
+export function isLocalAddress(url: string): boolean {
+	const host = new URL(url).hostname;
+	return host === 'localhost' || host === '[::1]' || host.startsWith('127.');
 }
 
 /** One SVG path drawing every dark module, one unit per module. */

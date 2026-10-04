@@ -6,7 +6,8 @@ import {
 	type HearthConfig,
 	type HearthRoom,
 	type OverviewCard,
-	type RailWidget
+	type RailWidget,
+	wildcardEntityIds
 } from './config';
 import { cardDefinition } from './model/registry';
 import type { ProposedPage } from './proposal';
@@ -24,24 +25,39 @@ export function pageNameKey(name: string) {
 	return name.trim().toLowerCase();
 }
 
-export function existingPageNames(config: HearthConfig) {
-	return new Set(config.rooms.map((room) => pageNameKey(room.name)));
+/** The page an area already has, named after the area or one of its aliases. */
+export function existingPageFor<T extends Pick<HearthRoom, 'name'>>(
+	rooms: T[],
+	page: Pick<ProposedPage, 'room' | 'aliases'>
+): T | undefined {
+	for (const key of [page.room.name, ...(page.aliases ?? [])].map(pageNameKey)) {
+		const room = rooms.find((entry) => pageNameKey(entry.name) === key);
+		if (room) return room;
+	}
+	return undefined;
 }
 
 function roomCards(room: HearthRoom): OverviewCard[] {
 	return (room.cards ?? []).flat().flatMap((item) => (isStack(item) ? item.cards : [item]));
 }
 
-/** Every entity a page's cards show, header readings left out. */
-export function roomEntityIds(room: HearthRoom): Set<string> {
+/**
+ * Every entity a page's cards show, header readings left out. `known` is
+ * every entity id Home Assistant reports, which a grid's wildcard expands
+ * against.
+ */
+export function roomEntityIds(room: HearthRoom, known: string[] = []): Set<string> {
 	return new Set(
-		roomCards(room).flatMap((card) => cardDefinition(card.type)?.entityIds(card as never) ?? [])
+		roomCards(room).flatMap((card) => [
+			...(cardDefinition(card.type)?.entityIds(card as never) ?? []),
+			...(card.type === 'entities' ? wildcardEntityIds(card.wildcard, known) : [])
+		])
 	);
 }
 
 /** The entities an area proposes that its existing page does not show yet. */
-export function newEntityIds(room: HearthRoom, page: ProposedPage): string[] {
-	const shown = roomEntityIds(room);
+export function newEntityIds(room: HearthRoom, page: ProposedPage, known: string[] = []): string[] {
+	const shown = roomEntityIds(room, known);
 	return [...roomEntityIds(page.room)].filter((entity) => !shown.has(entity));
 }
 
@@ -54,8 +70,13 @@ const domainOf = (entity: string) => entity.split('.')[0];
  * single-entity card (thermostat, media, camera) is added whole. Returns how
  * many entities were added.
  */
-export function mergeNewEntities(room: HearthRoom, page: ProposedPage, taken: string[]): number {
-	const shown = roomEntityIds(room);
+export function mergeNewEntities(
+	room: HearthRoom,
+	page: ProposedPage,
+	taken: string[],
+	known: string[] = []
+): number {
+	const shown = roomEntityIds(room, known);
 	const columns = ensureRoomCardColumns(room);
 	let added = 0;
 	const place = (card: OverviewCard, column: number) => {
@@ -141,24 +162,28 @@ export function mergeGlanceables(config: HearthConfig, glanceables: RailWidget[]
 /** Writes the chosen pages and rail suggestions into a configuration draft. */
 export function applyImport(
 	config: HearthConfig,
-	plan: { pages: ProposedPage[]; glanceables?: RailWidget[]; mode: ImportMode }
+	plan: {
+		pages: ProposedPage[];
+		glanceables?: RailWidget[];
+		mode: ImportMode;
+		/** Every entity id Home Assistant reports, for wildcard grids. */
+		known?: string[];
+	}
 ) {
 	if (plan.glanceables?.length) mergeGlanceables(config, plan.glanceables);
 	if (plan.mode === 'merge') {
 		const taken = takenCardIds(config);
-		const byName = new Map(config.rooms.map((room) => [pageNameKey(room.name), room]));
 		for (const page of plan.pages) {
-			const room = byName.get(pageNameKey(page.room.name));
-			if (room) mergeNewEntities(room, page, taken);
+			const room = existingPageFor(config.rooms, page);
+			if (room) mergeNewEntities(room, page, taken, plan.known);
 		}
 	}
 	// the first page (Home) survives either way; replace drops the rest
-	const existing = existingPageNames(config);
 	const kept = plan.mode === 'replace' ? config.rooms.slice(0, 1) : config.rooms;
 	const taken = kept.map((room) => room.id);
 	const added =
 		plan.mode !== 'replace'
-			? plan.pages.filter((page) => !existing.has(pageNameKey(page.room.name)))
+			? plan.pages.filter((page) => !existingPageFor(kept, page))
 			: plan.pages;
 	config.rooms = [...kept, ...added.map((page) => withUniqueIds(page, taken))];
 }

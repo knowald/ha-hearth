@@ -3,7 +3,7 @@
 	import { motion } from '$lib/core/app/motion';
 	import { ICON } from '../iconSizes';
 	import { states } from '$lib/core/ha/entities';
-	import { currentRoom, editor, hearthConfig, hearthEditMode } from '../store';
+	import { currentRoom, editor, goToPage, hearthConfig, hearthEditMode } from '../store';
 	import { searchAvailable } from '../visibility';
 	import { hiddenPages, navigablePages } from '../pages';
 	import { favoritesOpen, favoritesPageOffered } from '../favorites';
@@ -66,10 +66,7 @@
 				class:visibility-dimmed={$hearthEditMode && $hiddenPages.includes(room.id)}
 				aria-current={$currentRoom === room.id && !$favoritesOpen ? 'page' : undefined}
 				bind:this={pills[room.id]}
-				onclick={() => {
-					favoritesOpen.set(false);
-					currentRoom.set(room.id);
-				}}
+				onclick={() => goToPage(room.id)}
 			>
 				<Icon name={room.icon} size={ICON.inline} />
 				<span>{room.name}</span>

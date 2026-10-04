@@ -37,8 +37,11 @@
 	} from '$lib/core/domains/mediaPlayer';
 	import Icon from './Icon.svelte';
 	import CloseButton from './CloseButton.svelte';
+	import { favorites, toggleFavorite } from './favorites';
 
 	let { entity, name }: { entity: string; name: string } = $props();
+
+	let starred = $derived($favorites.entities.includes(entity));
 
 	const FEATURE = {
 		pause: 1,
@@ -474,6 +477,15 @@
 	</div>
 
 	<span class="close">
+		<button
+			type="button"
+			class="star"
+			aria-label={$lang('hearth_favorite')}
+			aria-pressed={starred}
+			onclick={() => toggleFavorite(entity)}
+		>
+			<Icon name="star" fill={starred} size={ICON.tile} />
+		</button>
 		<CloseButton tone="art" onclick={closePopup} />
 	</span>
 </div>
@@ -891,6 +903,21 @@
 		position: absolute;
 		top: 12px;
 		right: 14px;
+		display: flex;
+	}
+
+	.star {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border: 0;
+		border-radius: var(--h-radius-xs);
+		background: none;
+		color: var(--h-on-art-2);
+		cursor: pointer;
 	}
 	/* an 18px bar is a hard target for a finger; the hit area grows, the bar does not */
 	@media (pointer: coarse) {

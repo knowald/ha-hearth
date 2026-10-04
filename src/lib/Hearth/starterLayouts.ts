@@ -11,7 +11,7 @@ import {
 	type OverviewItem,
 	type RailWidget
 } from './config';
-import { applyImport, roomEntityIds } from './importPlan';
+import { applyImport, pageNameKey, roomEntityIds } from './importPlan';
 import type { HearthProposal, ProposalCategory, ProposedPage } from './proposal';
 
 /*
@@ -250,14 +250,29 @@ export function buildStarter(
 	return BUILDERS[id](proposal, shownEntityIds(snapshot, currentStates));
 }
 
+function uniqueName(name: string, taken: Set<string>) {
+	let candidate = name;
+	for (let count = 2; taken.has(pageNameKey(candidate)); count += 1) candidate = `${name} ${count}`;
+	taken.add(pageNameKey(candidate));
+	return candidate;
+}
+
 /**
  * Adds a starter's pages and rail suggestions. A dashboard that is still the
  * single empty page it started as loses that page, so it opens on the
- * starter's first one; a page whose name is taken is left alone.
+ * starter's first one. An area page the dashboard already has is left alone,
+ * while a page of the starter's own takes a free name rather than being
+ * dropped.
  */
 export function applyStarter(config: HearthConfig, plan: StarterPlan) {
 	const untouched =
 		config.rooms.length === 1 && (config.rooms[0].cards ?? []).every((column) => !column.length);
 	if (untouched && plan.pages.length) config.rooms = [];
-	applyImport(config, { pages: plan.pages, glanceables: plan.glanceables, mode: 'add' });
+	const taken = new Set(config.rooms.map((room) => pageNameKey(room.name)));
+	const pages = plan.pages.map((page) =>
+		page.areaId
+			? page
+			: { ...page, room: { ...page.room, name: uniqueName(page.room.name, taken) } }
+	);
+	applyImport(config, { pages, glanceables: plan.glanceables, mode: 'add' });
 }
