@@ -1,15 +1,16 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { motion } from '$lib/core/app/motion';
 	import { MOTION } from '$lib/core/theme';
 	import type { ScreensaverPhotoOrder } from '../config';
-	import { startSlideshow } from './photos';
+	import { sequenceResume, startSlideshow } from './photos';
 
 	/*
 	 * A slideshow of uploaded photos behind the sleep screen. Every move is a
-	 * CSS animation the compositor runs: a crossfade between photos and a slow
-	 * pan and zoom on the one showing. Without motion there is neither, and
-	 * while the page is hidden the timer and the pan both stop.
+	 * CSS animation the compositor runs: the next photo fades in over the last
+	 * one, and the one showing slowly zooms. Without motion there is neither,
+	 * and while the page is hidden the timer and the zoom both stop.
 	 */
 
 	let {
@@ -26,28 +27,71 @@
 		onready?: (ready: boolean) => void;
 	} = $props();
 
-	// the pan starts from a different corner on each photo
+	interface Slide {
+		index: number;
+		source: string;
+	}
+
+	// the zoom starts from a different corner on each photo
 	const ORIGINS = ['20% 30%', '80% 70%', '75% 25%', '25% 75%'];
 
 	// a primitive, so an equal list from a config reload keeps the slideshow going
 	let playlist = $derived(photos.join('\n'));
-	let slide = $state<{ index: number; source: string }>();
+	// the last one is on top; the one under it stays until the fade over it ends
+	let slides = $state<Slide[]>([]);
 	let hidden = $state(typeof document !== 'undefined' && document.hidden);
 	let failed: string[] = [];
 	let allFailed = $state(false);
 	let skip: () => void = () => {};
 	let crossfade = $derived($motion ? MOTION.theme * 2 : 0);
+	// never restarts, so a slide key is never reused, even across playlist changes
+	let shownCount = 0;
+
+	/** Loads and decodes a photo off screen; the element is kept so the decoded image is too. */
+	function preload(source: string) {
+		const image = new Image();
+		image.decoding = 'async';
+		image.src = source;
+		const decoded =
+			typeof image.decode === 'function' ? image.decode().catch(() => {}) : Promise.resolve();
+		return { source, image, decoded };
+	}
+
+	// runs inside the slideshow effect, which must not come to depend on the slides it sets
+	function show(source: string) {
+		untrack(() => {
+			const slide = { index: shownCount++, source };
+			const under = crossfade ? slides.at(-1) : undefined;
+			slides = under ? [under, slide] : [slide];
+		});
+	}
 
 	$effect(() => {
 		const list = playlist ? playlist.split('\n') : [];
+		const key = playlist;
 		failed = [];
 		allFailed = false;
-		let index = 0;
-		const slideshow = startSlideshow(list, { seconds, order }, (source, next) => {
-			slide = { index: index++, source };
-			// decoded ahead, so the crossfade never waits on the network
-			if (next) new Image().src = next;
-		});
+		let ahead: ReturnType<typeof preload> | undefined;
+		let latest = 0;
+		let stopped = false;
+		const slideshow = startSlideshow(
+			list,
+			{ seconds, order, start: order === 'sequence' ? sequenceResume.get(key) : undefined },
+			(source, next, position) => {
+				if (order === 'sequence') sequenceResume.set(key, (position + 1) % list.length);
+				// the photo was loaded ahead; it goes up once decoded, so the fade never stalls
+				const pending = ahead?.source === source ? ahead : undefined;
+				ahead = next && next !== source ? preload(next) : undefined;
+				if (!pending) {
+					show(source);
+					return;
+				}
+				const request = ++latest;
+				void pending.decoded.then(() => {
+					if (!stopped && request === latest) show(source);
+				});
+			}
+		);
 		skip = () => slideshow.skip();
 		const onvisibility = () => {
 			const away = document.hidden;
@@ -58,6 +102,7 @@
 		onvisibility();
 		document.addEventListener('visibilitychange', onvisibility);
 		return () => {
+			stopped = true;
 			slideshow.stop();
 			document.removeEventListener('visibilitychange', onvisibility);
 		};
@@ -72,22 +117,27 @@
 			skip();
 		}
 	}
+
+	function settled(slide: Slide) {
+		slides = slides.filter((entry) => entry.index >= slide.index);
+	}
 </script>
 
 <div class="photos" class:paused={hidden} data-testid="photo-frame">
-	{#if slide && !allFailed}
-		{#each [slide] as current (current.index)}
+	{#if !allFailed}
+		{#each slides as slide (slide.index)}
 			<img
 				class="slide"
 				class:pan={Boolean($motion)}
-				src={current.source}
+				src={slide.source}
 				alt=""
+				decoding="async"
 				style:--slide-seconds="{seconds}s"
-				style:transform-origin={ORIGINS[current.index % ORIGINS.length]}
+				style:transform-origin={ORIGINS[slide.index % ORIGINS.length]}
 				in:fade={{ duration: crossfade }}
-				out:fade={{ duration: crossfade }}
+				onintroend={() => settled(slide)}
 				onload={() => onready?.(true)}
-				onerror={() => failedToLoad(current.source)}
+				onerror={() => failedToLoad(slide.source)}
 			/>
 		{/each}
 	{/if}

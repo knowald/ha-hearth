@@ -24,7 +24,7 @@
 	import { imageSource } from './images';
 	import { radarView } from './screensaver/radar';
 	import { PHOTO_SECONDS } from './config';
-	import { nowPlaying } from './screensaver/nowPlaying';
+	import { holdNowPlaying, nowPlaying, type NowPlaying } from './screensaver/nowPlaying';
 	import { sunSky } from './screensaver/sun';
 	import PhotoFrame from './screensaver/PhotoFrame.svelte';
 	import { conditionIcon } from './widgets/weather/conditions';
@@ -125,9 +125,24 @@
 	let showDate = $derived($hearthConfig.screensaver_show_date ?? true);
 	let clockSize = $derived($hearthConfig.screensaver_clock_size ?? 'medium');
 	let background = $derived($hearthConfig.screensaver_background ?? 'none');
-	let media = $derived(
-		background === 'media' ? nowPlaying($states, $hearthConfig.screensaver_media_entity) : undefined
-	);
+	let media = $state<NowPlaying>();
+	const mediaHold = holdNowPlaying((next) => (media = next));
+	$effect(() => mediaHold.stop);
+	// only worked out while asleep: awake, every state update would pay for it
+	$effect(() => {
+		if (!active || background !== 'media') {
+			mediaHold.reset();
+			return;
+		}
+		const configured = $hearthConfig.screensaver_media_entity;
+		mediaHold.update(
+			nowPlaying(
+				$states,
+				configured,
+				untrack(() => media?.entityId)
+			)
+		);
+	});
 	// while nothing plays, the media background hands over to its fallback
 	let scene = $derived(
 		background === 'media' && !media
@@ -156,13 +171,13 @@
 		void minute;
 		return untrack(() => sunSky($states?.['sun.sun']));
 	});
-	let artFailed = $state(false);
+	let picture = $derived(media?.picture);
+	// a failed address stays failed until the art changes or the screen sleeps again
+	let failedArt = $state<string>();
 	$effect(() => {
-		// new art, and every new sleep, gets another chance to load
-		void media?.picture;
-		if (active) artFailed = false;
+		if (!active) failedArt = undefined;
 	});
-	let art = $derived(media?.picture && !artFailed ? media.picture : undefined);
+	let art = $derived(picture && picture !== failedArt ? picture : undefined);
 	let imageFailed = $state(false);
 	$effect(() => {
 		// a new image, and every new sleep, gets another chance to load
@@ -260,9 +275,15 @@
 					style:--sky-bottom={sky.bottom}
 				></div>
 			{:else if image && !imageFailed}
-				<img class="photo" src={image} alt="" onerror={() => (imageFailed = true)} />
+				<img
+					class="photo"
+					src={image}
+					alt=""
+					decoding="async"
+					onerror={() => (imageFailed = true)}
+				/>
 			{:else if art}
-				<img class="art-backdrop" src={art} alt="" />
+				<img class="art-backdrop" src={art} alt="" decoding="async" />
 			{/if}
 		</div>
 		{#if hasBackground}<div class="scrim"></div>{/if}
@@ -282,7 +303,7 @@
 			{#if media}
 				<div class="now-playing">
 					{#if art}
-						<img class="art" src={art} alt="" onerror={() => (artFailed = true)} />
+						<img class="art" src={art} alt="" onerror={() => (failedArt = art)} />
 					{/if}
 					<div class="track">
 						<div class="track-title">{media.title}</div>
@@ -331,13 +352,20 @@
 		);
 	}
 
-	/* the album art, blurred to a wash of its colours */
+	/*
+	 * The album art as a wash of its colours: drawn at a tenth of the screen
+	 * and scaled up, so the upscale does most of the blurring and the filter
+	 * only works on a small box. A little over 10x hides the soft edges.
+	 */
 	.art-backdrop {
-		width: 100%;
-		height: 100%;
+		position: absolute;
+		top: 45%;
+		left: 45%;
+		width: 10%;
+		height: 10%;
 		object-fit: cover;
-		filter: blur(48px) saturate(1.2);
-		transform: scale(1.2);
+		filter: blur(2px) saturate(1.2);
+		transform: scale(12);
 	}
 
 	/* darkens the middle so the clock reads over a busy map or photo */

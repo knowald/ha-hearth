@@ -41,7 +41,9 @@ describe('PhotoListField', () => {
 			expect(onchange).toHaveBeenCalledWith([FIRST, SECOND, `hearth-images/${'c'.repeat(32)}.webp`])
 		);
 		expect(fetchMock).toHaveBeenCalledTimes(4);
-		expect(screen.getByRole('alert').textContent).toBe('Could not upload 1 of the photos');
+		expect(screen.getByRole('alert').textContent).toBe(
+			'Could not upload 1 of the photos: unsupported [400]'
+		);
 	});
 
 	it('removes a photo from the list', async () => {

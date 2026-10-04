@@ -82,6 +82,11 @@ const SCREENSAVER_CLOCK_SIZES = new Set<unknown>(['small', 'medium', 'large']);
 // 'none' is the default and is stored as unset
 const SCREENSAVER_BACKGROUNDS = new Set<unknown>(['image', 'radar', 'photos', 'sun', 'media']);
 
+function normalizePhotoSeconds(raw: unknown): number | undefined {
+	const seconds = normalizeWholeNumber(raw, PHOTO_SECONDS.min);
+	return seconds === undefined ? undefined : Math.min(PHOTO_SECONDS.max, seconds);
+}
+
 // only uploads: a slideshow must not reach out to other hosts on a wall tablet
 function normalizeScreensaverPhotos(raw: unknown): string[] | undefined {
 	if (!Array.isArray(raw)) return undefined;
@@ -442,10 +447,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		screensaver_image: trimmedOrUndefined(config.screensaver_image),
 		screensaver_radar: normalizeScreensaverRadar(config.screensaver_radar),
 		screensaver_photos: normalizeScreensaverPhotos(config.screensaver_photos),
-		screensaver_photo_seconds: normalizeWholeNumber(
-			config.screensaver_photo_seconds,
-			PHOTO_SECONDS.min
-		),
+		screensaver_photo_seconds: normalizePhotoSeconds(config.screensaver_photo_seconds),
 		screensaver_photo_order: config.screensaver_photo_order === 'sequence' ? 'sequence' : undefined,
 		screensaver_media_entity: trimmedOrUndefined(config.screensaver_media_entity),
 		screensaver_media_fallback:

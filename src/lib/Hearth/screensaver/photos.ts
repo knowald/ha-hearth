@@ -21,9 +21,13 @@ export function photoRound(
 	return round;
 }
 
+/** Where each sequence left off, by playlist, so the next sleep carries on instead of starting over. */
+export const sequenceResume = new Map<string, number>();
+
 export interface Slideshow {
 	/** Moves on at once, as when the current photo failed to load. */
 	skip(): void;
+	/** Holds the current photo; a skip while paused moves on but starts no timer. */
 	pause(): void;
 	/** Shows the current photo for a full interval again. */
 	resume(): void;
@@ -31,22 +35,33 @@ export interface Slideshow {
 }
 
 /**
- * Steps through the photos every `seconds`, telling `onshow` the photo to show
- * and the one after it, which the caller loads ahead. A single photo never
- * schedules a step.
+ * Steps through the photos every `seconds`, telling `onshow` the photo to show,
+ * the one after it, which the caller loads ahead, and the shown photo's place
+ * in the round. A sequence opens at `start`, so it can carry on where an
+ * earlier slideshow stopped. A single photo never schedules a step.
  */
 export function startSlideshow(
 	photos: readonly string[],
-	options: { seconds: number; order: ScreensaverPhotoOrder; random?: () => number },
-	onshow: (current: string, next: string | undefined) => void
+	options: {
+		seconds: number;
+		order: ScreensaverPhotoOrder;
+		start?: number;
+		random?: () => number;
+	},
+	onshow: (current: string, next: string | undefined, position: number) => void
 ): Slideshow {
 	const { order, random } = options;
 	let round = photoRound(photos, order, undefined, random);
-	let position = 0;
+	const start = options.start ?? 0;
+	let position =
+		order === 'sequence' && Number.isInteger(start) && start > 0 && start < round.length
+			? start
+			: 0;
 	// drawn when the last photo of a round shows, so the photo loaded ahead is the one shown next
 	let nextRound: string[] | undefined;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let stopped = false;
+	let paused = false;
 
 	function upcoming(): string | undefined {
 		if (photos.length < 2) return undefined;
@@ -56,7 +71,7 @@ export function startSlideshow(
 	}
 
 	function show() {
-		onshow(round[position], upcoming());
+		onshow(round[position], upcoming(), position);
 	}
 
 	function step() {
@@ -74,7 +89,7 @@ export function startSlideshow(
 	function schedule() {
 		clearTimeout(timer);
 		timer = undefined;
-		if (stopped || photos.length < 2) return;
+		if (stopped || paused || photos.length < 2) return;
 		timer = setTimeout(step, options.seconds * 1000);
 	}
 
@@ -88,11 +103,14 @@ export function startSlideshow(
 			if (!stopped && photos.length > 1) step();
 		},
 		pause() {
+			paused = true;
 			clearTimeout(timer);
 			timer = undefined;
 		},
 		resume() {
-			if (!timer) schedule();
+			if (!paused) return;
+			paused = false;
+			schedule();
 		},
 		stop() {
 			stopped = true;

@@ -15,6 +15,7 @@ import {
 	screensaverPreview
 } from './store';
 import Screensaver from './Screensaver.svelte';
+import { sequenceResume } from './screensaver/photos';
 
 // the real map pulls in Leaflet and the network; this stands in with its props
 const radarStub = vi.hoisted(() => ({ frames: true }));
@@ -311,6 +312,7 @@ describe('Screensaver', () => {
 
 		afterEach(() => {
 			Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+			sequenceResume.clear();
 		});
 
 		it('steps through the uploaded photos in order behind a scrim', async () => {
@@ -333,6 +335,38 @@ describe('Screensaver', () => {
 			vi.advanceTimersByTime(10_000);
 			await tick();
 			expect(slides(container)).toEqual([`${'a'.repeat(32)}.webp`]);
+		});
+
+		it('carries a sequence on across sleeps', async () => {
+			configure({
+				screensaver_background: 'photos',
+				screensaver_photos: [FIRST, SECOND],
+				screensaver_photo_order: 'sequence'
+			});
+			const { container, overlay } = await showScreensaver();
+			expect(slides(container)).toEqual([`${'a'.repeat(32)}.webp`]);
+			await fireEvent.keyDown(overlay, { key: 'a' });
+			vi.advanceTimersByTime(60_000);
+			await tick();
+			expect(slides(container)).toEqual([`${'b'.repeat(32)}.jpg`]);
+		});
+
+		it('fades the next photo in over the last one, which stays until the fade ends', async () => {
+			motion.set(190);
+			configure({
+				screensaver_background: 'photos',
+				screensaver_photos: [FIRST, SECOND],
+				screensaver_photo_order: 'sequence',
+				screensaver_photo_seconds: 10
+			});
+			const { container } = await showScreensaver();
+			vi.advanceTimersByTime(10_000);
+			await tick();
+			expect(slides(container)).toEqual([`${'a'.repeat(32)}.webp`, `${'b'.repeat(32)}.jpg`]);
+			const top = container.querySelectorAll('img.slide')[1];
+			top.dispatchEvent(new CustomEvent('introend'));
+			await tick();
+			expect(slides(container)).toEqual([`${'b'.repeat(32)}.jpg`]);
 		});
 
 		it('pans only with motion on', async () => {
@@ -437,9 +471,57 @@ describe('Screensaver', () => {
 				'media_player.living': { ...PLAYING['media_player.living'], state: 'paused' }
 			} as unknown as HassEntities);
 			await tick();
+			// held a moment, so a skip between songs does not flash the fallback
+			vi.advanceTimersByTime(4_000);
+			await tick();
+			expect(container.querySelector('.now-playing')).not.toBeNull();
+			states.set({
+				'media_player.living': { ...PLAYING['media_player.living'], state: 'buffering' }
+			} as unknown as HassEntities);
+			await tick();
+			states.set({
+				'media_player.living': { ...PLAYING['media_player.living'], state: 'idle' }
+			} as unknown as HassEntities);
+			await tick();
+			vi.advanceTimersByTime(4_000);
+			await tick();
+			expect(container.querySelector('.now-playing')).not.toBeNull();
+			vi.advanceTimersByTime(1_000);
+			await tick();
 			expect(container.querySelector('.now-playing')).toBeNull();
 			expect(container.querySelector('img.art-backdrop')).toBeNull();
 			expect(container.querySelector('img.photo')).not.toBeNull();
+		});
+
+		it('keeps failed art away until the address changes or the screen sleeps again', async () => {
+			states.set(PLAYING as unknown as HassEntities);
+			configure({ screensaver_background: 'media' });
+			const { container, overlay } = await showScreensaver();
+			await fireEvent.error(container.querySelector('img.art')!);
+			expect(container.querySelector('img.art')).toBeNull();
+			expect(container.querySelector('img.art-backdrop')).toBeNull();
+
+			const living = PLAYING['media_player.living'];
+			states.set({
+				'media_player.living': { ...living, attributes: { ...living.attributes, volume: 0.5 } }
+			} as unknown as HassEntities);
+			await tick();
+			expect(container.querySelector('img.art')).toBeNull();
+
+			states.set({
+				'media_player.living': {
+					...living,
+					attributes: { ...living.attributes, entity_picture: '/api/next' }
+				}
+			} as unknown as HassEntities);
+			await tick();
+			expect(container.querySelector('img.art')?.getAttribute('src')).toBe('/api/next');
+			await fireEvent.error(container.querySelector('img.art')!);
+
+			await fireEvent.keyDown(overlay, { key: 'a' });
+			vi.advanceTimersByTime(60_000);
+			await tick();
+			expect(container.querySelector('img.art')?.getAttribute('src')).toBe('/api/next');
 		});
 
 		it('stays plain black while nothing plays and no fallback is set', async () => {

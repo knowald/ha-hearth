@@ -271,6 +271,9 @@ test('the now playing sleep screen shows the track while music plays', async ({
 	await request.post(`${FAKE_HASS}/_test/state`, {
 		data: { entity_id: 'media_player.living', state: 'paused' }
 	});
+	// the track stays up a moment, so a skip between songs does not flash the fallback
+	await expect(screensaver.locator('.sky')).toHaveCount(0);
+	await page.clock.fastForward('00:06');
 	await expect(screensaver.getByText('Blue in Green')).toBeHidden();
 	await expect(screensaver.locator('.sky')).toHaveAttribute('data-phase', 'day');
 });

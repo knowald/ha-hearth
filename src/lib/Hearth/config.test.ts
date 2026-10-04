@@ -527,6 +527,9 @@ describe('sleep screen settings', () => {
 		});
 		expect(config.screensaver_photos).toBeUndefined();
 		expect(config.screensaver_photo_seconds).toBeUndefined();
+		expect(
+			normalizeHearthConfig({ ...base, screensaver_photo_seconds: 1e9 }).screensaver_photo_seconds
+		).toBe(86_400);
 		expect(config.screensaver_photo_order).toBeUndefined();
 		expect(config.screensaver_media_fallback).toBeUndefined();
 		expect(
@@ -539,7 +542,7 @@ describe('sleep screen settings', () => {
 			})
 		).toEqual([
 			'screensaver_photos[0] must be an uploaded image, hearth-images/<file>',
-			'screensaver_photo_seconds must be at least 5',
+			'screensaver_photo_seconds must be 5 to 86400',
 			'screensaver_photo_order must be shuffle or sequence',
 			'screensaver_media_fallback must be none, image, radar, photos or sun'
 		]);

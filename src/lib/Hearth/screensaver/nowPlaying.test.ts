@@ -1,6 +1,6 @@
 import type { HassEntities } from 'home-assistant-js-websocket';
-import { describe, expect, it } from 'vitest';
-import { nowPlaying } from './nowPlaying';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { holdNowPlaying, nowPlaying } from './nowPlaying';
 
 function player(entityId: string, state: string, attributes: Record<string, unknown> = {}) {
 	return { [entityId]: { entity_id: entityId, state, attributes } };
@@ -50,5 +50,58 @@ describe('nowPlaying', () => {
 		const states = player('media_player.kitchen', 'paused') as unknown as HassEntities;
 		expect(nowPlaying(states, undefined)).toBeUndefined();
 		expect(nowPlaying(undefined, undefined)).toBeUndefined();
+	});
+	it('counts a buffering player as playing', () => {
+		const states = player('media_player.radio', 'buffering', {
+			media_title: 'News'
+		}) as unknown as HassEntities;
+		expect(nowPlaying(states, 'media_player.radio')?.title).toBe('News');
+		expect(nowPlaying(states, undefined)?.title).toBe('News');
+	});
+
+	it('sticks with the player it picked while that one keeps playing', () => {
+		expect(nowPlaying(STATES, undefined, 'media_player.bedroom')?.entityId).toBe(
+			'media_player.bedroom'
+		);
+		expect(nowPlaying(STATES, undefined, 'media_player.kitchen')?.entityId).toBe(
+			'media_player.living'
+		);
+	});
+});
+
+describe('holdNowPlaying', () => {
+	const TRACK = { entityId: 'media_player.living', title: 'Blue in Green' };
+
+	beforeEach(() => vi.useFakeTimers());
+	afterEach(() => vi.useRealTimers());
+
+	it('keeps the last track for a moment after it stops', () => {
+		const onchange = vi.fn();
+		const hold = holdNowPlaying(onchange, 5000);
+		hold.update(TRACK);
+		hold.update({ ...TRACK });
+		expect(onchange).toHaveBeenCalledTimes(1);
+		hold.update(undefined);
+		vi.advanceTimersByTime(4999);
+		expect(onchange).toHaveBeenCalledTimes(1);
+		hold.update(TRACK);
+		vi.advanceTimersByTime(10_000);
+		expect(onchange).toHaveBeenCalledTimes(1);
+		hold.update(undefined);
+		vi.advanceTimersByTime(5000);
+		expect(onchange).toHaveBeenLastCalledWith(undefined);
+	});
+
+	it('clears at once on reset and never after stop', () => {
+		const onchange = vi.fn();
+		const hold = holdNowPlaying(onchange, 5000);
+		hold.update(TRACK);
+		hold.reset();
+		expect(onchange).toHaveBeenLastCalledWith(undefined);
+		hold.update(TRACK);
+		hold.update(undefined);
+		hold.stop();
+		vi.advanceTimersByTime(10_000);
+		expect(onchange).toHaveBeenLastCalledWith(TRACK);
 	});
 });

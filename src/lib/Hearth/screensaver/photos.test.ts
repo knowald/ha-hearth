@@ -42,15 +42,15 @@ describe('startSlideshow', () => {
 	it('shows each photo for its seconds and names the one to load ahead', () => {
 		const onshow = vi.fn();
 		const slideshow = startSlideshow(['a', 'b', 'c'], { seconds: 30, order: 'sequence' }, onshow);
-		expect(onshow).toHaveBeenLastCalledWith('a', 'b');
+		expect(onshow).toHaveBeenLastCalledWith('a', 'b', 0);
 		vi.advanceTimersByTime(29_999);
 		expect(onshow).toHaveBeenCalledTimes(1);
 		vi.advanceTimersByTime(1);
-		expect(onshow).toHaveBeenLastCalledWith('b', 'c');
+		expect(onshow).toHaveBeenLastCalledWith('b', 'c', 1);
 		vi.advanceTimersByTime(30_000);
-		expect(onshow).toHaveBeenLastCalledWith('c', 'a');
+		expect(onshow).toHaveBeenLastCalledWith('c', 'a', 2);
 		vi.advanceTimersByTime(30_000);
-		expect(onshow).toHaveBeenLastCalledWith('a', 'b');
+		expect(onshow).toHaveBeenLastCalledWith('a', 'b', 0);
 		slideshow.stop();
 	});
 
@@ -71,7 +71,7 @@ describe('startSlideshow', () => {
 	it('never steps with a single photo', () => {
 		const onshow = vi.fn();
 		startSlideshow(['a'], { seconds: 5, order: 'shuffle' }, onshow);
-		expect(onshow).toHaveBeenCalledWith('a', undefined);
+		expect(onshow).toHaveBeenCalledWith('a', undefined, 0);
 		expect(vi.getTimerCount()).toBe(0);
 	});
 
@@ -92,7 +92,7 @@ describe('startSlideshow', () => {
 		vi.advanceTimersByTime(9_999);
 		expect(onshow).toHaveBeenCalledTimes(1);
 		vi.advanceTimersByTime(1);
-		expect(onshow).toHaveBeenLastCalledWith('b', 'a');
+		expect(onshow).toHaveBeenLastCalledWith('b', 'a', 1);
 	});
 
 	it('skips at once and restarts the interval', () => {
@@ -100,11 +100,34 @@ describe('startSlideshow', () => {
 		const slideshow = startSlideshow(['a', 'b', 'c'], { seconds: 10, order: 'sequence' }, onshow);
 		vi.advanceTimersByTime(6_000);
 		slideshow.skip();
-		expect(onshow).toHaveBeenLastCalledWith('b', 'c');
+		expect(onshow).toHaveBeenLastCalledWith('b', 'c', 1);
 		vi.advanceTimersByTime(9_999);
 		expect(onshow).toHaveBeenCalledTimes(2);
 		vi.advanceTimersByTime(1);
-		expect(onshow).toHaveBeenLastCalledWith('c', 'a');
+		expect(onshow).toHaveBeenLastCalledWith('c', 'a', 2);
+	});
+
+	it('carries a sequence on from where it was asked to start', () => {
+		const onshow = vi.fn();
+		startSlideshow(['a', 'b', 'c'], { seconds: 10, order: 'sequence', start: 2 }, onshow);
+		expect(onshow).toHaveBeenLastCalledWith('c', 'a', 2);
+		vi.advanceTimersByTime(10_000);
+		expect(onshow).toHaveBeenLastCalledWith('a', 'b', 0);
+		startSlideshow(['a', 'b'], { seconds: 10, order: 'sequence', start: 5 }, onshow);
+		expect(onshow).toHaveBeenLastCalledWith('a', 'b', 0);
+	});
+
+	it('moves on for a skip while paused but starts no timer until resumed', () => {
+		const onshow = vi.fn();
+		const slideshow = startSlideshow(['a', 'b', 'c'], { seconds: 10, order: 'sequence' }, onshow);
+		slideshow.pause();
+		slideshow.skip();
+		expect(onshow).toHaveBeenLastCalledWith('b', 'c', 1);
+		vi.advanceTimersByTime(60_000);
+		expect(onshow).toHaveBeenCalledTimes(2);
+		slideshow.resume();
+		vi.advanceTimersByTime(10_000);
+		expect(onshow).toHaveBeenLastCalledWith('c', 'a', 2);
 	});
 
 	it('stops for good', () => {

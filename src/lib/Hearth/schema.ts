@@ -489,7 +489,7 @@ export const RootSettingsSchema = v.looseObject({
 			'must be a list'
 		)
 	),
-	screensaver_photo_seconds: optionalNumberAtLeast(PHOTO_SECONDS.min),
+	screensaver_photo_seconds: optionalNumberInRange(PHOTO_SECONDS.min, PHOTO_SECONDS.max),
 	screensaver_photo_order: v.optional(
 		v.picklist(['shuffle', 'sequence'], 'must be shuffle or sequence')
 	),

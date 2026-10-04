@@ -37,6 +37,7 @@
 		error = '';
 		const added: string[] = [];
 		let failures = 0;
+		let reason = '';
 		for (const [index, file] of files.entries()) {
 			uploading = files.length - index;
 			try {
@@ -44,10 +45,13 @@
 			} catch (err) {
 				console.error(err);
 				failures += 1;
+				if (!reason && err instanceof Error) reason = err.message;
 			}
 		}
 		uploading = 0;
-		if (failures) error = fill($lang('hearth_photos_upload_failed'), { count: failures });
+		if (failures) {
+			error = `${fill($lang('hearth_photos_upload_failed'), { count: failures })}${reason ? `: ${reason}` : ''}`;
+		}
 		if (added.length) onchange([...new Set([...value, ...added])]);
 	}
 
@@ -149,6 +153,15 @@
 		background: var(--h-overlay);
 		color: var(--h-text-2);
 		cursor: pointer;
+	}
+
+	@media (pointer: coarse) {
+		.remove {
+			min-width: var(--h-touch-target);
+			min-height: var(--h-touch-target);
+			top: 0;
+			right: 0;
+		}
 	}
 
 	@media (hover: hover) {

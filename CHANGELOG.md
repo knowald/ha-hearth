@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- Show a slideshow of uploaded photos on the sleep screen, with a slow zoom and crossfade, in shuffled or listed order
+- Fill the sleep screen with a sky gradient that follows the sun, deep blue at night, warm at dawn and dusk and light by day
+- Show the playing track with its album art on the sleep screen, and a chosen background while nothing plays
+
 ### Changed
 
 - A media query inside an `or` group of a card or widget's visibility conditions now matches the screen; before, only media queries at the top level of the list were read and nested ones never held
