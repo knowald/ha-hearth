@@ -21,7 +21,7 @@ import { preloadEditMode } from '../editLoader';
 import EditToggle from './EditToggle.svelte';
 
 // edit mode's chunks are a build concern; the toggle only has to wait for them
-vi.mock('../editLoader', () => ({ preloadEditMode: vi.fn(async () => {}) }));
+vi.mock('../editLoader', () => ({ preloadEditMode: vi.fn(async () => true) }));
 
 function withLock(lock: Partial<HearthConfig>) {
 	hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), ...lock });
@@ -139,6 +139,7 @@ describe('EditToggle starting a session', () => {
 		saveState.set('idle');
 		hearthRevision.set(0);
 		vi.unstubAllGlobals();
+		vi.mocked(preloadEditMode).mockImplementation(async () => true);
 	});
 
 	function serverAt(revision: number | null) {
@@ -164,7 +165,7 @@ describe('EditToggle starting a session', () => {
 
 	it('warms edit mode on approach and waits for it before editing', async () => {
 		serverAt(3);
-		let loaded: () => void = () => {};
+		let loaded: (value: boolean) => void = () => {};
 		vi.mocked(preloadEditMode).mockClear();
 		vi.mocked(preloadEditMode).mockImplementation(() => new Promise((done) => (loaded = done)));
 		render(EditToggle);
@@ -173,9 +174,21 @@ describe('EditToggle starting a session', () => {
 		await fireEvent.click(toggle());
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(get(hearthEditMode)).toBe(false);
-		loaded();
+		loaded(true);
 		await waitFor(() => expect(get(hearthEditMode)).toBe(true));
-		vi.mocked(preloadEditMode).mockImplementation(async () => {});
+	});
+
+	it('stays out of edit mode and says so when its code cannot load', async () => {
+		serverAt(3);
+		vi.mocked(preloadEditMode).mockImplementation(async () => false);
+		render(EditToggle);
+		await fireEvent.click(toggle());
+		expect(await screen.findByRole('alert')).toHaveProperty(
+			'textContent',
+			en.hearth_could_not_load_component
+		);
+		expect(get(hearthEditMode)).toBe(false);
+		expect(toggle().getAttribute('aria-busy')).toBe('false');
 	});
 
 	it('edits at once when the server cannot say', async () => {

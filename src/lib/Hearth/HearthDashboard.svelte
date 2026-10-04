@@ -32,6 +32,7 @@
 	import RoomDetail from './RoomDetail.svelte';
 	import SearchOverlay from './SearchOverlay.svelte';
 	import ConfirmDialog from './shell/ConfirmDialog.svelte';
+	import EditLoadError from './shell/EditLoadError.svelte';
 	import EditToggle from './shell/EditToggle.svelte';
 	import Keyboard from './shell/Keyboard.svelte';
 	import PhoneNav from './shell/PhoneNav.svelte';
@@ -58,6 +59,24 @@
 			screensaverPreview.set(false);
 			throw error;
 		});
+	}
+
+	/*
+	 * Edit mode without its bar has no Save or Cancel, and without the editor
+	 * host no sheet opens. Either part failing to load puts EditLoadError where
+	 * the bar goes; its Retry loads both again.
+	 */
+	let editAttempt = $state(0);
+	let editorHostFailed = $state(false);
+	let editBarFailed = $state(false);
+
+	function loadEditPart<T>(load: () => Promise<T>, report: (failed: boolean) => void) {
+		const loading = load();
+		loading.then(
+			() => report(false),
+			() => report(true)
+		);
+		return loading;
 	}
 
 	function loadSetupWizard() {
@@ -369,18 +388,13 @@
 		<!-- the edit sheets and their editors load with edit mode or the This
 		     screen sheet, not the dashboard; one boundary for both keeps the
 		     shared sheet code out of the eager chunks -->
-		{#await loadEditorHost() then EditorHost}
-			<EditorHost.default />
-		{:catch}
-			{#if $hearthEditMode}
-				<div class="edit-load-error" role="alert">
-					{$lang('hearth_could_not_load_component')}
-					<button type="button" onclick={() => hearthEditMode.set(false)}>
-						{$lang('hearth_exit_edit_mode')}
-					</button>
-				</div>
-			{/if}
-		{/await}
+		{#key editAttempt}
+			{#await loadEditPart(loadEditorHost, (failed) => (editorHostFailed = failed)) then EditorHost}
+				<EditorHost.default />
+			{:catch}
+				<!-- reported by EditLoadError while editing -->
+			{/await}
+		{/key}
 	{/if}
 	{#if showSearch}
 		<SearchOverlay onclose={() => (showSearch = false)} />
@@ -411,11 +425,16 @@
 	<ConfirmDialog />
 	<Toasts {overflowBy} />
 	{#if $hearthEditMode}
-		{#await loadEditBar() then EditBar}
-			<EditBar.default />
-		{:catch}
-			<!-- the editor host above failed alike and offers the way out -->
-		{/await}
+		{#key editAttempt}
+			{#await loadEditPart(loadEditBar, (failed) => (editBarFailed = failed)) then EditBar}
+				{#if !editorHostFailed}<EditBar.default />{/if}
+			{:catch}
+				<!-- reported by EditLoadError -->
+			{/await}
+		{/key}
+		{#if editorHostFailed || editBarFailed}
+			<EditLoadError onretry={() => (editAttempt += 1)} />
+		{/if}
 	{:else if !hideEditToggle}
 		<EditToggle />
 	{/if}

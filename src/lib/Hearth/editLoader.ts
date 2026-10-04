@@ -14,10 +14,22 @@ export function loadEditorHost() {
 	return import('./edit/EditorHost.svelte');
 }
 
-/** Never rejects: a failure is reported by the load that renders the part. */
-export function preloadEditMode(): Promise<void> {
-	return Promise.all([loadEditBar(), loadEditorHost(), loadSortable()]).then(
-		() => undefined,
-		() => undefined
+/** How long the edit toggle waits on the edit chunks, like the revision check. */
+export const EDIT_LOAD_PATIENCE_MS = 3000;
+
+/**
+ * False when a part failed to load. A load still running after `patience`
+ * resolves true: edit mode opens and the parts appear when they arrive, and
+ * should they fail after all, EditLoadError offers the way out.
+ */
+export function preloadEditMode(patience = EDIT_LOAD_PATIENCE_MS): Promise<boolean> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const loaded = Promise.all([loadEditBar(), loadEditorHost(), loadSortable()]).then(
+		() => true,
+		() => false
 	);
+	const waited = new Promise<boolean>((resolve) => {
+		timer = setTimeout(() => resolve(true), patience);
+	});
+	return Promise.race([loaded, waited]).finally(() => clearTimeout(timer));
 }

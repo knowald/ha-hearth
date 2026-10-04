@@ -27,21 +27,36 @@
 	let hint = $state(false);
 	let pinOpen = $state(false);
 	let checkingRevision = $state(false);
+	let loadFailed = $state(false);
+	let loadFailedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function warmEditMode() {
+		void preloadEditMode();
+	}
 
 	/*
 	 * A wall tablet can keep a page open for weeks, and editing a revision that
 	 * another screen has since replaced only ends in a conflict on save. Offer
 	 * the newer one first; when the server cannot say, editing goes ahead.
 	 * Runs once the lock, if any, has been passed. Edit mode's code loads
-	 * alongside the check, so the bar is ready when edit mode turns on.
+	 * alongside the check, so the bar is ready when edit mode turns on; edit
+	 * mode without the bar would have no Save or Cancel, so a failed load
+	 * keeps it closed.
 	 */
 	async function startEditing() {
 		if (checkingRevision) return;
 		checkingRevision = true;
-		const [revision] = await Promise.all([fetchServerRevision(), preloadEditMode()]);
+		loadFailed = false;
+		const [revision, loaded] = await Promise.all([fetchServerRevision(), preloadEditMode()]);
 		checkingRevision = false;
 		// the import wizard may have handed a failed save to edit mode meanwhile
 		if ($hearthEditMode) return;
+		if (!loaded) {
+			loadFailed = true;
+			clearTimeout(loadFailedTimer);
+			loadFailedTimer = setTimeout(() => (loadFailed = false), 4000);
+			return;
+		}
 		if (revision === undefined || revision <= $hearthRevision) {
 			enterEditMode();
 			return;
@@ -96,6 +111,7 @@
 	$effect(() => () => {
 		clearTimeout(holdTimer);
 		clearTimeout(hintTimer);
+		clearTimeout(loadFailedTimer);
 	});
 </script>
 
@@ -110,10 +126,10 @@
 			aria-busy={checkingRevision}
 			aria-label={$lang('hearth_edit_configuration')}
 			onclick={handleClick}
-			onpointerenter={preloadEditMode}
-			onfocus={preloadEditMode}
+			onpointerenter={warmEditMode}
+			onfocus={warmEditMode}
 			onpointerdown={(event) => {
-				preloadEditMode();
+				warmEditMode();
 				if (event.button === 0) startHold();
 			}}
 			onpointerup={endHold}
@@ -132,12 +148,15 @@
 		class="screen-toggle pressable"
 		aria-label={$lang('hearth_this_screen')}
 		title={$lang('hearth_this_screen')}
-		onpointerenter={preloadEditMode}
-		onfocus={preloadEditMode}
+		onpointerenter={warmEditMode}
+		onfocus={warmEditMode}
 		onclick={() => screenSheetOpen.set(true)}
 	>
 		<Icon name="display_settings" size={ICON.control} />
 	</button>
+	{#if loadFailed}
+		<span class="load-error" role="alert">{$lang('hearth_could_not_load_component')}</span>
+	{/if}
 </div>
 
 {#if pinOpen}
@@ -199,6 +218,11 @@
 
 	.screen-toggle {
 		padding: 12px;
+	}
+
+	.load-error {
+		font-size: var(--h-type-secondary);
+		color: var(--h-bad-text);
 	}
 
 	/* a finger held still must not turn into a scroll or a text selection,

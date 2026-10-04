@@ -4,7 +4,6 @@
 	import { lang } from '$lib/core/i18n';
 	import { PRESS_RIPPLE } from '../config';
 	import {
-		cancelEdit,
 		canRedo,
 		canUndo,
 		editor,
@@ -13,6 +12,7 @@
 		redoConfig,
 		reloadDiscardingEdits,
 		reportCopy,
+		requestCancelEdit,
 		requestConfirmation,
 		saveState,
 		saveFailure,
@@ -48,19 +48,6 @@
 			console.error(error);
 			reportCopy('failed');
 		}
-	}
-
-	function cancel() {
-		if (!hasUnsavedEdits()) {
-			cancelEdit();
-			return;
-		}
-		requestConfirmation({
-			title: $lang('hearth_discard_edits_title'),
-			message: $lang('hearth_discard_edits_message'),
-			confirmLabel: $lang('hearth_discard'),
-			action: cancelEdit
-		});
 	}
 
 	function reloadAfterConflict() {
@@ -174,8 +161,11 @@
 	>
 		<Icon name="redo" size={ICON.control} />
 	</button>
-	<button type="button" class="bar-button pressable" use:Ripple={PRESS_RIPPLE} onclick={cancel}
-		>{$lang('cancel')}</button
+	<button
+		type="button"
+		class="bar-button pressable"
+		use:Ripple={PRESS_RIPPLE}
+		onclick={requestCancelEdit}>{$lang('cancel')}</button
 	>
 	<button
 		type="button"
