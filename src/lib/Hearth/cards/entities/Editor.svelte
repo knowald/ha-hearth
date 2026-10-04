@@ -10,6 +10,7 @@
 	import type { EntitiesCard } from './descriptor';
 	import CheckField from '../../edit/CheckField.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
+	import EntityPicker from '../../edit/EntityPicker.svelte';
 	import Icon from '../../Icon.svelte';
 	import IconField from '../../edit/IconField.svelte';
 	import SelectField from '../../edit/SelectField.svelte';
@@ -69,6 +70,7 @@
 	let entities = $state<EditableRef[]>((initial?.entities ?? []).map(editable));
 	let entitiesOpen = $state(true);
 	let expandedRows = $state<number[]>([]);
+	let pickingMany = $state(false);
 
 	/** Applies the preview's drag order to the rows that have an entity. */
 	export function applyPreviewReorder(reordered: EntityRef[]) {
@@ -115,9 +117,9 @@
 			.map((entry) => (entry > index ? entry - 1 : entry));
 	}
 
-	function addRow() {
-		entities.push({
-			entity: '',
+	function blankRow(entity = ''): EditableRef {
+		return {
+			entity,
 			name: '',
 			icon: '',
 			display: '',
@@ -125,9 +127,18 @@
 			active_entity: '',
 			active_states: '',
 			slider_updates: ''
-		});
+		};
+	}
+
+	function addRow() {
+		entities.push(blankRow());
 		entitiesOpen = true;
 		expandedRows = [entities.length - 1];
+	}
+
+	function addPicked(entityIds: string[]) {
+		entities.push(...entityIds.map((entityId) => blankRow(entityId)));
+		entitiesOpen = true;
 	}
 
 	$effect(() => {
@@ -263,7 +274,8 @@
 						/>
 						<span class="entity-row-copy">
 							<strong>{ref.name.trim() || ref.entity.trim() || $lang('hearth_new_entity')}</strong>
-							{#if ref.name.trim() && ref.entity.trim()}<small>{ref.entity}</small>{/if}
+							{#if ref.name.trim() && ref.entity.trim()}<small>{ref.entity}</small>
+							{:else if !ref.entity.trim()}<small>{$lang('hearth_empty_row_removed')}</small>{/if}
 						</span>
 					</button>
 					<span class="entity-row-actions">
@@ -297,7 +309,11 @@
 				</div>
 				{#if expandedRows.includes(refIndex)}
 					<div class="filter-fields entity-row-fields">
-						<EntityField label={$lang('entity')} bind:value={ref.entity} />
+						<EntityField
+							label={$lang('entity')}
+							bind:value={ref.entity}
+							hint={ref.entity.trim() ? undefined : $lang('hearth_empty_row_removed')}
+						/>
 						<TextField label={$lang('hearth_name_optional')} bind:value={ref.name} />
 						<IconField label={$lang('hearth_icon_optional')} bind:value={ref.icon} />
 						{#if highlightable(ref)}
@@ -346,5 +362,24 @@
 			<Icon name="add" size={ICON.control} />
 			<span>{$lang('hearth_add_entity')}</span>
 		</div>
+		<div
+			class="add-filter"
+			role="button"
+			tabindex="0"
+			onclick={() => (pickingMany = true)}
+			onkeydown={(event) => activateOnKeyboard(event, () => (pickingMany = true))}
+		>
+			<Icon name="playlist_add" size={ICON.control} />
+			<span>{$lang('hearth_pick_several_entities')}</span>
+		</div>
 	</div>
+{/if}
+
+{#if pickingMany}
+	<EntityPicker
+		multiple
+		taken={entities.map((ref) => ref.entity.trim()).filter(Boolean)}
+		onselectmany={addPicked}
+		onclose={() => (pickingMany = false)}
+	/>
 {/if}

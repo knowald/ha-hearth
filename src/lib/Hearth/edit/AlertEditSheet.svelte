@@ -11,6 +11,7 @@
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
 	import VisibilityField from './VisibilityField.svelte';
+	import { requireFields } from './validation';
 
 	let { index }: { index: number | null } = $props();
 
@@ -60,7 +61,18 @@
 			: $lang('hearth_alert_delay_invalid')
 	);
 	let rules = $derived(normalizeVisibility($state.snapshot(conditions)));
-	let valid = $derived(title.trim() !== '' && !!rules && !delayError);
+	// the first thing still missing, top to bottom, is what Done explains
+	let validity = $derived.by(() => {
+		const titled = requireFields($lang('hearth_field_required'), {
+			label: $lang('hearth_title'),
+			value: title
+		});
+		if (!titled.valid) return titled;
+		if (!rules) return { valid: false, reason: $lang('hearth_alert_needs_condition') };
+		// the delay explains itself under its field
+		if (delayError) return { valid: false, reason: $lang('hearth_fix_marked_fields') };
+		return { valid: true };
+	});
 
 	function close() {
 		editor.set(null);
@@ -121,11 +133,12 @@
 	onback={back}
 	ondone={done}
 	{dirty}
-	doneDisabled={!valid}
+	doneDisabled={!validity.valid}
+	doneReason={validity.reason ?? null}
 	onremove={initial ? remove : undefined}
 >
 	<div class="editor-fields">
-		<TextField label={$lang('hearth_title')} bind:value={title} autofocus={!initial} />
+		<TextField label={$lang('hearth_title')} required bind:value={title} autofocus={!initial} />
 		<TextField label={$lang('hearth_alert_message')} bind:value={message} />
 		<SelectField
 			label={$lang('hearth_alert_severity')}

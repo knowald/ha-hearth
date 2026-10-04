@@ -12,6 +12,8 @@ export interface CardDraft<T extends OverviewCard> {
 	fields: CardFields<T>;
 	/** false blocks Done, for example while advanced YAML does not parse */
 	valid?: boolean;
+	/** Shown beside the disabled Done; a generic "fix the marked fields" when absent. */
+	reason?: string;
 }
 
 export interface CardEditorProps<T extends OverviewCard> {

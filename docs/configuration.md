@@ -28,6 +28,8 @@ Every save carries the revision the browser loaded. If another browser saved in 
 
 Closing an editor sheet with changes in it (backdrop tap, close button, Escape or back) asks before dropping them, and the browser asks before a reload or a closed tab drops unsaved edits.
 
+Fields marked with `*` are required. Until they are filled, Done stays disabled and the reason is shown under it. An entity field shows the entity's name and state, and warns (without blocking) when Home Assistant does not report the entity or it belongs to another domain. List rows without an entity are removed on save. The entity picker also searches area and device names, filters by area, lists your recent picks first (and, for a page's temperature and humidity sensors, the fitting sensors first), and in list editors (Pick several entities) adds several entities at once.
+
 To go back, open Settings > Versions, compare an earlier version with the open dashboard and restore it as an edit you can still undo.
 
 ### Images

@@ -12,6 +12,8 @@ export interface WidgetDraft<T extends RailWidget> {
 	fields: WidgetFields<T>;
 	/** false blocks Done, for example for an unknown time zone */
 	valid?: boolean;
+	/** Shown beside the disabled Done; a generic "fix the marked fields" when absent. */
+	reason?: string;
 }
 
 export interface WidgetEditorProps<T extends RailWidget> {

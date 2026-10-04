@@ -22,6 +22,7 @@
 	import { hearthConfig, reportSheetChanges, requestConfirmation } from '../store';
 	import { WIDE_QUERY } from '../breakpoints';
 	import { confirmDiscard } from './discard';
+	import FieldMessages, { describedBy } from './FieldMessages.svelte';
 	import './editor-fields.css';
 	import '../buttons.css';
 
@@ -32,6 +33,7 @@
 		onback,
 		ondone,
 		doneDisabled = false,
+		doneReason = undefined,
 		doneLabel = undefined,
 		onremove,
 		removeLabel = undefined,
@@ -51,6 +53,12 @@
 		onback?: () => void;
 		ondone: () => void;
 		doneDisabled?: boolean;
+		/**
+		 * Why Done is disabled, shown under it while it is. A sheet that can
+		 * block Done passes null while it does not, which keeps the line's
+		 * room so the form below never jumps.
+		 */
+		doneReason?: string | null;
 		doneLabel?: string;
 		onremove?: () => void;
 		removeLabel?: string;
@@ -69,6 +77,9 @@
 		/** The back arrow hands the staged changes back to the sheet it returns to, so it never asks. */
 		backKeepsChanges?: boolean;
 	} = $props();
+
+	const uid = $props.id();
+	let blockedReason = $derived(doneDisabled ? doneReason : null);
 
 	// a reload drops the staged changes as surely as a close does
 	$effect(() => {
@@ -208,6 +219,7 @@
 		<div
 			class="header"
 			class:handle={floats}
+			class:captioned={doneReason !== undefined}
 			use:windowDrag={{
 				position: () => position,
 				size: () => ({ width: sheet?.offsetWidth ?? 0, height: sheet?.offsetHeight ?? 0 }),
@@ -255,6 +267,7 @@
 				type="button"
 				class="hearth-button primary pressable"
 				disabled={doneDisabled}
+				aria-describedby={describedBy(`${uid}-done`, undefined, undefined, blockedReason)}
 				use:Ripple={PRESS_RIPPLE}
 				onclick={() => !doneDisabled && ondone()}
 			>
@@ -262,6 +275,11 @@
 			</button>
 			<CloseButton onclick={close} />
 		</div>
+		{#if doneReason !== undefined}
+			<div class="done-reason">
+				<FieldMessages id="{uid}-done" warning={blockedReason} />
+			</div>
+		{/if}
 		<div class="body-wrap">
 			<div class="body" class:split use:scrollEdges={{ report: (edges) => (bodyCut = edges) }}>
 				{@render children()}
@@ -338,6 +356,29 @@
 		font-weight: 600;
 		letter-spacing: -0.3px;
 		color: var(--h-text-1);
+	}
+
+	/* sits under the header's actions, so it reads as Done's own caption */
+	.done-reason {
+		flex: none;
+		/* one line of small text, held empty while Done is enabled */
+		min-height: calc(var(--h-type-small) * 1.4 + 10px);
+		padding: 0 28px 10px;
+		text-align: right;
+		border-bottom: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
+	}
+
+	.done-reason :global(.field-warning) {
+		margin: 0;
+	}
+
+	.header.captioned {
+		padding-bottom: 8px;
+		border-bottom: none;
+	}
+
+	.sheet.floating .done-reason {
+		padding: 0 18px 10px;
 	}
 
 	.move-actions {
@@ -511,6 +552,10 @@
 
 		.header {
 			padding: 14px 14px 12px 18px;
+		}
+
+		.done-reason {
+			padding: 0 18px 10px;
 		}
 
 		.title {

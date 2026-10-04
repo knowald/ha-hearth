@@ -3,6 +3,7 @@
 	import type { WidgetEditorProps } from '../types';
 	import type { WeatherWidget } from './descriptor';
 	import EntityField from '../../edit/EntityField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<WeatherWidget> = $props();
 
@@ -12,9 +13,21 @@
 
 	let entity = $state(initial?.entity ?? '');
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('hearth_weather_entity'),
+			value: entity
+		})
+	);
+
 	$effect(() => {
-		onchange({ fields: { entity: entity.trim() || undefined } });
+		onchange({ fields: { entity: entity.trim() || undefined }, ...validity });
 	});
 </script>
 
-<EntityField label={$lang('hearth_weather_entity')} bind:value={entity} domains={['weather']} />
+<EntityField
+	label={$lang('hearth_weather_entity')}
+	required
+	bind:value={entity}
+	domains={['weather']}
+/>

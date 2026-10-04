@@ -3,6 +3,7 @@
 	import type { WidgetEditorProps } from '../types';
 	import type { TemplateWidget } from './descriptor';
 	import CodeField from '../../edit/CodeField.svelte';
+	import { requireFields } from '../../edit/validation';
 
 	let { initial: initialProp, onchange }: WidgetEditorProps<TemplateWidget> = $props();
 
@@ -12,13 +13,21 @@
 
 	let template = $state(initial?.template ?? '');
 
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), {
+			label: $lang('hearth_template'),
+			value: template
+		})
+	);
+
 	$effect(() => {
-		onchange({ fields: { template: template.trim() ? template : undefined } });
+		onchange({ fields: { template: template.trim() ? template : undefined }, ...validity });
 	});
 </script>
 
 <CodeField
 	label={$lang('hearth_template')}
+	required
 	language="jinja2"
 	bind:value={template}
 	placeholder={"{{ states('sensor.outdoor') }} outside"}

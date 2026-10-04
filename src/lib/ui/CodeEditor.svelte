@@ -22,7 +22,8 @@
 		readOnly = false,
 		original = undefined,
 		placeholder = undefined,
-		label = undefined
+		label = undefined,
+		required = false
 	}: {
 		type: string;
 		value: string;
@@ -40,6 +41,8 @@
 		placeholder?: string | undefined;
 		/** Names the editable area for a screen reader, where no dialog title does. */
 		label?: string | undefined;
+		/** Announces the editable area as required. */
+		required?: boolean;
 	} = $props();
 
 	let editor: HTMLDivElement;
@@ -248,6 +251,7 @@
 		if (label !== undefined) {
 			extensions.push(EditorView.contentAttributes.of({ 'aria-label': label }));
 		}
+		if (required) extensions.push(EditorView.contentAttributes.of({ 'aria-required': 'true' }));
 		if (readOnly) {
 			extensions.push(EditorState.readOnly.of(true), EditorView.editable.of(false));
 		}

@@ -15,6 +15,7 @@
 		autofocus = false,
 		hint = undefined,
 		error = undefined,
+		required = false,
 		onchange = undefined
 	}: {
 		label: string;
@@ -33,6 +34,8 @@
 		hint?: string;
 		/** Shown in place of nothing when the value is not acceptable; marks the input invalid. */
 		error?: string | null;
+		/** Marks the label and tells assistive tech; the editor decides what blocks Done. */
+		required?: boolean;
 		/** Fires on the input's own change event - blur or Enter, not per keystroke. */
 		onchange?: (value: string) => void;
 	} = $props();
@@ -40,7 +43,7 @@
 
 <div class="field">
 	<label>
-		<span class="field-label">{label}</span>
+		<span class="field-label" class:field-required={required}>{label}</span>
 		<input
 			{type}
 			{inputmode}
@@ -50,6 +53,7 @@
 			{placeholder}
 			spellcheck="false"
 			aria-invalid={error ? true : undefined}
+			aria-required={required || undefined}
 			aria-describedby={describedBy(uid, hint, error)}
 			onchange={() => onchange?.(value)}
 		/>

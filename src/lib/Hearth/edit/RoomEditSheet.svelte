@@ -10,6 +10,7 @@
 	import IconField from './IconField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
+	import { requireFields } from './validation';
 
 	let { id }: { id: string | null } = $props();
 
@@ -30,6 +31,10 @@
 	function staged() {
 		return { name, icon, summary, tempEntity, humidityEntity, hideHeader, fillScreen, columns };
 	}
+
+	let validity = $derived(
+		requireFields($lang('hearth_field_required'), { label: $lang('name'), value: name })
+	);
 
 	const untouched = JSON.stringify(staged());
 	let dirty = $derived(JSON.stringify(staged()) !== untouched);
@@ -106,13 +111,15 @@
 	onclose={close}
 	ondone={done}
 	{dirty}
-	doneDisabled={!name.trim()}
+	doneDisabled={!validity.valid}
+	doneReason={validity.reason ?? null}
 	onremove={id && $hearthConfig.rooms.length > 1 ? remove : undefined}
 	onmoveup={id ? () => move(-1) : undefined}
 	onmovedown={id ? () => move(1) : undefined}
 >
 	<TextField
 		label={$lang('name')}
+		required
 		bind:value={name}
 		placeholder={$lang('hearth_example_page_name')}
 	/>
@@ -126,11 +133,13 @@
 		label={$lang('hearth_temperature_sensor')}
 		bind:value={tempEntity}
 		domains={['sensor']}
+		deviceClass="temperature"
 	/>
 	<EntityField
 		label={$lang('hearth_humidity_sensor')}
 		bind:value={humidityEntity}
 		domains={['sensor']}
+		deviceClass="humidity"
 	/>
 	<SelectField
 		label={$lang('hearth_screen_height')}

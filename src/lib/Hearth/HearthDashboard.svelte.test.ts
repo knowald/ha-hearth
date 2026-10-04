@@ -46,10 +46,13 @@ describe('HearthDashboard first run', () => {
 	});
 
 	it('keeps a way back to the area import on the home page after the wizard is skipped', async () => {
+		// the wizard loads on demand; compiling the chunk here, outside the
+		// findBy timeout, keeps a cold transform under a loaded suite from
+		// failing the test
+		await import('./SetupWizard.svelte');
 		hearthNeedsSetup.set(true);
 		render(HearthDashboard);
 		expect(get(setupWizardOpen)).toBe(true);
-		// the wizard loads on demand
 		await fireEvent.click(await screen.findByRole('button', { name: en.hearth_skip_for_now }));
 		expect(get(setupWizardOpen)).toBe(false);
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_setup }));

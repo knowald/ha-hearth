@@ -5,6 +5,7 @@
 	import type { ScenesCard } from './descriptor';
 	import { activateOnKeyboard } from '../../interaction';
 	import EntityField from '../../edit/EntityField.svelte';
+	import EntityPicker from '../../edit/EntityPicker.svelte';
 	import Icon from '../../Icon.svelte';
 	import IconField from '../../edit/IconField.svelte';
 	import SelectField from '../../edit/SelectField.svelte';
@@ -15,6 +16,8 @@
 	// remounted per target and type, so the initial value is all the form needs
 	// svelte-ignore state_referenced_locally
 	const initial = initialProp;
+
+	const SCENE_DOMAINS = ['scene', 'script'];
 
 	type EditableSceneRef = {
 		entity: string;
@@ -38,15 +41,14 @@
 		}))
 	);
 
+	let pickingMany = $state(false);
+
+	function blankScene(entity = ''): EditableSceneRef {
+		return { entity, name: '', icon: '', caption: '', active_entity: '', active_state: '' };
+	}
+
 	function addScene() {
-		scenes.push({
-			entity: '',
-			name: '',
-			icon: '',
-			caption: '',
-			active_entity: '',
-			active_state: ''
-		});
+		scenes.push(blankScene());
 	}
 
 	$effect(() => {
@@ -92,7 +94,12 @@
 {#each scenes as ref, refIndex (refIndex)}
 	<div class="filter-row">
 		<div class="filter-fields">
-			<EntityField label={$lang('entity')} bind:value={ref.entity} domains={['scene', 'script']} />
+			<EntityField
+				label={$lang('entity')}
+				bind:value={ref.entity}
+				domains={SCENE_DOMAINS}
+				hint={ref.entity.trim() ? undefined : $lang('hearth_empty_row_removed')}
+			/>
 			<TextField label={$lang('hearth_name_optional')} bind:value={ref.name} />
 			<IconField label={$lang('hearth_icon_optional')} bind:value={ref.icon} />
 			{#if style === 'bar'}
@@ -135,3 +142,23 @@
 	<Icon name="add" size={ICON.control} />
 	<span>{$lang('hearth_add_scene')}</span>
 </div>
+<div
+	class="add-filter"
+	role="button"
+	tabindex="0"
+	onclick={() => (pickingMany = true)}
+	onkeydown={(event) => activateOnKeyboard(event, () => (pickingMany = true))}
+>
+	<Icon name="playlist_add" size={ICON.control} />
+	<span>{$lang('hearth_pick_several_entities')}</span>
+</div>
+
+{#if pickingMany}
+	<EntityPicker
+		multiple
+		domains={SCENE_DOMAINS}
+		taken={scenes.map((ref) => ref.entity.trim()).filter(Boolean)}
+		onselectmany={(entityIds) => scenes.push(...entityIds.map((entityId) => blankScene(entityId)))}
+		onclose={() => (pickingMany = false)}
+	/>
+{/if}
