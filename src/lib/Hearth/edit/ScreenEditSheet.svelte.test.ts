@@ -81,6 +81,15 @@ describe('ScreenEditSheet', () => {
 		);
 	});
 
+	it('mutes alert chimes on this screen alone', async () => {
+		render(ScreenEditSheet);
+		await fireEvent.change(select(en.hearth_mute_alert_chimes), { target: { value: 'on' } });
+		expect(get(screenOverrides).mute_chimes).toBe(true);
+		expect(JSON.parse(localStorage.getItem('hearthScreen')!)).toEqual({ mute_chimes: true });
+		await fireEvent.change(select(en.hearth_mute_alert_chimes), { target: { value: '' } });
+		expect(get(screenOverrides).mute_chimes).toBeUndefined();
+	});
+
 	it('says where the browser cannot scale', () => {
 		render(ScreenEditSheet);
 		// jsdom has no standardized CSS zoom

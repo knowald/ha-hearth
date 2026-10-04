@@ -15,7 +15,8 @@ import {
 	type HearthAlert,
 	type Popup
 } from './store';
-import type { AlertRule, AlertSeverity, VisibilityCondition } from './types';
+import type { AlertChime, AlertRule, AlertSeverity, VisibilityCondition } from './types';
+import { armChimes, chimesConfigured, chimeTone, playAlertChime } from './chimeGate';
 
 /*
  * Raises and clears alerts. Rules from the configuration are checked against
@@ -163,6 +164,15 @@ function openOwnPopup(entry: RuleState) {
 	requestWake();
 }
 
+// a chime belongs to the moment an alert arrives, so edit mode skips it
+// rather than saving it for later
+function chime(chosen: AlertChime | undefined, severity: AlertSeverity) {
+	if (get(hearthEditMode)) return;
+	const config = get(hearthConfig);
+	const tone = chimeTone(chosen, severity, config.alert_chimes);
+	if (tone) void playAlertChime(tone, config.alert_chimes?.volume);
+}
+
 function activate(id: string) {
 	const entry = rules.get(id);
 	if (!entry) return;
@@ -177,6 +187,7 @@ function activate(id: string) {
 	entry.since = Date.now();
 	publish();
 	const { rule } = entry;
+	chime(rule.chime, rule.severity);
 	if (rule.popup === false) return;
 	if (get(hearthEditMode)) {
 		if (rule.entity) deferred.add(id);
@@ -292,6 +303,7 @@ export type HearthAction =
 			severity: AlertSeverity;
 			popup: boolean;
 			entity?: string;
+			chime?: AlertChime;
 	  }
 	| { action: 'dismiss_alert'; tag: string }
 	| { action: 'open_popup'; entity: string; name?: string }
@@ -299,6 +311,13 @@ export type HearthAction =
 	| { action: 'navigate'; page: string }
 	| { action: 'wake' }
 	| { action: 'sleep' };
+
+// kept in step with normalizeChime in model/alerts.ts
+function chimeOf(value: unknown): AlertChime | undefined {
+	if (value === true) return true;
+	if (value === false) return 'none';
+	return value === 'soft' || value === 'bell' || value === 'none' ? value : undefined;
+}
 
 function text(value: unknown): string | undefined {
 	return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -336,7 +355,8 @@ export function parseHearthEvent(
 				icon: text(data.icon),
 				severity: isAlertSeverity(data.severity) ? data.severity : 'info',
 				popup: data.popup !== false,
-				entity
+				entity,
+				chime: chimeOf(data.chime)
 			};
 		}
 		case 'dismiss_alert': {
@@ -364,6 +384,8 @@ export function handleHearthAction(action: HearthAction) {
 	switch (action.action) {
 		case 'alert': {
 			const { tag, title, message, icon, severity, popup: pops, entity } = action;
+			// an update to an alert already up replaces it quietly
+			const arriving = !events.has(tag);
 			events.delete(tag);
 			events.set(tag, {
 				key: `event:${tag}`,
@@ -376,6 +398,7 @@ export function handleHearthAction(action: HearthAction) {
 				since: Date.now()
 			});
 			publish();
+			if (arriving) chime(action.chime, severity);
 			if (pops && !get(hearthEditMode)) requestWake();
 			return;
 		}
@@ -439,8 +462,16 @@ export function startAlerts(services: AlertHost): () => void {
 	const stopEditing = hearthEditMode.subscribe(($editing) => {
 		if (!$editing) openDeferred();
 	});
+	let disarmChimes: (() => void) | undefined;
+	const stopChimes = hearthConfig.subscribe(($config) => {
+		if (!disarmChimes && chimesConfigured($config.alerts, $config.alert_chimes)) {
+			disarmChimes = armChimes();
+		}
+	});
 	return () => {
 		stopRules();
+		stopChimes();
+		disarmChimes?.();
 		stopEvents();
 		stopHealth();
 		stopEditing();

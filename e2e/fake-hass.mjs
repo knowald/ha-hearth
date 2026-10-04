@@ -582,11 +582,15 @@ function statisticRows(statisticId, start, end, period) {
 		period === '5minute' ? 300 : period === 'hour' ? 3600 : period === 'day' ? 86400 : 604800;
 	const rows = [];
 	const base = statisticId.includes('energy') ? 0 : statisticId.includes('humidity') ? 45 : 20;
+	// a statistic named for a quiet day uses a third of the usual energy today
+	const midnight = new Date().setHours(0, 0, 0, 0);
+	const quiet = statisticId.includes('quiet_day');
 	let sum = 1200;
 	for (let t = Math.floor(start / 1000); t < end / 1000; t += step) {
 		const phase = ((t / 3600) % 24) / 24;
 		const mean = base + Math.sin(phase * Math.PI * 2) * 3 + Math.cos(t / 7000) * 0.6;
-		const change = 0.4 + Math.max(0, Math.sin(phase * Math.PI * 2)) * 1.6;
+		const usual = 0.4 + Math.max(0, Math.sin(phase * Math.PI * 2)) * 1.6;
+		const change = quiet && t * 1000 >= midnight ? usual / 3 : usual;
 		sum += change;
 		rows.push({
 			start: t * 1000,

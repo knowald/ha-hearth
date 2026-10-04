@@ -20,6 +20,12 @@ import { loadMarkdownRenderer } from './markdown';
 import { layer } from '$lib/ui/layers';
 import { clockFor, conditionsHeldAtMost, conditionsHold } from './visibility';
 import { showPage } from './pages';
+import { playAlertChime } from './chimeGate';
+
+vi.mock('./chimeGate', async (importOriginal) => ({
+	...(await importOriginal<typeof import('./chimeGate')>()),
+	playAlertChime: vi.fn(() => Promise.resolve(true))
+}));
 
 // what the dashboard reports as covering the screen (This screen, setup)
 let sleepBlocked = false;
@@ -600,5 +606,91 @@ describe('HEARTH events', () => {
 		handleHearthAction(parseHearthEvent({ action: 'open_popup', entity: 'light.desk' }, '')!);
 		handleHearthAction(parseHearthEvent({ action: 'close_popup' }, '')!);
 		expect(get(popup)).toBeNull();
+	});
+});
+
+describe('alert chimes', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.setSystemTime(START);
+		vi.mocked(playAlertChime).mockClear();
+	});
+
+	afterEach(() => {
+		resetAlerts();
+		popup.set(null);
+		if (get(hearthEditMode)) cancelEdit();
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+		vi.useRealTimers();
+	});
+
+	it('chimes once when a rule fires, with the rule tone at the set volume', () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			alert_chimes: { warning: 'soft', volume: 30 }
+		});
+		syncRules([{ ...fridge, chime: 'bell' }], door('on'));
+		expect(playAlertChime).not.toHaveBeenCalled();
+		vi.advanceTimersByTime(120_000);
+		expect(playAlertChime).toHaveBeenCalledExactlyOnceWith('bell', 30);
+		syncRules([{ ...fridge, chime: 'bell' }], door('on'));
+		expect(playAlertChime).toHaveBeenCalledOnce();
+	});
+
+	it('falls back to the severity chime and stays silent without one', () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			alert_chimes: { warning: true }
+		});
+		syncRules([{ ...fridge, for_seconds: undefined }], door('on'));
+		expect(playAlertChime).toHaveBeenCalledWith('chime', undefined);
+		resetAlerts();
+		vi.mocked(playAlertChime).mockClear();
+		syncRules([{ ...fridge, severity: 'info', for_seconds: undefined }], door('on'));
+		expect(playAlertChime).not.toHaveBeenCalled();
+	});
+
+	it('chimes for an alert Home Assistant raises', () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			alert_chimes: { critical: 'bell' }
+		});
+		handleHearthAction({
+			action: 'alert',
+			tag: 'smoke',
+			title: 'Smoke',
+			severity: 'critical',
+			popup: true
+		});
+		expect(playAlertChime).toHaveBeenCalledWith('bell', undefined);
+	});
+
+	it('chimes for a new tag only, in the tone the event names', () => {
+		const smoke = {
+			action: 'alert' as const,
+			tag: 'smoke',
+			title: 'Smoke',
+			severity: 'info' as const,
+			popup: true
+		};
+		handleHearthAction({ ...smoke, chime: 'soft' });
+		handleHearthAction({ ...smoke, title: 'Smoke in the kitchen', chime: 'soft' });
+		expect(playAlertChime).toHaveBeenCalledExactlyOnceWith('soft', undefined);
+		expect(parseHearthEvent({ action: 'alert', title: 'Smoke', chime: 'bell' }, '')).toMatchObject({
+			chime: 'bell'
+		});
+		expect(parseHearthEvent({ action: 'alert', title: 'Smoke', chime: false }, '')).toMatchObject({
+			chime: 'none'
+		});
+	});
+
+	it('stays silent while editing', () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			alert_chimes: { warning: true }
+		});
+		enterEditMode();
+		syncRules([{ ...fridge, for_seconds: undefined }], door('on'));
+		expect(playAlertChime).not.toHaveBeenCalled();
 	});
 });

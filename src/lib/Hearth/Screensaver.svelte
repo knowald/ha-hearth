@@ -14,6 +14,7 @@
 		hearthConfig,
 		hearthEditMode,
 		railClock,
+		screensaverActive,
 		screensaverPreview,
 		wakeScreen
 	} from './store';
@@ -38,6 +39,11 @@
 
 	$effect(() => {
 		if ($screensaverPreview) active = true;
+	});
+
+	$effect(() => {
+		screensaverActive.set(active);
+		return () => screensaverActive.set(false);
 	});
 
 	let lastActivity = Date.now();
@@ -329,6 +335,11 @@
 						{#if media.artist}<div class="track-artist">{media.artist}</div>{/if}
 					</div>
 				</div>
+			{/if}
+			{#if $hearthConfig.greeting}
+				{#await import('./Greeting.svelte') then Greeting}
+					<Greeting.default variant="sleep" />
+				{/await}
 			{/if}
 		</div>
 	</div>

@@ -19,6 +19,7 @@ describe('parseScreenOverrides', () => {
 					locale: 'de-CH',
 					reduce_motion: 'yes',
 					haptics: true,
+					mute_chimes: true,
 					unknown: 1
 				})
 			)
@@ -27,7 +28,8 @@ describe('parseScreenOverrides', () => {
 			screensaver_minutes: 0,
 			scale: 120,
 			locale: 'de-CH',
-			haptics: true
+			haptics: true,
+			mute_chimes: true
 		});
 	});
 

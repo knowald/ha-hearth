@@ -1,13 +1,47 @@
 import * as v from 'valibot';
-import type { AlertRule, AlertSeverity } from '../types';
+import type { AlertChime, AlertChimes, AlertRule, AlertSeverity } from '../types';
 import { MAX_ALERT_SECONDS, normalizeVisibility, usesMedia, withoutMedia } from '../config';
 import { isRecord, reserveId, trimmedOrUndefined } from '../normalizers';
-import { OptionalEntityId, OptionalFlag, OptionalText, VisibilityConditionSchema } from '../schema';
+import {
+	AlertChimeSchema,
+	OptionalEntityId,
+	OptionalFlag,
+	OptionalText,
+	VisibilityConditionSchema
+} from '../schema';
 
 export const ALERT_SEVERITIES: readonly AlertSeverity[] = ['info', 'warning', 'critical'];
 
 export function isAlertSeverity(value: unknown): value is AlertSeverity {
 	return ALERT_SEVERITIES.includes(value as AlertSeverity);
+}
+
+const CHIME_NAMES = new Set<unknown>(['soft', 'bell', 'none']);
+
+/** A chime as written in YAML; false reads as `none`. */
+export function normalizeChime(raw: unknown): AlertChime | undefined {
+	if (raw === true) return true;
+	if (raw === false) return 'none';
+	return CHIME_NAMES.has(raw) ? (raw as AlertChime) : undefined;
+}
+
+export const DEFAULT_CHIME_VOLUME = 60;
+
+/** Per-severity chimes; undefined once nothing is left to set. */
+export function normalizeAlertChimes(raw: unknown): AlertChimes | undefined {
+	if (!isRecord(raw)) return undefined;
+	const volume =
+		typeof raw.volume === 'number' && Number.isFinite(raw.volume)
+			? Math.min(100, Math.max(1, Math.round(raw.volume)))
+			: undefined;
+	const chimes: AlertChimes = {
+		info: normalizeChime(raw.info),
+		warning: normalizeChime(raw.warning),
+		critical: normalizeChime(raw.critical),
+		volume: volume === DEFAULT_CHIME_VOLUME ? undefined : volume
+	};
+	const kept = Object.entries(chimes).filter(([, value]) => value !== undefined);
+	return kept.length ? (Object.fromEntries(kept) as AlertChimes) : undefined;
 }
 
 export const AlertRuleSchema = v.looseObject({
@@ -34,7 +68,8 @@ export const AlertRuleSchema = v.looseObject({
 	),
 	popup: OptionalFlag,
 	auto_close: OptionalFlag,
-	entity: OptionalEntityId
+	entity: OptionalEntityId,
+	chime: AlertChimeSchema
 });
 
 /**
@@ -65,7 +100,8 @@ export function normalizeAlertRules(raw: unknown): AlertRule[] | undefined {
 						: undefined,
 				popup: rule.popup === false ? false : undefined,
 				auto_close: rule.auto_close === false ? false : undefined,
-				entity: trimmedOrUndefined(rule.entity)
+				entity: trimmedOrUndefined(rule.entity),
+				chime: normalizeChime(rule.chime)
 			}
 		];
 	});

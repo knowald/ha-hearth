@@ -26,8 +26,24 @@ Optional fields:
 - `popup: false`: only list the alert in the notifications widget.
 - `auto_close: false`: keep the alert after the conditions stop holding, until someone dismisses it.
 - `entity`: open this entity's popup instead of an alert card.
+- `chime`: the sound the alert plays when it fires, `true` for a two-note chime, `soft`, `bell` or `none`. Unset uses the sound set for its severity.
 
 After you dismiss a rule's alert, it stays away until its conditions stop holding and then hold again.
+
+## Sounds
+
+Alerts are silent by default. Settings > Alerts > Alert sounds sets a sound per severity and the volume, in `hearth.yaml`:
+
+```yaml
+alert_chimes:
+  warning: soft
+  critical: bell
+  volume: 80 # 1 to 100, default 60
+```
+
+A rule's own `chime` wins over its severity's sound, and so does `chime` on a Home Assistant `alert` event. An event that repeats the tag of an alert already up updates it without a sound. At most one sound plays per second, so a burst of alerts chimes once. The sounds are short tones generated in the browser; there are no sound files.
+
+Browsers only play sound once someone has tapped the page or pressed a key since it loaded. An alert that fires before that stays silent; it is not played later. When the system takes the audio away, for a call on iOS for example, the next tap brings it back. A wall tablet that reloads overnight needs one tap before it can chime again. Play a test sound under Alert sounds to hear the current choice. A screen can mute every sound under This screen > Mute alert sounds. Edit mode stays silent.
 
 ## Home Assistant events
 
@@ -50,15 +66,15 @@ actions:
       message: Move the laundry to the dryer.
 ```
 
-| `action`        | Fields                                                                                                                                                                                                                                                                |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `alert`         | `title` (required), `tag` (defaults to the title; a new alert with the same tag replaces the old one), `message`, `icon`, `severity` (`info` default, `warning`, `critical`), `popup: false` to only list it, `entity` to add an Open button for that entity's popup. |
-| `dismiss_alert` | `tag`                                                                                                                                                                                                                                                                 |
-| `open_popup`    | `entity`, optional `name`. Ignored in edit mode; wakes the sleep screen.                                                                                                                                                                                              |
-| `close_popup`   | `entity` (optional). Without it, the open popup closes; with it, only that entity's popup closes.                                                                                                                                                                     |
-| `navigate`      | `page`: a page id, a page name, or a Lovelace path such as `/lovelace/cameras` whose last part is a page id. Ignored in edit mode and for a page whose visibility conditions hide it.                                                                                 |
-| `wake`          | No fields. Ends the sleep screen.                                                                                                                                                                                                                                     |
-| `sleep`         | No fields. Starts the sleep screen now, even when its timeout is off. Ignored in edit mode and while an alert pops up, This screen is open or setup runs.                                                                                                             |
+| `action`        | Fields                                                                                                                                                                                                                                                                                                      |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `alert`         | `title` (required), `tag` (defaults to the title; a new alert with the same tag replaces the old one), `message`, `icon`, `severity` (`info` default, `warning`, `critical`), `popup: false` to only list it, `entity` to add an Open button for that entity's popup, `chime` to pick its [sound](#sounds). |
+| `dismiss_alert` | `tag`                                                                                                                                                                                                                                                                                                       |
+| `open_popup`    | `entity`, optional `name`. Ignored in edit mode; wakes the sleep screen.                                                                                                                                                                                                                                    |
+| `close_popup`   | `entity` (optional). Without it, the open popup closes; with it, only that entity's popup closes.                                                                                                                                                                                                           |
+| `navigate`      | `page`: a page id, a page name, or a Lovelace path such as `/lovelace/cameras` whose last part is a page id. Ignored in edit mode and for a page whose visibility conditions hide it.                                                                                                                       |
+| `wake`          | No fields. Ends the sleep screen.                                                                                                                                                                                                                                                                           |
+| `sleep`         | No fields. Starts the sleep screen now, even when its timeout is off. Ignored in edit mode and while an alert pops up, This screen is open or setup runs.                                                                                                                                                   |
 
 Every action accepts `device`, a name or a list of names. Without it, every screen acts on the event. With it, only screens whose device name matches exactly act on it; an empty name or list reaches no screen. Set the name under This screen > Device name, which is stored in that browser, or with `?device=<name>` in the URL.
 

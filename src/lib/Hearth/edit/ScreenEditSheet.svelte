@@ -75,7 +75,10 @@
 		return value === undefined ? '' : value ? 'on' : 'off';
 	}
 
-	function setFlag(key: 'keep_screen_on' | 'reduce_motion' | 'haptics', value: string) {
+	function setFlag(
+		key: 'keep_screen_on' | 'reduce_motion' | 'haptics' | 'mute_chimes',
+		value: string
+	) {
 		setScreenOverride(key, value === '' ? undefined : value === 'on');
 	}
 
@@ -247,6 +250,15 @@
 						setFlag('haptics', value);
 						if (value === 'on') sampleVibration('press');
 					}}
+				/>
+			</SettingsRow>
+			<SettingsRow label={$lang('hearth_mute_alert_chimes')}>
+				<SelectField
+					inline
+					label={$lang('hearth_mute_alert_chimes')}
+					value={flagValue($screenOverrides.mute_chimes)}
+					options={flagOptions(false)}
+					onchange={(value) => setFlag('mute_chimes', value)}
 				/>
 			</SettingsRow>
 		</div>

@@ -447,6 +447,33 @@ describe('wall tablet settings', () => {
 			'phone_clock must be true or false'
 		]);
 	});
+
+	it('stores tile animations only when turned off', () => {
+		const base = { rail: [], rooms: [] };
+		expect(normalizeHearthConfig({ ...base, animations: false }).animations).toBe(false);
+		expect(normalizeHearthConfig({ ...base, animations: true }).animations).toBeUndefined();
+		expect(hearthConfigIssues({ ...base, animations: 'no' })).toEqual([
+			'animations must be true or false'
+		]);
+	});
+
+	it('keeps a greeting for at least one person, with minutes off the default', () => {
+		const base = { rail: [], rooms: [] };
+		expect(
+			normalizeHearthConfig({
+				...base,
+				greeting: { persons: [' person.anna ', 'light.desk', 'person.anna'], minutes: 200 }
+			}).greeting
+		).toEqual({ persons: ['person.anna'], minutes: 120 });
+		expect(
+			normalizeHearthConfig({ ...base, greeting: { persons: ['person.anna'], minutes: 10 } })
+				.greeting
+		).toEqual({ persons: ['person.anna'], minutes: undefined });
+		expect(normalizeHearthConfig({ ...base, greeting: { persons: [] } }).greeting).toBeUndefined();
+		expect(hearthConfigIssues({ ...base, greeting: { persons: ['light.desk'] } })).toEqual([
+			'greeting.persons[0] must be a person entity id'
+		]);
+	});
 });
 
 describe('sleep screen settings', () => {

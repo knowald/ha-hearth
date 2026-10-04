@@ -86,6 +86,7 @@ The This screen sheet keeps these per browser, in local storage:
 - Sleep screen turns on, including Off.
 - Interface scale, and the scale at 900 px and narrower.
 - Language, reduce motion and touch feedback.
+- Mute alert sounds; see [alerts](alerts.md#sounds).
 - Log out, which clears the Home Assistant session in this browser.
 
 Each row starts at Same as dashboard and follows the shared value from `hearth.yaml` or `configuration.yaml` until you pick another one. A shared row that this screen overrides says so in the Settings sheet. A scale picked here also applies at 900 px and narrower unless that row has a value of its own. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
@@ -141,6 +142,32 @@ screensaver_photos:
 screensaver_photo_seconds: 60
 screensaver_photo_order: sequence
 ```
+
+## Arrival greeting
+
+Settings > Wall display > Arrival greeting greets people on the page header and on the sleep screen when they come home: "Good evening, Anna". Turn it on per person entity. A screen greets a person when it saw them away, as `not_home` or in a zone, and then `home`. A screen that loads while someone is already home does not greet them, and neither does a Home Assistant restart, which reports persons as `unknown` or `unavailable` before `home`.
+
+The greeting has to show within 10 minutes of the arrival; Greet within changes that from 5 to 60 minutes. It then shows for 2 minutes, and the close button on the header hides it. A person who comes and goes within that window is greeted once. The part of the day (morning from 5:00, afternoon from 12:00, evening from 17:00) follows the time zone of the first clock widget in the sidebar, or the browser's; from 22:00 to 5:00 it says "Welcome home, Anna".
+
+```yaml
+greeting:
+  persons:
+    - person.anna
+    - person.ben
+  minutes: 15 # 1 to 120, default 10
+```
+
+## Tile animations
+
+Some tile icons move with their entity: a fan spins while it is on, in three steps from slow to fast with its speed, a vacuum sways while it cleans, a playing media player shows level bars, and a climate entity pulses while its `hvac_action` is heating or cooling. A light that is on glows in its own color. The animations are CSS only and pause while the sleep screen is up and in edit mode. They are off whenever motion is reduced, by the operating system, `motion` in Server settings or This screen. To turn them off for every screen, use Settings > Appearance > Tile animations, or in YAML:
+
+```yaml
+animations: false
+```
+
+## Energy widget
+
+The energy sidebar widget shows today's total, its cost when a price is set, and the last 8 hours as bars. While today's use so far is below the average of the previous 7 days over the same hours, it shows a Below your 7-day average badge. The comparison is fetched at a quarter past each hour, once the recorder has the hour, and just after midnight. It needs 7 days of recorder statistics and 3 finished hours today. Turn it off in the widget editor, or with `average_badge: false` on the widget.
 
 ## Phone page strip
 

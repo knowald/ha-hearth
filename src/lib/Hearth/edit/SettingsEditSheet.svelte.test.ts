@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import en from '../../../../static/translations/en.json';
 import type { HassConfig } from 'home-assistant-js-websocket';
 import { config as haConfig } from '$lib/core/ha/connection';
+import { states } from '$lib/core/ha/entities';
+import { hassEntity } from '$lib/core/ha/testing';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
 import { editor, hearthConfig, screensaverPreview, setupWizardOpen } from '../store';
 import { screenOverrides } from '$lib/core/app/screen';
@@ -69,7 +71,12 @@ describe('SettingsEditSheet', () => {
 		expect(scopes).toContain(en.hearth_scope_saved_now);
 		expect(screen.getByText(en.hearth_settings_note)).toBeTruthy();
 		const groups = [...container.querySelectorAll('.group-title')].map((node) => node.textContent);
-		expect(groups).toEqual([en.hearth_screens_900_px_and_narrower, en.hearth_sleep_screen]);
+		expect(groups).toEqual([
+			en.hearth_screens_900_px_and_narrower,
+			en.hearth_sleep_screen,
+			en.hearth_greeting,
+			en.hearth_alert_chimes
+		]);
 	});
 
 	it.each([
@@ -357,5 +364,66 @@ describe('SettingsEditSheet', () => {
 			screen.getByRole('button', { name: en.hearth_decrease_mobile_side_padding })
 		);
 		expect(get(hearthConfig).mobile_padding_x).toBe(0);
+	});
+
+	it('turns tile animations off, storing only the change from the default', async () => {
+		render(SettingsEditSheet);
+		const toggle = screen.getByRole('switch', { name: en.hearth_tile_animations });
+		expect(toggle.getAttribute('aria-checked')).toBe('true');
+		await fireEvent.click(toggle);
+		expect(get(hearthConfig).animations).toBe(false);
+		await fireEvent.click(toggle);
+		expect(get(hearthConfig).animations).toBeUndefined();
+	});
+
+	it('sets a chime per severity and a volume, with the first-tap hint', async () => {
+		render(SettingsEditSheet);
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_critical), {
+			target: { value: 'bell' }
+		});
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_warning), {
+			target: { value: 'chime' }
+		});
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_volume), {
+			target: { value: '80' }
+		});
+		expect(get(hearthConfig).alert_chimes).toEqual({ critical: 'bell', warning: true, volume: 80 });
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_critical), {
+			target: { value: 'none' }
+		});
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_warning), {
+			target: { value: 'none' }
+		});
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_volume), {
+			target: { value: '60' }
+		});
+		expect(get(hearthConfig).alert_chimes).toBeUndefined();
+		expect(screen.getByText(en.hearth_alert_chime_first_tap)).toBeTruthy();
+	});
+
+	it('says by the test sound when this screen mutes alert sounds', () => {
+		screenOverrides.set({ mute_chimes: true });
+		render(SettingsEditSheet);
+		expect(screen.getByText(en.hearth_alert_chime_muted_here)).toBeTruthy();
+		expect(screen.queryByText(en.hearth_alert_chime_first_tap)).toBeNull();
+	});
+
+	it('greets the persons picked from Home Assistant', async () => {
+		states.set({ 'person.anna': hassEntity('person.anna', 'home', { friendly_name: 'Anna' }) });
+		render(SettingsEditSheet);
+		expect(screen.queryByLabelText(en.hearth_greeting_minutes)).toBeNull();
+		await fireEvent.click(
+			screen.getByRole('switch', { name: fill(en.hearth_greet_person, { name: 'Anna' }) })
+		);
+		expect(get(hearthConfig).greeting).toEqual({ persons: ['person.anna'] });
+		await fireEvent.change(screen.getByLabelText(en.hearth_greeting_minutes), {
+			target: { value: '30' }
+		});
+		expect(get(hearthConfig).greeting).toEqual({ persons: ['person.anna'], minutes: 30 });
+		await fireEvent.click(
+			screen.getByRole('switch', { name: fill(en.hearth_greet_person, { name: 'Anna' }) })
+		);
+		expect(get(hearthConfig).greeting).toBeUndefined();
+		states.set({});
 	});
 });

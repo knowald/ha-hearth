@@ -7,7 +7,8 @@
 	import { capitalize, PRESS_RIPPLE } from './config';
 	import { horizontalDrag } from './drag';
 	import { activateOnKeyboard, longPress } from './interaction';
-	import Icon from './Icon.svelte';
+	import TileIcon from './TileIcon.svelte';
+	import { iconMotionEnabled, iconMotionFor } from './iconMotion';
 	import { hearthEditMode, popup } from './store';
 	import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
 	import { lightViewFor, setLightLevel, toggleLight } from '$lib/core/domains/light';
@@ -60,6 +61,9 @@
 				: 'var(--h-icon-dim)'
 	);
 	let pending = $derived($pendingEntities[entity] !== undefined);
+	let iconMotion = $derived(
+		$iconMotionEnabled && view.on ? iconMotionFor($states?.[entity], view.colorCss) : undefined
+	);
 	// a state_template gives way to the live value while the tile is being
 	// changed, and to the availability text
 	let templatedState = $derived(
@@ -143,11 +147,12 @@
 >
 	<div class="fill" style:width="{view.on ? view.level : 0}%"></div>
 	<div class="content">
-		<Icon
+		<TileIcon
 			name={icon || 'lightbulb'}
 			size={ICON.tile}
 			color="var(--tile-accent, {iconColor})"
 			fill={view.on}
+			motion={iconMotion}
 		/>
 		<div class="text">
 			<div class="name">{label}</div>
