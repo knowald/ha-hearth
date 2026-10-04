@@ -80,7 +80,11 @@ export const longPress: Action<HTMLElement, LongPressOptions> = (node, options) 
 
 	function handleMove(event: PointerEvent) {
 		if (!start) return;
-		if (Math.abs(event.clientX - start.x) > 10 || Math.abs(event.clientY - start.y) > 10) cancel();
+		if (Math.abs(event.clientX - start.x) > 10 || Math.abs(event.clientY - start.y) > 10) {
+			// moving away withdraws a deferred hold, as releasing early would
+			deferred = false;
+			cancel();
+		}
 	}
 
 	function cancel() {

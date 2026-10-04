@@ -126,10 +126,15 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 	}
 
 	function handleMove(event: PointerEvent) {
-		if (!tracking || event.pointerId !== tracking.pointerId || tracking.held) return;
+		if (!tracking || event.pointerId !== tracking.pointerId) return;
+		const dx = Math.abs(event.clientX - tracking.startX);
+		const dy = Math.abs(event.clientY - tracking.startY);
+		if (tracking.held) {
+			// moving away withdraws a deferred hold; the release then does nothing
+			if (dx > 10 || dy > 10) tracking.heldUntilRelease = false;
+			return;
+		}
 		if (!tracking.moved) {
-			const dx = Math.abs(event.clientX - tracking.startX);
-			const dy = Math.abs(event.clientY - tracking.startY);
 			if (dy > 10 && dy >= dx) {
 				finishTracking(event.pointerId);
 				return;

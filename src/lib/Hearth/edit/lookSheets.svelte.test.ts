@@ -138,7 +138,8 @@ describe('theme schedule', () => {
 		await fireEvent.change(screen.getByLabelText(label), { target: { value: 'holiday' } });
 		const from = screen.getByLabelText(en.hearth_schedule_from);
 		await fireEvent.input(from, { target: { value: '12-40' } });
-		expect(screen.getByText(en.hearth_schedule_day_format)).toBeTruthy();
+		// under the field, and again as the reason Close is held
+		expect(screen.getAllByText(en.hearth_schedule_day_format)).toHaveLength(2);
 		await fireEvent.input(from, { target: { value: '12-20' } });
 		await fireEvent.change(from);
 		const to = screen.getByLabelText(en.hearth_schedule_to);

@@ -1,5 +1,6 @@
 import { get, writable, type Readable } from 'svelte/store';
-import { connection } from '../ha/connection';
+import type { Connection } from 'home-assistant-js-websocket';
+import { connection, health, type ConnectionHealth } from '../ha/connection';
 import { callEntityService } from '../ha/commands';
 import { states } from '../ha/entities';
 import { DATA_REFRESH_MS } from '../ha/history';
@@ -241,53 +242,95 @@ function errorCode(error: unknown): unknown {
 	return error && typeof error === 'object' ? (error as { code?: unknown }).code : undefined;
 }
 
+// a degraded socket is open, only some other subscription failed
+function isLive(state: ConnectionHealth) {
+	return state === 'connected' || state === 'degraded';
+}
+
 /**
  * Subscribes to todo/item/subscribe. Only a Home Assistant without the
  * command falls back to polling; any other refusal retries with a growing
  * pause, since a list that is missing now may come back with its integration.
+ * The subscription is made afresh for each live socket rather than re-sent by
+ * the library, which would re-send it after a drop even once it was stopped.
  */
 export const homeAssistantTodoSource: TodoSource = {
 	subscribe(entityId, handlers) {
 		let stopped = false;
-		let inner: TodoFeed | null = null;
+		let polling: TodoFeed | null = null;
+		// the subscription on one socket; answers for an older one are ignored
+		let run: { conn: Connection; stop?: () => void } | null = null;
 		let attempt = 0;
 		let timer: ReturnType<typeof setTimeout> | undefined;
 
-		async function start() {
-			const conn = get(connection);
+		async function start(conn: Connection) {
+			const current: { conn: Connection; stop?: () => void } = { conn };
+			run = current;
 			try {
-				if (!conn) throw new Error('Not connected to Home Assistant');
 				const unsubscribe = await conn.subscribeMessage<{ items?: unknown }>(
-					(message) => handlers.items(parseTodoItems(message?.items), nextStamp()),
-					{ type: 'todo/item/subscribe', entity_id: entityId }
+					(message) => {
+						if (run === current) handlers.items(parseTodoItems(message?.items), nextStamp());
+					},
+					{ type: 'todo/item/subscribe', entity_id: entityId },
+					{ resubscribe: false }
 				);
 				const stop = () => void unsubscribe().catch(() => {});
-				if (stopped) return stop();
+				if (run !== current) return stop();
+				current.stop = stop;
 				attempt = 0;
-				inner = { stop, refresh: () => {}, pushes: true };
 			} catch (error) {
-				if (stopped) return;
+				if (run !== current) return;
+				run = null;
 				const code = errorCode(error);
 				if (code === 'unknown_command') {
-					inner = pollTodoItems(entityId, handlers);
+					polling = pollTodoItems(entityId, handlers);
 					return;
 				}
 				if (code === 'not_found') handlers.unavailable();
-				timer = setTimeout(start, Math.min(RETRY_MAX_MS, RETRY_MS * 2 ** attempt));
+				timer = setTimeout(
+					() => {
+						timer = undefined;
+						sync();
+					},
+					Math.min(RETRY_MAX_MS, RETRY_MS * 2 ** attempt)
+				);
 				attempt += 1;
 			}
 		}
 
-		void start();
+		function sync() {
+			if (stopped || polling) return;
+			const conn = get(connection);
+			const live = conn && isLive(get(health)) ? conn : undefined;
+			// a subscription still in flight on a dropped socket never answers
+			if (run && run.conn !== live) {
+				run.stop?.();
+				run = null;
+			}
+			if (!live) {
+				clearTimeout(timer);
+				timer = undefined;
+				attempt = 0;
+				return;
+			}
+			if (!run && timer === undefined) void start(live);
+		}
+
+		const stopConnection = connection.subscribe(sync);
+		const stopHealth = health.subscribe(sync);
 		return {
 			stop() {
 				stopped = true;
+				stopConnection();
+				stopHealth();
 				clearTimeout(timer);
-				inner?.stop();
+				run?.stop?.();
+				run = null;
+				polling?.stop();
 			},
-			refresh: () => inner?.refresh(),
+			refresh: () => polling?.refresh(),
 			get pushes() {
-				return inner?.pushes ?? true;
+				return !polling;
 			}
 		};
 	},

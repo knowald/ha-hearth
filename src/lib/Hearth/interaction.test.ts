@@ -92,6 +92,21 @@ describe('longPress deferOnTouch', () => {
 		expect(hold).not.toHaveBeenCalled();
 	});
 
+	it('drops a touch hold that moves away after the threshold', () => {
+		vi.useFakeTimers();
+		const node = new EventTarget();
+		const hold = vi.fn();
+		longPress(node as unknown as HTMLElement, { hold, deferOnTouch: true });
+
+		node.dispatchEvent(touch('pointerdown'));
+		vi.advanceTimersByTime(HOLD_MS);
+		const move = pointer('pointermove', 60);
+		Object.defineProperty(move, 'pointerType', { value: 'touch' });
+		node.dispatchEvent(move);
+		node.dispatchEvent(touch('pointerup'));
+		expect(hold).not.toHaveBeenCalled();
+	});
+
 	it('keeps mouse holds at the threshold', () => {
 		vi.useFakeTimers();
 		const node = new EventTarget();

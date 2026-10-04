@@ -276,6 +276,25 @@ describe('horizontalDrag deferOnTouch', () => {
 		expect(hold).not.toHaveBeenCalled();
 	});
 
+	it('drops a deferred touch hold that moves away before the release', () => {
+		vi.useFakeTimers();
+		const node = new TestNode();
+		const hold = vi.fn();
+		const set = vi.fn();
+		const tap = vi.fn();
+		horizontalDrag(node as unknown as HTMLElement, { set, hold, tap, deferOnTouch: true });
+
+		node.dispatchEvent(touch('pointerdown'));
+		vi.advanceTimersByTime(600);
+		const move = pointer('pointermove', 80);
+		Object.defineProperty(move, 'pointerType', { value: 'touch' });
+		node.dispatchEvent(move);
+		node.dispatchEvent(touch('pointerup'));
+		expect(hold).not.toHaveBeenCalled();
+		expect(tap).not.toHaveBeenCalled();
+		expect(set).not.toHaveBeenCalled();
+	});
+
 	it('keeps a mouse hold at the threshold', () => {
 		vi.useFakeTimers();
 		const node = new TestNode();

@@ -10,6 +10,7 @@ import {
 	dismissConfirmation,
 	editor,
 	hearthConfig,
+	hearthEditMode,
 	requestedConfirmation
 } from '../store';
 import ThemeEditSheet from './ThemeEditSheet.svelte';
@@ -194,5 +195,77 @@ describe('ThemeEditSheet fonts and background shade', () => {
 		// the default is no override at all, not a copy of the default stack
 		await fireEvent.change(text, { target: { value: THEME_DEFAULTS.font_ui } });
 		expect(get(hearthConfig).theme).toEqual({ font_mono: 'var(--h-font-ui)' });
+	});
+});
+
+describe('ThemeEditSheet schedule days', () => {
+	const party = [{ entity: 'input_boolean.party' }];
+
+	beforeEach(() => {
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			theme_schedule: [
+				{ theme: 'winter', from: '12-01', to: '02-29' },
+				{ theme: 'holiday', from: '12-20', to: '12-26', when: party }
+			]
+		});
+		editor.set({ kind: 'theme' });
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		editor.set(null);
+		hearthEditMode.set(false);
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+	});
+
+	// the header's primary action; the close button shares its name
+	const closeAction = () =>
+		screen
+			.getAllByRole('button', { name: en.hearth_close })
+			.find((button): button is HTMLButtonElement => button.classList.contains('primary'));
+
+	const saved = () => [
+		{ theme: 'winter', from: '12-01', to: '02-29' },
+		{ theme: 'holiday', from: '12-20', to: '12-26', when: party }
+	];
+
+	it('keeps the last entry for a mistyped day and holds Close until it is fixed', async () => {
+		render(ThemeEditSheet);
+		const close = closeAction();
+		const from = screen.getAllByLabelText(en.hearth_schedule_from)[0];
+		await fireEvent.input(from, { target: { value: '13-45' } });
+		await fireEvent.change(from);
+		expect(get(hearthConfig).theme_schedule).toEqual(saved());
+		expect(close?.disabled).toBe(true);
+		expect(screen.getAllByText(en.hearth_schedule_day_format).length).toBeGreaterThan(0);
+
+		await fireEvent.input(from, { target: { value: '11-15' } });
+		await fireEvent.change(from);
+		expect(close?.disabled).toBe(false);
+		expect(get(hearthConfig).theme_schedule?.[0]).toEqual({
+			theme: 'winter',
+			from: '11-15',
+			to: '02-29'
+		});
+	});
+
+	it('keeps both days of an entry with conditions when one is cleared', async () => {
+		render(ThemeEditSheet);
+		const to = screen.getAllByLabelText(en.hearth_schedule_to)[1];
+		await fireEvent.input(to, { target: { value: '' } });
+		await fireEvent.change(to);
+		expect(get(hearthConfig).theme_schedule).toEqual(saved());
+		expect(closeAction()?.disabled).toBe(true);
+	});
+
+	it('writes no mistyped day when the sheet goes away', async () => {
+		hearthEditMode.set(true);
+		const { unmount } = render(ThemeEditSheet);
+		const from = screen.getAllByLabelText(en.hearth_schedule_from)[1];
+		await fireEvent.input(from, { target: { value: '12-2x' } });
+		unmount();
+		expect(get(hearthConfig).theme_schedule).toEqual(saved());
 	});
 });

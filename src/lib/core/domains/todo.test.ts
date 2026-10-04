@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Connection } from 'home-assistant-js-websocket';
-import { connection } from '../ha/connection';
+import { connection, health } from '../ha/connection';
 import { states } from '../ha/entities';
 import { hassEntity } from '../ha/testing';
 import {
@@ -342,9 +342,12 @@ describe('createTodoList', () => {
 describe('homeAssistantTodoSource', () => {
 	const handlers = () => ({ items: vi.fn(), unavailable: vi.fn() });
 
+	beforeEach(() => health.set('connected'));
+
 	afterEach(() => {
 		vi.useRealTimers();
 		connection.set(undefined);
+		health.set('booting');
 	});
 
 	it('subscribes to todo/item/subscribe for live items', async () => {
@@ -357,13 +360,69 @@ describe('homeAssistantTodoSource', () => {
 		const listener = handlers();
 		const feed = homeAssistantTodoSource.subscribe('todo.shopping', listener);
 		await vi.waitFor(() => expect(listener.items).toHaveBeenCalledWith([milk], expect.any(Number)));
-		expect(subscribeMessage).toHaveBeenCalledWith(expect.any(Function), {
-			type: 'todo/item/subscribe',
-			entity_id: 'todo.shopping'
-		});
+		expect(subscribeMessage).toHaveBeenCalledWith(
+			expect.any(Function),
+			{ type: 'todo/item/subscribe', entity_id: 'todo.shopping' },
+			{ resubscribe: false }
+		);
 		expect(feed.pushes).toBe(true);
 		feed.stop();
 		expect(stop).toHaveBeenCalled();
+	});
+
+	it('subscribes afresh after a reconnect and leaves a list stopped while offline alone', async () => {
+		const callbacks: ((message: unknown) => void)[] = [];
+		const stop = vi.fn(async () => {});
+		const subscribeMessage = vi.fn(async (callback: (message: unknown) => void) => {
+			callbacks.push(callback);
+			return stop;
+		});
+		connection.set({ subscribeMessage } as unknown as Connection);
+		const listener = handlers();
+		const feed = homeAssistantTodoSource.subscribe('todo.shopping', listener);
+		const other = homeAssistantTodoSource.subscribe('todo.chores', handlers());
+		await vi.waitFor(() => expect(subscribeMessage).toHaveBeenCalledTimes(2));
+
+		health.set('lost');
+		other.stop();
+		health.set('connected');
+		await vi.waitFor(() => expect(subscribeMessage).toHaveBeenCalledTimes(3));
+		expect(subscribeMessage).toHaveBeenNthCalledWith(
+			3,
+			expect.any(Function),
+			{ type: 'todo/item/subscribe', entity_id: 'todo.shopping' },
+			{ resubscribe: false }
+		);
+
+		// the subscription from before the drop is gone; only the new one counts
+		callbacks[0]({ items: [{ uid: 'b', summary: 'Eggs', status: 'needs_action' }] });
+		expect(listener.items).not.toHaveBeenCalled();
+		callbacks[2]({ items: [{ uid: 'a', summary: 'Milk', status: 'needs_action' }] });
+		expect(listener.items).toHaveBeenCalledWith([milk], expect.any(Number));
+		feed.stop();
+		health.set('lost');
+		health.set('connected');
+		await Promise.resolve();
+		expect(subscribeMessage).toHaveBeenCalledTimes(3);
+	});
+
+	it('drops a subscription that answers only after its socket was replaced', async () => {
+		let answer: (stop: () => Promise<void>) => void = () => {};
+		const stale = vi.fn(async () => {});
+		const first = {
+			subscribeMessage: vi.fn(
+				() => new Promise<() => Promise<void>>((resolve) => (answer = resolve))
+			)
+		};
+		const second = { subscribeMessage: vi.fn(async () => async () => {}) };
+		connection.set(first as unknown as Connection);
+		const feed = homeAssistantTodoSource.subscribe('todo.shopping', handlers());
+		expect(first.subscribeMessage).toHaveBeenCalledTimes(1);
+		connection.set(second as unknown as Connection);
+		expect(second.subscribeMessage).toHaveBeenCalledTimes(1);
+		answer(stale);
+		await vi.waitFor(() => expect(stale).toHaveBeenCalled());
+		feed.stop();
 	});
 
 	it('falls back to todo.get_items only where the command is unknown', async () => {
