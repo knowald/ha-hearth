@@ -424,7 +424,6 @@
 	.body > :global(.hint),
 	.body > :global(.field-hint),
 	.body > :global(.error),
-	.body > :global(.advanced-toggle),
 	.body > :global(.elements-editor),
 	.body > :global(.presets),
 	.body > :global(.save-row),

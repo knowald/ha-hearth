@@ -12,7 +12,6 @@
 	margin: 18px 0 10px;
 }
 
-.editor-fields .advanced-toggle,
 .editor-fields .elements-editor {
 	display: flex;
 	align-items: center;
@@ -27,7 +26,6 @@
 }
 
 @media (hover: hover) {
-	.editor-fields .advanced-toggle:hover,
 	.editor-fields .elements-editor:hover {
 		color: var(--h-text-3);
 	}
