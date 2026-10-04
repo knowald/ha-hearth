@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { lang, translation } from '$lib/core/i18n';
-import { listLocales, loadTranslations } from './translations';
+import { listLocales, loadTranslations, UnknownLocaleError } from './translations';
 
 let directory: string;
 
@@ -62,6 +62,8 @@ describe('loadTranslations', () => {
 
 	it('refuses a locale Home Assistant does not ship', async () => {
 		await expect(loadTranslations('xx', directory)).rejects.toThrow('Unknown locale xx');
+		await expect(loadTranslations('xx', directory)).rejects.toBeInstanceOf(UnknownLocaleError);
+		await expect(loadTranslations('constructor', directory)).rejects.toThrow('Unknown locale');
 		await expect(loadTranslations('../de', directory)).rejects.toThrow('Unknown locale');
 		await expect(loadTranslations('hearth/de', directory)).rejects.toThrow('Unknown locale');
 	});

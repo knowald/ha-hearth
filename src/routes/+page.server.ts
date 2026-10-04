@@ -33,6 +33,7 @@ export const load = (async ({
 	hearthNeedsSetup: boolean;
 	hearthRevision: number;
 	translations: Translations;
+	translationsLocale: string;
 }> => {
 	let configuration: Configuration = { revision: 0 };
 	let configurationError: string | null = null;
@@ -101,10 +102,13 @@ export const load = (async ({
 			? `${forwardedProto}://${forwardedHost}`
 			: process.env.HASS_PUBLIC_URL || process.env.HASS_URL) || undefined;
 
-	// an unknown locale in configuration.yaml shows English
-	const translations = await loadTranslations(configuration.locale).catch(() =>
-		loadTranslations(undefined)
-	);
+	// an unknown locale in configuration.yaml shows English, and the page
+	// names the language it actually shows
+	let translationsLocale = configuration.locale || 'en';
+	const translations = await loadTranslations(translationsLocale).catch(() => {
+		translationsLocale = 'en';
+		return loadTranslations('en');
+	});
 
 	return {
 		configuration,
@@ -114,6 +118,7 @@ export const load = (async ({
 		hearthErrorKind,
 		hearthNeedsSetup,
 		hearthRevision,
-		translations
+		translations,
+		translationsLocale
 	};
 }) satisfies PageServerLoad;

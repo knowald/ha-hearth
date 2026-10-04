@@ -83,7 +83,7 @@
 	// svelte-ignore state_referenced_locally
 	$translation = data?.translations ?? {};
 	// svelte-ignore state_referenced_locally
-	$selectedLanguage = data?.configuration?.locale || 'en';
+	$selectedLanguage = data?.translationsLocale || data?.configuration?.locale || 'en';
 	if (browser) document.documentElement.lang = $selectedLanguage;
 
 	// language, motion and touch feedback, with this screen's own choices

@@ -21,6 +21,12 @@ export async function listLocales(dir = translationsDir()): Promise<string[]> {
 		.sort();
 }
 
+export class UnknownLocaleError extends Error {
+	constructor(locale: string) {
+		super(`Unknown locale ${locale}`);
+	}
+}
+
 async function readJson(file: string): Promise<Translations> {
 	try {
 		return JSON.parse(await readFile(file, 'utf8'));
@@ -39,7 +45,7 @@ export async function loadTranslations(
 ): Promise<Translations> {
 	const english = Promise.all([readJson(`${dir}/en.json`), readJson(`${dir}/hearth/en.json`)]);
 	if (!locale || locale === 'en') return mergeTranslations(await english);
-	if (!(await listLocales(dir)).includes(locale)) throw new Error(`Unknown locale ${locale}`);
+	if (!(await listLocales(dir)).includes(locale)) throw new UnknownLocaleError(locale);
 	const local = Promise.all([
 		readJson(`${dir}/${locale}.json`),
 		readJson(`${dir}/hearth/${locale}.json`)
