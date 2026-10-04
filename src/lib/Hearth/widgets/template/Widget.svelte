@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
 	import { watchMarkdownTemplate, type MarkdownRender } from '../../templateMarkdown';
+	import { get } from 'svelte/store';
+	import { EDIT_SETTLE_MS } from '../../lazyTemplates';
 	import { hearthEditMode } from '../../store';
 	import type { TemplateWidget } from './descriptor';
 
@@ -10,11 +12,17 @@
 	let html = $derived(render.status === 'ready' ? render.html : '');
 	let error = $derived(render.status === 'error' ? render.error : null);
 
+	// plain, not state: only a change after the first render waits
+	let shown = false;
+
 	// Home Assistant pushes a new render whenever a referenced state changes
 	$effect(() => {
 		const template = widget.template;
+		render = { status: 'loading' };
 		if (!template) return;
-		return watchMarkdownTemplate(template, (next) => (render = next));
+		const delay = shown && get(hearthEditMode) ? EDIT_SETTLE_MS : 0;
+		shown = true;
+		return watchMarkdownTemplate(template, (next) => (render = next), delay);
 	});
 </script>
 

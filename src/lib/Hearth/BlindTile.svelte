@@ -67,6 +67,15 @@
 	);
 
 	let pending = $derived($pendingEntities[entity] !== undefined);
+	// a state_template gives way to the live value while the tile is being
+	// changed, and to the availability text
+	let templatedState = $derived(
+		available &&
+			!pending &&
+			!Object.keys($controlOverrides).some((key) => key.endsWith(`:${entity}`))
+			? stateOverride
+			: undefined
+	);
 	// the tile's own tap, hold and drag; without them a configured action can
 	// still make the tile tappable
 	let ownControls = $derived(!readonly && controllable);
@@ -178,7 +187,7 @@
 		/>
 		<div class="copy">
 			<div class="name">{label}</div>
-			<div class="state" class:open>{stateOverride ?? stateText}</div>
+			<div class="state" class:open>{templatedState ?? stateText}</div>
 		</div>
 	</div>
 	{#if $hearthEditMode && onedit}

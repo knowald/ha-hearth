@@ -186,13 +186,13 @@ The search overlay works as a small command palette for scenes and scripts: each
 
 ## Templates
 
-Templates are Home Assistant Jinja. Home Assistant renders them on the server and pushes a new result whenever a state they read changes; Hearth only shows the text. They need a user Home Assistant lets render templates, which on current releases means an administrator: the owner of the long-lived token, or the user signed in to Hearth. For any other user every template reports an error.
+Templates are Home Assistant Jinja. Home Assistant renders them on the server, over the same websocket connection as everything else, and pushes a new result whenever a state they read changes; Hearth only shows the text. Any user that can sign in to Hearth can render templates this way, so a long-lived token of a non-administrator works too.
 
-Each distinct template is rendered once, however many cards and tiles show it, and only while one of them is on screen.
+Each distinct template is rendered once, however many cards and tiles show it, and only while one of them is on screen. While you type a template in the editor, the preview waits for a short pause before asking Home Assistant, so half-typed templates do not fill its log with errors.
 
 ### Template card
 
-A `template` card shows the result as Markdown, cleaned the same way as the Template widget in the sidebar: no scripts, frames or event handlers. `title` and `icon` are optional. `entities` is an optional list of the entity ids the template reads; Hearth does not parse the template, so this list is what tells the dashboard which entities the card depends on.
+A `template` card shows the result as Markdown, cleaned the same way as the Template widget in the sidebar: no scripts, frames, form controls or event handlers. `title` and `icon` are optional. `entities` is an optional list of the entity ids the template reads; Hearth does not parse the template, so this list is what tells the dashboard which entities the card depends on.
 
 ```yaml
 - id: laundry-note
@@ -220,7 +220,7 @@ entities:
     state_template: "{{ states('sensor.phone_battery') }}% {{ 'charging' if is_state('binary_sensor.phone_charging', 'on') else '' }}"
 ```
 
-The result replaces the tile's name or state text, or a stat box's reading and unit. Until it renders, when it fails, and when it renders blank, the tile shows its normal name and state. The rendered name is also the name the tile's details and controls use.
+The result replaces the tile's name or state text, or a stat box's reading and unit. Until it renders, when it fails, and when it renders blank, the tile shows its normal name and state. The normal state text also comes back while the entity is unavailable and while a light or cover is being dragged or a command is in flight. A stat box's air quality verdict and band still follow the entity's real value, not the template. The rendered name is also the name the tile's details and controls use.
 
 ## Custom CSS and JavaScript
 

@@ -81,4 +81,13 @@ describe('template card', () => {
 		unmount();
 		expect(stops).toEqual(['{{ note }}']);
 	});
+
+	it('goes back to the placeholder when the template is cleared', async () => {
+		const { container, rerender } = await mount();
+		await push({ status: 'ready', result: '**Door**' });
+		await waitFor(() => expect(container.querySelector('strong')).not.toBeNull());
+		await rerender({ card: { id: 'note', type: 'template', title: 'Note' } });
+		await waitFor(() => expect(container.querySelector('.placeholder')).not.toBeNull());
+		expect(container.querySelector('strong')).toBeNull();
+	});
 });

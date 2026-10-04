@@ -4,15 +4,24 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import type { TemplateRender } from '$lib/core/ha/templates';
+import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
+import { hearthEditMode } from './store';
 import EntityGrid from './EntityGrid.svelte';
 
 const listeners = new Map<string, (render: TemplateRender) => void>();
 const watched: string[] = [];
+const delays: number[] = [];
 
 // the lazy loader is replaced so templates register synchronously
 vi.mock('./lazyTemplates', () => ({
-	watchTemplateLazily: (template: string, listener: (render: TemplateRender) => void) => {
+	EDIT_SETTLE_MS: 400,
+	watchTemplateLazily: (
+		template: string,
+		listener: (render: TemplateRender) => void,
+		delay = 0
+	) => {
 		watched.push(template);
+		delays.push(delay);
 		listeners.set(template, listener);
 		listener({ status: 'loading' });
 		return () => listeners.delete(template);
@@ -22,6 +31,10 @@ vi.mock('./lazyTemplates', () => ({
 afterEach(() => {
 	listeners.clear();
 	watched.length = 0;
+	delays.length = 0;
+	hearthEditMode.set(false);
+	pendingEntities.set({});
+	controlOverrides.set({});
 });
 
 async function push(template: string, render: TemplateRender) {
@@ -79,5 +92,49 @@ describe('templated tile text', () => {
 		states.set({});
 		render(EntityGrid, { entities: [{ entity: 'switch.fan' }] });
 		expect(watched).toEqual([]);
+	});
+
+	it('gives way to the availability text and to a change in flight', async () => {
+		states.set({
+			'light.desk': hassEntity('light.desk', 'on', {
+				friendly_name: 'Desk',
+				brightness: 128,
+				supported_color_modes: ['brightness']
+			}),
+			'cover.blind': hassEntity('cover.blind', 'unavailable', { friendly_name: 'Blind' })
+		});
+		const { container } = render(EntityGrid, {
+			entities: [
+				{ entity: 'light.desk', state_template: 'LIGHT' },
+				{ entity: 'cover.blind', state_template: 'BLIND' }
+			]
+		});
+		await push('LIGHT', { status: 'ready', result: 'Reading light' });
+		await push('BLIND', { status: 'ready', result: 'Half way' });
+		const [light, blind] = [...container.querySelectorAll('.state')];
+		expect(light.textContent?.trim()).toBe('Reading light');
+		expect(blind.textContent?.trim()).not.toBe('Half way');
+
+		controlOverrides.set({ 'light:light.desk': 80 });
+		await tick();
+		expect(light.textContent?.trim()).not.toBe('Reading light');
+		controlOverrides.set({});
+		pendingEntities.set({ 'light.desk': true });
+		await tick();
+		expect(light.textContent?.trim()).not.toBe('Reading light');
+		pendingEntities.set({});
+		await tick();
+		expect(light.textContent?.trim()).toBe('Reading light');
+	});
+
+	it('waits for typing to pause before following an edited template in edit mode', async () => {
+		states.set({ 'switch.fan': hassEntity('switch.fan', 'on') });
+		hearthEditMode.set(true);
+		const { rerender } = render(EntityGrid, {
+			entities: [{ entity: 'switch.fan', name_template: 'A' }]
+		});
+		await rerender({ entities: [{ entity: 'switch.fan', name_template: 'AB' }] });
+		expect(watched).toEqual(['A', 'AB']);
+		expect(delays).toEqual([0, 400]);
 	});
 });

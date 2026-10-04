@@ -10,20 +10,34 @@ export type MarkdownRender =
  */
 export function watchMarkdownTemplate(
 	template: string,
-	onrender: (render: MarkdownRender) => void
+	onrender: (render: MarkdownRender) => void,
+	delay = 0
 ): () => void {
 	let stopped = false;
 	// queued so an error cannot overtake a result still waiting for the renderer
 	let queue = Promise.resolve();
-	const stop = watchTemplateLazily(template, (render) => {
-		queue = queue.then(async () => {
-			const next: MarkdownRender =
-				render.status === 'ready'
-					? { status: 'ready', html: (await loadMarkdownRenderer())(render.result) }
-					: render;
-			if (!stopped) onrender(next);
-		});
-	});
+	const stop = watchTemplateLazily(
+		template,
+		(render) => {
+			queue = queue.then(async () => {
+				let next: MarkdownRender;
+				try {
+					next =
+						render.status === 'ready'
+							? { status: 'ready', html: (await loadMarkdownRenderer())(render.result) }
+							: render;
+				} catch (failure) {
+					// one failed step must not stall the queue for every later result
+					next = {
+						status: 'error',
+						error: failure instanceof Error ? failure.message : 'template_error'
+					};
+				}
+				if (!stopped) onrender(next);
+			});
+		},
+		delay
+	);
 	return () => {
 		stopped = true;
 		stop();

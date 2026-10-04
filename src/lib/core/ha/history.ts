@@ -5,8 +5,9 @@ import { socketOpen } from './commands';
 
 /*
  * Read-side Home Assistant calls: recorder statistics, state history,
- * calendar events, template renders and weather forecasts. Components consume
- * these instead of speaking the websocket protocol themselves.
+ * calendar events and weather forecasts. Components consume these instead of
+ * speaking the websocket protocol themselves. Template renders live in
+ * templates.ts.
  */
 
 /** How often request/response surfaces poll; subscriptions push instead. */
@@ -129,19 +130,6 @@ export async function fetchCalendarEvents(
 		return_response: true
 	});
 	return Object.values(result?.response ?? {}).flatMap((calendar) => calendar?.events ?? []);
-}
-
-/** Renders a template and re-renders whenever a referenced state changes. Resolves with the unsubscribe. */
-export function subscribeTemplate(
-	template: string,
-	onRender: (result: string) => void
-): Promise<() => void> {
-	return requireConnection().subscribeMessage<{ result?: unknown }>(
-		(response) => {
-			if (typeof response?.result === 'string') onRender(response.result);
-		},
-		{ type: 'render_template', template }
-	);
 }
 
 export interface ForecastEntry {

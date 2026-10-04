@@ -65,10 +65,11 @@ describe('watchTemplate', () => {
 		await flush();
 
 		expect(fake.subscribeMessage).toHaveBeenCalledTimes(2);
-		expect(fake.subscribeMessage).toHaveBeenCalledWith(expect.any(Function), {
-			type: 'render_template',
-			template: '{{ 1 }}'
-		});
+		expect(fake.subscribeMessage).toHaveBeenCalledWith(
+			expect.any(Function),
+			{ type: 'render_template', template: '{{ 1 }}', report_errors: true },
+			{ resubscribe: false }
+		);
 		expect(first.renders).toEqual([{ status: 'loading' }, { status: 'ready', result: 'one' }]);
 		expect(second.renders).toEqual([{ status: 'ready', result: 'one' }]);
 	});
@@ -137,9 +138,12 @@ describe('watchTemplate', () => {
 		const { renders, listener } = recorder();
 		watch('{{ 1 }}', listener);
 		await flush();
+		fake.subscriptions[0].push({ result: 'fine' });
+		fake.subscriptions[0].push({ error: 'deprecated filter', level: 'WARNING' });
 		fake.subscriptions[0].push({ error: 'TypeError: bad', level: 'ERROR' });
 		fake.subscriptions[0].push({ result: 'fine again' });
 		expect(renders.slice(1)).toEqual([
+			{ status: 'ready', result: 'fine' },
 			{ status: 'error', error: 'TypeError: bad' },
 			{ status: 'ready', result: 'fine again' }
 		]);
@@ -162,33 +166,60 @@ describe('watchTemplate', () => {
 		]);
 	});
 
-	it('keeps a subscription across a socket drop and moves to a new connection', async () => {
+	it('subscribes again after a socket drop instead of leaving it to the library', async () => {
+		const fake = fakeConnection();
+		connection.set(fake.conn);
+		health.set('connected');
+		const { renders, listener } = recorder();
+		watch('{{ 1 }}', listener);
+		await flush();
+		fake.subscriptions[0].push({ result: 'before' });
+
+		health.set('lost');
+		await flush();
+		// the socket took the subscription with it; nothing is sent while down
+		expect(fake.subscriptions[0].unsubscribe).not.toHaveBeenCalled();
+		health.set('connected');
+		await flush();
+		expect(fake.subscribeMessage).toHaveBeenCalledTimes(2);
+		// the dropped run's late events no longer reach listeners
+		fake.subscriptions[0].push({ result: 'stale' });
+		fake.subscriptions[1].push({ result: 'after' });
+		expect(renders.map((render) => render.status === 'ready' && render.result)).toEqual([
+			false,
+			'before',
+			'after'
+		]);
+	});
+
+	it('treats a degraded socket as live', async () => {
+		const fake = fakeConnection();
+		connection.set(fake.conn);
+		health.set('degraded');
+		watch('{{ 1 }}', () => {});
+		await flush();
+		expect(fake.subscribeMessage).toHaveBeenCalledTimes(1);
+		health.set('connected');
+		await flush();
+		expect(fake.subscribeMessage).toHaveBeenCalledTimes(1);
+	});
+
+	it('moves to a new connection and unsubscribes from the old one', async () => {
 		const first = fakeConnection();
 		connection.set(first.conn);
 		health.set('connected');
 		const { renders, listener } = recorder();
 		watch('{{ 1 }}', listener);
 		await flush();
-		first.subscriptions[0].push({ result: 'before' });
-
-		// the library re-sends live subscriptions after a drop by itself
-		health.set('lost');
-		health.set('connected');
-		await flush();
-		expect(first.subscribeMessage).toHaveBeenCalledTimes(1);
 
 		const second = fakeConnection();
 		connection.set(second.conn);
 		await flush();
 		expect(first.subscriptions[0].unsubscribe).toHaveBeenCalledTimes(1);
 		expect(second.subscribeMessage).toHaveBeenCalledTimes(1);
-		// the old connection's late events no longer reach listeners
 		first.subscriptions[0].push({ result: 'stale' });
 		second.subscriptions[0].push({ result: 'after' });
-		expect(renders.map((render) => render.status === 'ready' && render.result)).toEqual([
-			false,
-			'before',
-			'after'
-		]);
+		expect(renders.at(-1)).toEqual({ status: 'ready', result: 'after' });
+		expect(renders).not.toContainEqual({ status: 'ready', result: 'stale' });
 	});
 });

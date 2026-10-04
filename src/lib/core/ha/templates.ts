@@ -1,13 +1,14 @@
 import { get } from 'svelte/store';
 import type { Connection } from 'home-assistant-js-websocket';
-import { connected, connection } from './connection';
+import { connection, health, type ConnectionHealth } from './connection';
 
 /*
  * Shared Home Assistant template renders: one render_template subscription
  * per distinct template string, however many surfaces show it, dropped with
- * the last one. The library re-sends live subscriptions itself after a socket
- * drop, so only a new Connection (another server or token) and templates
- * waiting for the socket are subscribed again from here.
+ * the last one. Subscriptions are made here, not re-sent by the library after
+ * a socket drop: the library would keep re-sending one per drop even after
+ * its last listener left, so a dropped socket forgets them all and the next
+ * live one subscribes afresh.
  */
 
 export type TemplateRender =
@@ -15,16 +16,28 @@ export type TemplateRender =
 
 type Listener = (render: TemplateRender) => void;
 
+/** One subscription on one connection; events from an older run are ignored. */
+interface Run {
+	conn: Connection;
+	stop: Promise<(() => void) | undefined>;
+}
+
 interface Shared {
 	listeners: Set<Listener>;
 	render: TemplateRender;
-	/** The connection the subscription runs on; unset while none is live. */
-	on?: Connection;
-	stop?: Promise<(() => void) | undefined>;
+	run?: Run;
+	/** Home Assistant refused the template; it is asked again once the connection changes. */
+	failed?: boolean;
 }
 
 const shared = new Map<string, Shared>();
 let stopWatchingConnection: (() => void) | undefined;
+let lastConnection: Connection | undefined;
+
+// a degraded socket is open, only some other subscription failed
+function isLive(state: ConnectionHealth) {
+	return state === 'connected' || state === 'degraded';
+}
 
 // templates render to text, but Home Assistant parses results that look like
 // numbers, lists or mappings into those types before sending them
@@ -39,54 +52,69 @@ function publish(entry: Shared, render: TemplateRender) {
 	for (const listener of [...entry.listeners]) listener(render);
 }
 
-function start(template: string, entry: Shared) {
-	const conn = get(connection);
-	if (!conn || !get(connected)) return;
-	entry.on = conn;
-	entry.stop = conn
-		.subscribeMessage<{ result?: unknown; error?: unknown }>(
-			(response) => {
-				if (entry.on !== conn) return;
-				if (typeof response?.error === 'string') {
-					publish(entry, { status: 'error', error: response.error });
-				} else if (response && 'result' in response) {
-					publish(entry, { status: 'ready', result: resultText(response.result) });
-				}
-			},
-			{ type: 'render_template', template }
-		)
-		.catch((failure: { message?: unknown }) => {
-			if (entry.on !== conn) return undefined;
-			entry.on = undefined;
-			entry.stop = undefined;
-			const error = typeof failure?.message === 'string' ? failure.message : 'template_error';
-			publish(entry, { status: 'error', error });
-			return undefined;
-		});
+function start(template: string, entry: Shared, conn: Connection) {
+	const run: Run = {
+		conn,
+		stop: conn
+			.subscribeMessage<{ result?: unknown; error?: unknown; level?: unknown }>(
+				(response) => {
+					if (entry.run !== run) return;
+					if (typeof response?.error === 'string') {
+						// warnings (a deprecated filter, say) still come with a result
+						if (response.level !== 'WARNING') {
+							publish(entry, { status: 'error', error: response.error });
+						}
+					} else if (response && 'result' in response) {
+						publish(entry, { status: 'ready', result: resultText(response.result) });
+					}
+				},
+				// without report_errors Home Assistant only logs a broken template
+				{ type: 'render_template', template, report_errors: true },
+				{ resubscribe: false }
+			)
+			.catch((failure: { message?: unknown }) => {
+				if (entry.run !== run) return undefined;
+				entry.run = undefined;
+				entry.failed = true;
+				const error = typeof failure?.message === 'string' ? failure.message : 'template_error';
+				publish(entry, { status: 'error', error });
+				return undefined;
+			})
+	};
+	entry.run = run;
 }
 
 function halt(entry: Shared) {
-	const stop = entry.stop;
-	entry.on = undefined;
-	entry.stop = undefined;
+	const stop = entry.run?.stop;
+	entry.run = undefined;
 	void stop?.then((unsubscribe) => unsubscribe?.()).catch(() => {});
 }
 
 function sync() {
 	const conn = get(connection);
-	const live = get(connected);
+	const live = Boolean(conn) && isLive(get(health));
+	const replaced = conn !== lastConnection;
+	lastConnection = conn;
 	for (const [template, entry] of shared) {
-		if (entry.on && entry.on !== conn) halt(entry);
-		if (!entry.on && conn && live) start(template, entry);
+		if (entry.run && entry.run.conn !== conn) halt(entry);
+		if (!live) {
+			// the socket is gone and its subscriptions with it: nothing to unsubscribe
+			entry.run = undefined;
+			entry.failed = false;
+		} else {
+			if (replaced) entry.failed = false;
+			if (!entry.run && !entry.failed && conn) start(template, entry, conn);
+		}
 	}
 }
 
 function watchConnection(): () => void {
+	lastConnection = get(connection);
 	const stopConnection = connection.subscribe(sync);
-	const stopConnected = connected.subscribe(sync);
+	const stopHealth = health.subscribe(sync);
 	return () => {
 		stopConnection();
-		stopConnected();
+		stopHealth();
 	};
 }
 
@@ -96,7 +124,6 @@ function watchConnection(): () => void {
  */
 export function watchTemplate(template: string, listener: Listener): () => void {
 	let entry = shared.get(template);
-	const created = !entry;
 	if (!entry) {
 		entry = { listeners: new Set(), render: { status: 'loading' } };
 		shared.set(template, entry);
@@ -105,9 +132,7 @@ export function watchTemplate(template: string, listener: Listener): () => void 
 	current.listeners.add(listener);
 	listener(current.render);
 	if (!stopWatchingConnection) stopWatchingConnection = watchConnection();
-	// a template that failed waits for the next connection instead of
-	// retrying on every new listener
-	else if (created) start(template, current);
+	else sync();
 
 	let released = false;
 	return () => {

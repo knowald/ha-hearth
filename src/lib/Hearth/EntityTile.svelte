@@ -81,6 +81,8 @@
 	// the toggle a tap sends acts on the tile's own entity, whatever lights it
 	let pressed = $derived(available && entityActiveFor(entity, stateObj, $controlOverrides));
 	let pending = $derived($pendingEntities[entity] !== undefined);
+	// a state_template gives way to the availability text and to a command in flight
+	let templatedState = $derived(available && !pending ? stateOverride : undefined);
 	let label = $derived(name || stateObj?.attributes?.friendly_name || entity);
 	let iconColor = $derived(
 		!controllable ? 'var(--h-icon-dim)' : on ? 'var(--h-accent-icon)' : 'var(--h-icon-dim)'
@@ -222,8 +224,8 @@
 			<div class="text">
 				<div class="name">{label}</div>
 				<div class="state" class:on={on && available}>
-					{#if stateOverride !== undefined}
-						{stateOverride}
+					{#if templatedState !== undefined}
+						{templatedState}
 					{:else if available}
 						<StateLogic entity_id={entity} />
 					{:else if availability === 'missing'}

@@ -14,26 +14,21 @@ function renderEditor(initial: Partial<EntitiesCard>) {
 }
 
 describe('entities editor tile templates', () => {
-	it('keeps stored templates verbatim, stores typed ones and drops cleared ones', async () => {
+	it('keeps stored templates verbatim, newlines included, and offers code fields for them', async () => {
+		const nameTemplate = "{% if is_state('switch.fan', 'on') %}\nFan on\n{% endif %}";
 		const last = renderEditor({
-			entities: [{ entity: 'switch.fan', name_template: "Fan {{ states('switch.fan') }}" }]
+			entities: [{ entity: 'switch.fan', name_template: nameTemplate }]
 		});
 		expect(last().fields.entities[0]).toMatchObject({
-			name_template: "Fan {{ states('switch.fan') }}",
+			name_template: nameTemplate,
 			state_template: undefined
 		});
+		expect(last().valid).toBe(true);
 
 		await fireEvent.click(screen.getByRole('button', { name: /switch\.fan/ }));
-		await fireEvent.input(screen.getByLabelText(en.hearth_state_template_optional), {
-			target: { value: "{{ states('sensor.power') }} W" }
-		});
-		await fireEvent.input(screen.getByLabelText(en.hearth_name_template_optional), {
-			target: { value: '  ' }
-		});
-		expect(last().fields.entities[0]).toMatchObject({
-			name_template: undefined,
-			state_template: "{{ states('sensor.power') }} W"
-		});
-		expect(last().valid).toBe(true);
+		// the code editor loads on demand
+		expect(await screen.findByLabelText(en.hearth_name_template_optional)).toBeTruthy();
+		expect(await screen.findByLabelText(en.hearth_state_template_optional)).toBeTruthy();
+		expect(last().fields.entities[0].name_template).toBe(nameTemplate);
 	});
 });

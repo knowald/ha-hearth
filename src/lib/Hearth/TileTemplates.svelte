@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { watchTemplateLazily } from './lazyTemplates';
+	import { get } from 'svelte/store';
+	import { EDIT_SETTLE_MS, watchTemplateLazily } from './lazyTemplates';
+	import { hearthEditMode } from './store';
 
 	/*
 	 * Renders an entity ref's name_template and state_template for its tile.
@@ -20,16 +22,27 @@
 	let name = $state<string>();
 	let stateText = $state<string>();
 
-	function follow(template: string | undefined, set: (text: string | undefined) => void) {
-		set(undefined);
-		if (!template) return;
-		return watchTemplateLazily(template, (render) =>
-			set(render.status === 'ready' ? render.result.trim() || undefined : undefined)
-		);
+	function follower(set: (text: string | undefined) => void) {
+		// only a template edited after the first render waits for typing to pause
+		let shown = false;
+		return (template: string | undefined) => {
+			set(undefined);
+			if (!template) return;
+			const delay = shown && get(hearthEditMode) ? EDIT_SETTLE_MS : 0;
+			shown = true;
+			return watchTemplateLazily(
+				template,
+				(render) => set(render.status === 'ready' ? render.result.trim() || undefined : undefined),
+				delay
+			);
+		};
 	}
 
-	$effect(() => follow(nameTemplate, (text) => (name = text)));
-	$effect(() => follow(stateTemplate, (text) => (stateText = text)));
+	const followName = follower((text) => (name = text));
+	const followState = follower((text) => (stateText = text));
+
+	$effect(() => followName(nameTemplate));
+	$effect(() => followState(stateTemplate));
 </script>
 
 {@render children(name, stateText)}

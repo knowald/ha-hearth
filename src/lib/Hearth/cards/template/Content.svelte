@@ -2,6 +2,8 @@
 	import { ICON } from '../../iconSizes';
 	import { lang } from '$lib/core/i18n';
 	import { watchMarkdownTemplate, type MarkdownRender } from '../../templateMarkdown';
+	import { get } from 'svelte/store';
+	import { EDIT_SETTLE_MS } from '../../lazyTemplates';
 	import { hearthEditMode } from '../../store';
 	import Icon from '../../Icon.svelte';
 	import type { TemplateCard } from './descriptor';
@@ -9,11 +11,16 @@
 	let { card }: { card: TemplateCard } = $props();
 
 	let render = $state<MarkdownRender>({ status: 'loading' });
+	// plain, not state: only a change after the first render waits
+	let shown = false;
 
 	$effect(() => {
 		const template = card.content;
+		render = { status: 'loading' };
 		if (!template) return;
-		return watchMarkdownTemplate(template, (next) => (render = next));
+		const delay = shown && get(hearthEditMode) ? EDIT_SETTLE_MS : 0;
+		shown = true;
+		return watchMarkdownTemplate(template, (next) => (render = next), delay);
 	});
 </script>
 
