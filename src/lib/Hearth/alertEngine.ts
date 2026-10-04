@@ -68,7 +68,7 @@ interface RuleState {
 	phase: 'pending' | 'active' | 'acknowledged';
 	holding: boolean;
 	since: number;
-	/** The latest last_changed among the rule's entities seen while it held, server clock. */
+	/** The latest change among the rule's entities seen while it held, server clock; see latestChange. */
 	changed: number;
 	/**
 	 * The popup this activation opened. Only that popup is closed when the rule
@@ -114,30 +114,40 @@ function publish() {
 	activeAlerts.set(raised);
 }
 
-function conditionEntities(conditions: VisibilityCondition[]): string[] {
+interface EntityRead {
+	entity: string;
+	attribute: boolean;
+}
+
+function conditionEntities(conditions: VisibilityCondition[]): EntityRead[] {
 	return conditions.flatMap((condition) =>
 		'or' in condition
 			? conditionEntities(condition.or)
 			: 'entity' in condition
-				? [condition.entity]
+				? [{ entity: condition.entity, attribute: Boolean(condition.attribute) }]
 				: []
 	);
 }
 
 /*
- * Entity conditions cannot have changed since the latest last_changed among
+ * Entity conditions cannot have changed since the latest change among
  * their entities: those conditions have held at least that long. After a
  * reload this keeps a door that has been open for ten minutes from waiting
  * out the full delay again. A time window caps it at the time since the
  * window opened, and a device condition, whose start is not known, caps it
- * at 0 (see heldAtMost in visibility.ts). last_changed is the server's
- * clock, so a browser clock that is off would shorten every delay; it is
+ * at 0 (see heldAtMost in visibility.ts). An attribute changing moves only
+ * last_updated, so an attribute condition reads that instead; an entity
+ * read both ways counts from the later of the two. Both are the server's
+ * clock, so a browser clock that is off would shorten every delay; they are
  * only consulted for states that changed while nobody was watching (see
  * catchingUp), never for a change seen live.
  */
 function latestChange(conditions: VisibilityCondition[], $states: HassEntities | undefined) {
 	const changes = conditionEntities(conditions)
-		.map((id) => Date.parse($states?.[id]?.last_changed ?? ''))
+		.map(({ entity, attribute }) => {
+			const state = $states?.[entity];
+			return Date.parse((attribute ? state?.last_updated : state?.last_changed) ?? '');
+		})
 		.filter((time) => Number.isFinite(time));
 	return changes.length ? Math.max(...changes) : -Infinity;
 }

@@ -59,6 +59,22 @@ function door(state: string, changedSecondsAgo = 0): HassEntities {
 	return { 'binary_sensor.fridge_door': entity };
 }
 
+const hot: AlertRule = {
+	id: 'hot',
+	title: 'Too hot',
+	severity: 'warning',
+	conditions: [{ entity: 'climate.living', attribute: 'current_temperature', above: 28 }],
+	for_seconds: 120
+};
+
+// the state has read heat for an hour; the reading moved `updatedSecondsAgo`
+function thermostat(temperature: number, updatedSecondsAgo = 0): HassEntities {
+	const entity = hassEntity('climate.living', 'heat', { current_temperature: temperature });
+	entity.last_changed = new Date(Date.now() - 3_600_000).toISOString();
+	entity.last_updated = new Date(Date.now() - updatedSecondsAgo * 1000).toISOString();
+	return { 'climate.living': entity };
+}
+
 const host = {
 	openDetail: openEntityDetail,
 	holds: conditionsHold,
@@ -191,6 +207,37 @@ describe('alert rules', () => {
 			hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
 		}
 	);
+
+	it('counts an attribute condition from the last update, not the last state change', () => {
+		syncRules([hot], thermostat(30, 5));
+		vi.advanceTimersByTime(114_000);
+		expect(keys()).toEqual([]);
+		vi.advanceTimersByTime(1_000);
+		expect(keys()).toEqual(['rule:hot']);
+	});
+
+	it('starts a dismissed attribute rule over when the reading moved while disconnected', () => {
+		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), alerts: [hot] });
+		health.set('connected');
+		const stop = startAlerts(host);
+		states.set(thermostat(30));
+		vi.advanceTimersByTime(120_000);
+		dismissAlert('rule:hot');
+
+		health.set('lost');
+		vi.advanceTimersByTime(30_000);
+		health.set('connected');
+		// fell below and rose again 5 s ago; the state itself never changed
+		states.set(thermostat(31, 5));
+		expect(keys()).toEqual([]);
+		vi.advanceTimersByTime(115_000);
+		expect(keys()).toEqual(['rule:hot']);
+
+		stop();
+		setAlertHost(host);
+		health.set('booting');
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+	});
 
 	it('keeps a dismissed rule quiet across a reconnect when nothing changed', () => {
 		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), alerts: [fridge] });
