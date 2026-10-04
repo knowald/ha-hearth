@@ -81,6 +81,8 @@
 					name={ref.name}
 					verdictBands={ref.verdict}
 					readonly={ref.readonly ?? readonly}
+					tapAction={ref.tap_action}
+					holdAction={ref.hold_action}
 				/>
 			{:else}
 				<EntityTile
@@ -92,6 +94,8 @@
 					activeStates={ref.active_states}
 					sliderUpdates={ref.slider_updates ?? sliderUpdates}
 					showTune={tuneButton}
+					tapAction={ref.tap_action}
+					holdAction={ref.hold_action}
 					{compact}
 				/>
 			{/if}

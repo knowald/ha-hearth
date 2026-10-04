@@ -8,6 +8,7 @@
 	import { activateOnKeyboard } from '../../interaction';
 	import type { CardEditorProps } from '../types';
 	import type { EntitiesCard } from './descriptor';
+	import ActionField from '../../edit/ActionField.svelte';
 	import CheckField from '../../edit/CheckField.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
 	import EntityPicker from '../../edit/EntityPicker.svelte';
@@ -35,6 +36,11 @@
 		slider_updates: string;
 		// YAML-only field with no form control; carried so edits don't drop it
 		verdict?: EntityRef['verdict'];
+		tap_action?: EntityRef['tap_action'];
+		hold_action?: EntityRef['hold_action'];
+		// false while that action's form does not hold a usable action
+		tapValid?: boolean;
+		holdValid?: boolean;
 	};
 
 	function editable(ref: EntityRef): EditableRef {
@@ -47,7 +53,9 @@
 			active_entity: ref.active_entity ?? '',
 			active_states: ref.active_states?.join(', ') ?? '',
 			slider_updates: ref.slider_updates ?? '',
-			verdict: ref.verdict
+			verdict: ref.verdict,
+			tap_action: ref.tap_action,
+			hold_action: ref.hold_action
 		};
 	}
 
@@ -141,6 +149,10 @@
 		entitiesOpen = true;
 	}
 
+	let actionsValid = $derived(
+		entities.every((ref) => ref.tapValid !== false && ref.holdValid !== false)
+	);
+
 	$effect(() => {
 		const columnCount = integerFromInput(columns);
 		onchange({
@@ -175,10 +187,15 @@
 							ref.slider_updates === 'continuous' || ref.slider_updates === 'release'
 								? ref.slider_updates
 								: undefined,
-						verdict: ref.verdict
+						verdict: ref.verdict,
+						tap_action: ref.tap_action,
+						hold_action: ref.hold_action
 					}))
 					.filter((ref) => ref.entity)
-			}
+			},
+			valid: actionsValid,
+			// the broken action may sit in a collapsed row, out of sight
+			reason: actionsValid ? undefined : $lang('hearth_action_fix_reason')
 		});
 	});
 </script>
@@ -348,6 +365,16 @@
 						{#if !readonly}
 							<CheckField label={$lang('display_only')} bind:checked={ref.readonly} />
 						{/if}
+						<ActionField
+							label={$lang('hearth_tap_action')}
+							bind:value={ref.tap_action}
+							bind:valid={ref.tapValid}
+						/>
+						<ActionField
+							label={$lang('hearth_hold_action')}
+							bind:value={ref.hold_action}
+							bind:valid={ref.holdValid}
+						/>
 					</div>
 				{/if}
 			</div>

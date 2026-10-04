@@ -1,6 +1,7 @@
 import type * as v from 'valibot';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import type {
+	ActionSchema,
 	EntityRefSchema,
 	MediaShortcutSchema,
 	SceneRefSchema,
@@ -39,6 +40,8 @@ export interface HearthRoom {
 	cards: OverviewItem[][];
 }
 
+/** A configured tap or hold action; see ActionSchema. */
+export type HearthAction = v.InferOutput<typeof ActionSchema>;
 export type EntityRef = v.InferOutput<typeof EntityRefSchema>;
 export type SceneRef = v.InferOutput<typeof SceneRefSchema>;
 export type VacuumModeRef = v.InferOutput<typeof VacuumModeRefSchema>;
@@ -95,7 +98,15 @@ type RailWidgetVariant =
 			travel_entity?: string;
 			lookahead_hours?: number;
 	  }
-	| { id: string; type: 'status'; icon?: string; text?: string; entity?: string }
+	| {
+			id: string;
+			type: 'status';
+			icon?: string;
+			text?: string;
+			entity?: string;
+			tap_action?: HearthAction;
+			hold_action?: HearthAction;
+	  }
 	| {
 			id: string;
 			type: 'entity';

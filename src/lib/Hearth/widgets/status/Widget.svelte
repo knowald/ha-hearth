@@ -6,6 +6,8 @@
 	import { openEntityDetail } from '$lib/Hearth/details';
 	import { attentionItems } from '../../attention';
 	import Icon from '../../Icon.svelte';
+	import { customAction, runSurfaceAction } from '../../actions';
+	import { longPress } from '../../interaction';
 
 	import type { StatusWidget } from './descriptor';
 
@@ -30,6 +32,25 @@
 	// nothing unresolved renders as nothing, not as a nominal platitude
 	let autoMode = $derived(!text && !entity);
 	let attention = $derived(autoMode ? attentionItems($hearthConfig, $states) : []);
+
+	function surface(fallback: () => void) {
+		return { entity, name: text, fallback };
+	}
+
+	function tap() {
+		runSurfaceAction(
+			widget.tap_action,
+			surface(() => stateObj && openEntityDetail(stateObj.entity_id))
+		);
+	}
+
+	// the pill has no hold of its own
+	function hold() {
+		runSurfaceAction(
+			widget.hold_action,
+			surface(() => {})
+		);
+	}
 </script>
 
 {#if autoMode}
@@ -56,11 +77,16 @@
 		<Icon name={icon} size={ICON.control} color={unavailable ? 'var(--h-icon)' : 'var(--h-good)'} />
 		<span class="pill-text">{label}</span>
 	{/snippet}
-	{#if stateObj}
+	{#if stateObj || customAction(widget.tap_action) || customAction(widget.hold_action)}
 		<button
 			type="button"
 			class="status-pill pressable"
-			onclick={() => openEntityDetail(stateObj.entity_id)}
+			onclick={tap}
+			use:longPress={{
+				hold,
+				deferOnTouch: true,
+				disabled: !customAction(widget.hold_action) || widget.hold_action?.action === 'none'
+			}}
 		>
 			{@render content()}
 		</button>

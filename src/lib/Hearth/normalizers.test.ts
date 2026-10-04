@@ -1,11 +1,116 @@
 import { describe, expect, it } from 'vitest';
+import { load } from 'js-yaml';
 import {
+	normalizeAction,
 	normalizeEmbedUrl,
 	normalizeEntityRef,
 	normalizeSceneRef,
 	normalizeVacuumModeRef,
 	normalizeWholeNumber
 } from './normalizers';
+
+describe('normalizeAction', () => {
+	it('keeps each kind with what it needs', () => {
+		expect(normalizeAction({ action: 'toggle' })).toMatchObject({ action: 'toggle' });
+		expect(normalizeAction({ action: 'more-info', entity: ' sensor.power ' })).toMatchObject({
+			action: 'more-info',
+			entity: 'sensor.power'
+		});
+		expect(normalizeAction({ action: 'navigate', navigation_path: ' kitchen ' })).toMatchObject({
+			action: 'navigate',
+			navigation_path: 'kitchen'
+		});
+		expect(normalizeAction({ action: 'url', url_path: 'https://example.com' })).toMatchObject({
+			action: 'url',
+			url_path: 'https://example.com'
+		});
+		expect(normalizeAction({ action: 'none' })).toMatchObject({ action: 'none' });
+		expect(
+			normalizeAction({
+				action: 'perform-action',
+				perform_action: 'light.turn_on',
+				target: { entity_id: ['light.a', 'light.b'], area_id: 'kitchen' },
+				data: { brightness_pct: 40 }
+			})
+		).toEqual({
+			action: 'perform-action',
+			perform_action: 'light.turn_on',
+			target: { entity_id: ['light.a', 'light.b'], area_id: 'kitchen' },
+			data: { brightness_pct: 40 }
+		});
+	});
+
+	it('reads a Lovelace action pasted from YAML, legacy keys included', () => {
+		const pasted = load(`
+action: call-service
+service: script.turn_on
+service_data:
+  entity_id: script.goodnight
+  variables:
+    dim: true
+confirmation:
+  text: Good night?
+  exemptions:
+    - user: abc
+haptic: success
+`);
+		expect(normalizeAction(pasted)).toEqual({
+			action: 'perform-action',
+			perform_action: 'script.turn_on',
+			data: { entity_id: 'script.goodnight', variables: { dim: true } },
+			confirmation: { text: 'Good night?' }
+		});
+	});
+
+	it('lets data win over service_data and reads confirmation flags', () => {
+		const action = normalizeAction({
+			action: 'perform-action',
+			perform_action: 'fan.set_percentage',
+			service_data: { percentage: 10, entity_id: 'fan.a' },
+			data: { percentage: 50 },
+			confirmation: true
+		});
+		expect(action).toMatchObject({
+			data: { percentage: 50, entity_id: 'fan.a' },
+			confirmation: true
+		});
+		expect(normalizeAction({ action: 'toggle', confirmation: false })?.confirmation).toBe(
+			undefined
+		);
+		expect(normalizeAction({ action: 'toggle', confirmation: {} })?.confirmation).toBe(true);
+	});
+
+	it('drops actions that are unknown or miss what they need', () => {
+		for (const raw of [
+			undefined,
+			'toggle',
+			{ action: 'fire-dom-event' },
+			{ action: 'perform-action' },
+			{ action: 'perform-action', perform_action: 'not a service' },
+			{ action: 'navigate' },
+			{ action: 'url', url_path: 'javascript:alert(1)' },
+			{ action: 'url', url_path: '//evil.example' },
+			{ action: 'perform-action', perform_action: 'a.b', data: ['x'] }
+		]) {
+			expect(normalizeAction(raw)).toBeUndefined();
+		}
+	});
+
+	it('normalizes tile actions on entity refs and keeps them off scenes', () => {
+		const ref = normalizeEntityRef({
+			entity: 'switch.fan',
+			tap_action: { action: 'call-service', service: 'script.turn_on' },
+			hold_action: { action: 'bogus' }
+		});
+		expect(ref?.tap_action).toEqual({
+			action: 'perform-action',
+			perform_action: 'script.turn_on'
+		});
+		expect(ref?.hold_action).toBeUndefined();
+		const scene = normalizeSceneRef({ entity: 'scene.a', tap_action: { action: 'toggle' } });
+		expect(scene).not.toHaveProperty('tap_action');
+	});
+});
 
 describe('normalizeEmbedUrl', () => {
 	it('keeps http(s) addresses and same-host paths', () => {
@@ -21,6 +126,10 @@ describe('normalizeEmbedUrl', () => {
 			'data:text/html,hi',
 			'file:///etc/passwd',
 			'//evil',
+			'/\\evil.com',
+			'/\t/evil.com',
+			'/lo\ncal/page.html',
+			'https://example.com/a b',
 			'',
 			3
 		]) {

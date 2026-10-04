@@ -28,7 +28,16 @@ export function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
 interface LongPressOptions {
 	hold: () => void;
 	disabled?: boolean;
+	/**
+	 * On touch, run `hold` at the release instead of at the threshold. A
+	 * browser only lets a touch open a tab from the release (user activation),
+	 * so configured hold actions such as `url` need it.
+	 */
+	deferOnTouch?: boolean;
 }
+
+/** How long a press lasts before it counts as a hold. */
+export const HOLD_MS = 500;
 
 /**
  * Long-press for tiles without a drag gesture: 500ms without moving more than
@@ -39,17 +48,34 @@ export const longPress: Action<HTMLElement, LongPressOptions> = (node, options) 
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let start: { x: number; y: number } | null = null;
 	let held = false;
+	// a touch hold past the threshold, waiting for its release
+	let deferred = false;
 
 	function handleDown(event: PointerEvent) {
 		if (current.disabled || event.isPrimary === false) return;
 		held = false;
+		deferred = false;
 		start = { x: event.clientX, y: event.clientY };
+		const defer = Boolean(current.deferOnTouch) && event.pointerType === 'touch';
 		clearTimeout(timer);
 		timer = setTimeout(() => {
 			held = true;
 			vibrate('hold');
-			current.hold();
-		}, 500);
+			if (defer) deferred = true;
+			else current.hold();
+		}, HOLD_MS);
+	}
+
+	function handleUp() {
+		cancel();
+		if (!deferred) return;
+		deferred = false;
+		current.hold();
+	}
+
+	function handleCancel() {
+		deferred = false;
+		cancel();
 	}
 
 	function handleMove(event: PointerEvent) {
@@ -72,8 +98,8 @@ export const longPress: Action<HTMLElement, LongPressOptions> = (node, options) 
 
 	node.addEventListener('pointerdown', handleDown);
 	node.addEventListener('pointermove', handleMove);
-	node.addEventListener('pointerup', cancel);
-	node.addEventListener('pointercancel', cancel);
+	node.addEventListener('pointerup', handleUp);
+	node.addEventListener('pointercancel', handleCancel);
 	node.addEventListener('click', handleClick, true);
 
 	return {
@@ -84,8 +110,8 @@ export const longPress: Action<HTMLElement, LongPressOptions> = (node, options) 
 			clearTimeout(timer);
 			node.removeEventListener('pointerdown', handleDown);
 			node.removeEventListener('pointermove', handleMove);
-			node.removeEventListener('pointerup', cancel);
-			node.removeEventListener('pointercancel', cancel);
+			node.removeEventListener('pointerup', handleUp);
+			node.removeEventListener('pointercancel', handleCancel);
 			node.removeEventListener('click', handleClick, true);
 		}
 	};

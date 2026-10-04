@@ -127,6 +127,63 @@ Settings > Size and spacing sets the interface scale (`scale` in `hearth.yaml`, 
 
 The scale is a CSS `zoom` on the page and needs Chromium 128 or Firefox 126. Older browsers stay at 100%, and Settings says so. Layout breakpoints follow the physical screen, not the scaled one, so a large scale on a narrow tablet keeps the wide layout in less room.
 
+## Tap and hold actions
+
+Each entity in an entities card, as a tile or a stat box, and the status widget take a `tap_action` and a `hold_action`. Without them a tile does what its domain does: a switch toggles, a lock asks before it unlocks, a sensor opens its history and a hold opens the controls. Set them in the editor under Tap and Hold, in an entity's options in the entities card or on the status widget, or in YAML:
+
+| `action`         | Effect                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `default`        | What the tile does on its own. Same as leaving the action out.                                                                              |
+| `toggle`         | Toggles the entity, or the one named in `entity`. Locks and garage doors still ask first.                                                   |
+| `more-info`      | Opens the entity's details, or those of the one named in `entity`.                                                                          |
+| `perform-action` | Calls `perform_action`, a `domain.service`, with `target` and `data`.                                                                       |
+| `navigate`       | Goes to the page in `navigation_path`: a page id, a page name, or a Lovelace path such as `/lovelace/kitchen` whose last part is a page id. |
+| `url`            | Opens `url_path` in a new tab. Only http(s) addresses and paths on the Hearth host, such as `/local/page.html`.                             |
+| `none`           | Does nothing. With `hold_action: none`, a long press counts as a tap.                                                                       |
+
+Any action can ask first: `confirmation: true` asks "Are you sure?", and `confirmation: { text: Lock up for the night? }` asks that instead. Where an unlock or a moving garage door asks anyway, Hearth asks once, not twice.
+
+```yaml
+entities:
+  - entity: switch.coffee_machine
+    tap_action:
+      action: perform-action
+      perform_action: script.turn_on
+      target:
+        entity_id: script.morning_coffee
+      data:
+        variables:
+          cups: 2
+      confirmation:
+        text: Start the coffee?
+    hold_action:
+      action: navigate
+      navigation_path: kitchen
+```
+
+The keys are the ones Home Assistant's dashboards use, so an action copied from a Lovelace card works as it is. The older spelling still reads: `call-service`, `service` and `service_data` become `perform-action`, `perform_action` and `data`, and Hearth saves the new spelling. This one, pasted from a Lovelace button card, runs the script on tap:
+
+```yaml
+- entity: script.goodnight
+  tap_action:
+    action: call-service
+    service: script.turn_on
+    service_data:
+      entity_id: script.goodnight
+    confirmation:
+      text: Good night?
+```
+
+Hearth has no `double_tap_action` and ignores it. Other Lovelace action types, such as `assist` or `fire-dom-event`, are reported as errors. In edit mode a tap opens the tile's editor and no action runs.
+
+A display-only tile, set on the entity or inherited from the card, sends no command from a configured action either: `toggle` and `perform-action` do nothing there. `navigate`, `more-info` and `url` still run, so a read-only tile can still lead somewhere.
+
+The status widget takes actions only with text or an entity. Without either it lists open problems and has no pill to tap, so the editor hides Tap and Hold and YAML that sets them is reported.
+
+On a touch screen a configured hold action runs when the finger lifts; the vibration still comes at the hold. A browser opens a new tab only from the lift, so this keeps `url` holds working.
+
+The search overlay works as a small command palette for scenes and scripts: each one gets a Run button, and Enter runs the highlighted one. Tapping the row still opens its details.
+
 ## Custom CSS and JavaScript
 
 Edit custom CSS under Settings > Appearance > Custom CSS. Save writes the file at once and returns to Settings. Style against the `--h-*` tokens, not internal class names, which can change between releases.

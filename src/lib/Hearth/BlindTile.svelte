@@ -18,7 +18,9 @@
 	import Icon from './Icon.svelte';
 	import TuneButton from './TuneButton.svelte';
 	import { horizontalDrag } from './drag';
-	import { activateOnKeyboard } from './interaction';
+	import { activateOnKeyboard, longPress } from './interaction';
+	import { actionRuns, runSurfaceAction, tapToggles } from './actions';
+	import type { HearthAction } from './types';
 
 	let {
 		entity,
@@ -28,6 +30,8 @@
 		readonly = false,
 		sliderUpdates = 'continuous',
 		showTune = false,
+		tapAction = undefined,
+		holdAction = undefined,
 		onedit = undefined
 	}: {
 		entity: string;
@@ -39,6 +43,8 @@
 		sliderUpdates?: SliderUpdateMode;
 		/** restores the controls glyph beside the long-press gesture */
 		showTune?: boolean;
+		tapAction?: HearthAction;
+		holdAction?: HearthAction;
 		onedit?: () => void;
 	} = $props();
 
@@ -59,12 +65,40 @@
 	);
 
 	let pending = $derived($pendingEntities[entity] !== undefined);
-	let interactive = $derived($hearthEditMode || (!readonly && controllable));
+	// the tile's own tap, hold and drag; without them a configured action can
+	// still make the tile tappable
+	let ownControls = $derived(!readonly && controllable);
+	let customHold = $derived(actionRuns(holdAction, readonly));
+	let interactive = $derived(
+		$hearthEditMode || ownControls || actionRuns(tapAction, readonly) || customHold
+	);
 	let accessPoint = $derived(coverIsAccessPoint($states?.[entity]));
+
+	function surface(fallback: () => void, fallbackToggles = false) {
+		return {
+			entity,
+			name,
+			readonly,
+			fallbackToggles,
+			detail: { icon, sliderUpdates, readonly },
+			fallback
+		};
+	}
 
 	function handleClick() {
 		if ($hearthEditMode) return onedit?.();
-		if (readonly || !controllable) return;
+		runSurfaceAction(tapAction, surface(defaultTap, true));
+	}
+
+	function handleHold() {
+		runSurfaceAction(
+			holdAction,
+			surface(() => ownControls && openControls())
+		);
+	}
+
+	function defaultTap() {
+		if (!ownControls) return;
 		const opening = !open;
 		guardCoverMotion(
 			[entity],
@@ -104,22 +138,29 @@
 	data-id={entity}
 	role="button"
 	tabindex={interactive ? 0 : -1}
-	aria-pressed={open}
+	aria-pressed={tapToggles(tapAction, entity) ? open : undefined}
 	use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
-	onclick={() => $hearthEditMode && onedit?.()}
+	onclick={() => {
+		// with the drag off, the click is the tap
+		if ($hearthEditMode || !ownControls) handleClick();
+	}}
 	onkeydown={(event) =>
 		activateOnKeyboard(event, () =>
-			event.shiftKey && controllable && !readonly && !$hearthEditMode
-				? openControls()
-				: handleClick()
+			event.shiftKey && !$hearthEditMode ? handleHold() : handleClick()
 		)}
 	use:horizontalDrag={{
 		set: slide,
 		updateMode: accessPoint ? 'release' : sliderUpdates,
 		tap: handleClick,
-		hold: openControls,
-		disabled: $hearthEditMode || readonly || !controllable,
+		hold: holdAction?.action === 'none' ? undefined : handleHold,
+		deferOnTouch: customHold,
+		disabled: $hearthEditMode || !ownControls,
 		ignore: '.tune'
+	}}
+	use:longPress={{
+		hold: handleHold,
+		deferOnTouch: true,
+		disabled: $hearthEditMode || ownControls || !customHold || holdAction?.action === 'none'
 	}}
 >
 	<div class="fill" style:width="{position}%"></div>

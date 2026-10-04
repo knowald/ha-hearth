@@ -176,9 +176,15 @@ export function socketOpen(): boolean {
 	return $health === 'connected' || $health === 'degraded';
 }
 
-export function service(domain: string, name: string, data: Record<string, unknown>) {
+export function service(
+	domain: string,
+	name: string,
+	data: Record<string, unknown>,
+	target?: ActionTarget
+) {
 	if (!commandsAllowed()) return;
-	const entityId = typeof data.entity_id === 'string' ? data.entity_id : null;
+	const named = data.entity_id ?? target?.entity_id;
+	const entityId = typeof named === 'string' ? named : null;
 	const conn = get(connection);
 	// the connection object survives reconnects, so health is the guard: a
 	// degraded socket (one stale subscription) still carries commands
@@ -186,7 +192,7 @@ export function service(domain: string, name: string, data: Record<string, unkno
 		reportCommandFailure(entityId, new Error('Not connected to Home Assistant'));
 		return;
 	}
-	callService(conn, domain, name, data).catch((error) => {
+	callService(conn, domain, name, data, target).catch((error) => {
 		console.error(error);
 		reportCommandFailure(entityId, error);
 	});
@@ -209,6 +215,91 @@ export function callEntityService(
 	}
 	markPending(entityId);
 	service(domain, name, { entity_id: entityId, ...data });
+}
+
+/* configured actions */
+
+/** Where a perform-action call goes, in Home Assistant's target shape. */
+export type ActionTarget = Partial<
+	Record<'entity_id' | 'device_id' | 'area_id' | 'floor_id' | 'label_id', string | string[]>
+>;
+
+/** `true` asks a generic question first; `text` asks that instead. */
+export type ActionConfirmation = true | { text: string };
+
+/**
+ * A tap or hold action in Home Assistant's dashboard vocabulary, so one copied
+ * from a Lovelace card means the same here. `default` is whatever the surface
+ * does without a configured action.
+ */
+export type HaAction = { confirmation?: ActionConfirmation } & (
+	| { action: 'default' | 'none' }
+	// `entity` overrides the surface's own entity
+	| { action: 'toggle' | 'more-info'; entity?: string }
+	| {
+			action: 'perform-action';
+			perform_action: string;
+			target?: ActionTarget;
+			data?: Record<string, unknown>;
+	  }
+	| { action: 'navigate'; navigation_path: string }
+	| { action: 'url'; url_path: string }
+);
+
+/** What runAction needs from the dashboard, which core cannot import. */
+export interface ActionHost {
+	/** The surface's entity, which toggle and more-info act on unless the action names another. */
+	entity?: string;
+	/** The surface's own behaviour, for no action and for `default`. */
+	fallback: () => void;
+	toggle: (entityId: string) => void;
+	moreInfo: (entityId: string) => void;
+	navigate: (path: string) => void;
+	/** Asks about `action`, whose confirmation is set, and calls `run` once accepted. */
+	confirm: (action: HaAction, run: () => void) => void;
+}
+
+/** Calls a `domain.service` on a target, the way a Lovelace perform-action does. */
+export function performAction(
+	name: string,
+	target?: ActionTarget,
+	data: Record<string, unknown> = {}
+) {
+	const [domain, serviceName] = name.split('.');
+	if (!domain || !serviceName) return;
+	for (const entityId of [target?.entity_id ?? []].flat()) markPending(entityId);
+	service(domain, serviceName, data, target);
+}
+
+/** Runs a configured action; without one the surface's fallback runs. */
+export function runAction(action: HaAction | undefined, host: ActionHost) {
+	if (!action) return host.fallback();
+	if (action.action === 'none') return;
+	// a command the gate would refuse must not ask for confirmation first
+	if ((action.action === 'toggle' || action.action === 'perform-action') && !commandsAllowed())
+		return;
+	const run = () => dispatchAction(action, host);
+	if (!action.confirmation) return run();
+	host.confirm(action, run);
+}
+
+function dispatchAction(action: HaAction, host: ActionHost) {
+	switch (action.action) {
+		case 'default':
+			return host.fallback();
+		case 'toggle':
+		case 'more-info': {
+			const entityId = action.entity ?? host.entity;
+			if (!entityId) return;
+			return action.action === 'toggle' ? host.toggle(entityId) : host.moreInfo(entityId);
+		}
+		case 'perform-action':
+			return performAction(action.perform_action, action.target, action.data);
+		case 'navigate':
+			return host.navigate(action.navigation_path);
+		case 'url':
+			window.open(action.url_path, '_blank', 'noopener');
+	}
 }
 
 export function clamp(value: number, min: number, max: number) {
