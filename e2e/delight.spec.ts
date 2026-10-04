@@ -31,6 +31,16 @@ rooms:
             - entity: light.strip
 `;
 
+/*
+ * The page's clock pinned to an hour of the real today: the fake server
+ * derives today's statistics from its own clock, so the date has to match.
+ */
+function today(hour: number): Date {
+	const date = new Date();
+	date.setHours(hour, 0, 0, 0);
+	return date;
+}
+
 function setState(request: APIRequestContext, entity_id: string, state: string) {
 	return request.post(`${FAKE_HASS}/_test/state`, { data: { entity_id, state } });
 }
@@ -72,11 +82,11 @@ test('tile icons stay still under reduced motion', async ({ page }) => {
 });
 
 test('the header greets a person who comes home, until dismissed', async ({ page, request }) => {
+	// the copy follows the part of the day; at night it is a plain welcome
+	await page.clock.setFixedTime(today(18));
 	await page.goto('/');
 	await expect(page.locator('.tile[data-entity="fan.bedroom"]')).toBeVisible();
-	const greeting = page
-		.getByRole('status')
-		.filter({ hasText: /Good (morning|afternoon|evening|night), Kevin/ });
+	const greeting = page.getByRole('status').filter({ hasText: 'Good evening, Kevin' });
 	await expect(greeting).toHaveCount(0);
 
 	await setState(request, 'person.kevin', 'home');
@@ -87,7 +97,7 @@ test('the header greets a person who comes home, until dismissed', async ({ page
 
 test('the energy widget marks a day below the 7-day average', async ({ page }) => {
 	// the badge waits for three finished hours of the day
-	test.skip(new Date().getHours() < 3, 'too early in the day for the badge');
+	await page.clock.setFixedTime(today(15));
 	await page.goto('/');
 	await expect(page.getByText('Below your 7-day average')).toBeVisible();
 });
