@@ -2,10 +2,13 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+	cancelEdit,
 	confirmRequestedAction,
 	dismissConfirmation,
 	editor,
-	requestedConfirmation
+	enterEditMode,
+	requestedConfirmation,
+	updateConfig
 } from '../store';
 import { configuration } from '$lib/core/app/configuration';
 import { deviceName, saveDeviceName } from '$lib/core/app/device';
@@ -94,8 +97,23 @@ describe('AppSettingsEditSheet', () => {
 		expect(confirmSpy).not.toHaveBeenCalled();
 		expect(get(requestedConfirmation)).toMatchObject({
 			title: en.hearth_logout_confirm,
+			message: en.hearth_logout_confirm_message,
 			confirmLabel: en.log_out
 		});
+	});
+
+	it('says the logout drops unsaved dashboard edits, since the browser will not ask again', async () => {
+		enterEditMode();
+		updateConfig((config) => {
+			config.rooms[0].name = 'Renamed';
+		});
+		try {
+			render(AppSettingsEditSheet);
+			await fireEvent.click(screen.getByRole('button', { name: new RegExp(en.log_out) }));
+			expect(get(requestedConfirmation)?.message).toBe(en.hearth_logout_confirm_edits_message);
+		} finally {
+			cancelEdit();
+		}
 	});
 });
 

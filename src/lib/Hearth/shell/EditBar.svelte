@@ -9,11 +9,15 @@
 		canUndo,
 		editor,
 		enterEditMode,
+		fetchServerRevision,
+		guardUnload,
 		hearthConfig,
 		hasUnsavedEdits,
 		hearthEditMode,
 		hearthLoadError,
+		hearthRevision,
 		redoConfig,
+		reloadDiscardingEdits,
 		reportCopy,
 		requestConfirmation,
 		saveState,
@@ -70,6 +74,47 @@
 		});
 	}
 
+	let checkingRevision = $state(false);
+
+	/*
+	 * A wall tablet can keep a page open for weeks, and editing a revision that
+	 * another screen has since replaced only ends in a conflict on save. Offer
+	 * the newer one first; when the server cannot say, editing goes ahead.
+	 */
+	async function startEditing() {
+		if (checkingRevision) return;
+		checkingRevision = true;
+		const revision = await fetchServerRevision();
+		checkingRevision = false;
+		// the import wizard may have handed a failed save to edit mode meanwhile
+		if ($hearthEditMode) return;
+		if (revision === undefined || revision <= $hearthRevision) {
+			enterEditMode();
+			return;
+		}
+		requestConfirmation({
+			title: $lang('hearth_newer_config_title'),
+			message: $lang('hearth_newer_config_message'),
+			confirmLabel: $lang('hearth_reload'),
+			action: () => location.reload(),
+			cancelLabel: $lang('hearth_edit_anyway'),
+			cancel: enterEditMode
+		});
+	}
+
+	function reloadAfterConflict() {
+		if (!hasUnsavedEdits()) {
+			location.reload();
+			return;
+		}
+		requestConfirmation({
+			title: $lang('hearth_reload_discard_title'),
+			message: $lang('hearth_reload_discard_message'),
+			confirmLabel: $lang('hearth_reload'),
+			action: reloadDiscardingEdits
+		});
+	}
+
 	/*
 	 * The bar wraps onto a second row on a phone when the save error and its
 	 * actions join it. Its height goes to the shared parent as
@@ -102,6 +147,8 @@
 	}
 </script>
 
+<svelte:window onbeforeunload={guardUnload} />
+
 {#if $hearthEditMode}
 	<div class="edit-bar" bind:this={bar}>
 		{#if $saveState === 'conflict'}
@@ -126,7 +173,7 @@
 				type="button"
 				class="bar-button pressable"
 				use:Ripple={PRESS_RIPPLE}
-				onclick={() => location.reload()}
+				onclick={reloadAfterConflict}
 			>
 				{$lang('hearth_reload')}
 			</button>
@@ -184,8 +231,10 @@
 		type="button"
 		class="edit-toggle pressable"
 		class:right={toggleRight}
+		class:busy={checkingRevision}
+		aria-busy={checkingRevision}
 		aria-label={$lang('hearth_edit_configuration')}
-		onclick={enterEditMode}
+		onclick={startEditing}
 	>
 		<Icon name="edit" size={ICON.control} />
 		<span>{$lang('hearth_edit_configuration')}</span>
@@ -214,6 +263,13 @@
 		font-family: inherit;
 	}
 
+	/* waiting on the revision check; further taps are ignored */
+	.edit-toggle.busy,
+	.edit-toggle.busy:hover {
+		cursor: progress;
+		opacity: 0.45;
+	}
+
 	/* see breakpoints.ts: folded, there is no rail column to follow */
 	@media (min-width: 901px) {
 		.edit-toggle.right {
@@ -232,7 +288,7 @@
 
 	.edit-bar {
 		position: absolute;
-		bottom: calc(18px + var(--h-pad-y));
+		bottom: calc(18px + var(--h-pad-y) + var(--h-safe-bottom));
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: var(--h-layer-toast);

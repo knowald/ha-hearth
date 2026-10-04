@@ -30,6 +30,9 @@
 	let reloadView = $state(false);
 
 	let error = $derived(documentIssue(value));
+	// a draft handed back from Versions is unapplied too, so the measure is the live config
+	const applied = configDocument($hearthConfig);
+	let dirty = $derived(value !== applied);
 
 	function close() {
 		editor.set(null);
@@ -69,6 +72,7 @@
 	onclose={close}
 	onback={from ? () => editor.set(from) : undefined}
 	ondone={apply}
+	{dirty}
 	doneLabel={$lang('hearth_apply')}
 	doneDisabled={!!error}
 >

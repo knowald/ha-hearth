@@ -7,7 +7,8 @@
 	import { motion } from '$lib/core/app/motion';
 	import { MOTION } from '$lib/core/theme';
 	import { lang, selectedLanguage, translation } from '$lib/core/i18n';
-	import { editor, requestConfirmation, type Editor } from '../store';
+	import { editor, hasUnsavedEdits, reloadDiscardingEdits, requestConfirmation } from '../store';
+	import { confirmDiscard } from './discard';
 	import EditSheet from './EditSheet.svelte';
 	import SelectField from './SelectField.svelte';
 	import SettingsRow from './SettingsRow.svelte';
@@ -59,20 +60,6 @@
 			console.error(error);
 		}
 	});
-
-	/** Every exit short of Done, so staged edits are never dropped silently. */
-	function leave(next: Editor | null) {
-		if (!dirty) {
-			editor.set(next);
-			return;
-		}
-		requestConfirmation({
-			title: $lang('unsaved_changes_title'),
-			message: $lang('unsaved_changes'),
-			confirmLabel: $lang('hearth_discard'),
-			action: () => editor.set(next)
-		});
-	}
 
 	/** `revision` overrides the one loaded with the page, for an explicit overwrite. */
 	async function done(revision?: number) {
@@ -157,11 +144,14 @@
 	function handleLogout() {
 		requestConfirmation({
 			title: $lang('hearth_logout_confirm'),
-			message: $lang('hearth_logout_confirm_message'),
+			message: $lang(
+				hasUnsavedEdits() ? 'hearth_logout_confirm_edits_message' : 'hearth_logout_confirm_message'
+			),
 			confirmLabel: $lang('log_out'),
 			action: () => {
 				localStorage.removeItem('hearthTokens');
-				location.reload();
+				// the dialog already said what goes with the session
+				reloadDiscardingEdits();
 			}
 		});
 	}
@@ -169,8 +159,9 @@
 
 <EditSheet
 	title={$lang('hearth_application_settings')}
-	onclose={() => leave(null)}
-	onback={() => leave({ kind: 'settings' })}
+	onclose={() => editor.set(null)}
+	onback={() => editor.set({ kind: 'settings' })}
+	{dirty}
 	ondone={() => done()}
 	doneLabel={$lang('save')}
 	doneDisabled={saving}
@@ -260,7 +251,7 @@
 				icon="css"
 				label={$lang('hearth_custom_css')}
 				sub={$lang('hearth_custom_css_sub')}
-				onclick={() => leave({ kind: 'customCss' })}
+				onclick={() => confirmDiscard(dirty, () => editor.set({ kind: 'customCss' }))}
 			/>
 			<SettingsRow
 				icon="logout"

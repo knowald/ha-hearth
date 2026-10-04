@@ -3,6 +3,7 @@ import { base } from '$app/paths';
 import { validTimeZone } from './clock';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import { vibrate } from '$lib/core/app/haptics';
+import { holdReloads } from '$lib/core/app/reload';
 import {
 	DEFAULT_HEARTH_CONFIG,
 	type AlertSeverity,
@@ -82,6 +83,9 @@ export function redoConfig() {
 
 export const hearthEditMode = writable(false);
 
+// a reload Home Assistant asks for mid-edit would drop the draft, so it waits for Save or Cancel
+hearthEditMode.subscribe(holdReloads);
+
 // edit mode arranges layout; taps there must never fire real device commands
 
 export type Editor =
@@ -111,23 +115,58 @@ export const editor = writable<Editor | null>(null);
 export const editedThemeSlot = writable<'day' | 'night'>('day');
 
 let editSnapshot: HearthConfig | null = null;
+// an import in the session clears the first-run state, which Cancel brings back
+let setupSnapshot = false;
 
-export function enterEditMode() {
-	editSnapshot = structuredClone(get(hearthConfig));
+/** What the dashboard was before a change that was applied outside edit mode. */
+export interface UnsavedChange {
+	config: HearthConfig;
+	needsSetup: boolean;
+}
+
+/**
+ * `unsaved` hands over a change that was applied and failed to save outside
+ * edit mode: Cancel returns to what came before it, and the failure stays on
+ * the bar.
+ */
+export function enterEditMode(unsaved?: UnsavedChange) {
+	editSnapshot = structuredClone(unsaved?.config ?? get(hearthConfig));
+	setupSnapshot = unsaved?.needsSetup ?? get(hearthNeedsSetup);
 	undoStack.length = 0;
 	redoStack.length = 0;
 	syncHistoryFlags();
+	if (!unsaved) clearSaveFeedback();
 	hearthEditMode.set(true);
 }
 
 export function cancelEdit() {
-	if (editSnapshot) hearthConfig.set(editSnapshot);
+	if (editSnapshot) {
+		hearthConfig.set(editSnapshot);
+		hearthNeedsSetup.set(setupSnapshot);
+	}
 	editSnapshot = null;
 	undoStack.length = 0;
 	redoStack.length = 0;
 	syncHistoryFlags();
+	clearSaveFeedback();
 	editor.set(null);
 	hearthEditMode.set(false);
+}
+
+/** The revision the server holds now, or undefined when it cannot say. */
+export async function fetchServerRevision(): Promise<number | undefined> {
+	try {
+		// a slow server must not keep the editor from opening
+		const response = await fetch(`${base}/_api/hearth_versions`, {
+			cache: 'no-store',
+			signal: AbortSignal.timeout(3000)
+		});
+		if (!response.ok) return undefined;
+		const { revision } = await response.json();
+		return Number.isInteger(revision) ? revision : undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 /** True when the draft differs from what edit mode started with or last saved. */
@@ -145,6 +184,35 @@ saveState.subscribe((state) => {
 /** Why the last save failed, from the server when it said. */
 export const saveFailure = writable<string | null>(null);
 let savedToastTimer: ReturnType<typeof setTimeout>;
+
+// an old failure or conflict belongs to the session that hit it
+function clearSaveFeedback() {
+	clearTimeout(savedToastTimer);
+	saveState.set('idle');
+	saveFailure.set(null);
+}
+
+let unloadAllowed = false;
+// an editor sheet holding typed changes that Done has not applied yet
+let sheetChanges = false;
+
+export function reportSheetChanges(dirty: boolean) {
+	sheetChanges = dirty;
+}
+
+/** beforeunload handler: the browser asks before a reload or a close drops unsaved edits. */
+export function guardUnload(event: BeforeUnloadEvent) {
+	if (unloadAllowed || !(sheetChanges || hasUnsavedEdits())) return;
+	event.preventDefault();
+	// older WebViews on wall tablets only ask when returnValue is set
+	event.returnValue = '';
+}
+
+/** Reload once the user agreed to drop the edits, without the browser asking again. */
+export function reloadDiscardingEdits() {
+	unloadAllowed = true;
+	location.reload();
+}
 
 /** Save and surface the outcome through saveState instead of throwing. */
 export async function saveWithFeedback(force = false): Promise<void> {
@@ -219,6 +287,7 @@ async function performSave(force: boolean): Promise<boolean> {
 		// so the editor stays open with its history and Cancel now returns to
 		// what was just saved
 		editSnapshot = config;
+		setupSnapshot = false;
 		return true;
 	}
 	editSnapshot = null;
@@ -263,16 +332,32 @@ export interface RequestedConfirmation {
 	message: string;
 	confirmLabel: string;
 	action: () => void;
+	/** Names the cancel button when it does more than dismiss. */
+	cancelLabel?: string;
+	/**
+	 * Runs from the cancel button only. Escape, back and a backdrop tap just
+	 * dismiss, so a stray one never picks this choice for the user.
+	 */
+	cancel?: () => void;
 }
 
 export const requestedConfirmation = writable<RequestedConfirmation | null>(null);
 
+/** Replaces any request still open; the replaced one is dismissed without running either choice. */
 export function requestConfirmation(request: RequestedConfirmation) {
+	requestedConfirmation.set(null);
 	requestedConfirmation.set(request);
 }
 
 export function dismissConfirmation() {
 	requestedConfirmation.set(null);
+}
+
+/** The dialog's cancel button: dismiss, then run the request's own cancel choice. */
+export function cancelRequestedAction() {
+	const request = get(requestedConfirmation);
+	requestedConfirmation.set(null);
+	request?.cancel?.();
 }
 
 export function confirmRequestedAction() {

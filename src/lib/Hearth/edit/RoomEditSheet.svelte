@@ -26,6 +26,13 @@
 	let fillScreen = $state(initial?.fill_screen ? 'fill' : 'scroll');
 	let columns = $state(initial?.columns ? String(initial.columns) : '');
 
+	function staged() {
+		return { name, icon, summary, tempEntity, humidityEntity, hideHeader, fillScreen, columns };
+	}
+
+	const untouched = JSON.stringify(staged());
+	let dirty = $derived(JSON.stringify(staged()) !== untouched);
+
 	function close() {
 		editor.set(null);
 	}
@@ -97,6 +104,7 @@
 	title={$lang(id ? 'hearth_edit_page' : 'hearth_add_page')}
 	onclose={close}
 	ondone={done}
+	{dirty}
 	doneDisabled={!name.trim()}
 	onremove={id && $hearthConfig.rooms.length > 1 ? remove : undefined}
 	onmoveup={id ? () => move(-1) : undefined}

@@ -7,7 +7,13 @@ import { motion } from '$lib/core/app/motion';
 import { config as haConfig } from '$lib/core/ha/connection';
 import { states } from '$lib/core/ha/entities';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from './config';
-import { activeAlerts, hearthConfig, requestWake, screensaverPreview } from './store';
+import {
+	activeAlerts,
+	hearthConfig,
+	hearthEditMode,
+	requestWake,
+	screensaverPreview
+} from './store';
 import Screensaver from './Screensaver.svelte';
 
 // the real map pulls in Leaflet and the network; this stands in with its props
@@ -60,6 +66,7 @@ describe('Screensaver', () => {
 		motion.set(190);
 		document.body.innerHTML = '';
 		screensaverPreview.set(false);
+		hearthEditMode.set(false);
 		radarStub.frames = true;
 		configure({});
 		haConfig.set(undefined as unknown as HassConfig);
@@ -74,6 +81,29 @@ describe('Screensaver', () => {
 		expect(container.querySelector('.screensaver')).toBeNull();
 		activeAlerts.set([]);
 		vi.advanceTimersByTime(60_000);
+		await tick();
+		expect(container.querySelector('.screensaver')).not.toBeNull();
+	});
+
+	it('stays away during an edit session and waits a full timeout after it', async () => {
+		hearthEditMode.set(true);
+		const { container } = render(Screensaver, { minutes: 1 });
+		vi.advanceTimersByTime(5 * 60_000);
+		await tick();
+		expect(container.querySelector('.screensaver')).toBeNull();
+		hearthEditMode.set(false);
+		vi.advanceTimersByTime(59_000);
+		await tick();
+		expect(container.querySelector('.screensaver')).toBeNull();
+		vi.advanceTimersByTime(1_000);
+		await tick();
+		expect(container.querySelector('.screensaver')).not.toBeNull();
+	});
+
+	it('still previews during an edit session', async () => {
+		hearthEditMode.set(true);
+		const { container } = render(Screensaver, { minutes: 1 });
+		screensaverPreview.set(true);
 		await tick();
 		expect(container.querySelector('.screensaver')).not.toBeNull();
 	});

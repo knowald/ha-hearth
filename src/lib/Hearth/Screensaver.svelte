@@ -39,10 +39,12 @@
 	let idleTimer: ReturnType<typeof setTimeout>;
 	// an alert card on screen must stay readable, so the idle clock waits for it
 	let alertShowing = false;
+	// nor does it cover an edit session, whose draft sits unsaved under it
+	let editing = false;
 
 	function scheduleIdle() {
 		clearTimeout(idleTimer);
-		if (active || alertShowing || !minutes) return;
+		if (active || alertShowing || editing || !minutes) return;
 		const remaining = Math.max(0, minutes * 60_000 - (Date.now() - lastActivity));
 		idleTimer = setTimeout(() => (active = true), remaining);
 	}
@@ -91,6 +93,15 @@
 			initial = false;
 		});
 	});
+
+	// the idle wait starts over when editing ends, not from the last tap before it
+	$effect(() =>
+		hearthEditMode.subscribe((next) => {
+			if (editing && !next) lastActivity = Date.now();
+			editing = next;
+			scheduleIdle();
+		})
+	);
 
 	$effect(() =>
 		derived(

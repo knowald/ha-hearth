@@ -59,4 +59,4 @@ actions:
 
 Every action accepts `device`, a name or a list of names. Without it, every screen acts on the event. With it, only screens whose device name matches exactly act on it. Set the name under Settings > Application settings > Device name, which is stored in that browser, or with `?device=<name>` in the URL.
 
-To reload every screen, fire `HEARTH` with `event_data: { event: refresh }`. This ignores `device`.
+To reload every screen, fire `HEARTH` with `event_data: { event: refresh }`. This ignores `device`. A screen in edit mode reloads once its edits are saved or cancelled.

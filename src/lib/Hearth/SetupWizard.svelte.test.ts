@@ -1,15 +1,25 @@
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Connection } from 'home-assistant-js-websocket';
 import { connection } from '$lib/core/ha/connection';
 import { fetchRegistry } from '$lib/core/ha/registry';
 import en from '../../../static/translations/en.json';
+import { states } from '$lib/core/ha/entities';
+import { hassEntity } from '$lib/core/ha/testing';
+import { get } from 'svelte/store';
+import { DEFAULT_HEARTH_CONFIG } from './config';
+import { cancelEdit, hearthConfig, hearthEditMode, hearthNeedsSetup, saveState } from './store';
 import SetupWizard from './SetupWizard.svelte';
 
 vi.mock('$lib/core/ha/registry', () => ({ fetchRegistry: vi.fn() }));
 
 function backdrop(container: HTMLElement) {
 	return container.querySelector('.overlay') as HTMLElement;
+}
+
+async function tap(element: HTMLElement) {
+	await fireEvent.pointerDown(element);
+	await fireEvent.click(element);
 }
 
 describe('SetupWizard', () => {
@@ -22,7 +32,7 @@ describe('SetupWizard', () => {
 	it('ignores a backdrop tap on first run and offers to skip instead of cancel', async () => {
 		const onclose = vi.fn();
 		const { container } = render(SetupWizard, { onclose, firstRun: true });
-		await fireEvent.pointerDown(backdrop(container));
+		await tap(backdrop(container));
 		expect(onclose).not.toHaveBeenCalled();
 		expect(screen.queryByRole('button', { name: en.cancel })).toBeNull();
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_skip_for_now }));
@@ -32,7 +42,7 @@ describe('SetupWizard', () => {
 	it('closes on a backdrop tap when opened on purpose', async () => {
 		const onclose = vi.fn();
 		const { container } = render(SetupWizard, { onclose });
-		await fireEvent.pointerDown(backdrop(container));
+		await tap(backdrop(container));
 		expect(onclose).toHaveBeenCalledTimes(1);
 		expect(screen.queryByRole('button', { name: en.hearth_skip_for_now })).toBeNull();
 	});
@@ -63,5 +73,55 @@ describe('SetupWizard', () => {
 		const alert = await screen.findByRole('alert');
 		expect(alert.querySelector('strong')?.textContent).toBe(en.hearth_registries_failed);
 		expect(alert.textContent).toContain('timeout');
+	});
+
+	describe('an import whose save fails', () => {
+		beforeEach(() => {
+			hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+			hearthNeedsSetup.set(true);
+			states.set({ 'light.kitchen': hassEntity('light.kitchen', 'on') });
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				floors: [],
+				areas: [{ area_id: 'kitchen', name: 'Kitchen' }],
+				devices: [],
+				entities: [
+					{
+						entity_id: 'light.kitchen',
+						area_id: 'kitchen',
+						device_id: null,
+						disabled_by: null,
+						hidden_by: null
+					}
+				]
+			} as never);
+			vi.spyOn(console, 'error').mockImplementation(() => {});
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => 'disk full' })
+			);
+		});
+
+		afterEach(() => {
+			cancelEdit();
+			hearthNeedsSetup.set(false);
+			states.set({});
+			hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+			vi.unstubAllGlobals();
+			vi.restoreAllMocks();
+		});
+
+		it('hands the import to edit mode, where Cancel returns to the dashboard from before it', async () => {
+			render(SetupWizard, { onclose: vi.fn() });
+			const apply = screen.getByRole('button', { name: en.hearth_apply }) as HTMLButtonElement;
+			await waitFor(() => expect(apply.disabled).toBe(false));
+			await fireEvent.click(apply);
+			await waitFor(() => expect(get(hearthEditMode)).toBe(true));
+			expect(get(saveState)).toBe('error');
+			expect(get(hearthConfig)).not.toEqual(DEFAULT_HEARTH_CONFIG);
+			cancelEdit();
+			expect(get(hearthConfig)).toEqual(DEFAULT_HEARTH_CONFIG);
+			// still a first run, so the dashboard offers the import again
+			expect(get(hearthNeedsSetup)).toBe(true);
+		});
 	});
 });

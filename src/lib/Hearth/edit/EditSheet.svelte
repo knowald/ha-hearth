@@ -18,8 +18,9 @@
 	import { clampToViewport, windowDrag, type WindowPosition } from '$lib/ui/actions/windowDrag';
 	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
 	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
-	import { hearthConfig, requestConfirmation } from '../store';
+	import { hearthConfig, reportSheetChanges, requestConfirmation } from '../store';
 	import { WIDE_QUERY } from '../breakpoints';
+	import { confirmDiscard } from './discard';
 	import './editor-fields.css';
 	import '../buttons.css';
 
@@ -39,7 +40,9 @@
 		wide = false,
 		split = false,
 		floating = false,
-		dismissible = true
+		dismissible = true,
+		dirty = false,
+		backKeepsChanges = false
 	}: {
 		title: string;
 		children: Snippet;
@@ -60,7 +63,39 @@
 		floating?: boolean;
 		/** False keeps a backdrop tap from closing the sheet; Escape and the close button still do. */
 		dismissible?: boolean;
+		/** The form holds staged changes: every exit but Done asks before dropping them. */
+		dirty?: boolean;
+		/** The back arrow hands the staged changes back to the sheet it returns to, so it never asks. */
+		backKeepsChanges?: boolean;
 	} = $props();
+
+	// a reload drops the staged changes as surely as a close does
+	$effect(() => {
+		reportSheetChanges(dirty);
+		return () => reportSheetChanges(false);
+	});
+
+	function close() {
+		confirmDiscard(dirty, onclose);
+	}
+
+	function back() {
+		if (onback) confirmDiscard(dirty && !backKeepsChanges, onback);
+	}
+
+	/*
+	 * A backdrop tap closes on click, not pointerdown: closing on the press
+	 * would hand the click that follows to whatever lies under the finger. The
+	 * press must also start on the backdrop, or a drag out of the sheet (a
+	 * text selection, a slider) would close it on release.
+	 */
+	let pressedBackdrop = false;
+
+	function backdropClick(event: MouseEvent) {
+		const pressed = pressedBackdrop;
+		pressedBackdrop = false;
+		if (dismissible && !floats && pressed && event.target === event.currentTarget) close();
+	}
 
 	// long editor forms run off the sheet with no scrollbar to say so
 	let bodyCut = $state<ScrollEdges>({ top: false, bottom: false, left: false, right: false });
@@ -152,9 +187,9 @@
 	class="overlay"
 	class:floating={floats}
 	role="presentation"
-	onpointerdown={(event) =>
-		dismissible && !floats && event.target === event.currentTarget && onclose()}
-	use:layer={{ close: onclose, trap: !floats, initialFocus: !floating && initialFocus }}
+	onpointerdown={(event) => (pressedBackdrop = event.target === event.currentTarget)}
+	onclick={backdropClick}
+	use:layer={{ close, trap: !floats, initialFocus: !floating && initialFocus }}
 >
 	<div
 		class="sheet"
@@ -181,7 +216,7 @@
 				<Icon name="drag_indicator" size={ICON.control} />
 			{/if}
 			{#if onback}
-				<button type="button" class="icon-button" aria-label={$lang('back')} onclick={onback}>
+				<button type="button" class="icon-button" aria-label={$lang('back')} onclick={back}>
 					<Icon name="arrow_back" size={ICON.tile} />
 				</button>
 			{/if}
@@ -193,6 +228,7 @@
 							type="button"
 							class="icon-button"
 							title={$lang('hearth_move_up')}
+							aria-label={$lang('hearth_move_up')}
 							onclick={onmoveup}
 						>
 							<Icon name="arrow_upward" size={ICON.control} />
@@ -203,6 +239,7 @@
 							type="button"
 							class="icon-button"
 							title={$lang('hearth_move_down')}
+							aria-label={$lang('hearth_move_down')}
 							onclick={onmovedown}
 						>
 							<Icon name="arrow_downward" size={ICON.control} />
@@ -219,7 +256,7 @@
 			>
 				{doneLabel ?? $lang('done')}
 			</button>
-			<CloseButton onclick={onclose} />
+			<CloseButton onclick={close} />
 		</div>
 		<div class="body-wrap">
 			<div class="body" class:split use:scrollEdges={{ report: (edges) => (bodyCut = edges) }}>

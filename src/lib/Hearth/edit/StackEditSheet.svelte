@@ -37,6 +37,13 @@
 	let direction = $state<OverviewStack['direction']>(initial?.direction ?? 'horizontal');
 	let fill = $state<string>(typeof initial?.fill === 'number' ? String(initial.fill) : '');
 
+	function staged() {
+		return { title, direction, fill };
+	}
+
+	const untouched = JSON.stringify(staged());
+	let dirty = $derived(JSON.stringify(staged()) !== untouched);
+
 	let DIRECTION_OPTIONS: { value: OverviewStack['direction']; label: string }[] = $derived([
 		{ value: 'horizontal', label: $lang('horizontal') },
 		{ value: 'vertical', label: $lang('vertical') }
@@ -98,6 +105,7 @@
 	title={$lang(index !== null ? 'hearth_edit_stack' : 'hearth_add_stack')}
 	onclose={close}
 	ondone={done}
+	{dirty}
 	onremove={initial ? unwrap : undefined}
 	removeLabel={$lang('hearth_unwrap')}
 	removeTone="neutral"
