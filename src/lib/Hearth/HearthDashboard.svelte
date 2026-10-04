@@ -57,6 +57,7 @@
 	import { layerDepth } from '$lib/ui/layers';
 	import { neighborRoom, swipeNav, type SwipeDirection } from './swipeNav';
 	import { loadEditBar, loadEditorHost } from './editLoader';
+	import { favoritesOpen, favoritesPageOffered } from './favorites';
 
 	let showSearch = $state(false);
 
@@ -161,6 +162,11 @@
 	);
 
 	let activeRoom = $derived($hearthConfig.rooms.find((room) => room.id === activeRoomId));
+
+	// this browser's favorites stand in for the page on phone-width screens only
+	let showFavorites = $derived(
+		$narrow && $favoritesPageOffered && $favoritesOpen && !$hearthEditMode
+	);
 
 	// sideways swipes walk the pages in rail order; each layout has its own
 	// setting, since a mouse drag on a wall tablet is a different habit
@@ -337,7 +343,7 @@
 	<div class="main-wrap">
 		<main
 			class="main"
-			class:fill={activeRoom?.fill_screen}
+			class:fill={activeRoom?.fill_screen && !showFavorites}
 			bind:this={mainElement}
 			use:scrollEdges={{ report: (edges) => (mainCut = edges) }}
 			use:swipeNav={{
@@ -357,7 +363,15 @@
 					/>
 				</div>
 			{/if}
-			<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+			{#if showFavorites}
+				{#await import('./FavoritesPage.svelte') then FavoritesPage}
+					<FavoritesPage.default />
+				{:catch}
+					<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+				{/await}
+			{:else}
+				<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+			{/if}
 		</main>
 		{#if edgeBlur}
 			<ScrollEdge edge="top" size={96} active={mainCut.top} />

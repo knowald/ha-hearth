@@ -10,21 +10,31 @@
 	import Icon from './Icon.svelte';
 	import CheckField from './edit/CheckField.svelte';
 	import EditSheet from './edit/EditSheet.svelte';
+	import TabletStep from './TabletStep.svelte';
 	import './buttons.css';
-	import { applyImport, existingPageNames, pageNameKey, type ImportMode } from './importPlan';
+	import { applyNow } from './applyNow';
+	import {
+		applyImport,
+		existingPageNames,
+		newEntityIds,
+		pageNameKey,
+		type ImportMode
+	} from './importPlan';
 	import { buildProposal, type HearthProposal, type ProposedPage } from './proposal';
-	import { fetchRegistry } from '$lib/core/ha/registry';
+	import {
+		applyStarter,
+		buildStarter,
+		STARTER_LAYOUTS,
+		type StarterId,
+		type StarterPlan
+	} from './starterLayouts';
+	import { fetchRegistry, type RegistrySnapshot } from '$lib/core/ha/registry';
 	import {
 		editor,
-		enterEditMode,
 		hearthConfig,
-		hearthEditMode,
 		hearthNeedsSetup,
 		requestConfirmation,
-		saveState,
-		saveWithFeedback,
-		updateConfig,
-		type UnsavedChange
+		setupWizardSource
 	} from './store';
 
 	/** `firstRun` opened itself on an empty dashboard, so a stray backdrop tap must not dismiss it. */
@@ -32,10 +42,15 @@
 
 	let status = $state<'disconnected' | 'loading' | 'error' | 'ready'>('loading');
 	let errorMessage = $state('');
+	let registry = $state.raw<RegistrySnapshot | null>(null);
 	let proposal = $state<HearthProposal | null>(null);
 	let included = $state<Record<string, boolean>>({});
 	let includeGlanceables = $state(true);
 	let mode = $state<ImportMode>('replace');
+	let source = $state(get(setupWizardSource));
+	let starter = $state<StarterId>('kitchen');
+	// once the dashboard holds the result, the wizard ends on the tablet address
+	let step = $state<'choose' | 'tablet'>('choose');
 
 	// pages past the first one are what a replace would overwrite
 	let replacedCount = $derived(Math.max(0, $hearthConfig.rooms.length - 1));
@@ -47,14 +62,69 @@
 		return existingNames.has(pageNameKey(page.room.name));
 	}
 
-	let selectablePages = $derived(
-		proposal?.pages.filter((page) => mode === 'replace' || !isExisting(page)) ?? []
-	);
+	let hasExisting = $derived(proposal?.pages.some(isExisting) ?? false);
+
+	/** How many of each area's entities its existing page does not show yet. */
+	let newCounts = $derived.by(() => {
+		const rooms = new Map($hearthConfig.rooms.map((room) => [pageNameKey(room.name), room]));
+		return new Map(
+			(proposal?.pages ?? []).map((page) => {
+				const room = rooms.get(pageNameKey(page.room.name));
+				return [page.room.id, room ? newEntityIds(room, page).length : 0];
+			})
+		);
+	});
+
+	function selectable(page: ProposedPage) {
+		if (mode === 'replace' || !isExisting(page)) return true;
+		return mode === 'merge' && (newCounts.get(page.room.id) ?? 0) > 0;
+	}
+
+	let selectablePages = $derived(proposal?.pages.filter(selectable) ?? []);
 	let includedCount = $derived(selectablePages.filter((page) => included[page.room.id]).length);
 	let glanceableCount = $derived(
 		proposal?.glanceables.filter((widget) => widget.type !== 'label').length ?? 0
 	);
-	let canApply = $derived(includedCount > 0 || (includeGlanceables && glanceableCount > 0));
+
+	let starterPlans = $derived.by((): Partial<Record<StarterId, StarterPlan>> => {
+		if (!proposal || !registry) return {};
+		const plain = $state.snapshot(proposal) as HearthProposal;
+		const snapshot = registry;
+		return Object.fromEntries(
+			STARTER_LAYOUTS.map((layout) => [
+				layout.id,
+				buildStarter(layout.id, plain, snapshot, $states ?? {})
+			])
+		);
+	});
+	let starterPlan = $derived(starterPlans[starter]);
+
+	let canApply = $derived(
+		source === 'starter'
+			? Boolean(starterPlan?.pages.length)
+			: includedCount > 0 || (includeGlanceables && glanceableCount > 0)
+	);
+
+	const MODES: [ImportMode, string][] = [
+		['add', 'hearth_import_mode_add'],
+		['merge', 'hearth_import_mode_merge'],
+		['replace', 'hearth_import_mode_replace']
+	];
+
+	let modes = $derived(
+		MODES.filter(
+			([value]) =>
+				value === 'add' ||
+				(value === 'merge' && hasExisting) ||
+				(value === 'replace' && replacedCount > 0)
+		)
+	);
+
+	const MODE_NOTES: Record<ImportMode, string> = {
+		add: 'hearth_import_keeps_pages',
+		merge: 'hearth_import_merges_pages',
+		replace: 'hearth_import_replaces_pages'
+	};
 
 	async function load() {
 		if (!$connection) {
@@ -64,10 +134,11 @@
 		status = 'loading';
 		try {
 			const snapshot = await fetchRegistry();
+			registry = snapshot;
 			proposal = buildProposal(snapshot, $states ?? {});
 			// an untouched dashboard has nothing worth keeping; one the user has
 			// already built on defaults to leaving those pages alone
-			mode = replacedCount > 0 ? 'add' : 'replace';
+			mode = replacedCount > 0 || proposal.pages.some(isExisting) ? 'add' : 'replace';
 			selectAll(true);
 			includeGlanceables = proposal.glanceables.length > 0;
 			status = 'ready';
@@ -89,7 +160,7 @@
 	function selectAll(value: boolean) {
 		if (!proposal) return;
 		included = Object.fromEntries(
-			proposal.pages.map((page) => [page.room.id, value && !(mode === 'add' && isExisting(page))])
+			proposal.pages.map((page) => [page.room.id, value && selectable(page)])
 		);
 	}
 
@@ -107,9 +178,25 @@
 	];
 
 	function summarize(page: ProposedPage) {
+		if (mode === 'merge' && isExisting(page)) {
+			const fresh = newCounts.get(page.room.id) ?? 0;
+			return count(fresh, 'hearth_one_new_entity', 'hearth_n_new_entities');
+		}
 		return SUMMARY_KEYS.filter(([key]) => page.counts[key] > 0)
 			.map(([key, one, many]) => count(page.counts[key], one, many))
 			.join(', ');
+	}
+
+	function summarizeStarter(plan: StarterPlan | undefined) {
+		if (!plan?.pages.length) return $lang('hearth_starter_nothing');
+		return plan.pages.map((page) => page.room.name).join(', ');
+	}
+
+	function finish(mutate: Parameters<typeof applyNow>[0]) {
+		void applyNow(mutate, () => hearthNeedsSetup.set(false));
+		// opened from the settings sheet, which would otherwise cover the new pages
+		editor.set(null);
+		step = 'tablet';
 	}
 
 	function runImport() {
@@ -118,32 +205,21 @@
 		// every later mutation and proxies cannot be structured-cloned
 		const plain = $state.snapshot(proposal) as HearthProposal;
 		const chosen = plain.pages.filter((page) => included[page.room.id]);
-		const before = { config: get(hearthConfig), needsSetup: get(hearthNeedsSetup) };
-		updateConfig((config) =>
+		finish((config) =>
 			applyImport(config, {
 				pages: chosen,
 				glanceables: includeGlanceables ? plain.glanceables : [],
 				mode
 			})
 		);
-		hearthNeedsSetup.set(false);
-		// outside edit mode nothing else would persist the import, and a reload
-		// would silently drop it
-		if (!get(hearthEditMode)) void persist(before);
-		// opened from the settings sheet, which would otherwise cover the new pages
-		editor.set(null);
-		onclose();
-	}
-
-	async function persist(before: UnsavedChange) {
-		await saveWithFeedback();
-		// only the edit bar reports a failed or conflicting save, and it is the
-		// only way to retry one - so hand the still-unsaved import over to it,
-		// with Cancel going back to the dashboard from before the import
-		if (get(saveState) !== 'saved') enterEditMode(before);
 	}
 
 	function apply() {
+		if (source === 'starter') {
+			const plan = starterPlan;
+			if (plan) finish((config) => applyStarter(config, structuredClone(plan)));
+			return;
+		}
 		if (mode === 'replace' && replacedCount > 0) {
 			requestConfirmation({
 				title: $lang('hearth_setup'),
@@ -157,121 +233,172 @@
 	}
 </script>
 
-<EditSheet
-	title={$lang('hearth_setup')}
-	{onclose}
-	ondone={apply}
-	doneLabel={$lang('hearth_apply')}
-	doneDisabled={status !== 'ready' || !canApply}
-	dismissible={!firstRun}
->
-	<div class="wizard">
-		<p class="intro">
-			{$lang('hearth_import_intro')}
-		</p>
-		{#if status === 'disconnected'}
-			<div class="hint">{$lang('hearth_not_connected')}</div>
-		{:else if status === 'loading'}
-			<LoadingState text={$lang('hearth_loading_registries')} />
-		{:else if status === 'error'}
-			<div class="hint">
-				<div class="error" role="alert">
-					<strong>{$lang('hearth_registries_failed')}</strong>
-					<span class="error-detail">{errorMessage}</span>
-				</div>
-				<button
-					type="button"
-					class="hearth-button secondary pressable"
-					use:Ripple={PRESS_RIPPLE}
-					onclick={load}>{$lang('hearth_retry')}</button
-				>
+{#if step === 'tablet'}
+	<EditSheet
+		title={$lang('hearth_tablet_title')}
+		{onclose}
+		ondone={onclose}
+		doneLabel={$lang('done')}
+	>
+		<div class="wizard">
+			<TabletStep />
+		</div>
+	</EditSheet>
+{:else}
+	<EditSheet
+		title={$lang(source === 'starter' ? 'hearth_starter_layouts' : 'hearth_setup')}
+		{onclose}
+		ondone={apply}
+		doneLabel={$lang('hearth_apply')}
+		doneDisabled={status !== 'ready' || !canApply}
+		dismissible={!firstRun}
+	>
+		<div class="wizard">
+			<div class="modes" role="radiogroup" aria-label={$lang('hearth_setup_source')}>
+				{#each [['areas', 'hearth_setup_source_areas'], ['starter', 'hearth_setup_source_starter']] as [value, label] (value)}
+					<button
+						type="button"
+						role="radio"
+						class="mode pressable"
+						aria-checked={source === value}
+						class:selected={source === value}
+						use:Ripple={PRESS_RIPPLE}
+						onclick={() => (source = value as 'areas' | 'starter')}
+					>
+						{$lang(label)}
+					</button>
+				{/each}
 			</div>
-		{:else if proposal}
-			{#if replacedCount > 0}
-				<div class="modes" role="radiogroup" aria-label={$lang('hearth_import_mode')}>
-					{#each [['add', 'hearth_import_mode_add'], ['replace', 'hearth_import_mode_replace']] as [value, label] (value)}
+			<p class="intro">
+				{$lang(source === 'starter' ? 'hearth_starter_intro' : 'hearth_import_intro')}
+			</p>
+			{#if status === 'disconnected'}
+				<div class="hint">{$lang('hearth_not_connected')}</div>
+			{:else if status === 'loading'}
+				<LoadingState text={$lang('hearth_loading_registries')} />
+			{:else if status === 'error'}
+				<div class="hint">
+					<div class="error" role="alert">
+						<strong>{$lang('hearth_registries_failed')}</strong>
+						<span class="error-detail">{errorMessage}</span>
+					</div>
+					<button
+						type="button"
+						class="hearth-button secondary pressable"
+						use:Ripple={PRESS_RIPPLE}
+						onclick={load}>{$lang('hearth_retry')}</button
+					>
+				</div>
+			{:else if proposal && source === 'starter'}
+				<div class="list" role="radiogroup" aria-label={$lang('hearth_starter_layouts')}>
+					{#each STARTER_LAYOUTS as layout (layout.id)}
 						<button
 							type="button"
 							role="radio"
-							class="mode pressable"
-							aria-checked={mode === value}
-							class:selected={mode === value}
-							use:Ripple={PRESS_RIPPLE}
-							onclick={() => {
-								mode = value as ImportMode;
-								selectAll(true);
-							}}
+							class="row starter pressable"
+							aria-checked={starter === layout.id}
+							class:selected={starter === layout.id}
+							onclick={() => (starter = layout.id)}
 						>
-							{$lang(label)}
+							<span class="row-content">
+								<span class="row-icon"><Icon name={layout.icon} size={ICON.control} /></span>
+								<span class="row-text">
+									<span class="row-name">{$lang(layout.name)}</span>
+									<span class="row-summary">{$lang(layout.sub)}</span>
+									<span class="row-summary">{summarizeStarter(starterPlans[layout.id])}</span>
+								</span>
+								<span class="row-check">
+									{#if starter === layout.id}<Icon name="check" size={ICON.control} />{/if}
+								</span>
+							</span>
 						</button>
 					{/each}
 				</div>
-				<p class="mode-note">
-					{mode === 'replace'
-						? fill($lang('hearth_import_replaces_pages'), { count: String(replacedCount) })
-						: $lang('hearth_import_keeps_pages')}
-				</p>
-			{/if}
-			{#if proposal.glanceables.length}
-				<div class="row glanceables">
-					<CheckField label={$lang('hearth_today_glanceables')} bind:checked={includeGlanceables}>
-						<span class="row-content">
-							<span class="row-icon"><Icon name="today" size={ICON.control} /></span>
-							<span class="row-text">
-								<span class="row-name">{$lang('hearth_today_glanceables')}</span>
-								<span class="row-summary"
-									>{count(glanceableCount, 'hearth_one_suggestion', 'hearth_n_suggestions')}</span
-								>
-							</span>
-						</span>
-					</CheckField>
-				</div>
-			{/if}
-			{#if selectablePages.length > 1}
-				<div class="bulk">
-					<button type="button" class="link" onclick={() => selectAll(true)}
-						>{$lang('hearth_select_all')}</button
-					>
-					<button type="button" class="link" onclick={() => selectAll(false)}
-						>{$lang('none')}</button
-					>
-				</div>
-			{/if}
-			<div class="list">
-				{#each selectablePages as page, index (page.room.id)}
-					{#if page.floorName && page.floorName !== selectablePages[index - 1]?.floorName}
-						<div class="floor">{page.floorName}</div>
-					{/if}
-					<div class="row">
-						<CheckField label={page.room.name} bind:checked={included[page.room.id]}>
+			{:else if proposal}
+				{#if modes.length > 1}
+					<div class="modes" role="radiogroup" aria-label={$lang('hearth_import_mode')}>
+						{#each modes as [value, label] (value)}
+							<button
+								type="button"
+								role="radio"
+								class="mode pressable"
+								aria-checked={mode === value}
+								class:selected={mode === value}
+								use:Ripple={PRESS_RIPPLE}
+								onclick={() => {
+									mode = value;
+									selectAll(true);
+								}}
+							>
+								{$lang(label)}
+							</button>
+						{/each}
+					</div>
+					<p class="mode-note">
+						{fill($lang(MODE_NOTES[mode]), { count: String(replacedCount) })}
+					</p>
+				{/if}
+				{#if proposal.glanceables.length}
+					<div class="row glanceables">
+						<CheckField label={$lang('hearth_today_glanceables')} bind:checked={includeGlanceables}>
 							<span class="row-content">
-								<span class="row-icon"><Icon name={page.room.icon} size={ICON.control} /></span>
+								<span class="row-icon"><Icon name="today" size={ICON.control} /></span>
 								<span class="row-text">
-									<span class="row-name">{page.room.name}</span>
-									<span class="row-summary">{summarize(page)}</span>
+									<span class="row-name">{$lang('hearth_today_glanceables')}</span>
+									<span class="row-summary"
+										>{count(glanceableCount, 'hearth_one_suggestion', 'hearth_n_suggestions')}</span
+									>
 								</span>
 							</span>
 						</CheckField>
 					</div>
-				{:else}
-					<div class="hint">
-						{mode === 'add' && proposal.pages.length
-							? $lang('hearth_no_new_areas')
-							: $lang('hearth_no_areas')}
+				{/if}
+				{#if selectablePages.length > 1}
+					<div class="bulk">
+						<button type="button" class="link" onclick={() => selectAll(true)}
+							>{$lang('hearth_select_all')}</button
+						>
+						<button type="button" class="link" onclick={() => selectAll(false)}
+							>{$lang('none')}</button
+						>
 					</div>
-				{/each}
-			</div>
-		{/if}
-		{#if firstRun}
-			<button
-				type="button"
-				class="hearth-button secondary skip pressable"
-				use:Ripple={PRESS_RIPPLE}
-				onclick={onclose}>{$lang('hearth_skip_for_now')}</button
-			>
-		{/if}
-	</div>
-</EditSheet>
+				{/if}
+				<div class="list">
+					{#each selectablePages as page, index (page.room.id)}
+						{#if page.floorName && page.floorName !== selectablePages[index - 1]?.floorName}
+							<div class="floor">{page.floorName}</div>
+						{/if}
+						<div class="row">
+							<CheckField label={page.room.name} bind:checked={included[page.room.id]}>
+								<span class="row-content">
+									<span class="row-icon"><Icon name={page.room.icon} size={ICON.control} /></span>
+									<span class="row-text">
+										<span class="row-name">{page.room.name}</span>
+										<span class="row-summary">{summarize(page)}</span>
+									</span>
+								</span>
+							</CheckField>
+						</div>
+					{:else}
+						<div class="hint">
+							{mode !== 'replace' && proposal.pages.length
+								? $lang(mode === 'merge' ? 'hearth_no_new_entities' : 'hearth_no_new_areas')
+								: $lang('hearth_no_areas')}
+						</div>
+					{/each}
+				</div>
+			{/if}
+			{#if firstRun}
+				<button
+					type="button"
+					class="hearth-button secondary skip pressable"
+					use:Ripple={PRESS_RIPPLE}
+					onclick={onclose}>{$lang('hearth_skip_for_now')}</button
+				>
+			{/if}
+		</div>
+	</EditSheet>
+{/if}
 
 <style>
 	.wizard {
@@ -363,6 +490,28 @@
 	.row {
 		padding: 2px 10px;
 		border-radius: var(--h-radius-xs);
+	}
+
+	.row.starter {
+		display: block;
+		width: 100%;
+		padding: 10px;
+		border: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.row.starter.selected {
+		background: rgb(var(--h-accent-rgb) / calc(0.12 * var(--h-accent-scale)));
+	}
+
+	.row-check {
+		display: flex;
+		width: 20px;
+		color: var(--h-accent-text);
 	}
 
 	/* the rows sit in a list; the field's own spacing is for forms */

@@ -76,10 +76,11 @@ test('the picker finds an entity by its area name', async ({ page }) => {
 	const picker = page.getByRole('dialog', { name: 'Choose an entity' });
 	await picker.getByRole('combobox', { name: 'Search entities' }).fill('office');
 	const options = picker.getByRole('option');
-	await expect(options).toHaveCount(1);
-	await expect(options.first()).toContainText('Desk lamp');
-	await expect(options.first()).toContainText('Office');
-	await options.first().click();
+	// the two Office entities, neither of which has the area in its name or id
+	await expect(options).toHaveCount(2);
+	const lamp = options.filter({ hasText: 'Desk lamp' });
+	await expect(lamp).toContainText('Office');
+	await lamp.click();
 	await expect(picker).toBeHidden();
 
 	// the picked entity shows its name and state under the id

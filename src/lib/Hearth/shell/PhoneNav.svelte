@@ -6,6 +6,7 @@
 	import { currentRoom, editor, hearthConfig, hearthEditMode } from '../store';
 	import { searchAvailable } from '../visibility';
 	import { hiddenPages, navigablePages } from '../pages';
+	import { favoritesOpen, favoritesPageOffered } from '../favorites';
 	import Icon from '../Icon.svelte';
 	import PhoneClock from './PhoneClock.svelte';
 	import { mediaQuery } from '$lib/ui/mediaQuery';
@@ -44,15 +45,31 @@
 		<PhoneClock />
 	{/if}
 	<div class="pages">
+		{#if $favoritesPageOffered && $narrow && !$hearthEditMode}
+			<!-- this browser's own list, ahead of the shared pages -->
+			<button
+				type="button"
+				class="page pressable"
+				class:active={$favoritesOpen}
+				aria-current={$favoritesOpen ? 'page' : undefined}
+				onclick={() => favoritesOpen.set(true)}
+			>
+				<Icon name="star" size={ICON.inline} />
+				<span>{$lang('hearth_favorites')}</span>
+			</button>
+		{/if}
 		{#each $navigablePages as room (room.id)}
 			<button
 				type="button"
 				class="page pressable"
-				class:active={$currentRoom === room.id}
+				class:active={$currentRoom === room.id && !$favoritesOpen}
 				class:visibility-dimmed={$hearthEditMode && $hiddenPages.includes(room.id)}
-				aria-current={$currentRoom === room.id ? 'page' : undefined}
+				aria-current={$currentRoom === room.id && !$favoritesOpen ? 'page' : undefined}
 				bind:this={pills[room.id]}
-				onclick={() => currentRoom.set(room.id)}
+				onclick={() => {
+					favoritesOpen.set(false);
+					currentRoom.set(room.id);
+				}}
 			>
 				<Icon name={room.icon} size={ICON.inline} />
 				<span>{room.name}</span>

@@ -34,6 +34,8 @@ export const hearthNeedsSetup = writable(false);
 export const configurationLoadError = writable<string | null>(null);
 
 export const setupWizardOpen = writable(false);
+/** What the setup wizard opens on: the area import or the starter layouts. */
+export const setupWizardSource = writable<'areas' | 'starter'>('areas');
 
 // shows the sleep screen at once, even with the idle timeout off
 export const screensaverPreview = writable(false);

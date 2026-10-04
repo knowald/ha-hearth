@@ -7,6 +7,7 @@ import { hassEntity } from '$lib/core/ha/testing';
 import en from '../../../static/translations/en.json';
 import ControlPopup from './ControlPopup.svelte';
 import { popup } from './store';
+import { favorites } from './favorites';
 
 async function openFan() {
 	states.set({ 'fan.ceiling': hassEntity('fan.ceiling', 'off', { friendly_name: 'Ceiling' }) });
@@ -104,5 +105,22 @@ describe('ControlPopup', () => {
 		await tick();
 		const toggle = screen.getByRole('switch', { name: en.hearth_toggle_fan });
 		expect(toggle.getAttribute('aria-checked')).toBe('true');
+	});
+
+	it('stars the entity for this browser and unstars it again', async () => {
+		states.set({ 'switch.pump': hassEntity('switch.pump', 'on') });
+		render(ControlPopup);
+		popup.set({ kind: 'detail', entity: 'switch.pump', name: 'Pump' });
+		await tick();
+		const star = screen.getByRole('button', { name: en.hearth_favorite });
+		expect(star.getAttribute('aria-pressed')).toBe('false');
+
+		await fireEvent.click(star);
+		expect(get(favorites).entities).toContain('switch.pump');
+		expect(star.getAttribute('aria-pressed')).toBe('true');
+
+		await fireEvent.click(star);
+		expect(get(favorites).entities).not.toContain('switch.pump');
+		localStorage.clear();
 	});
 });

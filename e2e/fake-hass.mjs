@@ -62,6 +62,8 @@ function initialStates() {
 		},
 		'switch.fan': { s: 'on', a: { friendly_name: 'Ceiling fan' } },
 		'switch.heater': { s: 'off', a: { friendly_name: 'Space heater' } },
+		// in the Office area but on no page of the shared fixture, for the import's add-new mode
+		'switch.desk_charger': { s: 'off', a: { friendly_name: 'Desk charger' } },
 		// a config entity: reachable, but never proposed for a page
 		'switch.firmware_update': { s: 'off', a: { friendly_name: 'Firmware update' } },
 		'fan.bedroom': {

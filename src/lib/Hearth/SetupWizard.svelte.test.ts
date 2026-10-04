@@ -8,7 +8,14 @@ import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import { get } from 'svelte/store';
 import { DEFAULT_HEARTH_CONFIG } from './config';
-import { cancelEdit, hearthConfig, hearthEditMode, hearthNeedsSetup, saveState } from './store';
+import {
+	cancelEdit,
+	hearthConfig,
+	hearthEditMode,
+	hearthNeedsSetup,
+	saveState,
+	setupWizardSource
+} from './store';
 import SetupWizard from './SetupWizard.svelte';
 
 vi.mock('$lib/core/ha/registry', () => ({ fetchRegistry: vi.fn() }));
@@ -122,6 +129,120 @@ describe('SetupWizard', () => {
 			expect(get(hearthConfig)).toEqual(DEFAULT_HEARTH_CONFIG);
 			// still a first run, so the dashboard offers the import again
 			expect(get(hearthNeedsSetup)).toBe(true);
+		});
+	});
+
+	describe('an import that saves', () => {
+		beforeEach(() => {
+			hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+			states.set({
+				'light.kitchen': hassEntity('light.kitchen', 'on', { friendly_name: 'Kitchen light' }),
+				'switch.kettle': hassEntity('switch.kettle', 'off', { friendly_name: 'Kettle' }),
+				'scene.dinner': hassEntity('scene.dinner', 'unknown')
+			});
+			vi.mocked(fetchRegistry).mockResolvedValue({
+				floors: [],
+				areas: [{ area_id: 'kitchen', name: 'Kitchen' }],
+				devices: [],
+				entities: ['light.kitchen', 'switch.kettle', 'scene.dinner'].map((entity_id) => ({
+					entity_id,
+					area_id: entity_id === 'scene.dinner' ? null : 'kitchen',
+					device_id: null,
+					disabled_by: null,
+					hidden_by: null
+				}))
+			} as never);
+			vi.stubGlobal(
+				'fetch',
+				vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ revision: 2 }) })
+			);
+		});
+
+		afterEach(() => {
+			setupWizardSource.set('areas');
+			states.set({});
+			hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+			vi.unstubAllGlobals();
+		});
+
+		async function apply() {
+			const button = screen.getByRole('button', { name: en.hearth_apply }) as HTMLButtonElement;
+			await waitFor(() => expect(button.disabled).toBe(false));
+			await fireEvent.click(button);
+		}
+
+		it('ends on the tablet address with a QR code and the device name in the link', async () => {
+			const onclose = vi.fn();
+			render(SetupWizard, { onclose });
+			await apply();
+
+			const dialog = await screen.findByRole('dialog', { name: en.hearth_tablet_title });
+			expect(dialog.textContent).toContain(`${location.origin}/`);
+			await fireEvent.input(screen.getByLabelText(en.hearth_device_name), {
+				target: { value: 'kitchen' }
+			});
+			expect(dialog.textContent).toContain(`${location.origin}/?device=kitchen`);
+			const qr = await screen.findByRole('img', {
+				name: `QR code for ${location.origin}/?device=kitchen`
+			});
+			expect(qr.querySelector('path')?.getAttribute('d')).toMatch(/^M\d+ \d+h1v1h-1z/);
+			// the dashboard already holds the import
+			expect(get(hearthConfig).rooms.map((room) => room.name)).toContain('Kitchen');
+
+			await fireEvent.click(screen.getByRole('button', { name: en.done }));
+			expect(onclose).toHaveBeenCalledTimes(1);
+		});
+
+		it('builds a starter layout from the home entities', async () => {
+			setupWizardSource.set('starter');
+			render(SetupWizard, { onclose: vi.fn() });
+			expect(screen.getByRole('dialog', { name: en.hearth_starter_layouts })).toBeTruthy();
+			await fireEvent.click(await screen.findByRole('radio', { name: /Phone remote/ }));
+			await apply();
+
+			await screen.findByRole('dialog', { name: en.hearth_tablet_title });
+			const rooms = get(hearthConfig).rooms;
+			// the untouched Home page made way for the starter
+			expect(rooms.map((room) => room.name)).toEqual([en.hearth_starter_phone_page]);
+			expect(rooms[0].cards[0].map((card) => ('type' in card ? card.type : 'stack'))).toEqual([
+				'scenes',
+				'entities'
+			]);
+		});
+
+		it('adds only the entities an existing page lacks', async () => {
+			hearthConfig.update((config) => ({
+				...config,
+				rooms: [
+					{
+						id: 'kitchen',
+						name: 'Kitchen',
+						icon: 'countertops',
+						cards: [
+							[
+								{
+									id: 'mine',
+									type: 'entities',
+									entities: [{ entity: 'light.kitchen', name: 'Mine' }]
+								}
+							]
+						]
+					}
+				]
+			}));
+			render(SetupWizard, { onclose: vi.fn() });
+			await fireEvent.click(
+				await screen.findByRole('radio', { name: en.hearth_import_mode_merge })
+			);
+			expect(screen.getByText('1 new entity')).toBeTruthy();
+			await apply();
+
+			await screen.findByRole('dialog', { name: en.hearth_tablet_title });
+			const [kitchen] = get(hearthConfig).rooms;
+			expect(kitchen.cards.flat().map((card) => card.id)).toEqual(['mine', 'kitchen-devices']);
+			expect(kitchen.cards[0][0]).toMatchObject({
+				entities: [{ entity: 'light.kitchen', name: 'Mine' }]
+			});
 		});
 	});
 });
