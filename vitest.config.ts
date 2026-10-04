@@ -7,7 +7,7 @@ export default mergeConfig(
 	defineConfig({
 		plugins: [svelteTesting()],
 		test: {
-			include: ['src/**/*.test.ts'],
+			include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
 			// the browser resolve condition from svelteTesting() needs a DOM even for
 			// store-only tests, since Svelte's client runtime touches window on import
 			environment: 'jsdom',
