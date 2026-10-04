@@ -505,6 +505,20 @@ export function themeValueIssue(key: string, value: string): string | null {
 }
 
 /**
+ * A value read from a file, as the dashboard can apply it: a short `#f80` on
+ * an rgb knob becomes `#ff8800`, and anything themeValueIssue rejects is null
+ * so the token keeps its default instead of locking the dashboard.
+ */
+export function usableThemeValue(key: string, value: string): string | null {
+	const short = /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/.exec(value.trim());
+	const usable =
+		THEME_VARS[key]?.rgb && short
+			? `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`
+			: value;
+	return themeValueIssue(key, usable) ? null : usable;
+}
+
+/**
  * The custom properties a theme sets, as [property, value] pairs for
  * CSSStyleDeclaration.setProperty. Values go through the CSSOM rather than
  * into stylesheet text, so no value can end its property or the rule; one the

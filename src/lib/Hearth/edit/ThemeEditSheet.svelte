@@ -21,6 +21,8 @@
 		textContrastOf,
 		THEME_DEFAULTS,
 		THEME_PRESETS,
+		themeValueIssue,
+		usableThemeValue,
 		type HearthTheme
 	} from '$lib/core/theme';
 	import {
@@ -85,12 +87,17 @@
 		});
 	}
 
+	let backgroundImageIssue = $derived.by(() => {
+		const url = backgroundImageUrl.trim();
+		return url ? themeValueIssue('background_image', `url(${url})`) : null;
+	});
+
 	// applied when the field is left rather than per keystroke: the dashboard
 	// behind the window previews the new wallpaper without the undo stack
 	// collecting a step for every character
 	function applyBackgroundImage() {
 		const url = backgroundImageUrl.trim();
-		if (url === unwrapUrl(theme.background_image)) return;
+		if (url === unwrapUrl(theme.background_image) || backgroundImageIssue) return;
 		writeTheme((current) => {
 			if (url) return { ...current, background_image: `url(${url})` };
 			const next = { ...current };
@@ -211,9 +218,16 @@
 		}
 	}
 
+	// a saved theme file is not checked when written, and the save endpoint
+	// would refuse a value the dashboard cannot apply
 	function applySavedTheme(saved: SavedTheme) {
-		writeTheme(() => ({ ...saved.theme }));
-		backgroundImageUrl = unwrapUrl(saved.theme.background_image);
+		const usable = Object.entries(saved.theme).flatMap(([key, value]) => {
+			const kept = typeof value === 'string' ? usableThemeValue(key, value) : null;
+			return kept === null ? [] : [[key, kept]];
+		});
+		const next: HearthTheme = Object.fromEntries(usable);
+		writeTheme(() => next);
+		backgroundImageUrl = unwrapUrl(next.background_image);
 	}
 
 	function sameTheme(left: HearthTheme, right: HearthTheme) {
@@ -647,6 +661,7 @@
 	<ImageField
 		label={$lang('hearth_background_image')}
 		bind:value={backgroundImageUrl}
+		issue={backgroundImageIssue}
 		placeholder={$lang('hearth_example_background_image')}
 		onchange={applyBackgroundImage}
 	/>

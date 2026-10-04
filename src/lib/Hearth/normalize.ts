@@ -37,6 +37,7 @@ import { currentHearthConfig } from './format';
 import { imageFileOf } from '$lib/core/images';
 import { AlertRuleSchema, normalizeAlertRules } from './model/alerts';
 import * as v from 'valibot';
+import { themeValueIssue, usableThemeValue } from '$lib/core/theme';
 import {
 	CardSharedSchema,
 	issueLines,
@@ -70,11 +71,18 @@ function normalizeMobileSlot(widget: any): MobileSlot | undefined {
 	return widget.hide_mobile === true ? 'hidden' : undefined;
 }
 
-/** Token maps are string to string; other values (arrays, numbers, nested maps) are dropped. */
+/**
+ * Token maps are string to string; other values (arrays, numbers, nested maps)
+ * are dropped, and so is a value the dashboard cannot apply, which leaves its
+ * token at the default. See usableThemeValue.
+ */
 function normalizeTheme(raw: unknown): HearthTheme | undefined {
 	if (!isRecord(raw)) return undefined;
 	return Object.fromEntries(
-		Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+		Object.entries(raw).flatMap(([key, value]) => {
+			const usable = typeof value === 'string' ? usableThemeValue(key, value) : null;
+			return usable === null ? [] : [[key, usable]];
+		})
 	);
 }
 
@@ -120,6 +128,22 @@ function normalizeScreensaverRadar(raw: unknown): ScreensaverRadar | undefined {
 		attribution: trimmedOrUndefined(raw.attribution)
 	};
 	return Object.values(radar).some((value) => value !== undefined) ? radar : undefined;
+}
+
+/**
+ * Theme values hearthConfigIssues lets through for a file that is loaded, but
+ * that a document being applied or saved must not carry. See themeValueIssue.
+ */
+export function newThemeIssues(raw: unknown): string[] {
+	if (!isRecord(raw)) return [];
+	return (['theme', 'theme_night'] as const).flatMap((slot) => {
+		const theme = raw[slot];
+		if (!isRecord(theme)) return [];
+		return Object.entries(theme).flatMap(([key, value]) => {
+			const message = typeof value === 'string' ? themeValueIssue(key, value) : null;
+			return message ? [`${slot}.${key} ${message}`] : [];
+		});
+	});
 }
 
 export function hearthConfigIssues(raw: unknown): string[] {

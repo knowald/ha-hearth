@@ -3,7 +3,7 @@ import { THEME_VARS } from '$lib/core/theme';
 import { cloneOverviewItem, slugify, uniqueId } from './config';
 import { hearthConfigIssues, normalizeHearthConfig } from './normalize';
 import { isRecord } from './normalizers';
-import { issueLines, ThemeSchema } from './schema';
+import { issueLines, NewThemeSchema } from './schema';
 import type { HearthTheme, OverviewCard, OverviewItem, RailWidget } from './types';
 import { dumpYaml, parseYaml } from './yamlText';
 
@@ -306,7 +306,7 @@ export function themeFromDocument(text: string): SnippetResult<ImportedTheme> {
 	const tokens = Object.fromEntries(entries.filter(([key]) => key in THEME_VARS));
 	const ignored = entries.map(([key]) => key).filter((key) => !(key in THEME_VARS));
 	const base = wrapped ? ['theme'] : [];
-	const parsed = v.safeParse(ThemeSchema, tokens);
+	const parsed = v.safeParse(NewThemeSchema, tokens);
 	const issues = parsed.success ? [] : issueLines(parsed.issues, '');
 	if (typeof tokens.background_image === 'string') {
 		const issue = importedBackgroundIssue(tokens.background_image);

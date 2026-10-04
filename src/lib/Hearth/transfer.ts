@@ -1,6 +1,6 @@
 import * as yaml from 'js-yaml';
 import { CONFIG_VERSION, currentHearthConfig } from './format';
-import { hearthConfigIssues, normalizeHearthConfig } from './normalize';
+import { hearthConfigIssues, newThemeIssues, normalizeHearthConfig } from './normalize';
 import type { HearthConfig } from './types';
 import { parseYaml } from './yamlText';
 
@@ -49,7 +49,8 @@ export function documentIssue(text: string): string | null {
 		return 'Configuration must be a YAML mapping'; // copy ok: yaml diagnostic
 	}
 	try {
-		const issues = hearthConfigIssues(currentHearthConfig(parsed));
+		const config = currentHearthConfig(parsed);
+		const issues = [...hearthConfigIssues(config), ...newThemeIssues(config)];
 		return issues.length ? issues.slice(0, 5).join('; ') : null;
 	} catch (error) {
 		return error instanceof Error ? error.message.split('\n')[0] : 'Invalid configuration'; // copy ok: yaml diagnostic

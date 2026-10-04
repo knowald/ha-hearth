@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { saveYamlDocument } from '$lib/server/persistence';
 import { CONFIG_VERSION, currentHearthConfig } from '$lib/Hearth/format';
-import { hearthConfigIssues } from '$lib/Hearth/normalize';
+import { hearthConfigIssues, newThemeIssues } from '$lib/Hearth/normalize';
 import type { RequestHandler } from './$types';
 
 const CONFIG_PATH = './data/hearth.yaml';
@@ -21,7 +21,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (err) {
 		error(400, err instanceof Error ? err.message : 'unsupported config');
 	}
-	const issues = hearthConfigIssues(config);
+	const issues = [...hearthConfigIssues(config), ...newThemeIssues(config)];
 	if (issues.length) error(400, issues.join('; '));
 	const revision = body.revision;
 	if (!(Number.isInteger(revision) && (revision as number) >= 0)) {

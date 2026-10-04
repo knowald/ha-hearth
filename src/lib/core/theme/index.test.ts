@@ -12,6 +12,7 @@ import {
 	THEME_PRESETS,
 	themeDeclarations,
 	themeValueIssue,
+	usableThemeValue,
 	VOID_THEME,
 	WARM_PAPER_THEME
 } from './index';
@@ -152,6 +153,14 @@ describe('theme values', () => {
 		expect(themeValueIssue('accent', '#3366ff')).toBeNull();
 		expect(themeValueIssue('accent', 'red')).toBe('must be a hex colour like #f0b860');
 		expect(themeValueIssue('accent_text', 'red')).toBeNull();
+	});
+
+	it('lengthens a short hex on an rgb knob and drops what it cannot apply', () => {
+		expect(usableThemeValue('accent', '#f80')).toBe('#ff8800');
+		expect(usableThemeValue('accent', '#3366ff')).toBe('#3366ff');
+		expect(usableThemeValue('text_1', '#fff')).toBe('#fff');
+		expect(usableThemeValue('accent', 'red; display: none')).toBeNull();
+		expect(usableThemeValue('text_1', '#fff /*')).toBeNull();
 	});
 
 	it('turns rgb knobs into a triplet and bare numbers into pixels', () => {

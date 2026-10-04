@@ -442,7 +442,16 @@ export const ThemeSchema = v.pipe(
 		(value) => !!value && typeof value === 'object' && !Array.isArray(value),
 		'must be a mapping of tokens'
 	),
-	v.record(v.string(), v.string('must be text')),
+	v.record(v.string(), v.string('must be text'))
+);
+
+/**
+ * ThemeSchema plus the value check, for a theme being imported. Loading
+ * hearth.yaml does not run the check; normalizeTheme drops those values there
+ * so the dashboard still opens.
+ */
+export const NewThemeSchema = v.pipe(
+	ThemeSchema,
 	// each value must stay inside its own custom property; see themeValueIssue
 	v.rawCheck(({ dataset, addIssue }) => {
 		if (!dataset.typed) return;

@@ -167,19 +167,29 @@ test('a theme exported as YAML imports again', async ({ page }) => {
 	await expect(frame).not.toHaveCSS('--h-accent-rgb', '51 102 255');
 });
 
-test('a hearth.yaml with hostile theme values is reported, not applied', async ({ page }) => {
+test('a hearth.yaml with hostile theme values loads with those tokens at their defaults', async ({
+	page
+}) => {
 	writeFixture(`theme:
   accent: "red; display: none"
   text_1: "#fff /*"
   text_2: "red; } :root { display: none"
 `);
+	await startEditing(page);
+	await expect(page.getByRole('alert').filter({ hasText: 'hearth.yaml' })).toHaveCount(0);
+	const frame = page.locator('.frame');
+	await expect(frame).toHaveCSS('--h-accent-rgb', '240 184 96');
+	await expect(frame).toHaveCSS('--h-text-1', '#f7efe4');
+	await expect(frame).toHaveCSS('--h-text-2', '#f1e6d6');
+	await expect(page.locator('.card-slot[data-id="lights"]')).toBeVisible();
+});
+
+test('a hearth.yaml with a short hex accent shows it', async ({ page }) => {
+	writeFixture(`theme:
+  accent: "#36f"
+`);
 	await page.goto('/');
-	const report = page.getByRole('alert').filter({ hasText: 'hearth.yaml contains settings' });
-	await expect(report).toBeVisible();
-	await expect(report).toContainText('theme.accent must be a hex colour');
-	await expect(report).toContainText('theme.text_1 must not contain comments');
-	await expect(report).toContainText('theme.text_2 must not contain comments');
-	await expect(page.locator('body')).toBeVisible();
+	await expect(page.locator('.frame')).toHaveCSS('--h-accent-rgb', '51 102 255');
 });
 
 test('a theme import refuses a value that would leave its token', async ({ page }) => {

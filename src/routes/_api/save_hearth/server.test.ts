@@ -75,6 +75,14 @@ describe('Hearth save endpoint', () => {
 		expect(disk.data).not.toContain('revision: 41');
 	});
 
+	it('refuses a theme value that would leave its token', async () => {
+		const config = { rail: [], rooms: [], theme: { text_1: 'red; display: none' } };
+		await expect(post(JSON.stringify({ revision: 0, config }))).rejects.toMatchObject({
+			status: 400
+		});
+		expect(disk.data).toBeNull();
+	});
+
 	it('rejects malformed JSON, arrays and invalid revisions', async () => {
 		await expect(post(JSON.stringify({ rail: [], rooms: [] }))).rejects.toMatchObject({
 			status: 400

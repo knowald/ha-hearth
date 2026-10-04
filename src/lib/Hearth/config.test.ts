@@ -16,7 +16,7 @@ import {
 	wildcardEntityIds,
 	type RailWidget
 } from './config';
-import { hearthConfigIssues, normalizeHearthConfig } from './normalize';
+import { hearthConfigIssues, newThemeIssues, normalizeHearthConfig } from './normalize';
 import {
 	moveRailWidget,
 	moveToSide,
@@ -413,7 +413,28 @@ describe('wall tablet settings', () => {
 		expect(config.padding_y).toBeUndefined();
 		expect(config.screensaver_minutes).toBeUndefined();
 		expect(config.theme).toBeUndefined();
-		expect(config.theme_night).toEqual({ accent: '#fff' });
+		expect(config.theme_night).toEqual({ accent: '#ffffff' });
+	});
+
+	it('drops theme values it cannot apply and lengthens a short hex, without an issue', () => {
+		const raw = {
+			rail: [],
+			rooms: [],
+			theme: {
+				accent: '#f80',
+				cool: 'red; display: none',
+				text_1: '#fff /*',
+				text_2: '#ddd'
+			}
+		};
+		expect(hearthConfigIssues(raw)).toEqual([]);
+		// a document being applied gets no such repair
+		expect(newThemeIssues(raw)).toEqual([
+			'theme.accent must be a hex colour like #f0b860',
+			'theme.cool must be a hex colour like #f0b860',
+			'theme.text_1 must not contain comments, backslashes, braces or angle brackets'
+		]);
+		expect(normalizeHearthConfig(raw).theme).toEqual({ accent: '#ff8800', text_2: '#ddd' });
 	});
 
 	it('keeps the phone strip clock only when turned on', () => {
