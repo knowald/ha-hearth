@@ -2,7 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { callService } from 'home-assistant-js-websocket';
 import type { Connection } from 'home-assistant-js-websocket';
 import { connection, health } from './connection';
-import { runAction, setCommandGate, type ActionHost, type HaAction } from './commands';
+import { get } from 'svelte/store';
+import {
+	controlOverrides,
+	runAction,
+	setCommandGate,
+	setControlOverride,
+	type ActionHost,
+	type HaAction
+} from './commands';
 
 vi.mock('home-assistant-js-websocket', async (importOriginal) => ({
 	...(await importOriginal<typeof import('home-assistant-js-websocket')>()),
@@ -110,5 +118,16 @@ describe('runAction', () => {
 		// leaving a page is not a device command
 		runAction({ action: 'navigate', navigation_path: 'a' }, surface);
 		expect(surface.navigate).toHaveBeenCalledOnce();
+	});
+});
+
+describe('setControlOverride', () => {
+	it('shows no optimistic value while the gate is closed', () => {
+		setCommandGate(() => false);
+		setControlOverride('climate:climate.den', 21);
+		expect(get(controlOverrides)['climate:climate.den']).toBeUndefined();
+		setCommandGate(() => true);
+		setControlOverride('climate:climate.den', 21);
+		expect(get(controlOverrides)['climate:climate.den']).toBe(21);
 	});
 });

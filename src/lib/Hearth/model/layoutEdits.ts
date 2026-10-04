@@ -5,6 +5,7 @@ import {
 	findOverviewItemList,
 	isStack,
 	moveItem,
+	pruneEmptyStack,
 	slugify,
 	takenCardIds,
 	uniqueId
@@ -104,8 +105,8 @@ export function cardColumnIndex(room: HearthRoom, id: string): number {
 
 /**
  * Moves a card or stack to the end of a column on another page, or another
- * column of its own. A card leaves any stack it was in. A column past the
- * page's last lands in its last one.
+ * column of its own. A card leaves any stack it was in, and a stack it leaves
+ * empty goes with it. A column past the page's last lands in its last one.
  */
 export function moveOverviewItem(
 	config: HearthConfig,
@@ -121,6 +122,7 @@ export function moveOverviewItem(
 	const [item] = source.splice(index, 1) as OverviewItem[];
 	const columns = ensureRoomCardColumns(target);
 	columns[Math.max(0, Math.min(columns.length - 1, column))].push(item);
+	pruneEmptyStack(config, source);
 	return true;
 }
 

@@ -44,7 +44,11 @@ rooms:
     icon: kitchen
     columns: 2
     cards:
-      - []
+      - - id: frame
+          type: iframe
+          title: Frame
+          url: about:blank
+          height: 240
       - []
 `
 	);
@@ -94,14 +98,20 @@ test('a card is duplicated from its sheet', async ({ page }) => {
 	await page.getByRole('button', { name: 'Edit Lights', exact: true }).click();
 	const sheet = page.getByRole('dialog', { name: 'Edit card' });
 	await sheet.getByRole('button', { name: 'Duplicate' }).click();
-	// the copy's editor opens in place of the original's
+	// the copy's editor opens in place of the original's, holding the same fields
 	await expect(sheet.getByLabel('Title')).toHaveValue('Lights');
+	await sheet.getByLabel('Title').fill('Lights copy');
 	await sheet.getByRole('button', { name: 'Done' }).click();
+	await expect(sheet).toBeHidden();
 	const ids = await cardIds(page);
 	expect(ids).toHaveLength(3);
-	expect(ids[0]).toBe('lights');
 	expect(new Set(ids).size).toBe(3);
-	await expect(page.locator('.card-slot', { hasText: 'Lights' })).toHaveCount(2);
+	// the original kept its id, title and tiles; the copy sits after it with the same tiles
+	expect(ids[0]).toBe('lights');
+	const copy = page.locator(`.card-slot[data-id="${ids[1]}"]`);
+	await expect(copy).toContainText('Lights copy');
+	await expect(copy.locator('.entity-slot')).toHaveCount(2);
+	await expect(page.locator('.card-slot[data-id="lights"]')).not.toContainText('Lights copy');
 });
 
 test('a card moves to another page and column', async ({ page }) => {
@@ -166,14 +176,14 @@ test('a stack is framed and its chip stays clear of its cards', async ({ page })
 		.click();
 	const stack = page.locator('.stack-slot');
 	await expect(stack).toHaveCSS('outline-style', 'dashed');
-	await expect(stack.locator('> .chip')).toContainText('Stack');
+	await expect(stack.locator('.group-label .chip')).toContainText('Stack');
 
 	// drop a card in so there is a card chip to stay clear of
 	await stack.getByRole('button', { name: 'Add card' }).click();
 	const sheet = page.getByRole('dialog', { name: 'Add card' });
 	await sheet.getByRole('option', { name: /^Entities\b/ }).click();
 	await sheet.getByRole('button', { name: 'Done' }).click();
-	const stackChip = (await stack.locator('> .chip').boundingBox())!;
+	const stackChip = (await stack.locator('.group-label .chip').boundingBox())!;
 	const cardChip = (await stack.locator('.card-slot .chip').boundingBox())!;
 	const overlaps =
 		stackChip.x < cardChip.x + cardChip.width &&
@@ -181,6 +191,19 @@ test('a stack is framed and its chip stays clear of its cards', async ({ page })
 		stackChip.y < cardChip.y + cardChip.height &&
 		cardChip.y < stackChip.y + stackChip.height;
 	expect(overlaps).toBe(false);
+});
+
+test('a tap on embedded content opens its card', async ({ page }) => {
+	await startEditing(page);
+	await page
+		.locator('.room-list')
+		.getByRole('button', { name: /Kitchen/ })
+		.click();
+	const frame = page.locator('.card-slot[data-id="frame"] iframe');
+	await expect(frame).toHaveCSS('pointer-events', 'none');
+	const box = (await frame.boundingBox())!;
+	await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+	await expect(page.getByRole('dialog', { name: 'Edit card' })).toBeVisible();
 });
 
 test.describe('on a phone', () => {
@@ -194,5 +217,28 @@ test.describe('on a phone', () => {
 		await sheet.getByRole('button', { name: 'Done' }).click();
 		await expect(sheet).toBeHidden();
 		await expect(page.locator('.phone-nav').getByRole('button', { name: /Garage/ })).toBeVisible();
+	});
+
+	test('a scroll that starts on a card does not open it', async ({ page }) => {
+		await startEditing(page);
+		const card = (await page.locator('.card-slot[data-id="lights"]').boundingBox())!;
+		const start = { x: card.x + card.width / 2, y: card.y + card.height / 2 };
+		const session = await page.context().newCDPSession(page);
+		await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
+		for (let step = 1; step <= 10; step += 1) {
+			await session.send('Input.dispatchTouchEvent', {
+				type: 'touchMove',
+				touchPoints: [{ x: start.x, y: start.y - step * 20 }]
+			});
+		}
+		await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+		await session.detach();
+		await page.waitForTimeout(300);
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+
+		// a plain tap on the same card still opens it, wherever the scroll left it
+		const moved = (await page.locator('.card-slot[data-id="lights"]').boundingBox())!;
+		await page.touchscreen.tap(moved.x + moved.width / 2, moved.y + moved.height / 2);
+		await expect(page.getByRole('dialog', { name: 'Edit card' })).toBeVisible();
 	});
 });

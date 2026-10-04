@@ -87,15 +87,28 @@ export function redoConfig() {
  * can never undo something other than the removal it names.
  */
 export const UNDO_OFFER_MS = 6000;
-export const undoOffer = writable<{ message: string } | null>(null);
+/** `serial` tells two offers with the same message apart, so each is announced. */
+export const undoOffer = writable<{ message: string; serial: number } | null>(null);
 let undoTarget: HearthConfig | null = null;
 let undoTimer: ReturnType<typeof setTimeout> | undefined;
+let undoSerial = 0;
 
 export function offerUndo(message: string) {
-	clearTimeout(undoTimer);
 	undoTarget = get(hearthConfig);
-	undoOffer.set({ message });
-	undoTimer = setTimeout(dismissUndoOffer, UNDO_OFFER_MS);
+	undoSerial += 1;
+	undoOffer.set({ message, serial: undoSerial });
+	resumeUndoOffer();
+}
+
+/** Holds the offer while the pointer or focus is on its toast. */
+export function pauseUndoOffer() {
+	clearTimeout(undoTimer);
+}
+
+/** Gives a held offer its full time again, so it never vanishes under a leaving pointer. */
+export function resumeUndoOffer() {
+	clearTimeout(undoTimer);
+	if (undoTarget) undoTimer = setTimeout(dismissUndoOffer, UNDO_OFFER_MS);
 }
 
 export function dismissUndoOffer() {
@@ -148,6 +161,11 @@ export type Editor =
 	| { kind: 'versions'; from?: Editor };
 
 export const editor = writable<Editor | null>(null);
+
+// the next editor is the next piece of work; the removal's toast is behind it
+editor.subscribe((open) => {
+	if (open) dismissUndoOffer();
+});
 
 // The dashboard previews this slot while the theme editor is open.
 export const editedThemeSlot = writable<'day' | 'night'>('day');

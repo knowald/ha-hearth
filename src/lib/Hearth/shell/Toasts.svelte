@@ -16,6 +16,8 @@
 		saveFailure,
 		saveState,
 		acceptUndoOffer,
+		pauseUndoOffer,
+		resumeUndoOffer,
 		undoOffer,
 		type HearthErrorKind
 	} from '../store';
@@ -53,6 +55,21 @@
 	};
 	let hearthErrorTitle = $derived(hearthErrorCopy[$hearthLoadErrorKind ?? 'invalid']);
 
+	/*
+	 * A second removal with the same message would leave the status line's
+	 * text unchanged, and so unannounced. Each offer clears the line first
+	 * and writes its text a beat later, which reads as a change.
+	 */
+	let undoAnnouncement = $state('');
+	$effect(() => {
+		const offer = $undoOffer;
+		undoAnnouncement = '';
+		if (!offer) return;
+		const text = fill($lang('hearth_undo_available'), { message: offer.message });
+		const timer = setTimeout(() => (undoAnnouncement = text), 100);
+		return () => clearTimeout(timer);
+	});
+
 	// a live region only announces changes to content it already held, so the
 	// status line stays mounted and the toasts below are its visual copies
 	let announcement = $derived(
@@ -61,7 +78,7 @@
 				$lang(shownIssue === 'lost' ? 'hearth_connection_lost' : 'hearth_connection_degraded'),
 			$saveState === 'saved' && $lang('saved'),
 			$copyState === 'copied' && $lang('copied'),
-			$undoOffer?.message
+			undoAnnouncement
 		]
 			.filter(Boolean)
 			.join('. ')
@@ -139,7 +156,14 @@
 	<!-- the status line above announces the message; the toast adds the way back -->
 	<div
 		class="save-toast undo-toast editing"
+		class:raised={$copyState !== 'idle'}
+		role="group"
+		aria-label={$undoOffer.message}
 		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
+		onpointerenter={pauseUndoOffer}
+		onpointerleave={resumeUndoOffer}
+		onfocusin={pauseUndoOffer}
+		onfocusout={resumeUndoOffer}
 	>
 		<Icon name="delete" size={ICON.control} />
 		<span aria-hidden="true">{$undoOffer.message}</span>
@@ -312,6 +336,11 @@
 
 	.undo-toast {
 		color: var(--h-text-2);
+	}
+
+	/* the Copied toast takes the same spot; this one steps up over it */
+	.save-toast.undo-toast.raised {
+		margin-bottom: 56px; /* literal ok: one toast height plus a gap */
 	}
 
 	.toast-action {

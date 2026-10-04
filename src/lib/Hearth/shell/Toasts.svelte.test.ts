@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen } from '@testing-library/svelte';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { fill } from '$lib/core/i18n';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { commandFailure } from '$lib/core/ha/commands';
 import { health } from '$lib/core/ha/connection';
@@ -64,7 +65,8 @@ describe('Toasts', () => {
 		});
 		render(Toasts);
 		await act(() => offerUndo(en.hearth_card_removed));
-		expect(screen.getByRole('status').textContent).toContain(en.hearth_card_removed);
+		const announced = fill(en.hearth_undo_available, { message: en.hearth_card_removed });
+		await waitFor(() => expect(screen.getByRole('status').textContent).toContain(announced));
 		await fireEvent.click(screen.getByRole('button', { name: en.undo }));
 		expect(get(hearthConfig).rooms[0].name).toBe(DEFAULT_HEARTH_CONFIG.rooms[0].name);
 		expect(get(undoOffer)).toBeNull();

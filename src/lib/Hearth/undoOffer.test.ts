@@ -5,9 +5,12 @@ import {
 	acceptUndoOffer,
 	cancelEdit,
 	dismissUndoOffer,
+	editor,
 	enterEditMode,
 	hearthConfig,
 	offerUndo,
+	pauseUndoOffer,
+	resumeUndoOffer,
 	undoOffer,
 	UNDO_OFFER_MS,
 	updateConfig
@@ -32,7 +35,7 @@ describe('the undo offer after a removal', () => {
 	});
 
 	it('takes the removal back', () => {
-		expect(get(undoOffer)).toEqual({ message: 'Card removed' });
+		expect(get(undoOffer)).toMatchObject({ message: 'Card removed' });
 		acceptUndoOffer();
 		expect(names()).toEqual(['Home']);
 		expect(get(undoOffer)).toBeNull();
@@ -52,6 +55,31 @@ describe('the undo offer after a removal', () => {
 		offerUndo('Card removed');
 		vi.advanceTimersByTime(UNDO_OFFER_MS);
 		expect(get(undoOffer)).toBeNull();
+	});
+
+	it('holds while the toast has the pointer or focus, then gets its full time again', () => {
+		vi.useFakeTimers();
+		offerUndo('Card removed');
+		pauseUndoOffer();
+		vi.advanceTimersByTime(UNDO_OFFER_MS * 2);
+		expect(get(undoOffer)).not.toBeNull();
+		resumeUndoOffer();
+		vi.advanceTimersByTime(UNDO_OFFER_MS - 1);
+		expect(get(undoOffer)).not.toBeNull();
+		vi.advanceTimersByTime(1);
+		expect(get(undoOffer)).toBeNull();
+	});
+
+	it('tells repeated offers apart so each is announced', () => {
+		const first = get(undoOffer)!.serial;
+		offerUndo('Card removed');
+		expect(get(undoOffer)!.serial).not.toBe(first);
+	});
+
+	it('ends when another editor opens', () => {
+		editor.set({ kind: 'settings' });
+		expect(get(undoOffer)).toBeNull();
+		editor.set(null);
 	});
 
 	it('ends with the edit session', () => {

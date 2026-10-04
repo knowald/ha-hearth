@@ -14,12 +14,14 @@ const OWN_GESTURE = '.drag-handle, .entity-drag-handle, .chip, .add-tile';
  * started and ended, so a short drag by a grip would read as a tap on its
  * card. A press that started on a grip, or moved like a drag, is not a tap.
  */
-const TAP_SLOP = 10;
+export const TAP_SLOP = 10;
 
 /**
  * In edit mode, a tap anywhere on an item opens its editor, through one
  * listener on the container that finds the item from the tap's target. Enter
- * or Space on a focused tile does the same for the keyboard.
+ * or Space on a focused tile does the same for the keyboard. A tap that opens
+ * an editor stops there: the card's own handlers are delegated to the root,
+ * and a stepper or seek bar must not act on the tap that opened its editor.
  */
 export const editTap: Action<HTMLElement, EditTapOptions> = (node, options) => {
 	let current = options;
@@ -30,7 +32,13 @@ export const editTap: Action<HTMLElement, EditTapOptions> = (node, options) => {
 	}
 
 	function handleDown(event: PointerEvent) {
+		// a second finger is a pinch or a stray touch, not a new tap
+		if (event.isPrimary === false) return;
 		press = { x: event.clientX, y: event.clientY, ownGesture: ownGesture(event.target) };
+	}
+
+	function handleCancel() {
+		press = null;
 	}
 
 	function handleClick(event: MouseEvent) {
@@ -38,13 +46,15 @@ export const editTap: Action<HTMLElement, EditTapOptions> = (node, options) => {
 		press = null;
 		if (!current.enabled || event.defaultPrevented || !(event.target instanceof Element)) return;
 		if (ownGesture(event.target) || started?.ownGesture) return;
+		// detail 0 is a click from the keyboard or assistive technology, with no pointer to have moved
 		if (
+			event.detail !== 0 &&
 			started &&
 			(Math.abs(event.clientX - started.x) > TAP_SLOP ||
 				Math.abs(event.clientY - started.y) > TAP_SLOP)
 		)
 			return;
-		current.open(event.target);
+		if (current.open(event.target)) event.stopPropagation();
 	}
 
 	function handleKey(event: KeyboardEvent) {
@@ -53,10 +63,13 @@ export const editTap: Action<HTMLElement, EditTapOptions> = (node, options) => {
 		// native controls and add tiles answer the key themselves
 		if (!(target instanceof Element) || target.getAttribute('role') !== 'button') return;
 		if (ownGesture(target)) return;
-		if (current.open(target)) event.preventDefault();
+		if (!current.open(target)) return;
+		event.preventDefault();
+		event.stopPropagation();
 	}
 
 	node.addEventListener('pointerdown', handleDown);
+	node.addEventListener('pointercancel', handleCancel);
 	node.addEventListener('click', handleClick);
 	node.addEventListener('keydown', handleKey);
 
@@ -66,6 +79,7 @@ export const editTap: Action<HTMLElement, EditTapOptions> = (node, options) => {
 		},
 		destroy() {
 			node.removeEventListener('pointerdown', handleDown);
+			node.removeEventListener('pointercancel', handleCancel);
 			node.removeEventListener('click', handleClick);
 			node.removeEventListener('keydown', handleKey);
 		}

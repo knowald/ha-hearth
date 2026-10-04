@@ -121,8 +121,16 @@ describe('moveOverviewItem', () => {
 	it('takes a card out of its stack and lands past the last column in the last one', () => {
 		const draft = config();
 		moveOverviewItem(draft, 'entities-2', 'den', 'den', 7);
-		expect((draft.rooms[0].cards[0][1] as { cards: unknown[] }).cards).toEqual([]);
+		// the stack held only that card, so it goes too
+		expect(draft.rooms[0].cards[0].map((item) => item.id)).toEqual(['entities']);
 		expect(draft.rooms[0].cards[1].map((item) => item.id)).toEqual(['scenes', 'entities-2']);
+	});
+
+	it('keeps a stack that still holds cards', () => {
+		const draft = config();
+		duplicateOverviewItem(draft, 'den', 'entities-2');
+		moveOverviewItem(draft, 'entities-2', 'den', 'kitchen', 0);
+		expect(draft.rooms[0].cards[0].map((item) => item.id)).toEqual(['entities', 'stack']);
 	});
 
 	it('reports a card it could not find', () => {

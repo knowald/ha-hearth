@@ -110,7 +110,8 @@
 		use:longPress={{
 			hold,
 			deferOnTouch: true,
-			disabled: !actionRuns(holdAction, readonly) || holdAction?.action === 'none'
+			disabled:
+				$hearthEditMode || !actionRuns(holdAction, readonly) || holdAction?.action === 'none'
 		}}
 	>
 		{@render body()}

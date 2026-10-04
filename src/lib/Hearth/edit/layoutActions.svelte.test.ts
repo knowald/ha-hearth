@@ -17,6 +17,7 @@ import {
 	undoOffer
 } from '../store';
 import CardColumns from '../CardColumns.svelte';
+import Rail from '../Rail.svelte';
 import CardEditSheet from './CardEditSheet.svelte';
 import RailWidgetEditSheet from './RailWidgetEditSheet.svelte';
 import RoomEditSheet from './RoomEditSheet.svelte';
@@ -104,7 +105,7 @@ describe('the card sheet', () => {
 		await fireEvent.click(screen.getByRole('button', { name: en.remove }));
 		expect(get(requestedConfirmation)).toBeNull();
 		expect(den().map((item) => item.id)).toEqual(['stack']);
-		expect(get(undoOffer)).toEqual({ message: en.hearth_card_removed });
+		expect(get(undoOffer)).toMatchObject({ message: en.hearth_card_removed });
 		acceptUndoOffer();
 		expect(den().map((item) => item.id)).toEqual(['lights', 'stack']);
 	});
@@ -120,7 +121,7 @@ describe('the stack sheet', () => {
 		confirmRequestedAction();
 		expect(den().map((item) => item.id)).toEqual(['lights']);
 		expect(takenCardIds(get(hearthConfig))).not.toContain('inner');
-		expect(get(undoOffer)).toEqual({ message: en.hearth_stack_removed });
+		expect(get(undoOffer)).toMatchObject({ message: en.hearth_stack_removed });
 		acceptUndoOffer();
 		expect(takenCardIds(get(hearthConfig))).toContain('inner');
 	});
@@ -151,7 +152,7 @@ describe('the widget sheet', () => {
 		render(RailWidgetEditSheet, { index: 1 });
 		await fireEvent.click(screen.getByRole('button', { name: en.remove }));
 		expect(get(requestedConfirmation)).toBeNull();
-		expect(get(undoOffer)).toEqual({ message: en.hearth_widget_removed });
+		expect(get(undoOffer)).toMatchObject({ message: en.hearth_widget_removed });
 	});
 });
 
@@ -221,16 +222,24 @@ describe('tapping in edit mode', () => {
 	it('leaves a press that started on a grip to the drag', async () => {
 		const { container } = renderColumns();
 		const grip = container.querySelector('.card-slot[data-id="lights"] .drag-handle')!;
-		await fireEvent.pointerDown(grip);
+		await fireEvent.pointerDown(grip, { isPrimary: true });
 		await fireEvent.click(container.querySelector('.card-slot[data-id="lights"]')!);
 		expect(get(editor)).toBeNull();
 	});
 
-	it('labels the stack chip and keeps it at the other corner from the card chips', () => {
+	it('labels the stack chip and puts it after the stack title, clear of the cards', () => {
 		const { container } = renderColumns();
-		const chip = container.querySelector('.stack-slot > .chip')!;
-		expect(chip.classList.contains('start')).toBe(true);
+		const chip = container.querySelector('.stack-slot .group-label .chip')!;
+		expect(chip.classList.contains('after')).toBe(true);
 		expect(chip.textContent).toContain(en.hearth_stack);
+	});
+
+	it('drops a stack whose last card is dragged out of it', () => {
+		const { container } = renderColumns();
+		container
+			.querySelector('.column')!
+			.dispatchEvent(new CustomEvent('dndreceive', { detail: { id: 'inner', newIndex: 0 } }));
+		expect(den().map((item) => item.id)).toEqual(['inner', 'lights']);
 	});
 
 	it('does nothing outside edit mode', async () => {
@@ -238,5 +247,30 @@ describe('tapping in edit mode', () => {
 		hearthEditMode.set(false);
 		await fireEvent.click(container.querySelector('.card-slot[data-id="lights"]')!);
 		expect(get(editor)).toBeNull();
+	});
+});
+
+describe('tapping a rail widget in edit mode', () => {
+	beforeEach(() => {
+		const config = get(hearthConfig);
+		config.rail = [
+			{ id: 'clock', type: 'clock' },
+			{ id: 'nav', type: 'nav' }
+		] as never;
+		hearthConfig.set(config);
+		hearthEditMode.set(true);
+	});
+
+	afterEach(() => hearthEditMode.set(false));
+
+	it('opens the widget editor, but leaves the page list to pick pages', async () => {
+		const { container } = render(Rail, { onsearch: () => {} });
+		await fireEvent.click(container.querySelector('.widget[data-id="clock"]')!);
+		expect(get(editor)).toEqual({ kind: 'railWidget', index: 0 });
+
+		editor.set(null);
+		await fireEvent.click(screen.getByRole('button', { name: /Kitchen/ }));
+		expect(get(editor)).toBeNull();
+		expect(get(currentRoom)).toBe('kitchen');
 	});
 });

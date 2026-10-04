@@ -6,20 +6,23 @@
 		label,
 		onedit,
 		kind = undefined,
-		start = false
+		after = false
 	}: {
 		/** The edit button's accessible name, naming what it edits. */
 		label: string;
 		onedit: () => void;
 		/** A visible word for what the chip belongs to, for a container whose children carry chips too. */
 		kind?: string;
-		/** Sits at the leading corner, clear of the chips of the cards inside it. */
-		start?: boolean;
+		/**
+		 * Sits just past the end of the text it is placed in, a container's
+		 * title, rather than on the corner where the cards inside keep theirs.
+		 */
+		after?: boolean;
 	} = $props();
 </script>
 
 <!-- the drag handle must NOT stop propagation - SortableJS listens on the container -->
-<div class="chip" class:start>
+<div class="chip" class:after>
 	<span class="drag-handle"><Icon name="drag_indicator" size={ICON.inline} /></span>
 	<button
 		type="button"
@@ -55,9 +58,12 @@
 		color: var(--h-text-2);
 	}
 
-	.chip.start {
+	.chip.after {
+		top: 50%;
 		right: auto;
-		left: 12px;
+		left: calc(100% + 8px);
+		transform: translateY(-50%);
+		white-space: nowrap;
 	}
 
 	.kind {
@@ -101,9 +107,9 @@
 			gap: 2px;
 		}
 
-		.chip.start {
+		.chip.after {
+			top: 50%;
 			right: auto;
-			left: 8px;
 		}
 	}
 

@@ -1263,5 +1263,6 @@
 	"hearth_unsaved_changes": "Unsaved changes",
 	"hearth_edit_hint": "Tap a card to edit it, drag the grip to move it",
 	"hearth_move_named_up": "Move {name} up",
-	"hearth_move_named_down": "Move {name} down"
+	"hearth_move_named_down": "Move {name} down",
+	"hearth_undo_available": "{message}. Undo is available"
 }

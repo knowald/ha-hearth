@@ -812,7 +812,7 @@
 						<button
 							type="button"
 							class="step"
-							aria-label={fill($lang('hearth_move_named_up'), { name: room.name })}
+							aria-label={fill($lang('hearth_move_named_up'), { name: room.name || room.id })}
 							disabled={index === 0}
 							onclick={() => movePage(index, -1)}
 						>
@@ -821,7 +821,7 @@
 						<button
 							type="button"
 							class="step"
-							aria-label={fill($lang('hearth_move_named_down'), { name: room.name })}
+							aria-label={fill($lang('hearth_move_named_down'), { name: room.name || room.id })}
 							disabled={index === $hearthConfig.rooms.length - 1}
 							onclick={() => movePage(index, 1)}
 						>
