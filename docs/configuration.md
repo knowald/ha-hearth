@@ -9,9 +9,9 @@ Hearth stores everything in one data directory. The Node server uses `./data` un
 | Path                   | Contents                                                                                                                    |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `hearth.yaml`          | Pages, cards, sidebar widgets, themes, sleep screen and layout settings, and alert rules.                                   |
-| `configuration.yaml`   | Application settings: language, reduce motion, touch feedback, long-lived access token and the custom JavaScript switch.    |
-| `custom_css.css`       | Custom CSS, edited under Settings > Application settings > Custom CSS.                                                      |
-| `custom_javascript.js` | Custom JavaScript. Edit the file directly; it runs on every page load when Custom JavaScript is on in Application settings. |
+| `configuration.yaml`   | Server settings: default language, reduce motion, touch feedback, long-lived access token and the custom JavaScript switch. |
+| `custom_css.css`       | Custom CSS, edited under Settings > Appearance > Custom CSS.                                                                |
+| `custom_javascript.js` | Custom JavaScript. Edit the file directly; it runs on every page load when Custom JavaScript is on in Server settings.      |
 | `hearth-themes/`       | Saved theme presets.                                                                                                        |
 | `hearth-images/`       | Images uploaded for header cards, theme backgrounds and the sleep screen.                                                   |
 | `backups/`             | Earlier versions of `hearth.yaml` and `configuration.yaml`, the ten most recent of each.                                    |
@@ -60,30 +60,74 @@ The Home Assistant app sets `HASS_URL` itself. For direct-port access, set its H
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `?room=<id>`      | Open the page with this id. Hearth keeps the current page in the address, so copy it from there.                                          |
 | `?theme=<preset>` | Show a built-in theme without saving it: `hearth`, `paper`, `slate`, `void`, `glass`, `forest`, `plum` or `muted`. Ignored while editing. |
-| `?menu=false`     | Hide the Edit Hearth configuration button, for wall tablets.                                                                              |
+| `?menu=false`     | Hide the Edit Hearth configuration and This screen buttons, for wall tablets. See [This screen](#this-screen) for the way back in.        |
 | `?device=<name>`  | Name this screen, so [alerts](alerts.md#home-assistant-events) can target it.                                                             |
 
 These change presentation only. They are not access controls.
 
+## Settings
+
+The Settings sheet in edit mode groups its rows by where they are kept. Each section says so under its title:
+
+- Every screen, saved with the dashboard: Appearance, Layout and navigation, Size and spacing, Wall display, Alerts and Pages. These go to `hearth.yaml` when you choose Save in the edit bar. Cancel drops them.
+- Every screen, saved now: Server settings, which writes `configuration.yaml` with its own Save button.
+- This browser only: This screen, below.
+
+## This screen
+
+Some settings belong to one screen rather than to every screen that opens the dashboard. A phone should not hold a wake lock or show the wall tablet's sleep screen, and a tablet across the room may want a larger scale.
+
+The This screen sheet keeps these per browser, in local storage:
+
+- Device name, which [alerts](alerts.md#home-assistant-events) use to target a screen.
+- Keep screen awake.
+- Sleep screen turns on, including Off.
+- Interface scale, and the scale at 900 px and narrower.
+- Language, reduce motion and touch feedback.
+- Log out, which clears the Home Assistant session in this browser.
+
+Each row starts at Same as dashboard and follows the shared value from `hearth.yaml` or `configuration.yaml` until you pick another one. A shared row that this screen overrides says so in the Settings sheet. A scale picked here also applies at 900 px and narrower unless that row has a value of its own. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
+
+Open the sheet with the button next to Edit Hearth configuration. It does not need edit mode. With `?menu=false` both buttons are hidden; press and hold the bottom-left corner of the screen for 2 seconds instead. The corner keeps working with the buttons shown.
+
+## Edit lock
+
+A wall tablet takes stray taps. Settings > Wall display > Edit lock makes the edit button harder to hit by accident:
+
+| `edit_lock` | Effect                                                |
+| ----------- | ----------------------------------------------------- |
+| unset       | A tap opens edit mode.                                |
+| `hold`      | The button has to be held for 2 seconds.              |
+| `pin`       | The button asks for `edit_pin`, 4 to 8 digits, first. |
+
+```yaml
+edit_lock: pin
+edit_pin: '0815'
+```
+
+Quote the PIN in YAML, or a leading zero is lost. A `pin` lock without a valid `edit_pin` asks for a hold instead.
+
+This protects against accidents, not people. The PIN is sent to every browser with the rest of the dashboard, and anyone who can reach Hearth can still change `hearth.yaml`. See the security note in the README.
+
 ## Sleep screen
 
-Settings > Sleep screen turns it on after a set number of minutes and sets its background. It does not come on in edit mode; the minutes count again from when editing ends. The weather radar background loads radar images from RainViewer and map tiles from OpenStreetMap in the browser, so the screen needs internet access for it. Set Map tiles to use another tile server.
+Settings > Wall display > Sleep screen turns it on after a set number of minutes and sets its background. A screen can turn it off, or use another delay, under This screen. It does not come on in edit mode; the minutes count again from when editing ends. The weather radar background loads radar images from RainViewer and map tiles from OpenStreetMap in the browser, so the screen needs internet access for it. Set Map tiles to use another tile server.
 
 ## Phone page strip
 
-On phones, and on any screen with the sidebar set to None, page buttons run along the top of the page. Settings > Display > Clock in the phone page strip adds the time and a short date at the start of that strip, for small screens that have no room for a clock widget. In YAML it is `phone_clock: true`. It uses the time zone and hour format of the first clock widget in the sidebar, or the browser's when there is none.
+On phones, and on any screen with the sidebar set to None, page buttons run along the top of the page. Settings > Layout and navigation > Clock in the phone page strip adds the time and a short date at the start of that strip, for small screens that have no room for a clock widget. In YAML it is `phone_clock: true`. It uses the time zone and hour format of the first clock widget in the sidebar, or the browser's when there is none.
 
 ## Interface scale and padding
 
-Settings > Display sets the interface scale (`scale` in `hearth.yaml`, 50 to 200 percent) and the side and top/bottom padding (`padding_x`, `padding_y`). The mobile rows (`mobile_scale`, `mobile_padding_x`, `mobile_padding_y`) apply at 900 px wide and below. While a mobile value is unset, phones use the main one.
+Settings > Size and spacing sets the interface scale (`scale` in `hearth.yaml`, 50 to 200 percent) and the side and top/bottom padding (`padding_x`, `padding_y`). The rows under Screens 900 px and narrower (`mobile_scale`, `mobile_padding_x`, `mobile_padding_y`) apply at 900 px wide and below. While one of them is unset, those screens use the main value. A screen can override both scales under This screen.
 
 The scale is a CSS `zoom` on the page and needs Chromium 128 or Firefox 126. Older browsers stay at 100%, and Settings says so. Layout breakpoints follow the physical screen, not the scaled one, so a large scale on a narrow tablet keeps the wide layout in less room.
 
 ## Custom CSS and JavaScript
 
-Edit custom CSS under Settings > Application settings > Custom CSS. Style against the `--h-*` tokens, not internal class names, which can change between releases.
+Edit custom CSS under Settings > Appearance > Custom CSS. Save writes the file at once and returns to Settings. Style against the `--h-*` tokens, not internal class names, which can change between releases.
 
-For custom JavaScript, edit `custom_javascript.js` in the data directory and turn on Custom JavaScript in Application settings. It runs on every page load.
+For custom JavaScript, edit `custom_javascript.js` in the data directory and turn on Custom JavaScript in Server settings. It runs on every page load.
 
 ## Touch feedback
 

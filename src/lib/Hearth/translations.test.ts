@@ -32,7 +32,7 @@ const DYNAMIC_NAMES = new Set(
 const KEY_NAME = /(?<![\w/])hearth_[a-z0-9_]+/g;
 
 // words that are written in capitals in running text too
-const CAPS_ALLOWED = new Set(['CSS', 'HTTP', 'HTTPS', 'IANA', 'OLED', 'URI', 'URL', 'YAML']);
+const CAPS_ALLOWED = new Set(['CSS', 'HTTP', 'HTTPS', 'IANA', 'OLED', 'PIN', 'URI', 'URL', 'YAML']);
 
 function sources(dir: string): string[] {
 	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

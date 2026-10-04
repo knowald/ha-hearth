@@ -112,8 +112,8 @@ test('pages, stacks and the settings sheets open and close', async ({ page }) =>
 	}
 
 	await page.getByRole('button', { name: 'Settings' }).click();
-	await page.getByRole('button', { name: /Application settings/ }).click();
-	const appSheet = page.getByRole('dialog', { name: 'Application settings' });
+	await page.getByRole('button', { name: /Server settings/ }).click();
+	const appSheet = page.getByRole('dialog', { name: 'Server settings' });
 	await expect(appSheet).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(appSheet).toBeHidden();

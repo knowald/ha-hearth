@@ -3,6 +3,7 @@ import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
+import { GLASS_THEME, THEME_DEFAULTS } from '$lib/core/theme';
 import en from '../../../../static/translations/en.json';
 import {
 	confirmRequestedAction,
@@ -117,5 +118,52 @@ describe('ThemeEditSheet saved themes', () => {
 		await waitFor(() =>
 			expect(screen.getByRole('alert').textContent).toContain(en.hearth_theme_delete_failed)
 		);
+	});
+});
+
+describe('ThemeEditSheet fonts and background shade', () => {
+	beforeEach(() => {
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+		editor.set({ kind: 'theme' });
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		editor.set(null);
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+	});
+
+	it('labels the night slot with its own copy', () => {
+		render(ThemeEditSheet);
+		expect(screen.getByRole('button', { name: new RegExp(en.hearth_theme_night) })).toBeTruthy();
+	});
+
+	it('offers the shade only over a background image', async () => {
+		render(ThemeEditSheet);
+		expect(screen.queryByLabelText(en.hearth_background_scrim)).toBeNull();
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			theme: { background_image: 'url(/room.jpg)' }
+		});
+		const shade = (await screen.findByLabelText(en.hearth_background_scrim)) as HTMLSelectElement;
+		expect(shade.value).toBe('none');
+		await fireEvent.change(shade, { target: { value: GLASS_THEME.background_scrim } });
+		expect(get(hearthConfig).theme?.background_scrim).toBe(GLASS_THEME.background_scrim);
+	});
+
+	it('sets the fonts and shows a stack from YAML by its first family', async () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			theme: { font_ui: "'Inter Variable', system-ui" }
+		});
+		render(ThemeEditSheet);
+		const text = screen.getByLabelText(en.hearth_font) as HTMLSelectElement;
+		expect(text.selectedOptions[0].textContent).toBe('Custom (Inter Variable)');
+		await fireEvent.change(screen.getByLabelText(en.hearth_label_font), {
+			target: { value: 'var(--h-font-ui)' }
+		});
+		expect(get(hearthConfig).theme?.font_mono).toBe('var(--h-font-ui)');
+		expect(THEME_DEFAULTS.font_ui).toContain('Hanken');
 	});
 });

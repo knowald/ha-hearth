@@ -212,7 +212,7 @@ const SCENES: Scene[] = [
 			'app-settings',
 			async (page: Page) => {
 				await page.locator('.edit-bar').getByRole('button', { name: 'Settings' }).click();
-				await page.getByRole('button', { name: /Application settings/ }).click();
+				await page.getByRole('button', { name: /Server settings/ }).click();
 			}
 		],
 		[

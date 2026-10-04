@@ -91,7 +91,7 @@ In the Home Assistant companion app, sign in with a long-lived access token inst
 
 ## Security
 
-Hearth has no user accounts of its own. Anyone who can reach it can change the dashboard and its settings. If you enter a long-lived access token in Application settings, Hearth stores it in `configuration.yaml` and sends it to every browser that opens Hearth. Run Hearth on a trusted network or behind an authenticated reverse proxy, and keep the data directory private.
+Hearth has no user accounts of its own. Anyone who can reach it can change the dashboard and its settings. If you enter a long-lived access token in Server settings, Hearth stores it in `configuration.yaml` and sends it to every browser that opens Hearth. Run Hearth on a trusted network or behind an authenticated reverse proxy, and keep the data directory private.
 
 ## Documentation
 

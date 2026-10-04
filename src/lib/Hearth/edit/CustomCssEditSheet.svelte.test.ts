@@ -22,7 +22,7 @@ describe('CustomCssEditSheet', () => {
 		editor.set(null);
 	});
 
-	it('applies the saved stylesheet in place, keeping the page and its draft', async () => {
+	it('applies the saved stylesheet in place and returns to Settings', async () => {
 		const fetchMock = stubServer();
 		editor.set({ kind: 'customCss' });
 		const { container } = render(CustomCssEditSheet);
@@ -35,7 +35,8 @@ describe('CustomCssEditSheet', () => {
 			'/_api/custom_css',
 			expect.objectContaining({ method: 'POST' })
 		);
-		expect(get(editor)).toBeNull();
+		// back to Settings, where Custom CSS was opened from
+		expect(get(editor)).toEqual({ kind: 'settings' });
 	});
 
 	it('saves on cmd+s inside the editor', async () => {

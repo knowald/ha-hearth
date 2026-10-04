@@ -242,6 +242,15 @@ export const RootSettingsSchema = v.looseObject({
 	),
 	screensaver_weather_entity: OptionalEntityId,
 	keep_screen_on: OptionalFlag,
+	edit_lock: v.optional(v.picklist(['hold', 'pin'], 'must be hold or pin')),
+	// YAML reads an unquoted 1234 as a number; the digits are what count
+	edit_pin: v.optional(
+		v.pipe(
+			v.union([v.string(), v.number()], 'must be 4 to 8 digits'),
+			v.transform((value) => String(value)),
+			v.regex(/^\d{4,8}$/, 'must be 4 to 8 digits')
+		)
+	),
 	scroll_edge_blur: OptionalFlag,
 	swipe_navigation_mobile: OptionalFlag,
 	swipe_navigation_desktop: OptionalFlag,

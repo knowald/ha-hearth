@@ -6,6 +6,9 @@ import type { HassConfig } from 'home-assistant-js-websocket';
 import { config as haConfig } from '$lib/core/ha/connection';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
 import { editor, hearthConfig, screensaverPreview, setupWizardOpen } from '../store';
+import { screenOverrides } from '$lib/core/app/screen';
+import { fill } from '$lib/core/i18n';
+import { screenSheetOpen } from '../screen';
 import SettingsEditSheet from './SettingsEditSheet.svelte';
 
 const zoom = vi.hoisted(() => ({ zoomSupported: false }));
@@ -17,7 +20,94 @@ describe('SettingsEditSheet', () => {
 		setupWizardOpen.set(false);
 		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
 		screensaverPreview.set(false);
+		screenSheetOpen.set(false);
+		screenOverrides.set({});
 		zoom.zoomSupported = false;
+	});
+
+	it('groups the rows into sections that say where each one is kept', () => {
+		const { container } = render(SettingsEditSheet);
+		const titles = [...container.querySelectorAll('.section-title')].map(
+			(node) => node.textContent
+		);
+		expect(titles).toEqual([
+			en.hearth_this_screen,
+			en.hearth_appearance,
+			en.hearth_layout_and_navigation,
+			en.hearth_size_and_spacing,
+			en.hearth_wall_display,
+			en.hearth_alerts,
+			en.hearth_pages,
+			en.hearth_server,
+			en.hearth_maintenance
+		]);
+		const scopes = [...container.querySelectorAll('.section-scope')].map(
+			(node) => node.textContent
+		);
+		expect(scopes[0]).toBe(en.hearth_scope_this_browser);
+		expect(scopes.filter((scope) => scope === en.hearth_scope_dashboard)).toHaveLength(6);
+		expect(scopes).toContain(en.hearth_scope_saved_now);
+		expect(screen.getByText(en.hearth_settings_note)).toBeTruthy();
+		const groups = [...container.querySelectorAll('.group-title')].map((node) => node.textContent);
+		expect(groups).toEqual([en.hearth_screens_900_px_and_narrower, en.hearth_sleep_screen]);
+	});
+
+	it.each([
+		[en.theme, { kind: 'theme' }],
+		[en.hearth_custom_css, { kind: 'customCss' }],
+		[en.hearth_server_settings, { kind: 'appSettings' }]
+	])('opens %s from its section', async (label, kind) => {
+		render(SettingsEditSheet);
+		await fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${label}`) }));
+		expect(get(editor)).toEqual(kind);
+	});
+
+	it('opens This screen over the sheet', async () => {
+		render(SettingsEditSheet);
+		await fireEvent.click(
+			screen.getByRole('button', { name: new RegExp(en.hearth_this_screen_sub) })
+		);
+		expect(get(screenSheetOpen)).toBe(true);
+	});
+
+	it('keeps a sleep delay and brightness from YAML that no preset matches', () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			screensaver_minutes: 7,
+			screensaver_brightness: 40
+		});
+		render(SettingsEditSheet);
+		const delay = screen.getByLabelText(en.hearth_sleep_turn_on_after) as HTMLSelectElement;
+		expect(delay.value).toBe('7');
+		expect(delay.selectedOptions[0].textContent).toBe(fill(en.hearth_custom_value, { value: '7' }));
+		const brightness = screen.getByLabelText(en.hearth_screensaver_brightness) as HTMLSelectElement;
+		expect(brightness.value).toBe('40');
+	});
+
+	it('says when this screen overrides a shared row', () => {
+		screenOverrides.set({ keep_screen_on: false });
+		render(SettingsEditSheet);
+		expect(screen.getByText(en.hearth_this_screen_uses_its_own)).toBeTruthy();
+	});
+
+	it('sets an edit lock and only keeps a PIN of 4 to 8 digits', async () => {
+		render(SettingsEditSheet);
+		await fireEvent.change(screen.getByLabelText(en.hearth_edit_lock), {
+			target: { value: 'pin' }
+		});
+		expect(get(hearthConfig).edit_lock).toBe('pin');
+		expect(screen.getByText(en.hearth_edit_pin_invalid)).toBeTruthy();
+		const pin = screen.getByLabelText(en.hearth_edit_pin);
+		await fireEvent.change(pin, { target: { value: '12' } });
+		expect(get(hearthConfig).edit_pin).toBeUndefined();
+		await fireEvent.change(pin, { target: { value: '0042' } });
+		expect(get(hearthConfig).edit_pin).toBe('0042');
+		expect(screen.getByText(en.hearth_edit_pin_sub)).toBeTruthy();
+
+		await fireEvent.change(screen.getByLabelText(en.hearth_edit_lock), {
+			target: { value: 'off' }
+		});
+		expect(get(hearthConfig)).toMatchObject({ edit_lock: undefined, edit_pin: undefined });
 	});
 
 	it('lists the alert rules and opens one, or a new one, in the alert editor', async () => {

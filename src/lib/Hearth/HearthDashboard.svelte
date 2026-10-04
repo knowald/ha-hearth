@@ -30,7 +30,6 @@
 	import Rail from './Rail.svelte';
 	import RoomDetail from './RoomDetail.svelte';
 	import SearchOverlay from './SearchOverlay.svelte';
-	import SetupWizard from './SetupWizard.svelte';
 	import ConfirmDialog from './shell/ConfirmDialog.svelte';
 	import EditBar from './shell/EditBar.svelte';
 	import Keyboard from './shell/Keyboard.svelte';
@@ -40,6 +39,7 @@
 	import NavWidget from './widgets/nav/Widget.svelte';
 	import type { NavWidget as NavWidgetConfig } from './widgets/nav/descriptor';
 	import { wakeLock } from './wakeLock';
+	import { screenSettings, screenSheetOpen, startCornerHold } from './screen';
 	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
 	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
 	import { mediaQuery } from '$lib/ui/mediaQuery';
@@ -54,6 +54,14 @@
 		return import('./Screensaver.svelte').catch((error) => {
 			console.warn('screensaver unavailable', error);
 			screensaverPreview.set(false);
+			throw error;
+		});
+	}
+
+	function loadSetupWizard() {
+		return import('./SetupWizard.svelte').catch((error) => {
+			console.warn('setup unavailable', error);
+			setupWizardOpen.set(false);
 			throw error;
 		});
 	}
@@ -245,6 +253,10 @@
 
 		hideEditToggle = params.get('menu') === 'false';
 		roomParamRead = true;
+
+		return startCornerHold(() => {
+			if (!$hearthEditMode) screenSheetOpen.set(true);
+		});
 	});
 
 	// see AlertHost in alertEngine.ts for why these are handed over
@@ -310,7 +322,7 @@
 	</div>
 {/snippet}
 
-<section class="frame" use:wakeLock={$hearthConfig.keep_screen_on ?? true}>
+<section class="frame" use:wakeLock={$screenSettings.keepScreenOn}>
 	<div
 		class="layout"
 		class:editing={$hearthEditMode}
@@ -348,32 +360,44 @@
 		<ScrollEdge edge="bottom" size={96} active={layoutCut.bottom} />
 	{/if}
 	<ControlPopup />
-	{#if $hearthEditMode}
-		<!-- the edit sheets and their editors load with edit mode, not the dashboard -->
+	{#if $hearthEditMode || $screenSheetOpen}
+		<!-- the edit sheets and their editors load with edit mode or the This
+		     screen sheet, not the dashboard; one boundary for both keeps the
+		     shared sheet code out of the eager chunks -->
 		{#await import('./edit/EditorHost.svelte') then EditorHost}
 			<EditorHost.default />
 		{:catch}
-			<div class="edit-load-error" role="alert">
-				{$lang('hearth_could_not_load_component')}
-				<button type="button" onclick={() => hearthEditMode.set(false)}>
-					{$lang('hearth_exit_edit_mode')}
-				</button>
-			</div>
+			{#if $hearthEditMode}
+				<div class="edit-load-error" role="alert">
+					{$lang('hearth_could_not_load_component')}
+					<button type="button" onclick={() => hearthEditMode.set(false)}>
+						{$lang('hearth_exit_edit_mode')}
+					</button>
+				</div>
+			{/if}
 		{/await}
 	{/if}
 	{#if showSearch}
 		<SearchOverlay onclose={() => (showSearch = false)} />
 	{/if}
-	{#if ($hearthConfig.screensaver_minutes ?? 0) > 0 || $screensaverPreview}
+	{#if $screenSettings.sleepMinutes > 0 || $screensaverPreview}
 		<!-- loads once armed; the dashboard never waits on it -->
 		{#await loadScreensaver() then Screensaver}
-			<Screensaver.default minutes={$hearthConfig.screensaver_minutes} />
+			<Screensaver.default minutes={$screenSettings.sleepMinutes || undefined} />
 		{:catch}
 			<!-- offline or a stale deploy: no screensaver, tried again on the next mount -->
 		{/await}
 	{/if}
 	{#if $setupWizardOpen}
-		<SetupWizard firstRun={$hearthNeedsSetup} onclose={() => setupWizardOpen.set(false)} />
+		<!-- discovery runs once per home, so it stays out of the eager bundle -->
+		{#await loadSetupWizard() then SetupWizard}
+			<SetupWizard.default
+				firstRun={$hearthNeedsSetup}
+				onclose={() => setupWizardOpen.set(false)}
+			/>
+		{:catch}
+			<!-- offline or a stale deploy: closed, so the next open tries again -->
+		{/await}
 	{/if}
 	<!-- alerts are not needed to draw the first frame; the layer loads after it -->
 	{#await import('./AlertLayer.svelte') then AlertLayer}

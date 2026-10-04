@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { load } from 'js-yaml';
 import {
 	DEFAULT_HEARTH_CONFIG,
+	editLockOf,
 	findOverviewCard,
 	findOverviewItemList,
 	isStack,
@@ -810,5 +811,36 @@ describe('interface scale', () => {
 		expect(hearthConfigIssues({ rail: [], rooms: [], mobile_scale: 20 })).toContain(
 			'mobile_scale must be 50 to 200'
 		);
+	});
+});
+
+describe('edit lock', () => {
+	it('keeps a PIN that YAML read as a number, and drops anything else', () => {
+		const normalize = (raw: Record<string, unknown>) =>
+			normalizeHearthConfig({ rail: [], rooms: [], ...raw });
+		expect(normalize({ edit_lock: 'pin', edit_pin: 4821 })).toMatchObject({
+			edit_lock: 'pin',
+			edit_pin: '4821'
+		});
+		expect(normalize({ edit_pin: '0042' }).edit_pin).toBe('0042');
+		expect(normalize({ edit_pin: '12' }).edit_pin).toBeUndefined();
+		expect(normalize({ edit_pin: 12.5 }).edit_pin).toBeUndefined();
+		expect(normalize({ edit_lock: 'face' }).edit_lock).toBeUndefined();
+	});
+
+	it('reports a lock or PIN it cannot use', () => {
+		const issues = hearthConfigIssues({ rail: [], rooms: [], edit_lock: 'face', edit_pin: 'abcd' });
+		expect(issues).toContain('edit_lock must be hold or pin');
+		expect(issues).toContain('edit_pin must be 4 to 8 digits');
+		expect(hearthConfigIssues({ rail: [], rooms: [], edit_lock: 'pin', edit_pin: 1234 })).toEqual(
+			[]
+		);
+	});
+
+	it('asks for a hold while a PIN lock has no PIN', () => {
+		expect(editLockOf({})).toBe('off');
+		expect(editLockOf({ edit_lock: 'hold' })).toBe('hold');
+		expect(editLockOf({ edit_lock: 'pin' })).toBe('hold');
+		expect(editLockOf({ edit_lock: 'pin', edit_pin: '1234' })).toBe('pin');
 	});
 });

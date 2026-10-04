@@ -6,9 +6,7 @@
 	import '@material-symbols/font-400/rounded.css';
 	import { onDestroy } from 'svelte';
 	import { configuration } from '$lib/core/app/configuration';
-	import { disposeHaptics, haptics, startPressFeedback } from '$lib/core/app/haptics';
-	import { motion, motionLevel } from '$lib/core/app/motion';
-	import { mediaQuery } from '$lib/ui/mediaQuery';
+	import { disposeHaptics, startPressFeedback } from '$lib/core/app/haptics';
 	import {
 		connected,
 		connectionError,
@@ -24,6 +22,7 @@
 	import TokenPrompt from '$lib/Hearth/TokenPrompt.svelte';
 	import ThemeStyle from '$lib/Hearth/shell/ThemeStyle.svelte';
 	import { normalizeHearthConfig } from '$lib/Hearth/normalize';
+	import { startScreenSettings } from '$lib/Hearth/screen';
 	import {
 		configurationLoadError,
 		hearthConfig,
@@ -79,17 +78,9 @@
 	$selectedLanguage = data?.configuration?.locale || 'en';
 	if (browser) document.documentElement.lang = $selectedLanguage;
 
-	// set before the first render, then again whenever the configuration or
-	// the OS reduced-motion setting changes
-	const prefersReducedMotion = mediaQuery('(prefers-reduced-motion: reduce)');
-	// svelte-ignore state_referenced_locally
-	motion.set(motionLevel(data?.configuration?.motion, get(prefersReducedMotion)));
-	$effect(() => {
-		motion.set(motionLevel($configuration?.motion, $prefersReducedMotion));
-	});
-
-	// svelte-ignore state_referenced_locally
-	haptics.set(data?.configuration?.haptics === true);
+	// language, motion and touch feedback, with this screen's own choices
+	// laid over configuration.yaml (see screen.ts)
+	const stopScreenSettings = browser ? startScreenSettings($selectedLanguage) : undefined;
 	const stopPressFeedback = browser ? startPressFeedback() : undefined;
 
 	if (browser) startConnection($configuration);
@@ -103,6 +94,7 @@
 	setCommandGate(() => !get(hearthEditMode));
 	onDestroy(() => {
 		stopConnection();
+		stopScreenSettings?.();
 		stopPressFeedback?.();
 		disposeHaptics();
 		setCommandGate(() => true);

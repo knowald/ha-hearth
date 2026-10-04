@@ -49,7 +49,8 @@ describe('HearthDashboard first run', () => {
 		hearthNeedsSetup.set(true);
 		render(HearthDashboard);
 		expect(get(setupWizardOpen)).toBe(true);
-		await fireEvent.click(screen.getByRole('button', { name: en.hearth_skip_for_now }));
+		// the wizard loads on demand
+		await fireEvent.click(await screen.findByRole('button', { name: en.hearth_skip_for_now }));
 		expect(get(setupWizardOpen)).toBe(false);
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_setup }));
 		expect(get(setupWizardOpen)).toBe(true);

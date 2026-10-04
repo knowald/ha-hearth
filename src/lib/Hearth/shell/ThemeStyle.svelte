@@ -13,6 +13,7 @@
 	import { FOLD_QUERY } from '../breakpoints';
 	import { editedThemeSlot, editor, hearthConfig, hearthEditMode } from '../store';
 	import { resolveBackgroundImage } from '../images';
+	import { screenSettings } from '../screen';
 	import { zoomSupported } from '../zoom';
 
 	/** A display-only preset from ?theme=, replacing the stored theme without touching the config. */
@@ -98,7 +99,8 @@
 
 	// media queries see the physical viewport, so the zoom does not move the fold
 	let mobileCss = $derived.by(() => {
-		const { mobile_padding_x: x, mobile_padding_y: y, mobile_scale: scale } = $hearthConfig;
+		const { mobile_padding_x: x, mobile_padding_y: y } = $hearthConfig;
+		const scale = $screenSettings.mobileScale;
 		const declarations =
 			(x === undefined ? '' : `--h-pad-x: ${Math.max(0, x)}px; `) +
 			(y === undefined ? '' : `--h-pad-y: ${Math.max(0, y)}px; `) +
@@ -112,7 +114,7 @@
 		`:root { ${STRUCTURE_CSS} ${themeStyle(THEME_DEFAULTS)} ${themeStyle(activeTheme)}  ` +
 			`--h-pad-x: ${Math.max(0, $hearthConfig.padding_x ?? 0)}px; ` +
 			`--h-pad-y: ${Math.max(0, $hearthConfig.padding_y ?? 0)}px; ` +
-			`--h-zoom: ${zoomSupported ? ($hearthConfig.scale ?? 100) / 100 : 1}; zoom: var(--h-zoom); ${VIEWPORT_CSS} } ` +
+			`--h-zoom: ${zoomSupported ? $screenSettings.scale / 100 : 1}; zoom: var(--h-zoom); ${VIEWPORT_CSS} } ` +
 			`${VIEWPORT_DYNAMIC_CSS} ${DRAG_GHOST_CSS} ${mobileCss} ${reducedMotionCss}`
 	);
 </script>

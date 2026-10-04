@@ -1,4 +1,5 @@
 import type {
+	EditLock,
 	HearthConfig,
 	HearthRoom,
 	MobileSlot,
@@ -112,6 +113,12 @@ export function foldedTopCount(
 
 export function railPositionOf(config: Pick<HearthConfig, 'rail_position'>): RailPosition {
 	return config.rail_position ?? 'left';
+}
+
+/** The lock the edit toggle applies; a PIN lock with no valid PIN still asks for a hold. */
+export function editLockOf(config: Pick<HearthConfig, 'edit_lock' | 'edit_pin'>): EditLock | 'off' {
+	if (config.edit_lock === 'pin') return config.edit_pin ? 'pin' : 'hold';
+	return config.edit_lock ?? 'off';
 }
 
 export function railSideOf(widget: RailWidget): RailSide {

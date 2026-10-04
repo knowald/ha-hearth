@@ -2,28 +2,24 @@
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import { configuration } from '$lib/core/app/configuration';
-	import { deviceName, saveDeviceName } from '$lib/core/app/device';
-	import { haptics, hapticsSupported, sampleVibration, vibrate } from '$lib/core/app/haptics';
-	import { motion } from '$lib/core/app/motion';
-	import { MOTION } from '$lib/core/theme';
-	import { lang, selectedLanguage, translation } from '$lib/core/i18n';
-	import { editor, hasUnsavedEdits, reloadDiscardingEdits, requestConfirmation } from '../store';
-	import { confirmDiscard } from './discard';
+	import { hapticsSupported, sampleVibration, vibrate } from '$lib/core/app/haptics';
+	import { lang } from '$lib/core/i18n';
+	import { editor, requestConfirmation } from '../store';
+	import { prefersReducedMotion } from '../screen';
 	import EditSheet from './EditSheet.svelte';
 	import SelectField from './SelectField.svelte';
 	import SettingsRow from './SettingsRow.svelte';
 	import Switch from '../Switch.svelte';
 
 	let languages = $state<{ value: string; label: string }[]>([]);
-	let locale = $state($selectedLanguage || 'en');
-	let reduceMotion = $state($motion === 0);
-	let touchFeedback = $state($haptics);
+	// the shared values, not what this screen runs with: a screen's own
+	// choices live under This screen
+	let locale = $state($configuration?.locale || 'en');
+	let reduceMotion = $state(!($configuration?.motion ?? !$prefersReducedMotion));
+	let touchFeedback = $state($configuration?.haptics === true);
 	let feedbackSupported = $state(true);
 	let token = $state($configuration?.token ?? '');
 	let customJs = $state($configuration?.custom_js ?? false);
-	// may come from a ?device= override, which is not this browser's to keep
-	const shownDevice = $deviceName;
-	let device = $state(shownDevice);
 	let installedVersion = $state<string>();
 	let saveError = $state<string | null>(null);
 	// the revision the server holds after another session saved first
@@ -31,7 +27,7 @@
 	let saving = $state(false);
 
 	function staged() {
-		return { locale, reduceMotion, touchFeedback, token, customJs, device };
+		return { locale, reduceMotion, touchFeedback, token, customJs };
 	}
 
 	let touchFeedbackSub = $derived(
@@ -103,20 +99,9 @@
 				return;
 			}
 
+			// language, motion and feedback follow through screen.ts
 			$configuration = { ...next, revision: (await response.json()).revision };
-			$selectedLanguage = locale;
-			$motion = reduceMotion ? 0 : MOTION.base;
-			$haptics = touchFeedback;
-			if (device !== shownDevice) saveDeviceName(device);
 			vibrate('success');
-			document.documentElement.lang = locale || 'en';
-
-			const translationResponse = await fetch(`${base}/_api/get_translation`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ locale })
-			});
-			if (translationResponse.ok) $translation = await translationResponse.json();
 			editor.set(null);
 		} catch (error) {
 			console.error(error);
@@ -140,25 +125,10 @@
 			action: () => void done(revision)
 		});
 	}
-
-	function handleLogout() {
-		requestConfirmation({
-			title: $lang('hearth_logout_confirm'),
-			message: $lang(
-				hasUnsavedEdits() ? 'hearth_logout_confirm_edits_message' : 'hearth_logout_confirm_message'
-			),
-			confirmLabel: $lang('log_out'),
-			action: () => {
-				localStorage.removeItem('hearthTokens');
-				// the dialog already said what goes with the session
-				reloadDiscardingEdits();
-			}
-		});
-	}
 </script>
 
 <EditSheet
-	title={$lang('hearth_application_settings')}
+	title={$lang('hearth_server_settings')}
 	onclose={() => editor.set(null)}
 	onback={() => editor.set({ kind: 'settings' })}
 	{dirty}
@@ -167,11 +137,16 @@
 	doneDisabled={saving}
 >
 	<div class="settings">
-		<div class="section-note">{$lang('hearth_changes_are_staged_until_you_choose')}</div>
+		<div class="section-note">{$lang('hearth_server_settings_note')}</div>
 		<div class="rows">
 			{#if languages.length}
-				<SettingsRow label={$lang('language')}>
-					<SelectField inline label={$lang('language')} bind:value={locale} options={languages} />
+				<SettingsRow label={$lang('hearth_default_language')}>
+					<SelectField
+						inline
+						label={$lang('hearth_default_language')}
+						bind:value={locale}
+						options={languages}
+					/>
 				</SettingsRow>
 			{/if}
 			<SettingsRow label={$lang('hearth_reduce_motion')}>
@@ -204,17 +179,6 @@
 					onblur={handleKeyFocus}
 				/>
 			</SettingsRow>
-			<SettingsRow label={$lang('hearth_device_name')} sub={$lang('hearth_device_name_sub')}>
-				<input
-					class="inline-text"
-					type="text"
-					aria-label={$lang('hearth_device_name')}
-					bind:value={device}
-					placeholder="kitchen"
-					autocomplete="off"
-					spellcheck="false"
-				/>
-			</SettingsRow>
 			<SettingsRow label={$lang('hearth_custom_js')} sub={$lang('hearth_custom_js_sub')}>
 				<Switch
 					checked={customJs}
@@ -245,23 +209,6 @@
 				{/if}
 			</div>
 		{/if}
-
-		<div class="rows">
-			<SettingsRow
-				icon="css"
-				label={$lang('hearth_custom_css')}
-				sub={$lang('hearth_custom_css_sub')}
-				onclick={() => confirmDiscard(dirty, () => editor.set({ kind: 'customCss' }))}
-			/>
-			<SettingsRow
-				icon="logout"
-				label={$lang('log_out')}
-				sub={$lang('hearth_clears_the_home_assistant_session')}
-				danger
-				chevron={false}
-				onclick={handleLogout}
-			/>
-		</div>
 	</div>
 </EditSheet>
 

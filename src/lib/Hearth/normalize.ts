@@ -313,6 +313,12 @@ function normalizeScale(raw: unknown): number | undefined {
 	return Math.min(200, Math.max(50, Math.round(raw)));
 }
 
+// an unquoted PIN arrives from YAML as a number, which keeps no leading zero
+function normalizePin(raw: unknown): string | undefined {
+	const pin = typeof raw === 'number' && Number.isInteger(raw) ? String(raw) : raw;
+	return typeof pin === 'string' && /^\d{4,8}$/.test(pin.trim()) ? pin.trim() : undefined;
+}
+
 /**
  * Normalizes a current Hearth configuration or an incomplete editor draft.
  */
@@ -379,6 +385,8 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'screensaver_clock_size',
 		'screensaver_weather_entity',
 		'keep_screen_on',
+		'edit_lock',
+		'edit_pin',
 		'scroll_edge_blur',
 		'swipe_navigation_mobile',
 		'swipe_navigation_desktop',
@@ -422,6 +430,9 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 			: undefined,
 		screensaver_weather_entity: trimmedOrUndefined(config.screensaver_weather_entity),
 		keep_screen_on: typeof config.keep_screen_on === 'boolean' ? config.keep_screen_on : undefined,
+		edit_lock:
+			config.edit_lock === 'hold' || config.edit_lock === 'pin' ? config.edit_lock : undefined,
+		edit_pin: normalizePin(config.edit_pin),
 		scroll_edge_blur:
 			typeof config.scroll_edge_blur === 'boolean' ? config.scroll_edge_blur : undefined,
 		swipe_navigation_mobile: config.swipe_navigation_mobile === true ? true : undefined,

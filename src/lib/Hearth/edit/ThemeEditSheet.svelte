@@ -12,6 +12,7 @@
 		deriveCool,
 		deriveRadii,
 		deriveText,
+		GLASS_THEME,
 		isLightTheme,
 		RADIUS_SCALES,
 		SURFACE_BLUR_SCALES,
@@ -35,6 +36,7 @@
 	import ImageField from './ImageField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
+	import { withCurrent } from './options';
 	import Icon from '../Icon.svelte';
 
 	interface SavedTheme {
@@ -246,6 +248,43 @@
 		return (match ?? SURFACE_BLUR_SCALES[current === 'none' ? 0 : 2]).value;
 	});
 
+	// darkens a bright photo behind the panels; the medium step is the Glass preset's
+	const LIGHT_SCRIM = 'linear-gradient(180deg, rgba(10, 8, 6, 0.15), rgba(10, 8, 6, 0.35))'; // copy ok: css value
+	const STRONG_SCRIM = 'linear-gradient(180deg, rgba(10, 8, 6, 0.5), rgba(10, 8, 6, 0.8))'; // copy ok: css value
+	const BACKGROUND_SCRIMS = [
+		{ value: 'none', label: 'hearth_scrim_none' },
+		{ value: LIGHT_SCRIM, label: 'hearth_scrim_light' },
+		{ value: GLASS_THEME.background_scrim, label: 'hearth_scrim_medium' },
+		{ value: STRONG_SCRIM, label: 'hearth_scrim_strong' }
+	];
+	let scrim = $derived(knob('background_scrim'));
+
+	// the two bundled faces, plus ones every device already has
+	const SYSTEM_FONT = 'system-ui, sans-serif'; // copy ok: css value
+	const ROUNDED_FONT = "ui-rounded, 'SF Pro Rounded', system-ui, sans-serif"; // copy ok: css value
+	const SERIF_FONT = "ui-serif, Georgia, 'Times New Roman', serif"; // copy ok: css value
+	const SYSTEM_MONO_FONT = 'ui-monospace, Menlo, Consolas, monospace'; // copy ok: css value
+	const UI_FONTS = [
+		{ value: THEME_DEFAULTS.font_ui, label: 'hearth_font_default' },
+		{ value: SYSTEM_FONT, label: 'hearth_font_system' },
+		{ value: ROUNDED_FONT, label: 'hearth_font_rounded' },
+		{ value: SERIF_FONT, label: 'hearth_font_serif' },
+		{ value: THEME_DEFAULTS.font_mono, label: 'hearth_font_mono' }
+	];
+	const MONO_FONTS = [
+		{ value: THEME_DEFAULTS.font_mono, label: 'hearth_font_default' },
+		{ value: SYSTEM_MONO_FONT, label: 'hearth_font_system_mono' },
+		{ value: 'var(--h-font-ui)', label: 'hearth_font_same_as_text' }
+	];
+
+	// a font stack off the list shows by its first family
+	function familyName(stack: string) {
+		return stack
+			.split(',')[0]
+			.trim()
+			.replace(/^['"]|['"]$/g, '');
+	}
+
 	let textContrast = $derived(textContrastOf(theme));
 	let textFade = $derived(
 		TEXT_CONTRAST_SCALES.find((scale) => scale.value === textContrast)?.fade ?? 1
@@ -295,7 +334,7 @@
 			onkeydown={(event) => activateOnKeyboard(event, () => selectSlot('night'))}
 		>
 			<Icon name="dark_mode" size={ICON.control} />
-			<span>{$lang('alarm_modes_armed_night')}</span>
+			<span>{$lang('hearth_theme_night')}</span>
 			{#if !nightEnabled}<span class="slot-note">{$lang('hearth_off')}</span>{/if}
 		</div>
 	</div>
@@ -476,6 +515,44 @@
 		bind:value={backgroundImageUrl}
 		placeholder={$lang('hearth_example_background_image')}
 		onchange={applyBackgroundImage}
+	/>
+
+	{#if theme.background_image && theme.background_image !== 'none'}
+		<SelectField
+			label={$lang('hearth_background_scrim')}
+			value={scrim}
+			options={withCurrent(
+				BACKGROUND_SCRIMS.map(({ value, label }) => ({ value, label: $lang(label) })),
+				scrim,
+				$lang,
+				$lang('hearth_custom_scrim')
+			)}
+			onchange={(value) => patchTheme({ background_scrim: value })}
+		/>
+	{/if}
+
+	<SelectField
+		label={$lang('hearth_font')}
+		value={knob('font_ui')}
+		options={withCurrent(
+			UI_FONTS.map(({ value, label }) => ({ value, label: $lang(label) })),
+			knob('font_ui'),
+			$lang,
+			familyName(knob('font_ui'))
+		)}
+		onchange={(value) => patchTheme({ font_ui: value })}
+	/>
+
+	<SelectField
+		label={$lang('hearth_label_font')}
+		value={knob('font_mono')}
+		options={withCurrent(
+			MONO_FONTS.map(({ value, label }) => ({ value, label: $lang(label) })),
+			knob('font_mono'),
+			$lang,
+			familyName(knob('font_mono'))
+		)}
+		onchange={(value) => patchTheme({ font_mono: value })}
 	/>
 
 	<SelectField

@@ -29,8 +29,9 @@
 
 	let dirty = $derived(loaded && value !== saved);
 
+	// opened from the Appearance section of Settings, so back and Save return there
 	function back() {
-		editor.set({ kind: 'appSettings' });
+		editor.set({ kind: 'settings' });
 	}
 
 	async function save() {
@@ -49,7 +50,7 @@
 			}
 			// a reload would discard the dashboard draft the edit bar has not saved
 			customCss.set(value);
-			editor.set(null);
+			back();
 		} catch (failure) {
 			console.error(failure);
 			error = $lang('hearth_save_failed');
