@@ -46,10 +46,40 @@ describe('CardColumns spans', () => {
 		const below = slot(container, 'b').parentElement!;
 		expect(below.classList.contains('column')).toBe(true);
 		expect(below.style.getPropertyValue('--row')).toBe('3');
-		// folded, the card reads between a and b, where it is stored
-		expect(wide.style.getPropertyValue('--order')).toBe('1');
-		expect(below.style.getPropertyValue('--order')).toBe('2');
-		expect(slot(container, 'c').parentElement!.style.getPropertyValue('--order')).toBe('3');
+	});
+
+	it('keeps the cells in stored order, column by column, for focus and screen readers', () => {
+		const { container } = renderColumns([
+			[card('a'), card('wide', 'full'), card('b')],
+			[card('c')]
+		]);
+		const order = [...container.querySelectorAll<HTMLElement>('.card-slot')].map(
+			(element) => element.dataset.id
+		);
+		expect(order).toEqual(['a', 'wide', 'b', 'c']);
+	});
+
+	it('leaves a hidden spanning card out of the rows', () => {
+		const hidden = { ...card('wide', 'full'), visibility: [{ entity: 'input_boolean.off' }] };
+		const { container } = renderColumns([[card('a'), hidden, card('b')], [card('c')]]);
+		expect(container.querySelector('.span-cell')).toBeNull();
+		const overview = container.querySelector<HTMLElement>('.overview')!;
+		expect(overview.style.getPropertyValue('--span-rows')).toBe('auto');
+		expect(slot(container, 'b').parentElement).toBe(slot(container, 'a').parentElement);
+	});
+
+	it('gives only runs with something shown a share of a filled screen', () => {
+		const hidden = { ...card('top'), visibility: [{ entity: 'input_boolean.off' }] };
+		const { container } = render(CardColumns, {
+			columns: [[hidden, card('wide', 'full'), card('b')], []],
+			locate: () => [],
+			groupName: 'test-cards',
+			roomId: 'home',
+			clipToHeight: true
+		});
+		const overview = container.querySelector<HTMLElement>('.overview')!;
+		// the run above the span shows nothing, so only b's run shares the height
+		expect(overview.style.getPropertyValue('--span-rows')).toBe('auto minmax(0, 1fr)');
 	});
 
 	it('ignores spans on a single column', () => {

@@ -1,6 +1,8 @@
 import { act, render } from '@testing-library/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { motion } from '$lib/core/app/motion';
+import { states } from '$lib/core/ha/entities';
+import { hassEntity } from '$lib/core/ha/testing';
 import { BACKGROUND_SCRIMS, MOTION, THEME_DEFAULTS, THEME_PRESETS } from '$lib/core/theme';
 import type { HearthConfig } from '../types';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
@@ -213,5 +215,60 @@ describe('ThemeStyle schedule and page look', () => {
 		document.documentElement.classList.remove('theme-fade');
 		await view.rerender({ pageId: 'garden' });
 		expect(document.documentElement.classList.contains('theme-fade')).toBe(false);
+	});
+
+	it('does not fade when a page change leaves the tokens as they were', async () => {
+		withPages({});
+		const forest = { theme: presetTheme('forest') };
+		const view = render(ThemeStyle, { pageId: 'home', presetOverride: forest });
+		await view.rerender({ pageId: 'garden', presetOverride: forest });
+		expect(document.documentElement.classList.contains('theme-fade')).toBe(false);
+	});
+
+	it('leaves the rule alone when states or the config change without changing the theme', async () => {
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(new Date('2026-12-24T12:00:00Z'));
+		withPages({
+			theme_schedule: [
+				{ theme: 'holiday', when: [{ entity: 'input_boolean.party', state: 'on' }] },
+				{ theme: 'winter', from: '12-01', to: '02-28' }
+			]
+		});
+		states.set({ 'input_boolean.party': hassEntity('input_boolean.party', 'off') });
+		render(ThemeStyle, { pageId: 'garden' });
+		const setProperty = vi.spyOn(CSSStyleDeclaration.prototype, 'setProperty');
+		try {
+			await act(() =>
+				states.update((current) => ({
+					...current,
+					'light.desk': hassEntity('light.desk', 'on')
+				}))
+			);
+			await act(() => hearthConfig.update((config) => ({ ...config, padding_x: 4 })));
+			expect(setProperty).not.toHaveBeenCalled();
+
+			await act(() =>
+				states.update((current) => ({
+					...current,
+					'input_boolean.party': hassEntity('input_boolean.party', 'on')
+				}))
+			);
+			// the page theme still wins by day, so the holiday entry changes nothing either
+			expect(setProperty).not.toHaveBeenCalled();
+
+			await act(() =>
+				hearthConfig.update((config) => ({
+					...config,
+					rooms: config.rooms.map((room) => ({ ...room, theme: undefined }))
+				}))
+			);
+			expect(setProperty).toHaveBeenCalled();
+			expect(themeRule().getPropertyValue('--h-bg-1')).toBe(
+				presetTheme('holiday').background_outer
+			);
+		} finally {
+			setProperty.mockRestore();
+			states.set({} as never);
+		}
 	});
 });

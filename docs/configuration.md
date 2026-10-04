@@ -220,14 +220,14 @@ theme_schedule:
         state: 'on'
   - theme: winter
     from: '12-01'
-    to: '02-28'
+    to: '02-29'
   - theme: Moss
     night: void
     from: '09-23'
     to: '11-30'
 ```
 
-Days are read in the time zone the clocks show: the first clock widget's, or the browser's. The schedule is checked again every minute, so a new range starts at midnight. At night `theme_night` stays, unless the entry has a `night` of its own, in the same forms as `theme`. Without a `theme_night`, night wears the scheduled theme. A saved theme that cannot be found leaves the day theme in place. Token values are checked as in [Sharing cards and themes](#sharing-cards-and-themes) when you apply or save; when the file loads, a value that fails is skipped. Edit the schedule under Theme > Schedule. An entry with tokens written out shows as Tokens from YAML there and keeps them until you pick another theme. While the Theme sheet is open the dashboard shows the theme being edited, not the schedule.
+Days are read in the time zone the clocks show: the first clock widget's, or the browser's. The schedule is checked again every minute, so a new range starts at midnight. At night `theme_night` stays, unless the entry has a `night` of its own, in the same forms as `theme`. Without a `theme_night`, night wears the scheduled theme. A saved theme that cannot be found leaves the day theme in place. Each browser keeps the last list of saved themes it fetched, so a saved theme shows from the first frame on the next visit. Token values are checked as in [Sharing cards and themes](#sharing-cards-and-themes) when you apply or save; when the file loads, a value that fails is skipped. Edit the schedule under Theme > Schedule. An entry with tokens written out shows as Tokens from YAML there and keeps them until you pick another theme. While the Theme sheet is open the dashboard shows the theme being edited, not the schedule.
 
 ## Page look
 
@@ -265,7 +265,7 @@ cards:
       type: climate
 ```
 
-Here `lights` and `climate` share the first row, `energy` takes the whole second row, and `scenes` starts the third. When the page folds to one column, on phones and narrow screens, spans do nothing and every card reads in stored order, column by column. Edit mode also keeps a spanning card in its column, so it can be dragged like any other. Cards inside a stack do not span. Set it under Layout > Width in the card editor; the field shows on pages with more than one column.
+Here `lights` and `climate` share the first row, `energy` takes the whole second row, and `scenes` starts the third. A spanning card hidden by its visibility conditions cuts nothing: its column runs on as if it were not there. Keyboard focus and screen readers go through the cards in stored order, column by column, on every screen. When the page folds to one column, on phones and narrow screens, spans do nothing and the cards show in that order too. Edit mode keeps a spanning card in its column, so it can be dragged like any other; on a page with spans the cards are built again when edit mode starts and ends, so a card that keeps state of its own, such as a camera stream or an embedded page, reloads then. Cards inside a stack do not span. Set it under Layout > Width in the card editor; the field shows on pages with more than one column.
 
 ## Tap and hold actions
 

@@ -21,21 +21,59 @@ export interface SavedTheme {
 	theme: HearthTheme;
 }
 
-/** Saved themes, once something asked for them; see loadSavedThemes. */
-export const savedThemes = writable<SavedTheme[] | undefined>(undefined);
+// the last list fetched, so a page or schedule naming a saved theme wears it
+// from the first frame instead of after the fetch
+const CACHE_KEY = 'hearth-saved-themes';
+
+function cachedThemes(): SavedTheme[] | undefined {
+	try {
+		const cached = JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null');
+		return Array.isArray(cached) ? cached : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/** Saved themes: the cached list until a fetch brings the current one; see loadSavedThemes. */
+export const savedThemes = writable<SavedTheme[] | undefined>(cachedThemes());
+
+savedThemes.subscribe((themes) => {
+	if (!themes) return;
+	try {
+		localStorage.setItem(CACHE_KEY, JSON.stringify(themes));
+	} catch {
+		// private mode or full storage: the next load fetches again
+	}
+});
 
 let loading: Promise<void> | undefined;
+let fetched = false;
 
-/** Fetches the saved themes, joining a fetch already under way; a failure leaves the store as it was. */
+const RETRY_MS = 3000;
+
+async function fetchSavedThemes(): Promise<void> {
+	const response = await fetch(`${base}/_api/hearth_themes`);
+	if (!response.ok) throw new Error(`saved themes: ${response.status}`);
+	savedThemes.set(await response.json());
+	fetched = true;
+}
+
+/**
+ * Fetches the saved themes, joining a fetch already under way. A failed
+ * fetch is tried once more after a pause; after that the store keeps what it
+ * had, the cached list included.
+ */
 export function loadSavedThemes(): Promise<void> {
-	loading ??= fetch(`${base}/_api/hearth_themes`)
-		.then(async (response) => {
-			if (!response.ok) throw new Error(`saved themes: ${response.status}`);
-			savedThemes.set(await response.json());
-		})
+	loading ??= fetchSavedThemes()
+		.catch(() => new Promise((resolve) => setTimeout(resolve, RETRY_MS)).then(fetchSavedThemes))
 		.catch((error) => console.warn('saved themes unavailable', error))
 		.finally(() => (loading = undefined));
 	return loading;
+}
+
+/** Fetches the saved themes once per visit, for the dashboard; editors refresh with loadSavedThemes. */
+export function ensureSavedThemes(): void {
+	if (!fetched && !loading) void loadSavedThemes();
 }
 
 const dayFormats = new Map<string, Intl.DateTimeFormat>();
@@ -68,7 +106,17 @@ export function scheduledEntry(
 	day: string,
 	holds: (conditions: VisibilityCondition[]) => boolean
 ): ThemeScheduleEntry | undefined {
-	return schedule?.find(
+	const index = scheduledIndex(schedule, day, holds);
+	return index < 0 ? undefined : schedule![index];
+}
+
+/** The position of scheduledEntry's entry, -1 for none. */
+export function scheduledIndex(
+	schedule: ThemeScheduleEntry[] | undefined,
+	day: string,
+	holds: (conditions: VisibilityCondition[]) => boolean
+): number {
+	return (schedule ?? []).findIndex(
 		(entry) =>
 			(!entry.from || !entry.to || inDateRange(day, entry.from, entry.to)) &&
 			(!entry.when?.length || holds(entry.when))
@@ -111,55 +159,40 @@ export function needsSavedThemes(config: Pick<HearthConfig, 'theme_schedule' | '
 	);
 }
 
-export interface ThemeLook {
-	theme: HearthTheme | undefined;
-	/** Changes when the theme switches source, which is when the dashboard fades. */
-	key: string;
-}
-
 /**
- * The theme to wear. At night theme_night stays, unless the schedule entry
- * that holds brings a night of its own; a page theme is a day theme and
- * steps aside for it the same way. Without a theme_night, night wears the
- * day's choice. A page background goes over whichever theme that is, always
- * with a scrim.
+ * The theme to wear, with `entryIndex` the schedule entry that holds (see
+ * scheduledIndex). At night theme_night stays, unless that entry brings a
+ * night of its own; a page theme is a day theme and steps aside for it the
+ * same way. Without a theme_night, night wears the day's choice. A page
+ * background goes over whichever theme that is, always with a scrim.
  */
 export function activeLook(
 	config: HearthConfig,
 	{
 		night,
-		day,
+		entryIndex,
 		pageId,
-		holds,
 		saved
 	}: {
 		night: boolean;
-		day: string;
+		entryIndex: number;
 		pageId?: string;
-		holds: (conditions: VisibilityCondition[]) => boolean;
 		saved: SavedTheme[] | undefined;
 	}
-): ThemeLook {
-	const entry = scheduledEntry(config.theme_schedule, day, holds);
-	const entryIndex = entry ? config.theme_schedule!.indexOf(entry) : -1;
-	const page = config.rooms.find((room) => room.id === pageId);
-	const pageTheme = resolveThemeChoice(page?.theme, saved);
-	const dayTheme = pageTheme ?? resolveThemeChoice(entry?.theme, saved) ?? config.theme;
-	const entryNight = resolveThemeChoice(entry?.night, saved);
-	const theme = night ? (entryNight ?? config.theme_night ?? dayTheme) : dayTheme;
-	const source =
-		night && (entryNight ?? config.theme_night)
-			? `night:${entryNight ? entryIndex : ''}`
-			: pageTheme
-				? `page:${pageId}`
-				: `day:${entryIndex}`;
-	if (!page?.background_image) return { theme, key: source };
+): HearthTheme | undefined {
+	const entry = config.theme_schedule?.[entryIndex];
+	const page = pageId === undefined ? undefined : config.rooms.find((room) => room.id === pageId);
+	const dayTheme =
+		resolveThemeChoice(page?.theme, saved) ??
+		resolveThemeChoice(entry?.theme, saved) ??
+		config.theme;
+	const theme = night
+		? (resolveThemeChoice(entry?.night, saved) ?? config.theme_night ?? dayTheme)
+		: dayTheme;
+	if (!page?.background_image) return theme;
 	return {
-		theme: {
-			...theme,
-			background_image: `url(${page.background_image})`,
-			background_scrim: BACKGROUND_SCRIMS[page.background_scrim ?? 'medium']
-		},
-		key: `${source}|image:${pageId}`
+		...theme,
+		background_image: `url(${page.background_image})`,
+		background_scrim: BACKGROUND_SCRIMS[page.background_scrim ?? 'medium']
 	};
 }

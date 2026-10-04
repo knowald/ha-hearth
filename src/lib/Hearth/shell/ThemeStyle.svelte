@@ -18,10 +18,11 @@
 	import { resolveBackgroundImage } from '../images';
 	import {
 		activeLook,
-		loadSavedThemes,
+		ensureSavedThemes,
 		monthDayOf,
 		needsSavedThemes,
-		savedThemes
+		savedThemes,
+		scheduledIndex
 	} from '../themeSchedule';
 	import { evaluateVisibility } from '../visibility';
 	import { screenSettings } from '../screen';
@@ -60,32 +61,37 @@
 	let now = $derived($scheduleClock);
 
 	$effect(() => {
-		if ($savedThemes === undefined && needsSavedThemes($hearthConfig)) void loadSavedThemes();
+		if (needsSavedThemes($hearthConfig)) ensureSavedThemes();
 	});
 
-	// the theme sheet shows the slot it edits, without the schedule or a page's look
-	let look = $derived(
-		editingTheme
-			? {
-					theme: night ? ($hearthConfig.theme_night ?? $hearthConfig.theme) : $hearthConfig.theme,
-					key: `edit:${night}`
-				}
-			: activeLook($hearthConfig, {
-					night,
-					day: now ? monthDayOf(now, $displayTimeZone) : '',
-					pageId,
-					holds: (conditions) =>
-						evaluateVisibility(
-							conditions,
-							$states,
-							{},
-							{ device: $deviceName, now, timeZone: $displayTimeZone }
-						),
-					saved: $savedThemes
-				})
+	// a number, so a state change that leaves the same entry holding stops here
+	let entryIndex = $derived(
+		editingTheme || !now
+			? -1
+			: scheduledIndex($hearthConfig.theme_schedule, monthDayOf(now, $displayTimeZone), (when) =>
+					evaluateVisibility(
+						when,
+						$states,
+						{},
+						{
+							device: $deviceName,
+							now,
+							timeZone: $displayTimeZone
+						}
+					)
+				)
 	);
 
-	let chosenTheme = $derived(presetOverride ? (presetOverride.theme ?? undefined) : look.theme);
+	// the theme sheet shows the slot it edits, without the schedule or a page's look
+	let lookTheme = $derived(
+		editingTheme
+			? night
+				? ($hearthConfig.theme_night ?? $hearthConfig.theme)
+				: $hearthConfig.theme
+			: activeLook($hearthConfig, { night, entryIndex, pageId, saved: $savedThemes })
+	);
+
+	let chosenTheme = $derived(presetOverride ? (presetOverride.theme ?? undefined) : lookTheme);
 
 	// an uploaded background is stored without the base path, which only the
 	// browser knows
@@ -97,29 +103,6 @@
 				}
 			: chosenTheme
 	);
-
-	// CSS custom properties do not transition by themselves. Briefly blanket
-	// the rendered tree when the theme switches (day and night, a schedule
-	// entry, a page with a look of its own), then release component styles.
-	// Opening or closing the theme sheet is not a switch.
-	let lookKey = $derived(look.key);
-	let lastLook: string | undefined;
-
-	$effect(() => {
-		const switched =
-			lastLook !== undefined &&
-			lastLook !== lookKey &&
-			lastLook.startsWith('edit:') === lookKey.startsWith('edit:');
-		lastLook = lookKey;
-		if (!switched || !$motion) return;
-		const root = document.documentElement;
-		root.classList.add('theme-fade');
-		const timer = setTimeout(() => root.classList.remove('theme-fade'), MOTION.theme);
-		return () => {
-			clearTimeout(timer);
-			root.classList.remove('theme-fade');
-		};
-	});
 
 	// Reduced motion (configuration or OS) zeroes the motion tokens, and
 	// components key their animations off the same attribute. Boot and
@@ -189,16 +172,47 @@
 		};
 	});
 
+	/*
+	 * Declarations are compared as text before the rule is touched, so a
+	 * config or state change that leaves the theme as it was costs nothing.
+	 * CSS custom properties do not transition by themselves: when the tokens
+	 * do change (day and night, a schedule entry, a page with a look of its
+	 * own), the rendered tree is briefly blanketed by a fade. Editing in the
+	 * theme sheet, and opening or closing it, does not fade.
+	 */
+	let applied: string | undefined;
+	let wasEditing = false;
+	let fadeTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function fade() {
+		const root = document.documentElement;
+		clearTimeout(fadeTimer);
+		root.classList.add('theme-fade');
+		fadeTimer = setTimeout(() => root.classList.remove('theme-fade'), MOTION.theme);
+	}
+
 	$effect(() => {
-		if (!themeRule) return;
+		return () => {
+			clearTimeout(fadeTimer);
+			document.documentElement.classList.remove('theme-fade');
+		};
+	});
+
+	$effect(() => {
+		if (!themeRule) {
+			applied = undefined;
+			return;
+		}
+		const declarations = [...themeDeclarations(THEME_DEFAULTS), ...themeDeclarations(activeTheme)];
+		const serialized = JSON.stringify(declarations);
+		const fades = applied !== undefined && !editingTheme && !wasEditing && $motion > 0;
+		wasEditing = editingTheme;
+		if (serialized === applied) return;
+		applied = serialized;
 		const style = themeRule.style;
 		style.cssText = '';
-		for (const [property, value] of [
-			...themeDeclarations(THEME_DEFAULTS),
-			...themeDeclarations(activeTheme)
-		]) {
-			style.setProperty(property, value);
-		}
+		for (const [property, value] of declarations) style.setProperty(property, value);
+		if (fades) fade();
 	});
 
 	let rootCss = $derived(

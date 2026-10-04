@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig, type OverviewCard } from '../config';
-import { editor, hearthConfig } from '../store';
+import { editor, hearthConfig, hearthEditMode } from '../store';
 import { savedThemes } from '../themeSchedule';
 import CardEditSheet from './CardEditSheet.svelte';
 import RoomEditSheet from './RoomEditSheet.svelte';
@@ -54,6 +54,8 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 	editor.set(null);
 	savedThemes.set(undefined);
+	hearthEditMode.set(false);
+	localStorage.clear();
 	hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
 });
 
@@ -129,7 +131,7 @@ describe('theme schedule', () => {
 		render(ThemeEditSheet);
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_add_schedule_entry }));
 		expect(get(hearthConfig).theme_schedule).toEqual([
-			{ theme: 'winter', from: '12-01', to: '02-28' }
+			{ theme: 'winter', from: '12-01', to: '02-29' }
 		]);
 
 		const label = en.hearth_schedule_entry.replace('{number}', '1');
@@ -152,6 +154,26 @@ describe('theme schedule', () => {
 			})
 		);
 		expect(get(hearthConfig).theme_schedule).toBeUndefined();
+	});
+
+	it('keeps an edit that fired no change event once the sheet goes, unless editing ended', async () => {
+		editor.set({ kind: 'theme' });
+		hearthEditMode.set(true);
+		const first = render(ThemeEditSheet);
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_add_schedule_entry }));
+		await fireEvent.input(screen.getByLabelText(en.hearth_schedule_from), {
+			target: { value: '11-15' }
+		});
+		first.unmount();
+		expect(get(hearthConfig).theme_schedule?.[0].from).toBe('11-15');
+
+		const second = render(ThemeEditSheet);
+		await fireEvent.input(screen.getByLabelText(en.hearth_schedule_from), {
+			target: { value: '10-01' }
+		});
+		hearthEditMode.set(false);
+		second.unmount();
+		expect(get(hearthConfig).theme_schedule?.[0].from).toBe('11-15');
 	});
 
 	it('keeps tokens written out in YAML until another theme is picked', async () => {

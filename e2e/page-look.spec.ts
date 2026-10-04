@@ -21,7 +21,7 @@ revision: 1
 theme_schedule:
   - theme: winter
     from: '12-01'
-    to: '02-28'
+    to: '02-29'
 rail:
   - id: clock
     type: clock

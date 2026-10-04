@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { get } from 'svelte/store';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BACKGROUND_SCRIMS, THEME_PRESETS } from '$lib/core/theme';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from './config';
 import {
@@ -8,6 +9,7 @@ import {
 	needsSavedThemes,
 	resolveThemeChoice,
 	scheduledEntry,
+	scheduledIndex,
 	type SavedTheme
 } from './themeSchedule';
 
@@ -71,6 +73,8 @@ describe('scheduledEntry', () => {
 	it('passes over an entry whose conditions do not hold', () => {
 		expect(scheduledEntry(schedule, '12-24', never)?.theme).toBe('winter');
 		expect(scheduledEntry(schedule, '07-01', never)).toBeUndefined();
+		expect(scheduledIndex(schedule, '07-01', never)).toBe(-1);
+		expect(scheduledIndex(schedule, '01-10', always)).toBe(1);
 	});
 
 	it('hands each entry its own conditions', () => {
@@ -119,15 +123,21 @@ describe('activeLook', () => {
 	const winterOnly = [{ theme: 'winter', from: '12-01', to: '02-28' }];
 	const look = (
 		extra: Partial<HearthConfig>,
-		options: Partial<Parameters<typeof activeLook>[1]> = {}
-	) =>
-		activeLook(config({ theme: day, ...extra }), {
-			night: false,
-			day: '12-24',
-			holds: always,
-			saved: undefined,
+		{
+			day: today = '12-24',
 			...options
-		});
+		}: Partial<Omit<Parameters<typeof activeLook>[1], 'entryIndex'>> & { day?: string } = {}
+	) => {
+		const settings = config({ theme: day, ...extra });
+		return {
+			theme: activeLook(settings, {
+				night: false,
+				entryIndex: scheduledIndex(settings.theme_schedule, today, always),
+				saved: undefined,
+				...options
+			})
+		};
+	};
 
 	it('wears the day theme when nothing is scheduled', () => {
 		expect(look({}).theme).toBe(day);
@@ -172,7 +182,6 @@ describe('activeLook', () => {
 			const extra = { theme_schedule: winterOnly, rooms: rooms({ theme: 'forest' }) };
 			expect(look(extra, { pageId: 'garden' }).theme).toBe(preset('forest'));
 			expect(look(extra, { pageId: 'home' }).theme).toBe(preset('winter'));
-			expect(look(extra, { pageId: 'garden' }).key).not.toBe(look(extra, { pageId: 'home' }).key);
 		});
 
 		it('leaves the night theme to the night', () => {
@@ -200,5 +209,49 @@ describe('activeLook', () => {
 			// leaving the page leaves the theme as it was
 			expect(look(extra, { pageId: 'home' }).theme).toBe(day);
 		});
+	});
+});
+
+describe('saved themes', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+		localStorage.clear();
+		vi.resetModules();
+	});
+
+	it('starts from the list the last visit fetched', async () => {
+		localStorage.setItem('hearth-saved-themes', JSON.stringify(SAVED));
+		vi.resetModules();
+		const fresh = await import('./themeSchedule');
+		expect(get(fresh.savedThemes)).toEqual(SAVED);
+	});
+
+	it('survives storage that cannot be read', async () => {
+		localStorage.setItem('hearth-saved-themes', '{not json');
+		vi.resetModules();
+		const fresh = await import('./themeSchedule');
+		expect(get(fresh.savedThemes)).toBeUndefined();
+	});
+
+	it('tries a failed fetch once more and caches what it gets', async () => {
+		vi.useFakeTimers();
+		const fetch = vi
+			.fn()
+			.mockRejectedValueOnce(new Error('offline'))
+			.mockResolvedValue({ ok: true, json: async () => SAVED });
+		vi.stubGlobal('fetch', fetch);
+		vi.resetModules();
+		const fresh = await import('./themeSchedule');
+		const loaded = fresh.loadSavedThemes();
+		await vi.advanceTimersByTimeAsync(3000);
+		await loaded;
+		expect(fetch).toHaveBeenCalledTimes(2);
+		expect(get(fresh.savedThemes)).toEqual(SAVED);
+		expect(JSON.parse(localStorage.getItem('hearth-saved-themes')!)).toEqual(SAVED);
+
+		// the dashboard asks once per visit
+		fresh.ensureSavedThemes();
+		expect(fetch).toHaveBeenCalledTimes(2);
 	});
 });

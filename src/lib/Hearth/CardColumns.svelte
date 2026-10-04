@@ -1,5 +1,9 @@
 <script lang="ts">
+	import { minuteTimer } from '$lib/core/app/clock';
+	import { deviceName } from '$lib/core/app/device';
+	import { states } from '$lib/core/ha/entities';
 	import { fill as fillText, lang } from '$lib/core/i18n';
+	import { mediaQuery } from '$lib/ui/mediaQuery';
 	import { sortable } from '$lib/ui/actions/sortable';
 	import {
 		cloneOverviewItem,
@@ -18,7 +22,8 @@
 	import { onDndReceive } from './drag';
 	import { editTap } from './editTap';
 	import { provideHearthInteractionMode } from './interaction';
-	import { editor, hearthConfig, hearthEditMode, updateConfig } from './store';
+	import { displayTimeZone, editor, hearthConfig, hearthEditMode, updateConfig } from './store';
+	import { evaluateVisibility, mediaQueriesIn, usesTime } from './visibility';
 	import AddControl from './AddControl.svelte';
 	import CardRenderer from './CardRenderer.svelte';
 	import EditChip from './EditChip.svelte';
@@ -156,7 +161,53 @@
 	 * spanning card stays in its own column like any other.
 	 */
 	let spanned = $derived(!$hearthEditMode && columns.length > 1 && hasSpans(columns));
-	let layout = $derived(spanned ? spanLayout(columns) : undefined);
+
+	/*
+	 * The spanned layout leaves out the cards hidden right now, so a hidden
+	 * spanning card cuts no column and a run with nothing shown takes no row
+	 * or share of a filled screen's height. A stack always counts as shown.
+	 */
+	let spanConditions = $derived(
+		spanned ? columns.flat().flatMap((item) => (isStack(item) ? [] : (item.visibility ?? []))) : []
+	);
+	let spanMedia = $state<Record<string, boolean>>({});
+	let spanNow = $state<Date | undefined>();
+
+	$effect(() => {
+		const queries = [...new Set(mediaQueriesIn(spanConditions))];
+		const matches: Record<string, boolean> = {};
+		spanMedia = {};
+		const stops = queries.map((query) =>
+			mediaQuery(query).subscribe((value) => {
+				matches[query] = value;
+				spanMedia = { ...matches };
+			})
+		);
+		return () => stops.forEach((stop) => stop());
+	});
+
+	$effect(() => {
+		if (!usesTime(spanConditions)) {
+			spanNow = undefined;
+			return;
+		}
+		return minuteTimer.subscribe((value) => (spanNow = value));
+	});
+
+	function shown(item: OverviewItem): boolean {
+		return (
+			isStack(item) ||
+			evaluateVisibility(item.visibility, $states, spanMedia, {
+				device: $deviceName,
+				now: spanNow,
+				timeZone: $displayTimeZone
+			})
+		);
+	}
+
+	let layout = $derived(
+		spanned ? spanLayout(columns.map((column) => column.filter(shown))) : undefined
+	);
 	let rowTemplate = $derived(
 		layout?.rows
 			.map((kind) => (kind === 'run' && clipToHeight ? 'minmax(0, 1fr)' : 'auto'))
@@ -285,7 +336,6 @@
 				style:--row={cell.row}
 				style:--start={cell.kind === 'run' ? cell.column + 1 : cell.start}
 				style:--span={cell.kind === 'run' ? 1 : cell.span}
-				style:--order={cell.order}
 			>
 				{#if cell.kind === 'run'}
 					{#each cell.items as item (item.id)}
@@ -370,8 +420,8 @@
 		scrollbar-width: thin;
 	}
 
-	/* rows of runs and spanning cards; the custom properties come from
-	   spanLayout, so the folded layout below can undo them */
+	/* rows of runs and spanning cards, placed by spanLayout through custom
+	   properties so the folded layout below can drop the places */
 	.overview.spanned {
 		grid-template-rows: var(--span-rows);
 		row-gap: 18px;
@@ -399,16 +449,17 @@
 			grid-template-columns: minmax(0, 1fr);
 		}
 
-		/* spans mean nothing in one column: every card reads where it is stored */
+		/* spans mean nothing in one column: the cells are in stored order
+		   already, so they only drop their places and take the folded gap */
 		.overview.spanned {
 			grid-template-rows: none;
+			row-gap: 32px;
 		}
 
 		.overview.spanned > .column,
 		.overview.spanned > .span-cell {
 			grid-row: auto;
 			grid-column: auto;
-			order: var(--order);
 		}
 
 		.overview.clip {
@@ -431,13 +482,13 @@
 
 			.overview.spanned {
 				grid-template-rows: none;
+				row-gap: 32px;
 			}
 
 			.overview.spanned > .column,
 			.overview.spanned > .span-cell {
 				grid-row: auto;
 				grid-column: auto;
-				order: var(--order);
 			}
 
 			.overview.clip {

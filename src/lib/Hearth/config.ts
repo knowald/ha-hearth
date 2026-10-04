@@ -191,16 +191,14 @@ export function hasSpans(columns: OverviewItem[][]): boolean {
 /**
  * One block of the spanned layout, placed on the page grid: a run of a
  * column's items between its spanning cards, or one spanning card. Rows and
- * columns count from 1, as CSS grid lines do; `order` is the reading order
- * once the page folds to a single column.
+ * columns count from 1, as CSS grid lines do.
  */
 export type SpanCell =
-	| { kind: 'run'; column: number; row: number; order: number; items: OverviewItem[] }
+	| { kind: 'run'; column: number; row: number; items: OverviewItem[] }
 	| {
 			kind: 'span';
 			column: number;
 			row: number;
-			order: number;
 			card: OverviewCard;
 			start: number;
 			span: number;
@@ -211,9 +209,10 @@ export type SpanCell =
  * spanning cards into runs. The n-th runs of all columns share a grid row,
  * and below it the n-th spanning card of each column takes a row of its own,
  * in column order; then the columns resume. A spanning card starts at its own
- * column, moved left as far as it needs to fit. Folded to one column, the
- * page reads column by column, every card where it is stored, as it would
- * without spans. `rows` says which grid rows hold runs and which hold spans.
+ * column, moved left as far as it needs to fit. The cells come in reading
+ * order: column by column, every card where it is stored, as the page reads
+ * folded to one column and as focus and screen readers walk it on any width.
+ * `rows` says which grid rows hold runs and which hold spans.
  */
 export function spanLayout(columns: OverviewItem[][]): {
 	cells: SpanCell[];
@@ -240,7 +239,7 @@ export function spanLayout(columns: OverviewItem[][]): {
 			rows.push('run');
 			bands.forEach(({ runs }, column) => {
 				const items = runs[band];
-				if (items?.length) cells.push({ kind: 'run', column, row: rows.length, order: 0, items });
+				if (items?.length) cells.push({ kind: 'run', column, row: rows.length, items });
 			});
 		}
 		bands.forEach(({ spans }, column) => {
@@ -252,7 +251,6 @@ export function spanLayout(columns: OverviewItem[][]): {
 				kind: 'span',
 				column,
 				row: rows.length,
-				order: 0,
 				card,
 				start: Math.min(column, count - span) + 1,
 				span
@@ -261,9 +259,7 @@ export function spanLayout(columns: OverviewItem[][]): {
 	}
 
 	// within a column, rows already follow the stored order
-	const reading = [...cells].sort((a, b) => a.column - b.column || a.row - b.row);
-	reading.forEach((cell, index) => (cell.order = index));
-	return { cells, rows };
+	return { cells: cells.sort((a, b) => a.column - b.column || a.row - b.row), rows };
 }
 
 /** Mutable list containing an id-addressed card or stack. */

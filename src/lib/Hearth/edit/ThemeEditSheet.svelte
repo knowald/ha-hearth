@@ -4,6 +4,7 @@
 	import { lang, fill } from '$lib/core/i18n';
 	import { activateOnKeyboard } from '../interaction';
 	import { base } from '$app/paths';
+	import { onDestroy } from 'svelte';
 	import { get } from 'svelte/store';
 	import {
 		deriveAccent,
@@ -29,6 +30,7 @@
 		editedThemeSlot,
 		editor,
 		hearthConfig,
+		hearthEditMode,
 		reportCopy,
 		requestConfirmation,
 		updateConfig
@@ -230,8 +232,15 @@
 		});
 	}
 
+	// a condition's entity chosen in the picker fires no change event, and the
+	// sheet can go without its close button (another editor opening); a
+	// cancelled edit session must not get the drafts back
+	onDestroy(() => {
+		if (get(hearthEditMode)) applySchedule();
+	});
+
 	function addScheduleEntry() {
-		schedule.push({ key: draftKey++, theme: 'winter', from: '12-01', to: '02-28', when: [] });
+		schedule.push({ key: draftKey++, theme: 'winter', from: '12-01', to: '02-29', when: [] });
 		applySchedule();
 	}
 
@@ -598,7 +607,7 @@
 					<TextField
 						label={$lang('hearth_schedule_to')}
 						bind:value={draft.to}
-						placeholder="02-28"
+						placeholder="02-29"
 						error={dayError(draft.to)}
 					/>
 				</div>

@@ -363,7 +363,7 @@
 
 <svelte:window onpopstate={syncRoomParam} onbeforeunload={guardUnload} />
 <Keyboard onsearch={openSearch} />
-<ThemeStyle {presetOverride} pageId={activeRoomId} />
+<ThemeStyle {presetOverride} pageId={showFavorites ? undefined : activeRoomId} />
 
 {#snippet pageColumn()}
 	<div class="main-wrap">

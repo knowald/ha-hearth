@@ -74,9 +74,9 @@ describe('spanLayout', () => {
 		]);
 		expect(cellIds(layout)).toEqual([
 			'run 0@1: a',
-			'run 1@1: c,d',
 			'span wide@2 1/2',
-			'run 0@3: b'
+			'run 0@3: b',
+			'run 1@1: c,d'
 		]);
 		expect(layout.rows).toEqual(['run', 'span', 'run']);
 	});
@@ -88,10 +88,10 @@ describe('spanLayout', () => {
 		]);
 		expect(cellIds(layout)).toEqual([
 			'run 0@1: a',
-			'run 1@1: c',
 			'span left@2 1/2',
-			'span right@3 1/2',
 			'run 0@4: b',
+			'run 1@1: c',
+			'span right@3 1/2',
 			'run 1@4: d'
 		]);
 	});
@@ -103,20 +103,18 @@ describe('spanLayout', () => {
 
 	it('leaves out a row with nothing in it', () => {
 		const layout = spanLayout([[card('top', 'full'), card('a')], [card('b')]]);
-		expect(cellIds(layout)).toEqual(['run 1@1: b', 'span top@2 1/2', 'run 0@3: a']);
+		expect(cellIds(layout)).toEqual(['span top@2 1/2', 'run 0@3: a', 'run 1@1: b']);
 	});
 
-	it('reads column by column, in stored order, once folded', () => {
+	it('lists the cells column by column, in stored order', () => {
 		const layout = spanLayout([
 			[card('a'), card('wide', 'full'), card('b')],
 			[card('c'), card('d')]
 		]);
-		const folded = [...layout.cells]
-			.sort((left, right) => left.order - right.order)
-			.flatMap((cell) =>
-				cell.kind === 'run' ? cell.items.map((item) => item.id) : [cell.card.id]
-			);
-		expect(folded).toEqual(['a', 'wide', 'b', 'c', 'd']);
+		const reading = layout.cells.flatMap((cell) =>
+			cell.kind === 'run' ? cell.items.map((item) => item.id) : [cell.card.id]
+		);
+		expect(reading).toEqual(['a', 'wide', 'b', 'c', 'd']);
 	});
 });
 
