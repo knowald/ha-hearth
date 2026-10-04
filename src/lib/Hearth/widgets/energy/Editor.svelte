@@ -3,6 +3,7 @@
 	import { lang } from '$lib/core/i18n';
 	import type { WidgetEditorProps } from '../types';
 	import type { EnergyWidget } from './descriptor';
+	import CheckField from '../../edit/CheckField.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
 	import TextField from '../../edit/TextField.svelte';
 	import { requireFields } from '../../edit/validation';
@@ -17,6 +18,7 @@
 	let price = $state(typeof initial?.price === 'number' ? String(initial.price) : '');
 	let priceEntity = $state(initial?.price_entity ?? '');
 	let currency = $state(initial?.currency ?? '');
+	let averageBadge = $state(initial?.average_badge !== false);
 
 	let validity = $derived(
 		requireFields($lang('hearth_field_required'), {
@@ -32,7 +34,8 @@
 				entity: entity.trim() || undefined,
 				price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
 				price_entity: priceEntity.trim() || undefined,
-				currency: currency.trim() || undefined
+				currency: currency.trim() || undefined,
+				average_badge: averageBadge ? undefined : false
 			},
 			...validity
 		});
@@ -57,3 +60,8 @@
 	domains={['sensor', 'input_number']}
 />
 <TextField label={$lang('hearth_currency_label_optional')} bind:value={currency} placeholder="zł" />
+<CheckField
+	label={$lang('hearth_energy_average_badge')}
+	hint={$lang('hearth_energy_average_badge_hint')}
+	bind:checked={averageBadge}
+/>

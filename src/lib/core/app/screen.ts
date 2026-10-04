@@ -16,6 +16,8 @@ export interface ScreenOverrides {
 	locale?: string;
 	reduce_motion?: boolean;
 	haptics?: boolean;
+	/** Silences alert chimes on this screen. */
+	mute_chimes?: boolean;
 }
 
 const STORAGE_KEY = 'hearthScreen';
@@ -43,7 +45,8 @@ export function parseScreenOverrides(raw: string | null): ScreenOverrides {
 		locale:
 			typeof stored.locale === 'string' && LOCALE.test(stored.locale) ? stored.locale : undefined,
 		reduce_motion: flag(stored.reduce_motion),
-		haptics: flag(stored.haptics)
+		haptics: flag(stored.haptics),
+		mute_chimes: flag(stored.mute_chimes)
 	};
 	return Object.fromEntries(Object.entries(overrides).filter(([, value]) => value !== undefined));
 }

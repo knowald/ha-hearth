@@ -444,6 +444,23 @@ const ThemeSchema = v.pipe(
 	v.record(v.string(), v.string('must be text'))
 );
 
+// the chime an alert plays; false is the same as none
+export const AlertChimeSchema = v.optional(
+	v.union(
+		[v.boolean(), v.picklist(['soft', 'bell', 'none'])],
+		'must be true, false, soft, bell or none'
+	)
+);
+
+export const AlertChimesSchema = v.optional(
+	v.object({
+		info: AlertChimeSchema,
+		warning: AlertChimeSchema,
+		critical: AlertChimeSchema,
+		volume: optionalNumberInRange(1, 100)
+	})
+);
+
 /** Root settings; `rail` and `rooms` are walked item by item by the issue checker. */
 export const RootSettingsSchema = v.looseObject({
 	theme: v.optional(ThemeSchema),
@@ -515,6 +532,7 @@ export const RootSettingsSchema = v.looseObject({
 		)
 	),
 	scroll_edge_blur: OptionalFlag,
+	animations: OptionalFlag,
 	swipe_navigation_mobile: OptionalFlag,
 	swipe_navigation_desktop: OptionalFlag,
 	phone_clock: OptionalFlag,
@@ -523,7 +541,20 @@ export const RootSettingsSchema = v.looseObject({
 	mobile_padding_x: optionalNumberAtLeast(0),
 	mobile_padding_y: optionalNumberAtLeast(0),
 	scale: optionalNumberInRange(50, 200),
-	mobile_scale: optionalNumberInRange(50, 200)
+	mobile_scale: optionalNumberInRange(50, 200),
+	alert_chimes: AlertChimesSchema,
+	greeting: v.optional(
+		v.object({
+			persons: v.array(
+				v.pipe(
+					v.string('must be text'),
+					v.regex(/^person\.[a-z0-9_]+$/, 'must be a person entity id')
+				),
+				'must be a list'
+			),
+			minutes: optionalNumberInRange(1, 120)
+		})
+	)
 });
 
 /**

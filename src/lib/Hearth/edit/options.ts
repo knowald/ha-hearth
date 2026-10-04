@@ -1,4 +1,5 @@
 import { fill } from '$lib/core/i18n';
+import type { AlertChime } from '../types';
 
 export interface Option {
 	value: string;
@@ -33,4 +34,25 @@ export function sleepOptions(lang: Translate): Option[] {
 		{ value: '30', label: lang('hearth_after_30_minutes') },
 		{ value: '60', label: lang('hearth_after_1_hour') }
 	];
+}
+
+/** The tones an alert can chime with, `none` first. */
+export function chimeOptions(lang: Translate): Option[] {
+	return [
+		{ value: 'none', label: lang('hearth_chime_none') },
+		{ value: 'chime', label: lang('hearth_chime_chime') },
+		{ value: 'soft', label: lang('hearth_chime_soft') },
+		{ value: 'bell', label: lang('hearth_chime_bell') }
+	];
+}
+
+/** A stored chime as a select value: '' when unset and `chime` for true. */
+export function chimeValue(chime: AlertChime | undefined): string {
+	return chime === undefined ? '' : chime === true ? 'chime' : chime;
+}
+
+/** The reverse of chimeValue. */
+export function storedChime(value: string): AlertChime | undefined {
+	if (value === 'chime') return true;
+	return value === 'soft' || value === 'bell' || value === 'none' ? value : undefined;
 }

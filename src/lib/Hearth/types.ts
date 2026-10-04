@@ -75,6 +75,8 @@ type RailWidgetVariant =
 			price?: number;
 			price_entity?: string;
 			currency?: string;
+			// false hides the badge shown while today runs below the past week
+			average_badge?: boolean;
 	  }
 	// generic running-activity row (washer, 3d print, charging, ...); hidden
 	// unless the status entity is active - by the active_states list when given,
@@ -317,6 +319,25 @@ export type OverviewItem = OverviewCard | OverviewStack;
 
 export type AlertSeverity = 'info' | 'warning' | 'critical';
 
+/** A short synthesized tone; `true` is the plain chime. */
+export type AlertChime = true | 'soft' | 'bell' | 'none';
+
+/** The chime per severity for rules that name none, and how loud chimes play. */
+export interface AlertChimes {
+	info?: AlertChime;
+	warning?: AlertChime;
+	critical?: AlertChime;
+	/** 1 to 100 percent; 60 when unset. */
+	volume?: number;
+}
+
+/** Greets a person on the header and the sleep screen for a while after they come home. */
+export interface PresenceGreeting {
+	persons: string[];
+	/** How long after the arrival a screen may still greet; 10 when unset. */
+	minutes?: number;
+}
+
 /**
  * An alert raised from entity states: it fires once every condition has held
  * for for_seconds and clears when they stop holding. Home Assistant can raise
@@ -338,6 +359,8 @@ export interface AlertRule {
 	auto_close?: boolean;
 	// pops up this entity's detail popup instead of an alert card
 	entity?: string;
+	// unset plays the chime alert_chimes sets for the severity, if any
+	chime?: AlertChime;
 }
 
 export type EditLock = 'hold' | 'pin';
@@ -402,6 +425,9 @@ export interface HearthConfig {
 	// progressive blur where a scroll container cuts content off; costs a
 	// backdrop pass per layer, so weak tablets can turn it off
 	scroll_edge_blur?: boolean;
+	// tile icons that move with their entity, such as a spinning fan; reduced
+	// motion stops them whatever this says
+	animations?: boolean;
 	// a sideways swipe over the page moves to the next or previous page,
 	// set apart for the folded (phone) and wide layouts
 	swipe_navigation_mobile?: boolean;
@@ -418,4 +444,6 @@ export interface HearthConfig {
 	scale?: number;
 	mobile_scale?: number;
 	alerts?: AlertRule[];
+	alert_chimes?: AlertChimes;
+	greeting?: PresenceGreeting;
 }

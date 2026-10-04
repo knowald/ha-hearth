@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hearthConfigIssues, normalizeHearthConfig } from '../normalize';
-import { normalizeAlertRules } from './alerts';
+import { normalizeAlertChimes, normalizeAlertRules, normalizeChime } from './alerts';
 
 const base = { version: 5, rail: [], rooms: [{ id: 'home', cards: [] }] };
 
@@ -100,6 +100,41 @@ describe('alert rules in the configuration', () => {
 			'alerts[1].title must not be empty',
 			'alerts[1].conditions must have at least one condition',
 			'alerts[1].for_seconds must be at least 0'
+		]);
+	});
+
+	it('reads a chime per rule, with false meaning none', () => {
+		expect(normalizeChime(true)).toBe(true);
+		expect(normalizeChime(false)).toBe('none');
+		expect(normalizeChime('bell')).toBe('bell');
+		expect(normalizeChime('loud')).toBeUndefined();
+		const [rule] = normalizeAlertRules([
+			{ title: 'Door', conditions: [{ entity: 'binary_sensor.door' }], chime: 'soft' }
+		])!;
+		expect(rule.chime).toBe('soft');
+	});
+
+	it('keeps severity chimes and a volume off its default', () => {
+		expect(normalizeAlertChimes({ warning: true, critical: 'bell', volume: 140 })).toEqual({
+			warning: true,
+			critical: 'bell',
+			volume: 100
+		});
+		expect(normalizeAlertChimes({ info: 'loud', volume: 60 })).toBeUndefined();
+		expect(normalizeAlertChimes('x')).toBeUndefined();
+	});
+
+	it('reports a chime it cannot play', () => {
+		expect(
+			hearthConfigIssues({
+				...base,
+				alert_chimes: { info: 'loud', volume: 0 },
+				alerts: [{ id: 'a', title: 'A', conditions: [{ entity: 'light.a' }], chime: 3 }]
+			})
+		).toEqual([
+			'alert_chimes.info must be true, false, soft, bell or none',
+			'alert_chimes.volume must be 1 to 100',
+			'alerts[0].chime must be true, false, soft, bell or none'
 		]);
 	});
 });

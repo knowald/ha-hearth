@@ -21,7 +21,8 @@
 	import { guardLockCommand } from '$lib/core/domains/lock';
 	import { detailOffersMore, openEntityDetail } from '$lib/Hearth/details';
 	import BlindTile from './BlindTile.svelte';
-	import Icon from './Icon.svelte';
+	import TileIcon from './TileIcon.svelte';
+	import { iconMotionEnabled, iconMotionFor } from './iconMotion';
 	import LightTile from './LightTile.svelte';
 	import TuneButton from './TuneButton.svelte';
 	import { activateOnKeyboard, longPress } from './interaction';
@@ -87,6 +88,8 @@
 	let iconColor = $derived(
 		!controllable ? 'var(--h-icon-dim)' : on ? 'var(--h-accent-icon)' : 'var(--h-icon-dim)'
 	);
+
+	let iconMotion = $derived($iconMotionEnabled && available ? iconMotionFor(stateObj) : undefined);
 
 	let bareModal = $derived(entityIsReadout(entity, stateObj));
 	// what a tap earns: a command, a history chart, a domain modal - or, for a
@@ -223,11 +226,12 @@
 		onkeydown={(event) => activateOnKeyboard(event, event.shiftKey ? handleHold : handleClick)}
 	>
 		<div class="content">
-			<Icon
+			<TileIcon
 				name={icon || domainIcon(entity)}
 				size={ICON.tile}
 				color="var(--tile-accent, {iconColor})"
 				fill={on}
+				motion={iconMotion}
 			/>
 			<div class="text">
 				<div class="name">{label}</div>

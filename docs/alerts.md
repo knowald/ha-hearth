@@ -26,8 +26,24 @@ Optional fields:
 - `popup: false`: only list the alert in the notifications widget.
 - `auto_close: false`: keep the alert after the conditions stop holding, until someone dismisses it.
 - `entity`: open this entity's popup instead of an alert card.
+- `chime`: the sound the alert plays when it fires, `true` for a two-note chime, `soft`, `bell` or `none`. Unset uses the sound set for its severity.
 
 After you dismiss a rule's alert, it stays away until its conditions stop holding and then hold again.
+
+## Sounds
+
+Alerts are silent by default. Settings > Alerts > Alert sounds sets a sound per severity and the volume, in `hearth.yaml`:
+
+```yaml
+alert_chimes:
+  warning: soft
+  critical: bell
+  volume: 80 # 1 to 100, default 60
+```
+
+A rule's own `chime` wins over its severity's sound. Alerts raised by Home Assistant events use the severity's sound. The sounds are short tones generated in the browser; there are no sound files.
+
+Browsers only play sound once someone has tapped the page or pressed a key since it loaded. An alert that fires before that stays silent; it is not played later. A wall tablet that reloads overnight needs one tap before it can chime again. Play a test sound under Alert sounds to hear the current choice. A screen can mute every sound under This screen > Mute alert sounds. Edit mode stays silent.
 
 ## Home Assistant events
 

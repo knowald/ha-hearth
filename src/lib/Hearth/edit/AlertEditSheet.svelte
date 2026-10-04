@@ -12,6 +12,7 @@
 	import TextField from './TextField.svelte';
 	import VisibilityField from './VisibilityField.svelte';
 	import { requireFields } from './validation';
+	import { chimeOptions, chimeValue, storedChime } from './options';
 
 	let { index }: { index: number | null } = $props();
 
@@ -30,6 +31,7 @@
 	let entity = $state(initial?.entity ?? '');
 	let popup = $state(initial?.popup !== false);
 	let autoClose = $state(initial?.auto_close !== false);
+	let chime = $state(chimeValue(initial?.chime));
 
 	function staged() {
 		return {
@@ -41,7 +43,8 @@
 			seconds,
 			entity,
 			popup,
-			autoClose
+			autoClose,
+			chime
 		};
 	}
 
@@ -52,6 +55,12 @@
 		{ value: 'info', label: $lang('hearth_alert_severity_info') },
 		{ value: 'warning', label: $lang('hearth_alert_severity_warning') },
 		{ value: 'critical', label: $lang('hearth_alert_severity_critical') }
+	]);
+
+	// unset follows the severity's chime from Settings > Alerts
+	let CHIME_OPTIONS = $derived([
+		{ value: '', label: $lang('hearth_alert_chime_default') },
+		...chimeOptions($lang)
 	]);
 
 	let delay = $derived(seconds.trim() === '' ? 0 : Number(seconds));
@@ -94,7 +103,8 @@
 			for_seconds: delay > 0 ? delay : undefined,
 			entity: entity.trim() || undefined,
 			popup: popup ? undefined : false,
-			auto_close: autoClose ? undefined : false
+			auto_close: autoClose ? undefined : false,
+			chime: storedChime(chime)
 		};
 	}
 
@@ -146,6 +156,12 @@
 			options={SEVERITY_OPTIONS}
 		/>
 		<IconField label={$lang('hearth_icon_optional')} bind:value={icon} />
+		<SelectField
+			label={$lang('hearth_alert_chime')}
+			bind:value={chime}
+			options={CHIME_OPTIONS}
+			hint={$lang('hearth_alert_chime_hint')}
+		/>
 
 		<div class="group-label">{$lang('hearth_alert_when')}</div>
 		<VisibilityField bind:value={conditions} media={false} />

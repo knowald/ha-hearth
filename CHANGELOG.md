@@ -7,6 +7,10 @@
 - Show a slideshow of uploaded photos on the sleep screen, with a slow zoom and crossfade, in shuffled or listed order
 - Fill the sleep screen with a sky gradient that follows the sun, deep blue at night, warm at dawn and dusk and light by day
 - Show the playing track with its album art on the sleep screen, and a chosen background while nothing plays
+- Animate tile icons with their entity: a running fan spins faster at a higher speed, a cleaning vacuum sways, a playing media player shows level bars, a heating or cooling climate entity pulses and a light that is on glows in its color. Turn them off in Settings > Appearance; reduced motion always stops them
+- Play a short synthesized chime when an alert fires, chosen per rule or per severity with a volume, off by default; a screen can mute them under This screen
+- Greet people on the page header and the sleep screen for a while after they come home, with a greeting for the time of day
+- Show a badge on the energy widget while today's use is below the average of the previous 7 days over the same hours
 
 ### Changed
 

@@ -6,12 +6,14 @@ import type {
 	OverviewCard,
 	OverviewItem,
 	OverviewStack,
+	PresenceGreeting,
 	RailPosition,
 	RailWidget,
 	ScreensaverRadar
 } from './types';
 import {
 	DEFAULT_HEARTH_CONFIG,
+	GREETING_MINUTES,
 	normalizeVisibility,
 	isTileUrl,
 	PHOTO_SECONDS,
@@ -35,7 +37,7 @@ import {
 } from './model/registry';
 import { currentHearthConfig } from './format';
 import { imageFileOf } from '$lib/core/images';
-import { AlertRuleSchema, normalizeAlertRules } from './model/alerts';
+import { AlertRuleSchema, normalizeAlertChimes, normalizeAlertRules } from './model/alerts';
 import * as v from 'valibot';
 import {
 	CardSharedSchema,
@@ -338,6 +340,24 @@ function normalizePin(raw: unknown): string | undefined {
 	return typeof raw === 'string' && /^\d{4,8}$/.test(raw.trim()) ? raw.trim() : undefined;
 }
 
+// a greeting without a person to greet is off
+function normalizeGreeting(raw: unknown): PresenceGreeting | undefined {
+	if (!isRecord(raw) || !Array.isArray(raw.persons)) return undefined;
+	const persons = [
+		...new Set(
+			raw.persons
+				.map((person) => trimmedOrUndefined(person))
+				.filter((person): person is string => !!person?.startsWith('person.'))
+		)
+	];
+	if (!persons.length) return undefined;
+	const minutes =
+		typeof raw.minutes === 'number' && Number.isFinite(raw.minutes)
+			? Math.min(120, Math.max(1, Math.round(raw.minutes)))
+			: undefined;
+	return { persons, minutes: minutes === GREETING_MINUTES ? undefined : minutes };
+}
+
 /**
  * Normalizes a current Hearth configuration or an incomplete editor draft.
  */
@@ -412,6 +432,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'edit_lock',
 		'edit_pin',
 		'scroll_edge_blur',
+		'animations',
 		'swipe_navigation_mobile',
 		'swipe_navigation_desktop',
 		'phone_clock',
@@ -421,7 +442,9 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'mobile_padding_y',
 		'scale',
 		'mobile_scale',
-		'alerts'
+		'alerts',
+		'alert_chimes',
+		'greeting'
 	]) {
 		delete extensions[key];
 	}
@@ -467,6 +490,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		edit_pin: normalizePin(config.edit_pin),
 		scroll_edge_blur:
 			typeof config.scroll_edge_blur === 'boolean' ? config.scroll_edge_blur : undefined,
+		animations: config.animations === false ? false : undefined,
 		swipe_navigation_mobile: config.swipe_navigation_mobile === true ? true : undefined,
 		swipe_navigation_desktop: config.swipe_navigation_desktop === true ? true : undefined,
 		phone_clock: config.phone_clock === true ? true : undefined,
@@ -476,6 +500,8 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		mobile_padding_y: normalizeWholeNumber(config.mobile_padding_y, 0),
 		scale: normalizeScale(config.scale),
 		mobile_scale: normalizeScale(config.mobile_scale),
-		alerts: normalizeAlertRules(config.alerts)
+		alerts: normalizeAlertRules(config.alerts),
+		alert_chimes: normalizeAlertChimes(config.alert_chimes),
+		greeting: normalizeGreeting(config.greeting)
 	};
 }

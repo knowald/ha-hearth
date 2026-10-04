@@ -311,6 +311,11 @@
 					</div>
 				</div>
 			{/if}
+			{#if $hearthConfig.greeting}
+				{#await import('./Greeting.svelte') then Greeting}
+					<Greeting.default variant="sleep" />
+				{/await}
+			{/if}
 		</div>
 	</div>
 {/if}

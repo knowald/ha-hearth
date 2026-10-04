@@ -5,6 +5,7 @@
 	import { states } from '$lib/core/ha/entities';
 	import type { RailWidget } from '../../config';
 	import { fetchStatistics, startDataRefresh } from '$lib/core/ha/history';
+	import { usagePerRow } from '../../model/widgets/energy';
 	import { sensorNumber } from '$lib/core/ha/entities';
 	import { openEntityDetail } from '$lib/Hearth/details';
 	import Icon from '../../Icon.svelte';
@@ -31,21 +32,33 @@
 		async function fetchToday() {
 			const now = new Date();
 			const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-			const rows =
-				(await fetchStatistics([statisticId], start, new Date(), 'hour'))[statisticId] ?? [];
-			// energy statistics carry per-period change; fall back to sum deltas
-			let previousSum: number | undefined;
-			return rows.map((row) => {
-				let value = row.change;
-				if (typeof value !== 'number' && typeof row.sum === 'number') {
-					value = previousSum === undefined ? 0 : row.sum - previousSum;
-				}
-				if (typeof row.sum === 'number') previousSum = row.sum;
-				return Math.max(0, value ?? 0);
-			});
+			return usagePerRow(
+				(await fetchStatistics([statisticId], start, new Date(), 'hour'))[statisticId] ?? []
+			);
 		}
 
 		return startDataRefresh(fetchToday, (value) => (hours = value));
+	});
+
+	// the comparison code loads only once a widget wants the badge
+	let belowAverage = $state(false);
+	$effect(() => {
+		const entityId = widget.entity;
+		belowAverage = false;
+		if (!$connected || !entityId || widget.average_badge === false) return;
+		let stop: (() => void) | undefined;
+		let cancelled = false;
+		import('./average')
+			.then(({ watchWeekAverage }) => {
+				if (!cancelled) stop = watchWeekAverage(entityId, (below) => (belowAverage = below));
+			})
+			.catch(() => {
+				// a failed chunk only costs the badge
+			});
+		return () => {
+			cancelled = true;
+			stop?.();
+		};
 	});
 
 	let total = $derived(hours ? hours.reduce((sum, value) => sum + value, 0) : null);
@@ -93,6 +106,12 @@
 			{/if}
 		</span>
 	</div>
+	{#if belowAverage}
+		<div class="badge">
+			<Icon name="eco" size={ICON.inline} fill />
+			<span>{$lang('hearth_energy_below_week_average')}</span>
+		</div>
+	{/if}
 	{#if bars.length}
 		<div class="bars">
 			{#each bars as bar, index (index)}
@@ -162,6 +181,18 @@
 	.cost {
 		font-size: var(--h-type-small);
 		color: var(--h-text-5);
+	}
+
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		margin-top: 8px;
+		padding: 2px 8px;
+		border-radius: var(--h-radius-pill);
+		background: color-mix(in srgb, var(--h-good) 12%, transparent);
+		color: var(--h-good-text);
+		font-size: var(--h-type-small);
 	}
 
 	.bars {

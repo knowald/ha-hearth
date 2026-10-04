@@ -4,13 +4,17 @@
 	import { ICON } from '../iconSizes';
 	import { fill, lang } from '$lib/core/i18n';
 	import { config as haConfig } from '$lib/core/ha/connection';
+	import { states } from '$lib/core/ha/entities';
 	import { screenOverrides } from '$lib/core/app/screen';
 	import {
+		GREETING_MINUTES,
 		isTileUrl,
 		moveItem,
 		PHOTO_SECONDS,
 		RADAR_ZOOM,
 		railPositionOf,
+		type AlertChimes,
+		type AlertSeverity,
 		type RailPosition,
 		type ScreensaverBackground,
 		type ScreensaverRadar
@@ -34,7 +38,9 @@
 	import { wakeLockState } from '../wakeLock';
 	import { zoomSupported } from '../zoom';
 	import { screenSheetOpen } from '../screen';
-	import { sleepOptions, withCurrent } from './options';
+	import type { ChimeTone } from '../chime';
+	import { DEFAULT_CHIME_VOLUME } from '../model/alerts';
+	import { chimeOptions, chimeValue, sleepOptions, storedChime, withCurrent } from './options';
 
 	let screensaver = $derived(String($hearthConfig.screensaver_minutes ?? 0));
 	let screensaverDrift = $derived($hearthConfig.screensaver_drift ?? false);
@@ -63,6 +69,7 @@
 	let tileUrlInvalid = $state(false);
 	let keepScreenOn = $derived($hearthConfig.keep_screen_on ?? true);
 	let scrollEdgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
+	let animations = $derived($hearthConfig.animations ?? true);
 	let railPosition = $derived(railPositionOf($hearthConfig));
 	let swipeMobile = $derived($hearthConfig.swipe_navigation_mobile ?? false);
 	let swipeDesktop = $derived($hearthConfig.swipe_navigation_desktop ?? false);
@@ -318,6 +325,101 @@
 		});
 	}
 
+	function setAnimations(enabled: boolean) {
+		updateConfig((config) => {
+			config.animations = enabled ? undefined : false;
+		});
+	}
+
+	let chimes = $derived($hearthConfig.alert_chimes ?? {});
+	let chimeVolume = $derived(String(chimes.volume ?? DEFAULT_CHIME_VOLUME));
+	let CHIME_SEVERITIES = $derived([
+		{ severity: 'info', label: $lang('hearth_alert_chime_info') },
+		{ severity: 'warning', label: $lang('hearth_alert_chime_warning') },
+		{ severity: 'critical', label: $lang('hearth_alert_chime_critical') }
+	] as const);
+	let CHIME_OPTIONS = $derived(chimeOptions($lang));
+	let VOLUME_OPTIONS = $derived(
+		withCurrent(
+			['20', '40', '60', '80', '100'].map((value) => ({ value, label: `${value}%` })),
+			chimeVolume,
+			$lang
+		)
+	);
+
+	/** Applies a change to the alert chimes, dropping keys that are back at their default. */
+	function setChimes(patch: Partial<AlertChimes>) {
+		updateConfig((config) => {
+			const next: AlertChimes = { ...config.alert_chimes, ...patch };
+			if (next.volume === DEFAULT_CHIME_VOLUME) next.volume = undefined;
+			const kept = Object.entries(next).filter(([, value]) => value !== undefined);
+			config.alert_chimes = kept.length ? Object.fromEntries(kept) : undefined;
+		});
+	}
+
+	function setSeverityChime(severity: AlertSeverity, value: string) {
+		const chime = storedChime(value);
+		setChimes({ [severity]: chime === 'none' ? undefined : chime });
+	}
+
+	// the tone of the most severe alert that chimes, so the test sounds like one
+	let previewTone = $derived.by((): ChimeTone => {
+		for (const severity of ['critical', 'warning', 'info'] as const) {
+			const chime = chimes[severity];
+			if (chime === true) return 'chime';
+			if (chime === 'soft' || chime === 'bell') return chime;
+		}
+		return 'chime';
+	});
+
+	async function playTestChime() {
+		const { previewChime } = await import('../chimeGate');
+		await previewChime(previewTone, Number(chimeVolume));
+	}
+
+	let greeting = $derived($hearthConfig.greeting);
+	let greetingMinutes = $derived(String(greeting?.minutes ?? GREETING_MINUTES));
+	// every person Home Assistant knows, plus any configured one it no longer reports
+	let persons = $derived(
+		[
+			...new Set([
+				...Object.keys($states ?? {}).filter((id) => id.startsWith('person.')),
+				...(greeting?.persons ?? [])
+			])
+		].sort()
+	);
+	let GREETING_MINUTE_OPTIONS = $derived(
+		withCurrent(
+			['5', '10', '15', '30', '60'].map((value) => ({
+				value,
+				label: fill($lang('hearth_minutes_count'), { count: value })
+			})),
+			greetingMinutes,
+			$lang
+		)
+	);
+
+	function setGreetingPerson(person: string, greeted: boolean) {
+		updateConfig((config) => {
+			const current = config.greeting?.persons ?? [];
+			const next = greeted
+				? [...new Set([...current, person])]
+				: current.filter((entry) => entry !== person);
+			config.greeting = next.length ? { ...config.greeting, persons: next } : undefined;
+		});
+	}
+
+	function setGreetingMinutes(value: string) {
+		const minutes = integerFromInput(value);
+		updateConfig((config) => {
+			if (!config.greeting) return;
+			config.greeting = {
+				...config.greeting,
+				minutes: minutes === GREETING_MINUTES ? undefined : minutes
+			};
+		});
+	}
+
 	function setSwipe(key: 'swipe_navigation_mobile' | 'swipe_navigation_desktop', enabled: boolean) {
 		updateConfig((config) => {
 			config[key] = enabled ? true : undefined;
@@ -566,6 +668,16 @@
 						checked={scrollEdgeBlur}
 						label={$lang('hearth_scroll_edge_blur')}
 						onchange={setScrollEdgeBlur}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={$lang('hearth_tile_animations')}
+					sub={$lang('hearth_tile_animations_sub')}
+				>
+					<Switch
+						checked={animations}
+						label={$lang('hearth_tile_animations')}
+						onchange={setAnimations}
 					/>
 				</SettingsRow>
 			</div>
@@ -896,6 +1008,33 @@
 						onchange={setWeatherEntity}
 					/>
 				</div>
+				<div class="group-title">{$lang('hearth_greeting')}</div>
+				{#each persons as person (person)}
+					{@const name = $states?.[person]?.attributes?.friendly_name || person}
+					<SettingsRow label={fill($lang('hearth_greet_person'), { name })}>
+						<Switch
+							checked={greeting?.persons.includes(person) ?? false}
+							label={fill($lang('hearth_greet_person'), { name })}
+							onchange={(greeted) => setGreetingPerson(person, greeted)}
+						/>
+					</SettingsRow>
+				{:else}
+					<div class="row-note">{$lang('hearth_greeting_no_persons')}</div>
+				{/each}
+				{#if greeting}
+					<SettingsRow
+						label={$lang('hearth_greeting_minutes')}
+						sub={$lang('hearth_greeting_minutes_sub')}
+					>
+						<SelectField
+							inline
+							label={$lang('hearth_greeting_minutes')}
+							value={greetingMinutes}
+							options={GREETING_MINUTE_OPTIONS}
+							onchange={setGreetingMinutes}
+						/>
+					</SettingsRow>
+				{/if}
 			</div>
 		</section>
 
@@ -915,6 +1054,34 @@
 					label={$lang('hearth_add_alert')}
 					sub={$lang('hearth_alerts_sub')}
 					onclick={() => editor.set({ kind: 'alert', index: null })}
+				/>
+				<div class="group-title">{$lang('hearth_alert_chimes')}</div>
+				{#each CHIME_SEVERITIES as { severity, label } (severity)}
+					<SettingsRow {label}>
+						<SelectField
+							inline
+							{label}
+							value={chimeValue(chimes[severity]) || 'none'}
+							options={CHIME_OPTIONS}
+							onchange={(value) => setSeverityChime(severity, value)}
+						/>
+					</SettingsRow>
+				{/each}
+				<SettingsRow label={$lang('hearth_alert_chime_volume')}>
+					<SelectField
+						inline
+						label={$lang('hearth_alert_chime_volume')}
+						value={chimeVolume}
+						options={VOLUME_OPTIONS}
+						onchange={(value) => setChimes({ volume: integerFromInput(value) })}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					icon="volume_up"
+					label={$lang('hearth_alert_chime_test')}
+					sub={$lang('hearth_alert_chime_first_tap')}
+					chevron={false}
+					onclick={playTestChime}
 				/>
 			</div>
 		</section>
@@ -1019,10 +1186,16 @@
 	}
 
 	.section-scope,
-	.settings-note {
+	.settings-note,
+	.row-note {
 		font-size: var(--h-type-small);
 		color: var(--h-text-6);
 		margin: 0 0 8px;
+	}
+
+	.row-note {
+		margin: 0;
+		padding: 10px 16px 14px;
 	}
 
 	/* a run of rows inside a section, set off by its own small heading */

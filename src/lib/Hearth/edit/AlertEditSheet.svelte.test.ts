@@ -54,6 +54,15 @@ describe('AlertEditSheet', () => {
 		expect(get(editor)).toEqual({ kind: 'settings' });
 	});
 
+	it('picks a chime for the rule, or leaves it to the severity', async () => {
+		render(AlertEditSheet, { index: 0 });
+		const sound = screen.getByLabelText(en.hearth_alert_chime) as HTMLSelectElement;
+		expect(sound.value).toBe('');
+		await fireEvent.change(sound, { target: { value: 'chime' } });
+		await fireEvent.click(screen.getByRole('button', { name: en.done }));
+		expect(get(hearthConfig).alerts?.[0].chime).toBe(true);
+	});
+
 	it('blocks Done for a delay that is not a whole number of seconds', async () => {
 		render(AlertEditSheet, { index: 0 });
 		await fireEvent.input(screen.getByLabelText(en.hearth_alert_delay), {
