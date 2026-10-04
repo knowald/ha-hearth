@@ -151,6 +151,8 @@ describe('theme values', () => {
 
 	it('takes only a hex colour for the rgb knobs', () => {
 		expect(themeValueIssue('accent', '#3366ff')).toBeNull();
+		expect(themeValueIssue('accent', '#36f')).toBeNull();
+		expect(themeValueIssue('accent', '#36ff')).toBe('must be a hex colour like #f0b860');
 		expect(themeValueIssue('accent', 'red')).toBe('must be a hex colour like #f0b860');
 		expect(themeValueIssue('accent_text', 'red')).toBeNull();
 	});
@@ -164,10 +166,13 @@ describe('theme values', () => {
 	});
 
 	it('turns rgb knobs into a triplet and bare numbers into pixels', () => {
-		expect(declared({ accent: '#3366ff', radius_md: '12', fill_scale: '2' })).toEqual({
-			'--h-accent-rgb': '51 102 255',
-			'--h-radius-md': '12px',
-			'--h-fill-scale': '2'
-		});
+		expect(declared({ accent: '#3366ff', cool: '#f80', radius_md: '12', fill_scale: '2' })).toEqual(
+			{
+				'--h-accent-rgb': '51 102 255',
+				'--h-cool-rgb': '255 136 0',
+				'--h-radius-md': '12px',
+				'--h-fill-scale': '2'
+			}
+		);
 	});
 });

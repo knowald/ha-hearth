@@ -88,6 +88,12 @@ describe('theme values in hearth.yaml', () => {
 		expect(documentIssue(document(theme))).toBe(issue);
 	});
 
+	it('applies a short hex colour as a long one', () => {
+		const text = document('  accent: "#f80"\n');
+		expect(documentIssue(text)).toBeNull();
+		expect(parseDocument(text)?.theme).toEqual({ accent: '#ff8800' });
+	});
+
 	it('keeps a data URL background', () => {
 		expect(
 			documentIssue(document('  background_image: url(data:image/png;base64,iVBORw0KGgo=)\n'))

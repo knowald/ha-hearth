@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { THEME_VARS } from '$lib/core/theme';
+import { THEME_VARS, usableThemeValue } from '$lib/core/theme';
 import { cloneOverviewItem, slugify, uniqueId } from './config';
 import { hearthConfigIssues, normalizeHearthConfig } from './normalize';
 import { isRecord } from './normalizers';
@@ -322,7 +322,16 @@ export function themeFromDocument(text: string): SnippetResult<ImportedTheme> {
 	}
 	if (!Object.keys(tokens).length) return fail('The theme has no tokens'); // copy ok: yaml diagnostic
 	return {
-		value: { ...(name ? { name } : {}), theme: tokens as HearthTheme, ignored },
+		value: {
+			...(name ? { name } : {}),
+			theme: Object.fromEntries(
+				Object.entries(tokens as HearthTheme).map(([key, value]) => [
+					key,
+					usableThemeValue(key, value) ?? value
+				])
+			),
+			ignored
+		},
 		issue: null
 	};
 }

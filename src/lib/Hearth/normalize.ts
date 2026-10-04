@@ -76,7 +76,7 @@ function normalizeMobileSlot(widget: any): MobileSlot | undefined {
  * are dropped, and so is a value the dashboard cannot apply, which leaves its
  * token at the default. See usableThemeValue.
  */
-function normalizeTheme(raw: unknown): HearthTheme | undefined {
+export function normalizeTheme(raw: unknown): HearthTheme | undefined {
 	if (!isRecord(raw)) return undefined;
 	return Object.fromEntries(
 		Object.entries(raw).flatMap(([key, value]) => {

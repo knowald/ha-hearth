@@ -203,4 +203,8 @@ test('a theme import refuses a value that would leave its token', async ({ page 
 	await sheet.getByLabel('Theme YAML').fill('accent: "red; display: none"\n');
 	await expect(sheet.locator('.snippet-input .issue')).toContainText('must be a hex colour');
 	await expect(sheet.getByRole('button', { name: 'Apply' })).toBeDisabled();
+	// a short hex colour is fine
+	await sheet.getByLabel('Theme YAML').fill('accent: "#36f"\n');
+	await sheet.getByRole('button', { name: 'Apply' }).click();
+	await expect(page.locator('.frame')).toHaveCSS('--h-accent-rgb', '51 102 255');
 });

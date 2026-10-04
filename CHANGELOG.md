@@ -14,7 +14,7 @@
 ### Changed
 
 - Theme values are applied through the browser's style API, so a value can only set its own token. A value that could not stay inside its token now falls back to that token's default when hearth.yaml loads, and is refused on import and in the YAML editor with its line number, and on save
-- A short hex colour such as `#f80` in hearth.yaml now works for the accent, cool, bad, surface and line colours
+- A short hex colour such as `#f80` now works for the accent, cool, bad, surface and line colours, in hearth.yaml, a theme import and the YAML editor, and is stored as `#ff8800`
 - A media query inside an `or` group of a card or widget's visibility conditions now matches the screen; before, only media queries at the top level of the list were read and nested ones never held
 
 ## [0.6.0] - 2026-10-03

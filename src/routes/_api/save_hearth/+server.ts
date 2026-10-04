@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { saveYamlDocument } from '$lib/server/persistence';
 import { CONFIG_VERSION, currentHearthConfig } from '$lib/Hearth/format';
-import { hearthConfigIssues, newThemeIssues } from '$lib/Hearth/normalize';
+import { hearthConfigIssues, newThemeIssues, normalizeTheme } from '$lib/Hearth/normalize';
 import type { RequestHandler } from './$types';
 
 const CONFIG_PATH = './data/hearth.yaml';
@@ -23,6 +23,10 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 	const issues = [...hearthConfigIssues(config), ...newThemeIssues(config)];
 	if (issues.length) error(400, issues.join('; '));
+	// a short #f80 is stored as #ff8800, as loading the file would read it
+	for (const slot of ['theme', 'theme_night']) {
+		if (isMapping(config[slot])) config[slot] = normalizeTheme(config[slot]);
+	}
 	const revision = body.revision;
 	if (!(Number.isInteger(revision) && (revision as number) >= 0)) {
 		error(400, 'invalid revision');

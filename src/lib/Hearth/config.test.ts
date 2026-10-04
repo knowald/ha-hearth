@@ -430,7 +430,6 @@ describe('wall tablet settings', () => {
 		expect(hearthConfigIssues(raw)).toEqual([]);
 		// a document being applied gets no such repair
 		expect(newThemeIssues(raw)).toEqual([
-			'theme.accent must be a hex colour like #f0b860',
 			'theme.cool must be a hex colour like #f0b860',
 			'theme.text_1 must not contain comments, backslashes, braces or angle brackets'
 		]);

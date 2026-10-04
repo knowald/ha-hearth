@@ -281,6 +281,10 @@ describe('imported themes', () => {
 		});
 	});
 
+	it('takes a short hex colour and keeps it long', () => {
+		expect(themeFromDocument('accent: "#f80"\n').value?.theme).toEqual({ accent: '#ff8800' });
+	});
+
 	it.each([
 		['accent: "red; display: none"\n', /^Line 1: accent must be a hex colour/],
 		['text_1: "#fff /*"\n', /^Line 1: text_1 must not contain comments/],

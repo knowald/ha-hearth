@@ -467,8 +467,14 @@ export const THEME_PRESETS: { id: string; theme: HearthTheme | null }[] = [
 	}
 ];
 
+/** `#f80` as `#ff8800`; anything else comes back as it was. */
+function longHex(value: string) {
+	const short = /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/.exec(value.trim());
+	return short ? `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}` : value;
+}
+
 function hexToTriplet(value: string) {
-	const hex = value.trim();
+	const hex = longHex(value.trim());
 	if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return value;
 	return `${parseInt(hex.slice(1, 3), 16)} ${parseInt(hex.slice(3, 5), 16)} ${parseInt(hex.slice(5, 7), 16)}`;
 }
@@ -478,10 +484,10 @@ function hexToTriplet(value: string) {
  * inside its own custom property: no `;` outside brackets and quotes, no
  * comment, escape, brace or angle bracket, and balanced brackets and quotes.
  * That still lets `url(data:image/png;base64,...)` through. The rgb knobs
- * take a hex colour, which the dashboard splits into a triplet.
+ * take a hex colour, short or long, which the dashboard splits into a triplet.
  */
 export function themeValueIssue(key: string, value: string): string | null {
-	if (THEME_VARS[key]?.rgb && !/^#[0-9a-fA-F]{6}$/.test(value.trim())) {
+	if (THEME_VARS[key]?.rgb && !/^#([0-9a-fA-F]{3}){1,2}$/.test(value.trim())) {
 		return 'must be a hex colour like #f0b860'; // copy ok: yaml diagnostic
 	}
 	if (/\/\*|\*\/|[\\{}<>]/.test(value)) {
@@ -505,17 +511,13 @@ export function themeValueIssue(key: string, value: string): string | null {
 }
 
 /**
- * A value read from a file, as the dashboard can apply it: a short `#f80` on
- * an rgb knob becomes `#ff8800`, and anything themeValueIssue rejects is null
- * so the token keeps its default instead of locking the dashboard.
+ * A value as it is kept: a short `#f80` on an rgb knob becomes `#ff8800`, and
+ * anything themeValueIssue rejects is null, so a file that is loaded leaves
+ * that token at its default instead of locking the dashboard.
  */
 export function usableThemeValue(key: string, value: string): string | null {
-	const short = /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/.exec(value.trim());
-	const usable =
-		THEME_VARS[key]?.rgb && short
-			? `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`
-			: value;
-	return themeValueIssue(key, usable) ? null : usable;
+	if (themeValueIssue(key, value)) return null;
+	return THEME_VARS[key]?.rgb ? longHex(value.trim()) : value;
 }
 
 /**
