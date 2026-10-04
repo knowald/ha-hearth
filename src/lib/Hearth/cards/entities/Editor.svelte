@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { integerFromInput } from '../../edit/numbers';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm, type FormValues } from '../../edit/form.svelte';
 	import { ICON } from '../../iconSizes';
 	import { lang } from '$lib/core/i18n';
 	import { domainDescriptor } from '$lib/core/domains';
@@ -74,22 +76,115 @@
 		};
 	}
 
-	let title = $state(initial?.title ?? '');
-	let style = $state<string>(initial?.style ?? 'tile');
-	let columns = $state<string>(initial?.columns ? String(initial.columns) : '');
-	// mirrors the runtime default (titled sections count unless opted out), so
-	// the checkbox state matches what the dashboard actually renders
-	let showCount = $state(initial ? (initial.show_count ?? Boolean(initial.title)) : true);
-	let groupActions = $state(initial ? initial.group_actions !== false : true);
-	let tuneButtons = $state(initial?.tune_button ?? false);
-	let verticalPadding = $state(initial?.vertical_padding ?? '');
-	let readonly = $state(initial?.readonly ?? false);
-	let wildcard = $state(initial?.wildcard ?? '');
-	let sliderUpdates = $state(initial?.slider_updates ?? 'continuous');
-	let collapsed = $state(initial?.collapsed ?? false);
-	let icon = $state(initial?.icon ?? '');
-	let summary = $state(initial?.summary ?? '');
-	let summaryEntity = $state(initial?.summary_entity ?? '');
+	const collapsed = (values: FormValues) => values.collapsed === true;
+	const form = new EditorForm(initial, [
+		{
+			key: 'title',
+			kind: 'text',
+			label: 'hearth_title',
+			example: 'hearth_example_entities_title'
+		},
+		{
+			key: 'style',
+			kind: 'select',
+			label: 'hearth_style',
+			default: 'tile',
+			options: [
+				{ value: 'tile', label: 'hearth_style_tiles' },
+				{ value: 'stat', label: 'hearth_style_stat_boxes' }
+			]
+		},
+		{
+			key: 'columns',
+			kind: 'select',
+			options: [
+				{ value: '', label: 'auto' }, // copy ok: translation key
+				{ value: '1' },
+				{ value: '2' },
+				{ value: '3' },
+				{ value: '4' }
+			],
+			write: (raw) => {
+				const count = integerFromInput(String(raw));
+				return Number.isFinite(count) && count >= 1 ? count : undefined;
+			}
+		},
+		{
+			key: 'vertical_padding',
+			kind: 'select',
+			label: 'hearth_vertical_padding',
+			advanced: true,
+			options: [
+				{ value: '', label: 'hearth_standard_density' },
+				{ value: 'compact', label: 'hearth_compact' }
+			]
+		},
+		{
+			key: 'slider_updates',
+			kind: 'select',
+			label: 'hearth_slider_updates',
+			default: 'continuous',
+			advanced: true,
+			options: [
+				{ value: 'continuous', label: 'hearth_while_dragging' },
+				{ value: 'release', label: 'hearth_on_release' }
+			],
+			// stored even at the default, as it always has been
+			write: (raw) => raw
+		},
+		{
+			key: 'show_count',
+			kind: 'check',
+			label: 'hearth_show_active_count_in_header',
+			// mirrors the runtime default (titled sections count unless opted out), so
+			// the checkbox state matches what the dashboard actually renders
+			read: (card) => (card ? (card.show_count ?? Boolean(card.title)) : true),
+			// stored only when it differs from that default; explicit false opts a
+			// titled section out
+			write: (on, values) => (on === Boolean(String(values.title).trim()) ? undefined : on)
+		},
+		{
+			key: 'group_actions',
+			kind: 'check',
+			label: 'hearth_header_actions_for_groups_all_off',
+			default: true
+		},
+		{ key: 'tune_button', kind: 'check', label: 'hearth_controls_glyph_on_tiles_long_press' },
+		{ key: 'readonly', kind: 'check', label: 'hearth_display_only_no_tile_ever_sends' },
+		{
+			key: 'wildcard',
+			kind: 'text',
+			label: 'hearth_entity_wildcard_optional',
+			placeholder: 'light.kitchen_*',
+			advanced: true
+		},
+		{ key: 'collapsed', kind: 'check', label: 'hearth_collapse_into_a_summary_row_details' },
+		{
+			key: 'icon',
+			kind: 'icon',
+			label: 'hearth_summary_row_icon_optional',
+			show: collapsed,
+			clearHidden: true
+		},
+		{
+			key: 'summary',
+			kind: 'text',
+			label: 'hearth_summary_text_optional',
+			example: 'hearth_example_entities_summary',
+			show: collapsed,
+			clearHidden: true
+		},
+		{
+			key: 'summary_entity',
+			kind: 'entity',
+			label: 'hearth_summary_from_entity_optional',
+			hint: 'hearth_without_either_the_row_counts_the',
+			show: collapsed,
+			clearHidden: true
+		}
+	]);
+	let style = $derived(form.values.style);
+	let readonly = $derived(form.values.readonly === true);
 	let entities = $state<EditableRef[]>((initial?.entities ?? []).map(editable));
 	let entitiesOpen = $state(true);
 	let expandedRows = $state<number[]>([]);
@@ -173,26 +268,9 @@
 	let stylesValid = $derived(entities.every((ref) => ref.styleValid !== false));
 
 	$effect(() => {
-		const columnCount = integerFromInput(columns);
 		onchange({
 			fields: {
-				title: title.trim() || undefined,
-				style: style === 'stat' ? 'stat' : undefined,
-				columns: Number.isFinite(columnCount) && columnCount >= 1 ? columnCount : undefined,
-				// stored only when it differs from the default (titled sections count,
-				// untitled ones do not); explicit false opts a titled section out
-				show_count: showCount === Boolean(title.trim()) ? undefined : showCount,
-				group_actions: groupActions ? undefined : false,
-				tune_button: tuneButtons || undefined,
-				vertical_padding: verticalPadding === 'compact' ? 'compact' : undefined,
-				readonly: readonly || undefined,
-				wildcard: wildcard.trim() || undefined,
-				slider_updates:
-					sliderUpdates === 'release' || sliderUpdates === 'continuous' ? sliderUpdates : undefined,
-				collapsed: collapsed || undefined,
-				icon: collapsed ? icon.trim() || undefined : undefined,
-				summary: collapsed ? summary.trim() || undefined : undefined,
-				summary_entity: collapsed ? summaryEntity.trim() || undefined : undefined,
+				...form.stored,
 				entities: entities
 					.map((ref): EntityRef => ({
 						entity: ref.entity.trim(),
@@ -226,69 +304,7 @@
 	});
 </script>
 
-<TextField
-	label={$lang('hearth_title')}
-	bind:value={title}
-	placeholder={$lang('hearth_example_entities_title')}
-/>
-<SelectField
-	label={$lang('hearth_style')}
-	bind:value={style}
-	options={[
-		{ value: 'tile', label: $lang('hearth_style_tiles') },
-		{ value: 'stat', label: $lang('hearth_style_stat_boxes') }
-	]}
-/>
-<SelectField
-	label={$lang('columns')}
-	bind:value={columns}
-	options={[
-		{ value: '', label: $lang('auto') },
-		{ value: '1', label: '1' },
-		{ value: '2', label: '2' },
-		{ value: '3', label: '3' },
-		{ value: '4', label: '4' }
-	]}
-/>
-<SelectField
-	label={$lang('hearth_vertical_padding')}
-	bind:value={verticalPadding}
-	options={[
-		{ value: '', label: $lang('hearth_standard_density') },
-		{ value: 'compact', label: $lang('hearth_compact') }
-	]}
-/>
-<SelectField
-	label={$lang('hearth_slider_updates')}
-	bind:value={sliderUpdates}
-	options={[
-		{ value: 'continuous', label: $lang('hearth_while_dragging') },
-		{ value: 'release', label: $lang('hearth_on_release') }
-	]}
-/>
-<CheckField label={$lang('hearth_show_active_count_in_header')} bind:checked={showCount} />
-<CheckField label={$lang('hearth_header_actions_for_groups_all_off')} bind:checked={groupActions} />
-<CheckField label={$lang('hearth_controls_glyph_on_tiles_long_press')} bind:checked={tuneButtons} />
-<CheckField label={$lang('hearth_display_only_no_tile_ever_sends')} bind:checked={readonly} />
-<TextField
-	label={$lang('hearth_entity_wildcard_optional')}
-	bind:value={wildcard}
-	placeholder="light.kitchen_*"
-/>
-<CheckField label={$lang('hearth_collapse_into_a_summary_row_details')} bind:checked={collapsed} />
-
-{#if collapsed}
-	<IconField label={$lang('hearth_summary_row_icon_optional')} bind:value={icon} />
-	<TextField
-		label={$lang('hearth_summary_text_optional')}
-		bind:value={summary}
-		placeholder={$lang('hearth_example_entities_summary')}
-	/>
-	<EntityField label={$lang('hearth_summary_from_entity_optional')} bind:value={summaryEntity} />
-	<div class="hint">
-		{$lang('hearth_without_either_the_row_counts_the')}
-	</div>
-{/if}
+<FormRenderer {form} />
 
 <button
 	type="button"
@@ -361,12 +377,14 @@
 						<CodeField
 							label={$lang('hearth_name_template_optional')}
 							language="jinja2"
+							compact
 							bind:value={ref.name_template}
 							placeholder={"{{ state_attr('sensor.phone', 'friendly_name') }}"}
 						/>
 						<CodeField
 							label={$lang('hearth_state_template_optional')}
 							language="jinja2"
+							compact
 							bind:value={ref.state_template}
 							placeholder={"{{ states('sensor.power') | int }} W"}
 						/>
