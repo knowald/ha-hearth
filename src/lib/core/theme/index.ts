@@ -1,6 +1,6 @@
 /*
  * Theme tokens, derivation and presets. A theme is a flat map of knob name to
- * value that `themeStyle()` turns into the `--h-*` custom properties every
+ * value that `themeDeclarations()` turns into the `--h-*` custom properties every
  * surface reads.
  */
 
@@ -83,7 +83,7 @@ export const THEME_VARS: Record<string, { cssVar: string; rgb?: boolean; raw?: b
 
 /**
  * Default value for every theme knob - the Calm Hearth look. Serves both as
- * the base `:root` stylesheet (via themeStyle) and as picker defaults when a
+ * the base `:root` rule (via themeDeclarations) and as picker defaults when a
  * knob is not set in the user theme.
  */
 export const THEME_DEFAULTS: Record<string, string> = {
@@ -467,25 +467,79 @@ export const THEME_PRESETS: { id: string; theme: HearthTheme | null }[] = [
 	}
 ];
 
+/** `#f80` as `#ff8800`; anything else comes back as it was. */
+function longHex(value: string) {
+	const short = /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/.exec(value.trim());
+	return short ? `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}` : value;
+}
+
 function hexToTriplet(value: string) {
-	const hex = value.trim();
+	const hex = longHex(value.trim());
 	if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return value;
 	return `${parseInt(hex.slice(1, 3), 16)} ${parseInt(hex.slice(3, 5), 16)} ${parseInt(hex.slice(5, 7), 16)}`;
 }
 
-export function themeStyle(theme?: HearthTheme): string {
-	if (!theme) return '';
+/**
+ * Why a token value cannot be used, or null when it can. A value must stay
+ * inside its own custom property: no `;` outside brackets and quotes, no
+ * comment, escape, brace or angle bracket, and balanced brackets and quotes.
+ * That still lets `url(data:image/png;base64,...)` through. The rgb knobs
+ * take a hex colour, short or long, which the dashboard splits into a triplet.
+ */
+export function themeValueIssue(key: string, value: string): string | null {
+	if (THEME_VARS[key]?.rgb && !/^#([0-9a-fA-F]{3}){1,2}$/.test(value.trim())) {
+		return 'must be a hex colour like #f0b860'; // copy ok: yaml diagnostic
+	}
+	if (/\/\*|\*\/|[\\{}<>]/.test(value)) {
+		return 'must not contain comments, backslashes, braces or angle brackets'; // copy ok: yaml diagnostic
+	}
+	let depth = 0;
+	let quote: string | null = null;
+	for (const char of value) {
+		if (quote) {
+			if (char === quote) quote = null;
+		} else if (char === '"' || char === "'") quote = char;
+		else if (char === '(' || char === '[') depth += 1;
+		else if (char === ')' || char === ']') {
+			depth -= 1;
+			if (depth < 0) return 'has an unmatched bracket'; // copy ok: yaml diagnostic
+		} else if (char === ';' && depth === 0) {
+			return 'must be one CSS value, without ;'; // copy ok: yaml diagnostic
+		}
+	}
+	return quote || depth ? 'has an unclosed bracket or quote' : null; // copy ok: yaml diagnostic
+}
+
+/**
+ * A value as it is kept: a short `#f80` on an rgb knob becomes `#ff8800`, and
+ * anything themeValueIssue rejects is null, so a file that is loaded leaves
+ * that token at its default instead of locking the dashboard.
+ */
+export function usableThemeValue(key: string, value: string): string | null {
+	if (themeValueIssue(key, value)) return null;
+	return THEME_VARS[key]?.rgb ? longHex(value.trim()) : value;
+}
+
+/**
+ * The custom properties a theme sets, as [property, value] pairs for
+ * CSSStyleDeclaration.setProperty. Values go through the CSSOM rather than
+ * into stylesheet text, so no value can end its property or the rule; one the
+ * browser cannot parse is dropped and the default under it stays.
+ */
+export function themeDeclarations(theme?: HearthTheme): [string, string][] {
+	if (!theme) return [];
 	return Object.entries(theme)
-		.filter(([key]) => key in THEME_VARS)
+		.filter(([key, value]) => key in THEME_VARS && typeof value === 'string')
 		.map(([key, value]) => {
 			const { cssVar, rgb, raw } = THEME_VARS[key];
-			// the result lands in a raw <style> tag, so strip anything that could
-			// close the tag or the :root block (no legal CSS value needs these)
-			const safe = String(value).replace(/[<>{}]/g, '');
-			const resolved = rgb ? hexToTriplet(safe) : !raw && /^\d+$/.test(safe) ? `${safe}px` : safe;
-			return `${cssVar}: ${resolved};`;
-		})
-		.join(' ');
+			const trimmed = value.trim();
+			const resolved = rgb
+				? hexToTriplet(trimmed)
+				: !raw && /^\d+$/.test(trimmed)
+					? `${trimmed}px`
+					: trimmed;
+			return [cssVar, resolved];
+		});
 }
 
 /**

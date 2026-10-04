@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as yaml from 'js-yaml';
+	import { dumpYaml, parseYaml } from '../yamlText';
 	import { fill, lang } from '$lib/core/i18n';
 	import type { ActionTarget } from '$lib/core/ha/commands';
 	import { isLinkUrl, resolvePage } from '../config';
@@ -34,7 +34,7 @@
 	let service = $state(initial?.action === 'perform-action' ? initial.perform_action : '');
 	let targetEntity = $state([initialTarget?.entity_id ?? []].flat().join(', '));
 	let dataText = $state(
-		initial?.action === 'perform-action' && initial.data ? yaml.dump(initial.data).trimEnd() : ''
+		initial?.action === 'perform-action' && initial.data ? dumpYaml(initial.data).trimEnd() : ''
 	);
 	let page = $state(
 		initial?.action === 'navigate'
@@ -67,14 +67,10 @@
 	// CodeField reports why the text does not parse; this only decides validity
 	let data = $derived.by((): { ok: boolean; value?: Record<string, unknown> } => {
 		if (!dataText.trim()) return { ok: true };
-		try {
-			const parsed = yaml.load(dataText);
-			return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-				? { ok: true, value: parsed as Record<string, unknown> }
-				: { ok: false };
-		} catch {
-			return { ok: false };
-		}
+		const parsed = parseYaml(dataText).value;
+		return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+			? { ok: true, value: parsed as Record<string, unknown> }
+			: { ok: false };
 	});
 
 	function performTarget(): ActionTarget | undefined {

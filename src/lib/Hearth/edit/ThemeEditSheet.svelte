@@ -21,17 +21,27 @@
 		textContrastOf,
 		THEME_DEFAULTS,
 		THEME_PRESETS,
+		themeValueIssue,
+		usableThemeValue,
 		type HearthTheme
 	} from '$lib/core/theme';
 	import {
 		editedThemeSlot,
 		editor,
 		hearthConfig,
+		reportCopy,
 		requestConfirmation,
 		updateConfig
 	} from '../store';
+	import { downloadText } from '$lib/ui/download';
+	import { copyText } from '$lib/ui/clipboard';
+	import Ripple from '$lib/ui/actions/ripple';
+	import { PRESS_RIPPLE } from '../config';
+	import { themeDocument, themeFileName, themeFromDocument } from '../snippets';
 	import EditSheet from './EditSheet.svelte';
 	import ColorField from './ColorField.svelte';
+	import CopyFallback from './CopyFallback.svelte';
+	import SnippetInput from './SnippetInput.svelte';
 	import EntityField from './EntityField.svelte';
 	import ImageField from './ImageField.svelte';
 	import SelectField from './SelectField.svelte';
@@ -77,12 +87,17 @@
 		});
 	}
 
+	let backgroundImageIssue = $derived.by(() => {
+		const url = backgroundImageUrl.trim();
+		return url ? themeValueIssue('background_image', `url(${url})`) : null;
+	});
+
 	// applied when the field is left rather than per keystroke: the dashboard
 	// behind the window previews the new wallpaper without the undo stack
 	// collecting a step for every character
 	function applyBackgroundImage() {
 		const url = backgroundImageUrl.trim();
-		if (url === unwrapUrl(theme.background_image)) return;
+		if (url === unwrapUrl(theme.background_image) || backgroundImageIssue) return;
 		writeTheme((current) => {
 			if (url) return { ...current, background_image: `url(${url})` };
 			const next = { ...current };
@@ -203,9 +218,54 @@
 		}
 	}
 
+	// a saved theme file is not checked when written, and the save endpoint
+	// would refuse a value the dashboard cannot apply
 	function applySavedTheme(saved: SavedTheme) {
-		writeTheme(() => ({ ...saved.theme }));
-		backgroundImageUrl = unwrapUrl(saved.theme.background_image);
+		const usable = Object.entries(saved.theme).flatMap(([key, value]) => {
+			const kept = typeof value === 'string' ? usableThemeValue(key, value) : null;
+			return kept === null ? [] : [[key, kept]];
+		});
+		const next: HearthTheme = Object.fromEntries(usable);
+		writeTheme(() => next);
+		backgroundImageUrl = unwrapUrl(next.background_image);
+	}
+
+	function sameTheme(left: HearthTheme, right: HearthTheme) {
+		const keys = Object.keys(left);
+		return (
+			keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key])
+		);
+	}
+
+	/*
+	 * Export and Import move a theme between dashboards as YAML, in the same
+	 * shape the server keeps saved themes in. An import is checked and shown
+	 * before it applies, and applies like a preset: one undoable step.
+	 */
+	let exportName = $derived(
+		savedThemes.find((saved) => sameTheme(saved.theme, theme))?.name ??
+			(newThemeName.trim() || $lang(slot === 'night' ? 'hearth_theme_night' : 'day'))
+	);
+	let importing = $state(false);
+	let copyFallback = $state<string | null>(null);
+
+	async function copyThemeYaml() {
+		const text = themeDocument(exportName, theme);
+		if (await copyText(text)) reportCopy('copied');
+		else copyFallback = text;
+	}
+
+	function downloadTheme() {
+		downloadText(themeFileName(exportName), themeDocument(exportName, theme));
+	}
+
+	function importTheme(text: string): string | null {
+		const result = themeFromDocument(text);
+		if (result.issue !== null) return result.issue;
+		writeTheme(() => ({ ...result.value.theme }));
+		backgroundImageUrl = unwrapUrl(result.value.theme.background_image);
+		importing = false;
+		return null;
 	}
 
 	function confirmDeleteSavedTheme(saved: SavedTheme) {
@@ -314,6 +374,35 @@
 		editor.set(null);
 	}
 </script>
+
+{#snippet importPreview(text: string)}
+	{@const shared = themeFromDocument(text).value}
+	{#if shared}
+		<div class="import-preview" aria-live="polite">
+			<div class="dots">
+				{#each ['background_inner', 'accent', 'cool', 'text_1'] as key (key)}
+					<span class="dot" style:background={shared.theme[key] ?? THEME_DEFAULTS[key]}></span>
+				{/each}
+			</div>
+			<span class="saved-theme-name">{shared.name ?? $lang('hearth_imported_theme')}</span>
+			<span class="token-count">
+				{fill(
+					$lang(
+						Object.keys(shared.theme).length === 1
+							? 'hearth_theme_token_count_one'
+							: 'hearth_theme_token_count'
+					),
+					{ count: Object.keys(shared.theme).length }
+				)}
+			</span>
+		</div>
+		{#if shared.ignored.length}
+			<div class="field-hint">
+				{fill($lang('hearth_theme_keys_left_out'), { keys: shared.ignored.join(', ') })}
+			</div>
+		{/if}
+	{/if}
+{/snippet}
 
 <EditSheet
 	title={$lang('theme')}
@@ -465,6 +554,56 @@
 		{$lang('hearth_saving_or_deleting_a_theme_writes')}
 	</div>
 
+	<div class="group-label">{$lang('hearth_share_theme')}</div>
+	{#if importing}
+		<SnippetInput
+			label={$lang('hearth_theme_yaml')}
+			hint={$lang('hearth_theme_import_hint')}
+			submitLabel={$lang('hearth_apply')}
+			accept=".yaml,.yml,text/yaml,application/yaml,application/x-yaml,text/plain"
+			check={(text) => themeFromDocument(text).issue}
+			preview={importPreview}
+			onsubmit={importTheme}
+			oncancel={() => (importing = false)}
+		/>
+	{:else}
+		<div class="share-row">
+			<button
+				type="button"
+				class="hearth-button secondary pressable"
+				use:Ripple={PRESS_RIPPLE}
+				onclick={copyThemeYaml}
+			>
+				<Icon name="content_copy" size={ICON.inline} />
+				{$lang('hearth_copy_as_yaml')}
+			</button>
+			<button
+				type="button"
+				class="hearth-button secondary pressable"
+				use:Ripple={PRESS_RIPPLE}
+				onclick={downloadTheme}
+			>
+				<Icon name="download" size={ICON.inline} />
+				{$lang('hearth_download')}
+			</button>
+			<button
+				type="button"
+				class="hearth-button secondary pressable"
+				use:Ripple={PRESS_RIPPLE}
+				onclick={() => {
+					copyFallback = null;
+					importing = true;
+				}}
+			>
+				<Icon name="upload_file" size={ICON.inline} />
+				{$lang('hearth_import')}
+			</button>
+		</div>
+	{/if}
+	{#if copyFallback !== null}
+		<CopyFallback text={copyFallback} onclose={() => (copyFallback = null)} />
+	{/if}
+
 	<div class="group-label">{$lang('hearth_colors')}</div>
 	<div class="picker-grid">
 		<ColorField
@@ -522,6 +661,7 @@
 	<ImageField
 		label={$lang('hearth_background_image')}
 		bind:value={backgroundImageUrl}
+		issue={backgroundImageIssue}
 		placeholder={$lang('hearth_example_background_image')}
 		onchange={applyBackgroundImage}
 	/>
@@ -875,5 +1015,36 @@
 		font-size: var(--h-type-small);
 		color: var(--h-bad-text);
 		margin-bottom: 10px;
+	}
+
+	.share-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-bottom: 18px;
+	}
+
+	.share-row .hearth-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.import-preview {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 12px;
+		margin-bottom: 8px;
+		border-radius: var(--h-radius-xs);
+		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+		font-size: var(--h-type-body);
+		color: var(--h-text-3);
+	}
+
+	.token-count {
+		flex: none;
+		font-size: var(--h-type-small);
+		color: var(--h-text-5);
 	}
 </style>

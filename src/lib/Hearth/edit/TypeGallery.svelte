@@ -7,6 +7,7 @@
 	import { ICON } from '../iconSizes';
 	import { activateOnKeyboard } from '../interaction';
 	import Icon from '../Icon.svelte';
+	import SnippetInput from './SnippetInput.svelte';
 
 	/**
 	 * The one type picker for cards and rail widgets. Open, it is a searchable
@@ -28,7 +29,10 @@
 		searchPlaceholder,
 		noMatch,
 		open = $bindable(false),
-		onselect
+		onselect,
+		onpaste,
+		pasteCheck,
+		pasteHint = ''
 	}: {
 		kinds: readonly Kind[];
 		selected: string;
@@ -38,9 +42,15 @@
 		noMatch: string;
 		open?: boolean;
 		onselect: (type: string) => void;
+		/** Adds what was pasted as YAML, or returns why it cannot; no Paste YAML without it. */
+		onpaste?: (text: string) => string | null;
+		/** Why pasted text cannot be added, checked as it arrives; null when it can. */
+		pasteCheck?: (text: string) => string | null;
+		pasteHint?: string;
 	} = $props();
 
 	let search = $state('');
+	let pasting = $state(false);
 
 	let current = $derived(kinds.find((kind) => kind.type === selected));
 
@@ -64,50 +74,72 @@
 <div class="type-gallery" class:open>
 	{#if open}
 		<div class="panel" use:layer={() => (open = false)}>
-			<label class="search">
-				<Icon name="search" size={ICON.inline} />
-				<input
-					type="text"
-					aria-label={searchPlaceholder}
-					bind:value={search}
-					placeholder={searchPlaceholder}
-					spellcheck="false"
-					use:autofocus
+			{#if pasting && onpaste}
+				<SnippetInput
+					label={$lang('hearth_yaml_to_add')}
+					hint={pasteHint}
+					submitLabel={$lang('add')}
+					check={pasteCheck}
+					onsubmit={onpaste}
+					oncancel={() => (pasting = false)}
 				/>
-				{#if current}
+			{:else}
+				<label class="search">
+					<Icon name="search" size={ICON.inline} />
+					<input
+						type="text"
+						aria-label={searchPlaceholder}
+						bind:value={search}
+						placeholder={searchPlaceholder}
+						spellcheck="false"
+						use:autofocus
+					/>
+					{#if current}
+						<button
+							type="button"
+							class="collapse"
+							aria-label={$lang('hearth_close')}
+							onclick={() => (open = false)}
+						>
+							<Icon name="close" size={ICON.control} />
+						</button>
+					{/if}
+				</label>
+				{#if onpaste}
 					<button
 						type="button"
-						class="collapse"
-						aria-label={$lang('hearth_close')}
-						onclick={() => (open = false)}
+						class="paste pressable"
+						use:Ripple={PRESS_RIPPLE}
+						onclick={() => (pasting = true)}
 					>
-						<Icon name="close" size={ICON.control} />
+						<Icon name="content_paste" size={ICON.inline} />
+						{$lang('hearth_paste_yaml')}
 					</button>
 				{/if}
-			</label>
-			<div class="kinds" role="listbox" aria-label={$lang(label)}>
-				{#each matches as kind (kind.type)}
-					<div
-						class="kind pressable"
-						class:selected={kind.type === selected}
-						role="option"
-						aria-selected={kind.type === selected}
-						tabindex="0"
-						use:Ripple={PRESS_RIPPLE}
-						onclick={() => pick(kind.type)}
-						onkeydown={(event) => activateOnKeyboard(event, () => pick(kind.type))}
-					>
-						<span class="kind-icon"><Icon name={kind.icon} size={ICON.control} /></span>
-						<span class="kind-copy">
-							<span class="kind-name">{$lang(kind.name)}</span>
-							<span class="kind-sub">{$lang(kind.sub)}</span>
-						</span>
-						{#if kind.type === selected}<Icon name="check" size={ICON.control} />{/if}
-					</div>
-				{:else}
-					<div class="no-match">{noMatch}</div>
-				{/each}
-			</div>
+				<div class="kinds" role="listbox" aria-label={$lang(label)}>
+					{#each matches as kind (kind.type)}
+						<div
+							class="kind pressable"
+							class:selected={kind.type === selected}
+							role="option"
+							aria-selected={kind.type === selected}
+							tabindex="0"
+							use:Ripple={PRESS_RIPPLE}
+							onclick={() => pick(kind.type)}
+							onkeydown={(event) => activateOnKeyboard(event, () => pick(kind.type))}
+						>
+							<span class="kind-icon"><Icon name={kind.icon} size={ICON.control} /></span>
+							<span class="kind-copy">
+								<span class="kind-name">{$lang(kind.name)}</span>
+								<span class="kind-sub">{$lang(kind.sub)}</span>
+							</span>
+							{#if kind.type === selected}<Icon name="check" size={ICON.control} />{/if}
+						</div>
+					{:else}
+						<div class="no-match">{noMatch}</div>
+					{/each}
+				</div>
+			{/if}
 		</div>
 	{:else if current}
 		<button
@@ -274,6 +306,21 @@
 	.kind.selected .kind-icon,
 	.kind.selected .kind-name {
 		color: var(--h-accent-icon);
+	}
+
+	.paste {
+		display: inline-flex;
+		align-items: center;
+		align-self: flex-start;
+		gap: 8px;
+		padding: 8px 14px;
+		border-radius: var(--h-radius-xs);
+		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
+		background: none;
+		font-family: inherit;
+		font-size: var(--h-type-secondary);
+		color: var(--h-text-4);
+		cursor: pointer;
 	}
 
 	.no-match {

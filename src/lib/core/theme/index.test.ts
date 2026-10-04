@@ -10,10 +10,14 @@ import {
 	TEXT_SHADOW_SCALES,
 	THEME_DEFAULTS,
 	THEME_PRESETS,
-	themeStyle,
+	themeDeclarations,
+	themeValueIssue,
+	usableThemeValue,
 	VOID_THEME,
 	WARM_PAPER_THEME
 } from './index';
+
+const declared = (theme: Record<string, string>) => Object.fromEntries(themeDeclarations(theme));
 
 describe('THEME_PRESETS', () => {
 	it('lists each preset id once', () => {
@@ -28,7 +32,7 @@ describe('THEME_PRESETS', () => {
 		expect(VOID_THEME.background_inner).toBe('#0a0a0a');
 		expect(isLightTheme(VOID_THEME)).toBe(false);
 		expect(VOID_THEME.track).toMatch(/255,\s*255,\s*255/);
-		expect(themeStyle(VOID_THEME)).toContain('--h-bg-1: #000000;');
+		expect(declared(VOID_THEME)['--h-bg-1']).toBe('#000000');
 	});
 
 	it('keeps Warm Paper as a light theme', () => {
@@ -40,9 +44,9 @@ describe('THEME_PRESETS', () => {
 		expect(preset).toMatchObject({ id: 'glass', theme: GLASS_THEME });
 		expect(GLASS_THEME.surface_blur).toContain('blur(');
 		expect(GLASS_THEME.background_scrim).toContain('linear-gradient');
-		const css = themeStyle(GLASS_THEME);
-		expect(css).toContain('--h-surface-blur: blur(20px) saturate(140%);');
-		expect(css).toContain('--h-bg-scrim: linear-gradient(');
+		const css = declared(GLASS_THEME);
+		expect(css['--h-surface-blur']).toBe('blur(20px) saturate(140%)');
+		expect(css['--h-bg-scrim']).toMatch(/^linear-gradient\(/);
 	});
 });
 
@@ -50,7 +54,7 @@ describe('surface blur', () => {
 	it('stays off by default so surfaces cost nothing until a theme opts in', () => {
 		expect(THEME_DEFAULTS.surface_blur).toBe('none');
 		expect(THEME_DEFAULTS.background_scrim).toBe('none');
-		expect(themeStyle(THEME_DEFAULTS)).toContain('--h-surface-blur: none;');
+		expect(declared(THEME_DEFAULTS)['--h-surface-blur']).toBe('none');
 	});
 
 	it('offers named steps that each map to a usable backdrop-filter', () => {
@@ -108,12 +112,67 @@ describe('the text shadow', () => {
 	it('is off by default, so flat themes are untouched', () => {
 		expect(THEME_DEFAULTS.text_shadow).toBe('none');
 		expect(TEXT_SHADOW_SCALES[0]).toMatchObject({ value: 'none', shadow: 'none' });
-		expect(themeStyle(THEME_DEFAULTS)).toContain('--h-text-shadow: none;');
+		expect(declared(THEME_DEFAULTS)['--h-text-shadow']).toBe('none');
 	});
 
 	it('is on for Frosted Glass, which has a photo behind its text', () => {
 		expect(GLASS_THEME.text_shadow).toContain('rgba(');
 		expect(textContrastOf(GLASS_THEME)).toBe('max');
-		expect(themeStyle(GLASS_THEME)).toContain('--h-text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);');
+		expect(declared(GLASS_THEME)['--h-text-shadow']).toBe('0 2px 12px rgba(0, 0, 0, 0.6)');
+	});
+});
+
+describe('theme values', () => {
+	it('passes every preset and the defaults', () => {
+		for (const theme of [THEME_DEFAULTS, ...THEME_PRESETS.map((preset) => preset.theme ?? {})]) {
+			for (const [key, value] of Object.entries(theme)) {
+				expect(themeValueIssue(key, value), `${key}: ${value}`).toBeNull();
+			}
+		}
+	});
+
+	it('keeps a data URL with its ; inside the brackets', () => {
+		expect(
+			themeValueIssue('background_image', 'url(data:image/png;base64,iVBORw0KGgo=)')
+		).toBeNull();
+	});
+
+	it.each([
+		['accent', 'red; display: none'],
+		['text_1', '#fff /*'],
+		['text_1', 'red; } body { display: none'],
+		['font_ui', 'a\\62 c'],
+		['text_1', 'rgb(1, 2, 3'],
+		['text_1', "'Inter"],
+		['text_1', 'red)']
+	])('refuses %s: %s', (key, value) => {
+		expect(themeValueIssue(key, value)).not.toBeNull();
+	});
+
+	it('takes only a hex colour for the rgb knobs', () => {
+		expect(themeValueIssue('accent', '#3366ff')).toBeNull();
+		expect(themeValueIssue('accent', '#36f')).toBeNull();
+		expect(themeValueIssue('accent', '#36ff')).toBe('must be a hex colour like #f0b860');
+		expect(themeValueIssue('accent', 'red')).toBe('must be a hex colour like #f0b860');
+		expect(themeValueIssue('accent_text', 'red')).toBeNull();
+	});
+
+	it('lengthens a short hex on an rgb knob and drops what it cannot apply', () => {
+		expect(usableThemeValue('accent', '#f80')).toBe('#ff8800');
+		expect(usableThemeValue('accent', '#3366ff')).toBe('#3366ff');
+		expect(usableThemeValue('text_1', '#fff')).toBe('#fff');
+		expect(usableThemeValue('accent', 'red; display: none')).toBeNull();
+		expect(usableThemeValue('text_1', '#fff /*')).toBeNull();
+	});
+
+	it('turns rgb knobs into a triplet and bare numbers into pixels', () => {
+		expect(declared({ accent: '#3366ff', cool: '#f80', radius_md: '12', fill_scale: '2' })).toEqual(
+			{
+				'--h-accent-rgb': '51 102 255',
+				'--h-cool-rgb': '255 136 0',
+				'--h-radius-md': '12px',
+				'--h-fill-scale': '2'
+			}
+		);
 	});
 });

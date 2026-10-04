@@ -7,9 +7,14 @@
 - Show a slideshow of uploaded photos on the sleep screen, with a slow zoom and crossfade, in shuffled or listed order
 - Fill the sleep screen with a sky gradient that follows the sun, deep blue at night, warm at dawn and dusk and light by day
 - Show the playing track with its album art on the sleep screen, and a chosen background while nothing plays
+- Edit a single card or widget as YAML from its sheet with a Form | YAML switch, which also takes options the form has no field for
+- Copy a card or widget as YAML and paste it onto another page or into the sidebar; a pasted item gets a new id
+- Share a theme: copy or download it as YAML, and import one from text, the clipboard or a file
 
 ### Changed
 
+- Theme values are applied through the browser's style API, so a value can only set its own token. A value that could not stay inside its token now falls back to that token's default when hearth.yaml loads, and is refused on import and in the YAML editor with its line number, and on save
+- A short hex colour such as `#f80` now works for the accent, cool, bad, surface and line colours, in hearth.yaml, a theme import and the YAML editor, and is stored as `#ff8800`
 - A media query inside an `or` group of a card or widget's visibility conditions now matches the screen; before, only media queries at the top level of the list were read and nested ones never held
 
 ## [0.6.0] - 2026-10-03

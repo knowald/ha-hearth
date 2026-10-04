@@ -77,7 +77,11 @@ describe('ThemeEditSheet day/night switch', () => {
 });
 
 describe('ThemeEditSheet saved themes', () => {
-	const saved = { id: 'dusk', name: 'Dusk', theme: {} };
+	const saved: { id: string; name: string; theme: Record<string, string> } = {
+		id: 'dusk',
+		name: 'Dusk',
+		theme: {}
+	};
 	let fetchMock: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
@@ -101,6 +105,14 @@ describe('ThemeEditSheet saved themes', () => {
 		render(ThemeEditSheet);
 		expect(screen.queryByRole('button', { name: en.done })).toBeNull();
 		expect(screen.getAllByRole('button', { name: en.hearth_close })).toHaveLength(2);
+	});
+
+	it('leaves out a saved theme value the dashboard cannot apply', async () => {
+		saved.theme = { accent: '#f80', text_1: '#fff /*', text_2: '#ddd' };
+		render(ThemeEditSheet);
+		await fireEvent.click(await screen.findByRole('button', { name: 'Dusk' }));
+		expect(get(hearthConfig).theme).toEqual({ accent: '#ff8800', text_2: '#ddd' });
+		saved.theme = {};
 	});
 
 	it('asks through the shared dialog before deleting, and announces a failure', async () => {
@@ -151,6 +163,19 @@ describe('ThemeEditSheet fonts and background shade', () => {
 		await fireEvent.change(shade, { target: { value: GLASS_THEME.background_scrim } });
 		expect(get(hearthConfig).theme?.background_scrim).toBe(GLASS_THEME.background_scrim);
 		await fireEvent.change(shade, { target: { value: 'none' } });
+		expect(get(hearthConfig).theme).toEqual({ background_image: 'url(/room.jpg)' });
+	});
+
+	it('holds back a background address that would leave its token', async () => {
+		render(ThemeEditSheet);
+		const field = screen.getByLabelText(en.hearth_background_image);
+		await fireEvent.input(field, { target: { value: 'a.jpg); color: red' } });
+		await fireEvent.change(field);
+		expect(screen.getByText(/must be one CSS value/)).toBeTruthy();
+		expect(get(hearthConfig).theme).toBeUndefined();
+		await fireEvent.input(field, { target: { value: '/room.jpg' } });
+		await fireEvent.change(field);
+		expect(screen.queryByText(/must be one CSS value/)).toBeNull();
 		expect(get(hearthConfig).theme).toEqual({ background_image: 'url(/room.jpg)' });
 	});
 

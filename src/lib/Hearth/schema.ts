@@ -1,6 +1,7 @@
 import * as v from 'valibot';
 import type { ActionTarget, HaAction } from '$lib/core/ha/commands';
 import { imageFileOf } from '$lib/core/images';
+import { themeValueIssue } from '$lib/core/theme';
 import {
 	classListProblem,
 	CLOCK_TIME,
@@ -436,12 +437,33 @@ export const RoomSchema = v.looseObject({
 });
 
 // v.record alone accepts arrays, which are objects to it
-const ThemeSchema = v.pipe(
+export const ThemeSchema = v.pipe(
 	v.custom<Record<string, unknown>>(
 		(value) => !!value && typeof value === 'object' && !Array.isArray(value),
 		'must be a mapping of tokens'
 	),
 	v.record(v.string(), v.string('must be text'))
+);
+
+/**
+ * ThemeSchema plus the value check, for a theme being imported. Loading
+ * hearth.yaml does not run the check; normalizeTheme drops those values there
+ * so the dashboard still opens.
+ */
+export const NewThemeSchema = v.pipe(
+	ThemeSchema,
+	// each value must stay inside its own custom property; see themeValueIssue
+	v.rawCheck(({ dataset, addIssue }) => {
+		if (!dataset.typed) return;
+		for (const [key, value] of Object.entries(dataset.value)) {
+			const message = themeValueIssue(key, value);
+			if (!message) continue;
+			addIssue({
+				message,
+				path: [{ type: 'object', origin: 'value', input: dataset.value, key, value }]
+			});
+		}
+	})
 );
 
 /** Root settings; `rail` and `rooms` are walked item by item by the issue checker. */
