@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as v from 'valibot';
-import en from '../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { CARD_TYPES } from './cards';
 import { RAIL_WIDGET_TYPES } from './widgets';
 

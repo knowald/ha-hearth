@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { configuration } from '$lib/core/app/configuration';
 import { deviceName, saveDeviceName } from '$lib/core/app/device';
 import { screenOverrides } from '$lib/core/app/screen';

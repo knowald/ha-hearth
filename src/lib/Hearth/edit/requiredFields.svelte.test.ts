@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/svelte';
 import type { Component } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import CameraEditor from '../cards/camera/Editor.svelte';
 import ClimateEditor from '../cards/climate/Editor.svelte';
 import DaysSinceEditor from '../cards/days_since/Editor.svelte';

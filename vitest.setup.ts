@@ -1,9 +1,9 @@
-import { readFileSync } from 'node:fs';
 import { translation } from '$lib/core/i18n';
+import { english } from '$lib/core/i18n/testing';
 
-// components render through $lang(); load the English file so assertions can
-// read the copy a user sees rather than translation keys
-translation.set(JSON.parse(readFileSync('static/translations/en.json', 'utf8')));
+// components render through $lang(); load the English copy so assertions can
+// read the text a user sees rather than translation keys
+translation.set(english);
 
 // jsdom ships no ResizeObserver, and components that watch their own box are
 // rendered here for reasons unrelated to layout

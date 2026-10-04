@@ -1,16 +1,10 @@
-import { readdir } from 'fs/promises';
 import { json, error } from '@sveltejs/kit';
-import { dev } from '$app/environment';
-import path from 'path';
+import { listLocales } from '$lib/server/translations';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ setHeaders }) => {
 	try {
-		const dir = dev ? './static/translations' : './build/client/translations';
-		const files = await readdir(dir);
-		const languages = files
-			.filter((file) => path.extname(file) === '.json')
-			.map((file) => file.split('.')[0]);
+		const languages = await listLocales();
 
 		setHeaders({ 'Cache-Control': 'max-age=0' });
 

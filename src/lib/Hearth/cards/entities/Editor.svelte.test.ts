@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
-import en from '../../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import type { EntityRef } from '../../types';
 import type { EntitiesCard } from './descriptor';
 import Editor from './Editor.svelte';

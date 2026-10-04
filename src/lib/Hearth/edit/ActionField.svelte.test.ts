@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
 import { currentRoom, hearthConfig } from '../store';
 import type { StatusWidget } from '../widgets/status/descriptor';

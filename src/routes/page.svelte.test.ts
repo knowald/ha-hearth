@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import translations from '../../static/translations/en.json';
+import { english as translations } from '$lib/core/i18n/testing';
 import {
 	connectionError,
 	failedAttempts,

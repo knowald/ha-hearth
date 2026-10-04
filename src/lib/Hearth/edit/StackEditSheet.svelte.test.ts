@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from '../config';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { editor, hearthConfig, hearthEditMode, requestedConfirmation } from '../store';
 import CardColumns from '../CardColumns.svelte';
 import StackEditSheet from './StackEditSheet.svelte';

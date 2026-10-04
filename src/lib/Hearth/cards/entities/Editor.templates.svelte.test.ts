@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import en from '../../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import type { EntitiesCard } from './descriptor';
 import Editor from './Editor.svelte';
 

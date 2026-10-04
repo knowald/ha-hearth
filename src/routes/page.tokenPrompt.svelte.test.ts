@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { afterEach, expect, it, vi } from 'vitest';
-import translations from '../../static/translations/en.json';
+import { english as translations } from '$lib/core/i18n/testing';
 import { tokenNeeded } from '$lib/core/ha/connection';
 import Page from './+page.svelte';
 

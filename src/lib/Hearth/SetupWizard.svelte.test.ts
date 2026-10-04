@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Connection } from 'home-assistant-js-websocket';
 import { connection } from '$lib/core/ha/connection';
 import { fetchRegistry } from '$lib/core/ha/registry';
-import en from '../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import { get } from 'svelte/store';

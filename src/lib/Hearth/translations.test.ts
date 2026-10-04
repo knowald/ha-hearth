@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { english as copy } from '$lib/core/i18n/testing';
 import {
 	RADIUS_SCALES,
 	SURFACE_BLUR_SCALES,
@@ -10,9 +11,7 @@ import {
 } from '$lib/core/theme';
 import { CHART_PERIODS } from './model/widgets/chart';
 
-const english: Record<string, string> = JSON.parse(
-	readFileSync('static/translations/en.json', 'utf-8')
-);
+const english: Record<string, string> = copy;
 const hearthKeys = Object.keys(english).filter((key) => key.startsWith('hearth_'));
 
 // keys built at runtime from a value, e.g. `hearth_domain_${domain}`
@@ -58,6 +57,11 @@ const code = sources('src')
 	.join('\n');
 
 describe('en.json', () => {
+	it('keeps hearth copy out of the file generate.sh rewrites', () => {
+		const generated = JSON.parse(readFileSync('static/translations/en.json', 'utf-8'));
+		expect(Object.keys(generated).filter((key) => key.startsWith('hearth_'))).toEqual([]);
+	});
+
 	it('uses ASCII punctuation', () => {
 		const offending = Object.entries(english).filter(([, value]) => /[…–—‘’“”]/.test(value));
 		expect(offending).toEqual([]);
