@@ -259,7 +259,7 @@
 	]}
 />
 <SelectField
-	label={$lang('slider_updates')}
+	label={$lang('hearth_slider_updates')}
 	bind:value={sliderUpdates}
 	options={[
 		{ value: 'continuous', label: $lang('hearth_while_dragging') },
@@ -393,7 +393,7 @@
 							]}
 						/>
 						<SelectField
-							label={$lang('slider_updates')}
+							label={$lang('hearth_slider_updates')}
 							bind:value={ref.slider_updates}
 							options={[
 								{ value: '', label: $lang('hearth_card_setting') },
@@ -402,7 +402,7 @@
 							]}
 						/>
 						{#if !readonly}
-							<CheckField label={$lang('display_only')} bind:checked={ref.readonly} />
+							<CheckField label={$lang('hearth_display_only')} bind:checked={ref.readonly} />
 						{/if}
 						<ActionField
 							label={$lang('hearth_tap_action')}
