@@ -128,19 +128,16 @@ test('the sleep screen stays away while editing', async ({ page }) => {
 	await page.clock.install();
 	await open(page);
 	await startEditing(page);
+	// the sleep screen has loaded and holds its timer for the edit session
+	await expect(page.locator('html')).toHaveAttribute('data-sleep-timer', 'held');
 	await page.clock.fastForward('03:00');
-	// the idle timer has fired by now; one round trip lets the page render what it set
-	await page.evaluate(() => new Promise((resolve) => queueMicrotask(() => resolve(null))));
 	const screensaver = page.getByRole('button', { name: 'Dismiss sleep screen' });
 	await expect(screensaver).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-	// see the radar test in sleep-screen.spec.ts: the timer exists only once the
-	// sleep screen has mounted, so each try moves past a full timeout
-	await expect(async () => {
-		await page.clock.fastForward('01:05');
-		await expect(screensaver).toBeVisible({ timeout: 1000 });
-	}).toPass();
+	await expect(page.locator('html')).toHaveAttribute('data-sleep-timer', 'armed');
+	await page.clock.fastForward('01:05');
+	await expect(screensaver).toBeVisible();
 });
 
 test('offers a reload before editing a configuration saved elsewhere', async ({ page }) => {
