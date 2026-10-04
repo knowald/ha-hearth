@@ -11,21 +11,18 @@
 	}: { name: string; size: number; color?: string; fill?: boolean; motion?: IconMotion } = $props();
 </script>
 
-{#if motion}
-	<span
-		class="tile-icon"
-		data-icon-motion={motion.kind}
-		style:--icon-turn={motion.duration}
-		style:--icon-glow={motion.color}
-	>
-		<Icon {name} {size} {color} {fill} />
-		{#if motion.kind === 'bars'}
-			<span class="bars" aria-hidden="true"><span></span><span></span><span></span></span>
-		{/if}
-	</span>
-{:else}
+<!-- the wrapper stays put so a state change only swaps the attribute -->
+<span
+	class="tile-icon"
+	data-icon-motion={motion?.kind}
+	style:--icon-turn={motion?.duration}
+	style:--icon-glow={motion?.color}
+>
 	<Icon {name} {size} {color} {fill} />
-{/if}
+	{#if motion?.kind === 'bars'}
+		<span class="bars" aria-hidden="true"><span></span><span></span><span></span></span>
+	{/if}
+</span>
 
 <style>
 	.tile-icon {
@@ -44,6 +41,12 @@
 
 	[data-icon-motion='pulse'] :global(.mi) {
 		animation: tile-icon-pulse calc(var(--h-motion-theme) * 4) ease-in-out infinite;
+	}
+
+	/* set on the root while the sleep screen covers the tiles or the page is edited */
+	:global(html[data-tile-motion='paused']) .tile-icon :global(.mi),
+	:global(html[data-tile-motion='paused']) .bars span {
+		animation-play-state: paused;
 	}
 
 	[data-icon-motion='glow'] :global(.mi) {
@@ -65,7 +68,7 @@
 		width: 2px;
 		height: 100%;
 		border-radius: var(--h-radius-hair);
-		background: var(--h-accent-icon);
+		background: var(--tile-accent, var(--h-accent-icon));
 		transform-origin: bottom;
 		animation: tile-icon-bar calc(var(--h-motion-slow) * 3) ease-in-out infinite alternate;
 	}

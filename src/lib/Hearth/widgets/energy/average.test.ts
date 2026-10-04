@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StatisticRow } from '$lib/core/ha/history';
-import { belowWeekAverage, compareWithWeek } from './average';
+import { belowWeekAverage, compareWithWeek, nextFetchIn, watchWeekAverage } from './average';
+
+vi.mock('$lib/core/ha/history', () => ({ fetchStatistics: vi.fn() }));
+import { fetchStatistics } from '$lib/core/ha/history';
 
 const HOUR = 60 * 60 * 1000;
 // local time, like the widget's day boundaries
@@ -73,5 +76,55 @@ describe('compareWithWeek', () => {
 	it('shows no badge for an empty week', () => {
 		expect(belowWeekAverage({ today: 0, average: 0 })).toBe(false);
 		expect(belowWeekAverage(null)).toBe(false);
+	});
+});
+
+describe('compareWithWeek, early in the day', () => {
+	it('waits for three finished hours', () => {
+		const early = new Date(2026, 9, 4, 2, 20);
+		const history = [...week(() => 1), ...rows(TODAY, 2, () => 0.1)];
+		expect(compareWithWeek(history, early)).toBeNull();
+		const later = new Date(2026, 9, 4, 3, 20);
+		expect(compareWithWeek([...history, ...rows(TODAY + 2 * HOUR, 1, () => 0.1)], later)).toEqual({
+			today: expect.closeTo(0.3),
+			average: 3
+		});
+	});
+});
+
+describe('nextFetchIn', () => {
+	const MINUTE = 60_000;
+
+	it('fetches at a quarter past the hour, once the hour is compiled', () => {
+		expect(nextFetchIn(new Date(2026, 9, 4, 9, 0))).toBe(15 * MINUTE);
+		expect(nextFetchIn(new Date(2026, 9, 4, 9, 15))).toBe(60 * MINUTE);
+		expect(nextFetchIn(new Date(2026, 9, 4, 9, 20))).toBe(55 * MINUTE);
+	});
+
+	it('fetches right after midnight, which starts a new day', () => {
+		expect(nextFetchIn(new Date(2026, 9, 4, 23, 30))).toBe(31 * MINUTE);
+	});
+});
+
+describe('watchWeekAverage', () => {
+	afterEach(() => vi.useRealTimers());
+
+	it('applies the answer now and again at the next quarter past', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(NOW);
+		vi.mocked(fetchStatistics).mockResolvedValue({
+			'sensor.energy': [...week(() => 1), ...rows(TODAY, 9, () => 0.5)]
+		});
+		const apply = vi.fn();
+		const stop = watchWeekAverage('sensor.energy', apply);
+		await vi.advanceTimersByTimeAsync(0);
+		expect(apply).toHaveBeenLastCalledWith(true);
+		expect(fetchStatistics).toHaveBeenCalledTimes(1);
+		// 9:20 to 10:15
+		await vi.advanceTimersByTimeAsync(55 * 60_000);
+		expect(fetchStatistics).toHaveBeenCalledTimes(2);
+		stop();
+		await vi.advanceTimersByTimeAsync(2 * 60 * 60_000);
+		expect(fetchStatistics).toHaveBeenCalledTimes(2);
 	});
 });

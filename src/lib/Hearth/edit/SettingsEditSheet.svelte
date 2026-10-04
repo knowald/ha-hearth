@@ -1079,7 +1079,11 @@
 				<SettingsRow
 					icon="volume_up"
 					label={$lang('hearth_alert_chime_test')}
-					sub={$lang('hearth_alert_chime_first_tap')}
+					sub={$lang(
+						$screenOverrides.mute_chimes
+							? 'hearth_alert_chime_muted_here'
+							: 'hearth_alert_chime_first_tap'
+					)}
 					chevron={false}
 					onclick={playTestChime}
 				/>

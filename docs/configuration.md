@@ -145,7 +145,9 @@ screensaver_photo_order: sequence
 
 ## Arrival greeting
 
-Settings > Wall display > Arrival greeting greets people on the page header and on the sleep screen when they come home: "Good evening, Anna". Turn it on per person entity. A person counts as arrived for 10 minutes after their state turns `home`; Greet within changes that from 5 to 60 minutes. Each greeting shows for 2 minutes from when the screen first shows it, and the close button on the header hides it. The part of the day (morning from 5:00, afternoon from 12:00, evening from 17:00, night from 22:00) follows the time zone of the first clock widget in the sidebar, or the browser's.
+Settings > Wall display > Arrival greeting greets people on the page header and on the sleep screen when they come home: "Good evening, Anna". Turn it on per person entity. A screen greets a person when it saw them away, as `not_home` or in a zone, and then `home`. A screen that loads while someone is already home does not greet them, and neither does a Home Assistant restart, which reports persons as `unknown` or `unavailable` before `home`.
+
+The greeting has to show within 10 minutes of the arrival; Greet within changes that from 5 to 60 minutes. It then shows for 2 minutes, and the close button on the header hides it. A person who comes and goes within that window is greeted once. The part of the day (morning from 5:00, afternoon from 12:00, evening from 17:00) follows the time zone of the first clock widget in the sidebar, or the browser's; from 22:00 to 5:00 it says "Welcome home, Anna".
 
 ```yaml
 greeting:
@@ -157,7 +159,7 @@ greeting:
 
 ## Tile animations
 
-Some tile icons move with their entity: a fan spins while it is on, faster at a higher speed, a vacuum sways while it cleans, a playing media player shows level bars, and a climate entity pulses while its `hvac_action` is heating or cooling. A light that is on glows in its own color. The animations are CSS only. They are off whenever motion is reduced, by the operating system, `motion` in Server settings or This screen. To turn them off for every screen, use Settings > Appearance > Tile animations, or in YAML:
+Some tile icons move with their entity: a fan spins while it is on, in three steps from slow to fast with its speed, a vacuum sways while it cleans, a playing media player shows level bars, and a climate entity pulses while its `hvac_action` is heating or cooling. A light that is on glows in its own color. The animations are CSS only and pause while the sleep screen is up and in edit mode. They are off whenever motion is reduced, by the operating system, `motion` in Server settings or This screen. To turn them off for every screen, use Settings > Appearance > Tile animations, or in YAML:
 
 ```yaml
 animations: false
@@ -165,7 +167,7 @@ animations: false
 
 ## Energy widget
 
-The energy sidebar widget shows today's total, its cost when a price is set, and the last 8 hours as bars. While today's use so far is below the average of the previous 7 days over the same hours, it shows a Below your 7-day average badge. The comparison is fetched once an hour and needs 7 days of recorder statistics. Turn it off in the widget editor, or with `average_badge: false` on the widget.
+The energy sidebar widget shows today's total, its cost when a price is set, and the last 8 hours as bars. While today's use so far is below the average of the previous 7 days over the same hours, it shows a Below your 7-day average badge. The comparison is fetched at a quarter past each hour, once the recorder has the hour, and just after midnight. It needs 7 days of recorder statistics and 3 finished hours today. Turn it off in the widget editor, or with `average_badge: false` on the widget.
 
 ## Phone page strip
 

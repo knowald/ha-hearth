@@ -1,7 +1,7 @@
 import { derived } from 'svelte/store';
 import type { HassEntity } from 'home-assistant-js-websocket';
 import { motion } from '$lib/core/app/motion';
-import { hearthConfig } from './store';
+import { hearthConfig, hearthEditMode, screensaverActive } from './store';
 
 /*
  * Tile icon micro-animations. The kind picks a CSS animation in TileIcon; this
@@ -19,17 +19,20 @@ export interface IconMotion {
 	color?: string;
 }
 
-const SLOWEST_TURN = 3;
-const FASTEST_TURN = 0.6;
-const UNKNOWN_SPEED_TURN = 1.6;
+/*
+ * Seconds per fan turn by speed bucket. A few steps rather than a smooth
+ * scale: every new duration restarts the CSS animation, which would jump the
+ * icon on each small speed change.
+ */
+const TURN_SECONDS = { slow: 2.4, medium: 1.6, fast: 0.9 } as const;
 
 /** Seconds per fan turn: a faster fan turns its icon faster. */
 export function fanTurnSeconds(percentage: unknown): number {
 	if (typeof percentage !== 'number' || !Number.isFinite(percentage) || percentage <= 0) {
-		return UNKNOWN_SPEED_TURN;
+		return TURN_SECONDS.medium;
 	}
-	const share = Math.min(100, percentage) / 100;
-	return Math.round((SLOWEST_TURN - (SLOWEST_TURN - FASTEST_TURN) * share) * 100) / 100;
+	if (percentage <= 33) return TURN_SECONDS.slow;
+	return percentage <= 66 ? TURN_SECONDS.medium : TURN_SECONDS.fast;
 }
 
 /**
@@ -69,4 +72,10 @@ export function iconMotionFor(
 export const iconMotionEnabled = derived(
 	[hearthConfig, motion],
 	([$config, $motion]) => $config.animations !== false && $motion > 0
+);
+
+/** Running tile animations hold still while nobody sees them move or they distract from editing. */
+export const iconMotionPaused = derived(
+	[screensaverActive, hearthEditMode],
+	([$sleeping, $editing]) => $sleeping || $editing
 );

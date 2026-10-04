@@ -56,6 +56,11 @@ test('a running fan spins its tile icon until it stops', async ({ page, request 
 		'data-icon-motion',
 		'glow'
 	);
+	// editing holds the animation still without dropping it
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await expect(page.locator('html')).toHaveAttribute('data-tile-motion', 'paused');
+	await page.getByRole('button', { name: 'Cancel' }).click();
+	await expect(page.locator('html')).not.toHaveAttribute('data-tile-motion');
 	await setState(request, 'fan.bedroom', 'off');
 	await expect(fan.locator('[data-icon-motion]')).toHaveCount(0);
 });
@@ -81,6 +86,8 @@ test('the header greets a person who comes home, until dismissed', async ({ page
 });
 
 test('the energy widget marks a day below the 7-day average', async ({ page }) => {
+	// the badge waits for three finished hours of the day
+	test.skip(new Date().getHours() < 3, 'too early in the day for the badge');
 	await page.goto('/');
 	await expect(page.getByText('Below your 7-day average')).toBeVisible();
 });
@@ -109,7 +116,14 @@ rooms:
 		class RecordingContext {
 			currentTime = 0;
 			destination = {};
-			resume = () => Promise.resolve();
+			state = 'suspended';
+			onstatechange: (() => void) | null = null;
+			resume = async () => {
+				this.state = 'running';
+			};
+			suspend = async () => {
+				this.state = 'suspended';
+			};
 			createOscillator = () => ({
 				frequency: { setValueAtTime: (frequency: number) => played.push(frequency) },
 				connect() {},

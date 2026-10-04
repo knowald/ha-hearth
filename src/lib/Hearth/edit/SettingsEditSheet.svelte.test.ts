@@ -401,6 +401,13 @@ describe('SettingsEditSheet', () => {
 		expect(screen.getByText(en.hearth_alert_chime_first_tap)).toBeTruthy();
 	});
 
+	it('says by the test sound when this screen mutes alert sounds', () => {
+		screenOverrides.set({ mute_chimes: true });
+		render(SettingsEditSheet);
+		expect(screen.getByText(en.hearth_alert_chime_muted_here)).toBeTruthy();
+		expect(screen.queryByText(en.hearth_alert_chime_first_tap)).toBeNull();
+	});
+
 	it('greets the persons picked from Home Assistant', async () => {
 		states.set({ 'person.anna': hassEntity('person.anna', 'home', { friendly_name: 'Anna' }) });
 		render(SettingsEditSheet);

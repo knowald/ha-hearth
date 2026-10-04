@@ -9,9 +9,9 @@
 		arrivalsToGreet,
 		dayPart,
 		type DayPart,
-		dismissedGreetings,
 		dismissGreeting,
-		recentArrivals
+		greetingChanges,
+		watchArrivals
 	} from './greeting';
 
 	/** `sleep` drops the dismiss button: on the sleep screen any tap wakes it instead. */
@@ -21,16 +21,17 @@
 		morning: 'hearth_greeting_morning',
 		afternoon: 'hearth_greeting_afternoon',
 		evening: 'hearth_greeting_evening',
-		night: 'hearth_greeting_night'
+		night: 'hearth_welcome_home'
 	};
 
-	let arrivals = $derived(
-		arrivalsToGreet(
-			recentArrivals($states, $hearthConfig.greeting, $timer.getTime()),
-			$timer.getTime(),
-			$dismissedGreetings
-		)
-	);
+	// subscribes ahead of this component, so the states read below are already noted
+	watchArrivals();
+
+	let arrivals = $derived.by(() => {
+		void $states;
+		void $greetingChanges;
+		return arrivalsToGreet($hearthConfig.greeting, $timer.getTime());
+	});
 
 	let text = $derived.by(() => {
 		if (!arrivals.length) return '';

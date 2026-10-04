@@ -38,6 +38,9 @@ export const setupWizardOpen = writable(false);
 // shows the sleep screen at once, even with the idle timeout off
 export const screensaverPreview = writable(false);
 
+// true while the sleep screen covers the dashboard, previews included
+export const screensaverActive = writable(false);
+
 // server-managed save counter for conflict detection between tabs
 export const hearthRevision = writable(0);
 

@@ -1,4 +1,5 @@
 import { render } from '@testing-library/svelte';
+import { tick } from 'svelte';
 import { afterEach, describe, expect, it } from 'vitest';
 import { motion } from '$lib/core/app/motion';
 import { states } from '$lib/core/ha/entities';
@@ -23,13 +24,24 @@ describe('tile icon animations', () => {
 		const { container } = render(EntityTile, { entity: 'fan.bed' });
 		const icon = iconMotion(container);
 		expect(icon?.dataset.iconMotion).toBe('spin');
-		expect(icon?.style.getPropertyValue('--icon-turn')).toBe('0.6s');
+		expect(icon?.style.getPropertyValue('--icon-turn')).toBe('0.9s');
 	});
 
 	it('keeps the icon still once the fan is off', () => {
 		states.set({ 'fan.bed': hassEntity('fan.bed', 'off') });
 		const { container } = render(EntityTile, { entity: 'fan.bed' });
 		expect(iconMotion(container)).toBeNull();
+	});
+
+	it('keeps the same icon wrapper and only drops the attribute when the fan stops', async () => {
+		states.set({ 'fan.bed': hassEntity('fan.bed', 'on', { percentage: 20 }) });
+		const { container } = render(EntityTile, { entity: 'fan.bed' });
+		const wrapper = container.querySelector('.tile-icon');
+		expect(wrapper?.getAttribute('data-icon-motion')).toBe('spin');
+		states.set({ 'fan.bed': hassEntity('fan.bed', 'off') });
+		await tick();
+		expect(container.querySelector('.tile-icon')).toBe(wrapper);
+		expect(wrapper?.hasAttribute('data-icon-motion')).toBe(false);
 	});
 
 	it('glows a colored light in its color', () => {

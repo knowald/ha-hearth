@@ -665,6 +665,25 @@ describe('alert chimes', () => {
 		expect(playAlertChime).toHaveBeenCalledWith('bell', undefined);
 	});
 
+	it('chimes for a new tag only, in the tone the event names', () => {
+		const smoke = {
+			action: 'alert' as const,
+			tag: 'smoke',
+			title: 'Smoke',
+			severity: 'info' as const,
+			popup: true
+		};
+		handleHearthAction({ ...smoke, chime: 'soft' });
+		handleHearthAction({ ...smoke, title: 'Smoke in the kitchen', chime: 'soft' });
+		expect(playAlertChime).toHaveBeenCalledExactlyOnceWith('soft', undefined);
+		expect(parseHearthEvent({ action: 'alert', title: 'Smoke', chime: 'bell' }, '')).toMatchObject({
+			chime: 'bell'
+		});
+		expect(parseHearthEvent({ action: 'alert', title: 'Smoke', chime: false }, '')).toMatchObject({
+			chime: 'none'
+		});
+	});
+
 	it('stays silent while editing', () => {
 		hearthConfig.set({
 			...structuredClone(DEFAULT_HEARTH_CONFIG),

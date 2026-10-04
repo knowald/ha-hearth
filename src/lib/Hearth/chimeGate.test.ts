@@ -14,14 +14,31 @@ import type { AlertRule } from './types';
 vi.mock('./chime', () => ({ playChime: vi.fn(() => 0) }));
 import { playChime } from './chime';
 
-const created: { resume: ReturnType<typeof vi.fn> }[] = [];
+const created: FakeAudioContext[] = [];
+// whether resume() starts the context, as it does inside a gesture
+let resumable = true;
 
 class FakeAudioContext {
-	resume = vi.fn(() => Promise.resolve());
+	state: AudioContextState | 'interrupted' = 'suspended';
+	currentTime = 0;
+	onstatechange: (() => void) | null = null;
+	resume = vi.fn(async () => {
+		if (resumable) this.change('running');
+	});
+	suspend = vi.fn(async () => this.change('suspended'));
 	close = vi.fn(() => Promise.resolve());
 	constructor() {
 		created.push(this);
 	}
+	change(state: FakeAudioContext['state']) {
+		this.state = state;
+		this.onstatechange?.();
+	}
+}
+
+async function tap(event = 'pointerup') {
+	window.dispatchEvent(new Event(event));
+	await vi.waitFor(() => expect(chimesUnlocked()).toBe(true));
 }
 
 const rule = (chime?: AlertRule['chime']): AlertRule => ({
@@ -56,7 +73,9 @@ describe('chimesConfigured', () => {
 describe('the autoplay gate', () => {
 	beforeEach(() => {
 		created.length = 0;
+		resumable = true;
 		vi.mocked(playChime).mockClear();
+		vi.mocked(playChime).mockReturnValue(0.5);
 		vi.stubGlobal('AudioContext', FakeAudioContext);
 	});
 
@@ -64,6 +83,7 @@ describe('the autoplay gate', () => {
 		resetChimes();
 		setScreenOverride('mute_chimes', undefined);
 		vi.unstubAllGlobals();
+		vi.useRealTimers();
 	});
 
 	it('skips a chime before anyone has touched the page', async () => {
@@ -73,27 +93,77 @@ describe('the autoplay gate', () => {
 		expect(created).toHaveLength(0);
 	});
 
-	it('unlocks audio on the first tap and plays from then on at the set volume', async () => {
+	it('ignores the start of a touch, which iOS does not count', () => {
 		armChimes();
 		window.dispatchEvent(new Event('pointerdown'));
-		expect(chimesUnlocked()).toBe(true);
-		expect(created[0].resume).toHaveBeenCalled();
+		expect(created).toHaveLength(0);
+	});
+
+	it.each(['pointerup', 'touchend', 'click', 'keydown'])('unlocks audio on %s', async (event) => {
+		armChimes();
+		await tap(event);
+		expect(created[0].state).toBe('running');
+	});
+
+	it('plays at the set volume once unlocked, with one context for every tap', async () => {
+		armChimes();
+		await tap();
 		expect(await playAlertChime('bell', 40)).toBe(true);
 		expect(playChime).toHaveBeenCalledWith(created[0], 'bell', 0.4);
-		// later taps leave the one context alone
-		window.dispatchEvent(new Event('pointerdown'));
+		window.dispatchEvent(new Event('pointerup'));
 		expect(created).toHaveLength(1);
 	});
 
-	it('unlocks on a key press too', () => {
+	it('keeps listening while a tap fails to start the context', async () => {
 		armChimes();
-		window.dispatchEvent(new Event('keydown'));
-		expect(chimesUnlocked()).toBe(true);
+		resumable = false;
+		window.dispatchEvent(new Event('pointerup'));
+		await Promise.resolve();
+		expect(chimesUnlocked()).toBe(false);
+		resumable = true;
+		await tap();
+	});
+
+	it('suspends the context once a chime has played and resumes it for the next', async () => {
+		vi.useFakeTimers();
+		armChimes();
+		await tap();
+		const audio = created[0];
+		await vi.advanceTimersByTimeAsync(600);
+		expect(audio.state).toBe('suspended');
+		expect(await playAlertChime('soft')).toBe(true);
+		expect(audio.resume).toHaveBeenCalledTimes(2);
+		await vi.advanceTimersByTimeAsync(900);
+		expect(audio.state).toBe('running');
+		await vi.advanceTimersByTimeAsync(200);
+		expect(audio.state).toBe('suspended');
+	});
+
+	it('plays at most one chime a second', async () => {
+		vi.useFakeTimers();
+		armChimes();
+		await tap();
+		expect(await playAlertChime('chime')).toBe(true);
+		expect(await playAlertChime('bell')).toBe(false);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(await playAlertChime('bell')).toBe(true);
+	});
+
+	it('waits for a tap again after the system interrupts audio', async () => {
+		armChimes();
+		await tap();
+		resumable = false;
+		created[0].change('interrupted');
+		expect(await playAlertChime('chime')).toBe(false);
+		resumable = true;
+		window.dispatchEvent(new Event('touchend'));
+		await vi.waitFor(() => expect(created[0].state).toBe('running'));
+		expect(created).toHaveLength(1);
 	});
 
 	it('stays silent on a screen that muted chimes', async () => {
 		armChimes();
-		window.dispatchEvent(new Event('pointerdown'));
+		await tap();
 		setScreenOverride('mute_chimes', true);
 		expect(await playAlertChime('chime')).toBe(false);
 		expect(playChime).not.toHaveBeenCalled();
@@ -107,7 +177,8 @@ describe('the autoplay gate', () => {
 	it('cannot unlock without WebAudio', async () => {
 		vi.stubGlobal('AudioContext', undefined);
 		armChimes();
-		window.dispatchEvent(new Event('pointerdown'));
+		window.dispatchEvent(new Event('pointerup'));
+		await Promise.resolve();
 		expect(chimesUnlocked()).toBe(false);
 		expect(await playAlertChime('chime')).toBe(false);
 	});

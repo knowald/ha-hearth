@@ -4,26 +4,28 @@ import { motion } from '$lib/core/app/motion';
 import { hassEntity } from '$lib/core/ha/testing';
 import { MOTION } from '$lib/core/theme';
 import { DEFAULT_HEARTH_CONFIG } from './config';
-import { fanTurnSeconds, iconMotionEnabled, iconMotionFor } from './iconMotion';
-import { hearthConfig } from './store';
+import { fanTurnSeconds, iconMotionEnabled, iconMotionFor, iconMotionPaused } from './iconMotion';
+import { cancelEdit, enterEditMode, hearthConfig, screensaverActive } from './store';
 
 describe('iconMotionFor', () => {
 	it('spins a fan that is on, faster at a higher speed', () => {
 		expect(iconMotionFor(hassEntity('fan.bed', 'on', { percentage: 100 }))).toEqual({
 			kind: 'spin',
-			duration: '0.6s'
+			duration: '0.9s'
 		});
 		expect(iconMotionFor(hassEntity('fan.bed', 'on', { percentage: 50 }))).toEqual({
 			kind: 'spin',
-			duration: '1.8s'
+			duration: '1.6s'
 		});
 		expect(iconMotionFor(hassEntity('fan.bed', 'off', { percentage: 50 }))).toBeUndefined();
 	});
 
-	it('turns a fan without a known speed at a middle pace', () => {
+	it('turns a fan in three speed steps, the middle one when the speed is unknown', () => {
+		expect([10, 33, 34, 66, 67, 100, 250].map(fanTurnSeconds)).toEqual([
+			2.4, 2.4, 1.6, 1.6, 0.9, 0.9, 0.9
+		]);
 		expect(fanTurnSeconds(undefined)).toBe(1.6);
 		expect(fanTurnSeconds(0)).toBe(1.6);
-		expect(fanTurnSeconds(250)).toBe(0.6);
 	});
 
 	it('sways a vacuum only while it cleans', () => {
@@ -83,5 +85,18 @@ describe('iconMotionEnabled', () => {
 	it('is off when the dashboard turns animations off', () => {
 		hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), animations: false });
 		expect(get(iconMotionEnabled)).toBe(false);
+	});
+});
+
+describe('iconMotionPaused', () => {
+	it('pauses while the sleep screen is up or the dashboard is edited', () => {
+		expect(get(iconMotionPaused)).toBe(false);
+		screensaverActive.set(true);
+		expect(get(iconMotionPaused)).toBe(true);
+		screensaverActive.set(false);
+		enterEditMode();
+		expect(get(iconMotionPaused)).toBe(true);
+		cancelEdit();
+		expect(get(iconMotionPaused)).toBe(false);
 	});
 });

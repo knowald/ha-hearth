@@ -49,6 +49,7 @@
 	import NavWidget from './widgets/nav/Widget.svelte';
 	import type { NavWidget as NavWidgetConfig } from './widgets/nav/descriptor';
 	import { wakeLock } from './wakeLock';
+	import { iconMotionPaused } from './iconMotion';
 	import { screenSettings, screenSheetOpen, startCornerHold } from './screen';
 	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
 	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
@@ -285,6 +286,13 @@
 	}
 
 	$effect(syncRoomParam);
+
+	// TileIcon pauses its animations off this attribute
+	$effect(() => {
+		const root = document.documentElement;
+		if ($iconMotionPaused) root.dataset.tileMotion = 'paused';
+		else delete root.dataset.tileMotion;
+	});
 
 	onMount(() => {
 		const params = new URLSearchParams(location.search);
