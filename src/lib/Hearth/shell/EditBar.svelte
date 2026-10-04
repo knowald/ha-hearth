@@ -2,6 +2,7 @@
 	import { ICON } from '../iconSizes';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { lang } from '$lib/core/i18n';
+	import { reloadPage } from '$lib/core/app/reload';
 	import { PRESS_RIPPLE } from '../config';
 	import {
 		canRedo,
@@ -53,7 +54,7 @@
 
 	function reloadAfterConflict() {
 		if (!hasUnsavedEdits()) {
-			location.reload();
+			void reloadPage();
 			return;
 		}
 		requestConfirmation({

@@ -6,6 +6,7 @@
 	import { health } from '$lib/core/ha/connection';
 	import { commandFailure, dismissCommandFailure } from '$lib/core/ha/commands';
 	import { lang, fill } from '$lib/core/i18n';
+	import { reloadPage } from '$lib/core/app/reload';
 	import {
 		configurationLoadError,
 		copyState,
@@ -108,7 +109,7 @@
 					<span>{$lang('hearth_settings_file_unreadable_hint')}</span>
 					<span class="detail">{$configurationLoadError}</span>
 				</div>
-				<button type="button" class="load-error-action" onclick={() => location.reload()}>
+				<button type="button" class="load-error-action" onclick={reloadPage}>
 					{$lang('hearth_reload')}
 				</button>
 			</div>
@@ -122,7 +123,7 @@
 					<span>{$lang('hearth_editing_is_disabled_to_protect_the')}</span>
 					<span class="detail">{$hearthLoadError}</span>
 				</div>
-				<button type="button" class="load-error-action" onclick={() => location.reload()}>
+				<button type="button" class="load-error-action" onclick={reloadPage}>
 					{$lang('hearth_reload')}
 				</button>
 			</div>

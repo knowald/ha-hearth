@@ -1,4 +1,5 @@
 import { get, readable } from 'svelte/store';
+import { onBeforeReload } from '$lib/core/app/reload';
 import { autocompleteOpen } from './codeEditorState';
 
 /*
@@ -91,9 +92,12 @@ function handleTab(event: KeyboardEvent) {
 let historyEntry = false;
 let ignoreNextPop = false;
 let settleQueued = false;
+// a reload is on its way; history is left alone so nothing aborts it
+let reloading = false;
 
 function settleHistory() {
 	settleQueued = false;
+	if (reloading) return;
 	if (stack.length && !historyEntry) {
 		history.pushState({ ...history.state, hearthLayer: true }, '');
 		historyEntry = true;
@@ -121,10 +125,43 @@ function handlePopState() {
 	queueSettle();
 }
 
+/** How long a reload waits on a history.back() already under way. */
+const BACK_PATIENCE_MS = 500;
+
+/*
+ * Before a reload, our entry comes off in place (replaceState) instead of
+ * through history.back(), whose traversal would abort the reload, and no
+ * settle runs after it. A back() already under way is waited for. Should the
+ * reload not happen after all (the user stayed on a beforeunload prompt),
+ * the next layer to open turns history handling back on.
+ */
+function prepareReload(): Promise<void> | void {
+	reloading = true;
+	if (historyEntry) {
+		historyEntry = false;
+		const state = { ...history.state };
+		delete state.hearthLayer;
+		history.replaceState(state, '');
+	}
+	if (!ignoreNextPop) return;
+	return new Promise((resolve) => {
+		const done = () => {
+			clearTimeout(timer);
+			window.removeEventListener('popstate', done);
+			resolve();
+		};
+		const timer = setTimeout(done, BACK_PATIENCE_MS);
+		window.addEventListener('popstate', done);
+	});
+}
+
+if (typeof window !== 'undefined') onBeforeReload(prepareReload);
+
 let listeningForPop = false;
 
 function register(layer: Layer): () => void {
 	if (typeof window === 'undefined') return () => {};
+	reloading = false;
 	if (!listeningForPop) {
 		window.addEventListener('popstate', handlePopState);
 		listeningForPop = true;

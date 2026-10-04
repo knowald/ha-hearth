@@ -1,5 +1,6 @@
 import { get } from 'svelte/store';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { reloadPage } from '$lib/core/app/reload';
 import { autocompleteOpen } from './codeEditorState';
 import { layer, layerDepth, pushLayer } from './layers';
 
@@ -244,5 +245,61 @@ describe('layers and history', () => {
 		pressEscape();
 		await settle();
 		expect(close).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('layers and a reload', () => {
+	const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
+	const pressBack = () => window.dispatchEvent(new PopStateEvent('popstate'));
+	const reload = vi.fn();
+
+	beforeEach(async () => {
+		await settle();
+		vi.restoreAllMocks();
+		reload.mockClear();
+		vi.stubGlobal('location', { ...location, reload });
+	});
+
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('drops the entry in place and never goes back once a reload starts', async () => {
+		vi.spyOn(history, 'pushState');
+		const replace = vi.spyOn(history, 'replaceState');
+		const back = vi.spyOn(history, 'back').mockImplementation(pressBack);
+		const release = pushLayer(() => {});
+		await settle();
+		// a confirmation runs its action, then closes
+		await reloadPage();
+		release();
+		await settle();
+		expect(reload).toHaveBeenCalledOnce();
+		expect(replace).toHaveBeenCalledOnce();
+		expect(replace.mock.calls[0][0]).not.toHaveProperty('hearthLayer');
+		expect(back).not.toHaveBeenCalled();
+
+		// a reload that did not happen leaves history working for the next layer
+		const next = pushLayer(() => {});
+		await settle();
+		next();
+		await settle();
+		expect(back).toHaveBeenCalledOnce();
+	});
+
+	it('waits for a back already under way before reloading', async () => {
+		vi.spyOn(history, 'pushState');
+		// the traversal has not landed yet: no popstate until we send it
+		vi.spyOn(history, 'back').mockImplementation(() => {});
+		const release = pushLayer(() => {});
+		await settle();
+		release();
+		await settle();
+		const done = reloadPage();
+		await Promise.resolve();
+		expect(reload).not.toHaveBeenCalled();
+		pressBack();
+		await done;
+		expect(reload).toHaveBeenCalledOnce();
+		pushLayer(() => {})();
+		await settle();
 	});
 });

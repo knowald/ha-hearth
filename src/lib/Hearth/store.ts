@@ -3,7 +3,7 @@ import { base } from '$app/paths';
 import { validTimeZone } from './clock';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import { vibrate } from '$lib/core/app/haptics';
-import { holdReloads } from '$lib/core/app/reload';
+import { holdReloads, reloadPage } from '$lib/core/app/reload';
 import { lang } from '$lib/core/i18n';
 import {
 	DEFAULT_HEARTH_CONFIG,
@@ -282,7 +282,7 @@ export function guardUnload(event: BeforeUnloadEvent) {
 /** Reload once the user agreed to drop the edits, without the browser asking again. */
 export function reloadDiscardingEdits() {
 	unloadAllowed = true;
-	location.reload();
+	void reloadPage();
 }
 
 /** Save and surface the outcome through saveState instead of throwing. */

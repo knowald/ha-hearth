@@ -2,6 +2,7 @@
 	import { ICON } from '../iconSizes';
 	import { lang } from '$lib/core/i18n';
 	import { vibrate } from '$lib/core/app/haptics';
+	import { reloadPage } from '$lib/core/app/reload';
 	import { editLockOf, railPositionOf } from '../config';
 	import {
 		enterEditMode,
@@ -65,7 +66,7 @@
 			title: $lang('hearth_newer_config_title'),
 			message: $lang('hearth_newer_config_message'),
 			confirmLabel: $lang('hearth_reload'),
-			action: () => location.reload(),
+			action: reloadPage,
 			cancelLabel: $lang('hearth_edit_anyway'),
 			cancel: () => enterEditMode()
 		});
