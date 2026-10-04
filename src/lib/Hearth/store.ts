@@ -80,9 +80,46 @@ export function redoConfig() {
 	syncHistoryFlags();
 }
 
+/*
+ * A removal is undone from its toast rather than confirmed first. The offer
+ * holds the config the removal produced, and Undo only steps back while that
+ * is still the current one: any later change ends the offer, so the toast
+ * can never undo something other than the removal it names.
+ */
+export const UNDO_OFFER_MS = 6000;
+export const undoOffer = writable<{ message: string } | null>(null);
+let undoTarget: HearthConfig | null = null;
+let undoTimer: ReturnType<typeof setTimeout> | undefined;
+
+export function offerUndo(message: string) {
+	clearTimeout(undoTimer);
+	undoTarget = get(hearthConfig);
+	undoOffer.set({ message });
+	undoTimer = setTimeout(dismissUndoOffer, UNDO_OFFER_MS);
+}
+
+export function dismissUndoOffer() {
+	clearTimeout(undoTimer);
+	undoTarget = null;
+	undoOffer.set(null);
+}
+
+export function acceptUndoOffer() {
+	if (undoTarget && get(hearthConfig) === undoTarget) undoConfig();
+	dismissUndoOffer();
+}
+
+hearthConfig.subscribe((config) => {
+	if (undoTarget && config !== undoTarget) dismissUndoOffer();
+});
+
 /* edit mode */
 
 export const hearthEditMode = writable(false);
+
+hearthEditMode.subscribe((editing) => {
+	if (!editing) dismissUndoOffer();
+});
 
 // a reload Home Assistant asks for mid-edit would drop the draft, so it waits for Save or Cancel
 hearthEditMode.subscribe(holdReloads);

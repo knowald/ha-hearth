@@ -7,6 +7,7 @@
 	import { screenOverrides } from '$lib/core/app/screen';
 	import {
 		isTileUrl,
+		moveItem,
 		RADAR_ZOOM,
 		railPositionOf,
 		type RailPosition,
@@ -112,6 +113,10 @@
 		{ value: 'both', label: $lang('hearth_sidebar_both') },
 		{ value: 'none', label: $lang('hearth_sidebar_none') }
 	]);
+
+	function movePage(index: number, delta: number) {
+		updateConfig((config) => moveItem(config.rooms, index, delta));
+	}
 
 	function setRailPosition(value: string) {
 		updateConfig((config) => {
@@ -793,6 +798,42 @@
 		<section>
 			{@render sectionHead($lang('hearth_pages'), $lang('hearth_scope_dashboard'))}
 			<div class="rows">
+				<!-- every page in rail order, reachable whatever the rail shows -->
+				{#each $hearthConfig.rooms as room, index (room.id)}
+					<div class="page-row">
+						<button
+							type="button"
+							class="page-open"
+							onclick={() => editor.set({ kind: 'room', id: room.id })}
+						>
+							<Icon name={room.icon} size={ICON.control} />
+							<span class="page-name">{room.name || room.id}</span>
+						</button>
+						<button
+							type="button"
+							class="step"
+							aria-label={fill($lang('hearth_move_named_up'), { name: room.name })}
+							disabled={index === 0}
+							onclick={() => movePage(index, -1)}
+						>
+							<Icon name="arrow_upward" size={ICON.control} />
+						</button>
+						<button
+							type="button"
+							class="step"
+							aria-label={fill($lang('hearth_move_named_down'), { name: room.name })}
+							disabled={index === $hearthConfig.rooms.length - 1}
+							onclick={() => movePage(index, 1)}
+						>
+							<Icon name="arrow_downward" size={ICON.control} />
+						</button>
+					</div>
+				{/each}
+				<SettingsRow
+					icon="add"
+					label={$lang('hearth_add_page')}
+					onclick={() => editor.set({ kind: 'room', id: null })}
+				/>
 				<SettingsRow
 					icon="auto_awesome"
 					label={$lang('hearth_setup')}
@@ -966,6 +1007,50 @@
 	.unit-input input::-webkit-inner-spin-button {
 		appearance: none;
 		margin: 0;
+	}
+
+	.page-row {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		padding: 6px 10px 6px 0;
+		min-height: 56px;
+		border-bottom: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
+	}
+
+	.page-open {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		align-self: stretch;
+		padding: 0 16px;
+		border: 0;
+		background: none;
+		color: var(--h-icon);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.page-name {
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		font-size: var(--h-type-body);
+		color: var(--h-text-2);
+	}
+
+	@media (hover: hover) {
+		.page-open:hover .page-name {
+			color: var(--h-accent-text);
+		}
+	}
+
+	.step:disabled {
+		color: var(--h-icon-dim);
+		cursor: default;
 	}
 
 	.setting-warning {

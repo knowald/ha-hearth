@@ -2,7 +2,9 @@
 	import { integerFromInput } from './numbers';
 	import { fill, lang } from '$lib/core/i18n';
 	import { get } from 'svelte/store';
-	import { moveItem, resizeCardColumns, slugify, uniqueId } from '../config';
+	import { resizeCardColumns, slugify, uniqueId } from '../config';
+	import { duplicateRoom, shiftItem } from '../model/layoutEdits';
+	import { confirmDiscard } from './discard';
 	import { currentRoom, editor, hearthConfig, updateConfig } from '../store';
 	import CheckField from './CheckField.svelte';
 	import EditSheet from './EditSheet.svelte';
@@ -27,9 +29,23 @@
 	let hideHeader = $state(initial?.hide_header ?? false);
 	let fillScreen = $state(initial?.fill_screen ? 'fill' : 'scroll');
 	let columns = $state(initial?.columns ? String(initial.columns) : '');
+	// header moves are staged with the rest and applied on Done
+	let moveBy = $state(0);
+	let roomIndex = $derived($hearthConfig.rooms.findIndex((entry) => entry.id === id));
+	let stagedIndex = $derived(roomIndex + moveBy);
 
 	function staged() {
-		return { name, icon, summary, tempEntity, humidityEntity, hideHeader, fillScreen, columns };
+		return {
+			name,
+			icon,
+			summary,
+			tempEntity,
+			humidityEntity,
+			hideHeader,
+			fillScreen,
+			columns,
+			moveBy
+		};
 	}
 
 	let validity = $derived(
@@ -64,6 +80,7 @@
 				if (roomColumns !== undefined && room.cards?.length && room.cards.length !== roomColumns) {
 					room.cards = resizeCardColumns(room.cards, roomColumns);
 				}
+				if (moveBy) shiftItem(next.rooms, next.rooms.indexOf(room), moveBy);
 			} else {
 				next.rooms.push({
 					id: uniqueId(
@@ -96,13 +113,24 @@
 	}
 
 	function move(delta: number) {
-		updateConfig((next) =>
-			moveItem(
-				next.rooms,
-				next.rooms.findIndex((entry) => entry.id === id),
-				delta
-			)
-		);
+		const target = Math.max(0, Math.min($hearthConfig.rooms.length - 1, stagedIndex + delta));
+		moveBy = target - roomIndex;
+	}
+
+	// copies the page as saved, opens the copy and shows it behind the sheet
+	function duplicate() {
+		if (!id || !initial) return;
+		const source = id;
+		const copyName = fill($lang('hearth_page_copy_name'), { name: initial.name });
+		confirmDiscard(dirty, () => {
+			let copyId: string | undefined;
+			updateConfig((next) => {
+				copyId = duplicateRoom(next, source, copyName);
+			});
+			if (!copyId) return;
+			currentRoom.set(copyId);
+			editor.set({ kind: 'room', id: copyId });
+		});
 	}
 </script>
 
@@ -116,6 +144,9 @@
 	onremove={id && $hearthConfig.rooms.length > 1 ? remove : undefined}
 	onmoveup={id ? () => move(-1) : undefined}
 	onmovedown={id ? () => move(1) : undefined}
+	moveUpDisabled={stagedIndex <= 0}
+	moveDownDisabled={stagedIndex >= $hearthConfig.rooms.length - 1}
+	onduplicate={id ? duplicate : undefined}
 >
 	<TextField
 		label={$lang('name')}

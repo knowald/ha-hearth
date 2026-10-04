@@ -12,7 +12,7 @@ Hearth is pre-1.0. The configuration format and features can still change betwee
 
 ## Features
 
-- Visual editor: drag cards and widgets, edit them in place, undo and redo, or edit the YAML directly. Unsaved changes are not dropped by a stray tap, a reload or the sleep screen.
+- Visual editor: tap a card or widget to edit it and drag it by its grip to move it; hold Alt while dropping to place a copy instead. Editors duplicate cards, stacks, widgets and pages and send a card to another page. A removal can be taken back from its toast, edits undone and redone, or the YAML edited directly. Unsaved changes are not dropped by a stray tap, a reload or the sleep screen.
 - Area import that builds a page for each Home Assistant area from its lights, covers, climate, media, cameras and other devices.
 - Layouts for tablets, phones and desktops. A sidebar holds clocks, weather, page navigation, calendars, energy, timers, notifications and other widgets. Place it on the left, the right or both sides, or hide it.
 - Swipe between pages on phones, and with a mouse drag on wider screens.

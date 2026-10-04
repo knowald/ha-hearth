@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/svelte';
+import { act, fireEvent, render, screen } from '@testing-library/svelte';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { commandFailure } from '$lib/core/ha/commands';
 import { health } from '$lib/core/ha/connection';
@@ -9,9 +9,16 @@ import {
 	hearthEditMode,
 	hearthLoadError,
 	hearthLoadErrorKind,
+	enterEditMode,
+	hearthConfig,
+	offerUndo,
 	saveFailure,
-	saveState
+	saveState,
+	undoOffer,
+	updateConfig
 } from '../store';
+import { DEFAULT_HEARTH_CONFIG } from '../config';
+import { get } from 'svelte/store';
 import { LAYERS } from '$lib/core/theme';
 import Toasts from './Toasts.svelte';
 import source from './Toasts.svelte?raw';
@@ -48,6 +55,21 @@ describe('Toasts', () => {
 		await act(() => health.set(state));
 		await act(() => vi.advanceTimersByTime(2100));
 	}
+
+	it('offers to undo a removal and announces it', async () => {
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+		enterEditMode();
+		updateConfig((config) => {
+			config.rooms[0].name = 'Gone';
+		});
+		render(Toasts);
+		await act(() => offerUndo(en.hearth_card_removed));
+		expect(screen.getByRole('status').textContent).toContain(en.hearth_card_removed);
+		await fireEvent.click(screen.getByRole('button', { name: en.undo }));
+		expect(get(hearthConfig).rooms[0].name).toBe(DEFAULT_HEARTH_CONFIG.rooms[0].name);
+		expect(get(undoOffer)).toBeNull();
+		hearthEditMode.set(false);
+	});
 
 	it('reports a lost connection as lost', async () => {
 		await settle('lost');

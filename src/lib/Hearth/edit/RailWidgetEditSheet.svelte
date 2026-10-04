@@ -7,6 +7,7 @@
 	import { activateOnKeyboard } from '../interaction';
 	import type { MobileSlot, RailSide, RailWidget, VisibilityCondition } from '../types';
 	import { moveRailWidget, moveToSide } from '../model/railMoves';
+	import { duplicateRailWidget } from '../model/layoutEdits';
 	import {
 		normalizeVisibility,
 		PRESS_RIPPLE,
@@ -16,7 +17,8 @@
 		uniqueId
 	} from '../config';
 	import { RAIL_WIDGET_TYPES, widgetDescriptor, type WidgetDraft } from '../widgets';
-	import { editor, hearthConfig, updateConfig } from '../store';
+	import { editor, hearthConfig, offerUndo, updateConfig } from '../store';
+	import { confirmDiscard } from './discard';
 	import EditSheet from './EditSheet.svelte';
 	import Icon from '../Icon.svelte';
 	import TypeGallery from './TypeGallery.svelte';
@@ -46,6 +48,28 @@
 
 	let descriptor = $derived(widgetDescriptor(type));
 	let twoRails = $derived(railPositionOf($hearthConfig) === 'both');
+
+	// header moves are staged with the rest and applied on Done
+	let moveBy = $state(0);
+	// the widget's place among its neighbours before the staged steps: with
+	// two rails only its own side counts, and a widget sent to the other side
+	// lands at the end of it
+	let position = $derived.by(() => {
+		const rail = $hearthConfig.rail;
+		if (!initial) return { index: 0, length: 1 };
+		if (twoRails && railSideOf(initial) !== side) {
+			const landing = rail.filter(
+				(widget) => widget.id !== initial.id && railSideOf(widget) === side
+			).length;
+			return { index: landing, length: landing + 1 };
+		}
+		const neighbours = twoRails ? rail.filter((widget) => railSideOf(widget) === side) : rail;
+		return {
+			index: neighbours.findIndex((widget) => widget.id === initial.id),
+			length: neighbours.length
+		};
+	});
+	let stagedIndex = $derived(position.index + moveBy);
 	let editorInitial = $derived(initial?.type === type ? initial : undefined);
 
 	const MOBILE_CHOICES = [
@@ -94,7 +118,7 @@
 	 * switch as a change.
 	 */
 	function placement() {
-		return JSON.stringify({ mobile, side, visibility });
+		return JSON.stringify({ mobile, side, visibility, moveBy });
 	}
 	const untouchedPlacement = placement();
 	let untouchedType = $state(initial?.type ?? 'status');
@@ -133,6 +157,14 @@
 			// a new widget, or one sent to the other rail, goes to the end of its rail
 			const sideChanged = !initial || railSideOf(initial) !== side;
 			if (twoRails && sideChanged) config.rail = moveToSide(config.rail, id, side);
+			for (let step = 0; step < Math.abs(moveBy); step += 1) {
+				moveRailWidget(
+					config.rail,
+					widgetIndex(config.rail),
+					moveBy < 0 ? -1 : 1,
+					railPositionOf(config)
+				);
+			}
 		});
 		close();
 	}
@@ -143,12 +175,28 @@
 			if (position >= 0) config.rail.splice(position, 1);
 		});
 		close();
+		offerUndo($lang('hearth_widget_removed'));
+	}
+
+	function chooseSide(next: RailSide) {
+		if (next !== side) moveBy = 0;
+		side = next;
 	}
 
 	function move(delta: -1 | 1) {
-		updateConfig((config) =>
-			moveRailWidget(config.rail, widgetIndex(config.rail), delta, railPositionOf(config))
-		);
+		const next = Math.max(0, Math.min(position.length - 1, stagedIndex + delta));
+		moveBy = next - position.index;
+	}
+
+	// copies the widget as saved and opens the copy, so a staged edit is dropped first
+	function duplicate() {
+		confirmDiscard(dirty, () => {
+			let copyIndex: number | undefined;
+			updateConfig((config) => {
+				copyIndex = duplicateRailWidget(config.rail, widgetIndex(config.rail));
+			});
+			if (copyIndex !== undefined) editor.set({ kind: 'railWidget', index: copyIndex });
+		});
 	}
 </script>
 
@@ -164,6 +212,10 @@
 	onremove={initial ? remove : undefined}
 	onmoveup={initial ? () => move(-1) : undefined}
 	onmovedown={initial ? () => move(1) : undefined}
+	moveUpDisabled={stagedIndex <= 0}
+	moveDownDisabled={stagedIndex >= position.length - 1}
+	onduplicate={initial ? duplicate : undefined}
+	confirmRemove={false}
 	wide
 >
 	<TypeGallery
@@ -214,8 +266,8 @@
 							role="button"
 							tabindex="0"
 							aria-pressed={side === choice.side}
-							onclick={() => (side = choice.side)}
-							onkeydown={(event) => activateOnKeyboard(event, () => (side = choice.side))}
+							onclick={() => chooseSide(choice.side)}
+							onkeydown={(event) => activateOnKeyboard(event, () => chooseSide(choice.side))}
 						>
 							<Icon name={choice.icon} size={ICON.inline} />
 							{$lang(choice.label)}
