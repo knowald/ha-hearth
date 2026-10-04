@@ -2,20 +2,16 @@
 	import { ICON } from '../iconSizes';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { lang } from '$lib/core/i18n';
-	import { PRESS_RIPPLE, railPositionOf } from '../config';
+	import { PRESS_RIPPLE } from '../config';
 	import {
 		cancelEdit,
 		canRedo,
 		canUndo,
 		editor,
-		enterEditMode,
-		fetchServerRevision,
 		guardUnload,
 		hearthConfig,
 		hasUnsavedEdits,
 		hearthEditMode,
-		hearthLoadError,
-		hearthRevision,
 		redoConfig,
 		reloadDiscardingEdits,
 		reportCopy,
@@ -26,11 +22,9 @@
 		undoConfig
 	} from '../store';
 	import Icon from '../Icon.svelte';
+	import EditToggle from './EditToggle.svelte';
 
 	let { hideEditToggle = false }: { hideEditToggle?: boolean } = $props();
-
-	// the toggle sits at the rail's foot, so a lone right rail takes it along
-	let toggleRight = $derived(railPositionOf($hearthConfig) === 'right');
 
 	// The YAML serializer pulls in js-yaml, which stays out of the eager bundle.
 	// Loading starts with the bar so the copy click does not wait on the
@@ -71,34 +65,6 @@
 			message: $lang('hearth_discard_edits_message'),
 			confirmLabel: $lang('hearth_discard'),
 			action: cancelEdit
-		});
-	}
-
-	let checkingRevision = $state(false);
-
-	/*
-	 * A wall tablet can keep a page open for weeks, and editing a revision that
-	 * another screen has since replaced only ends in a conflict on save. Offer
-	 * the newer one first; when the server cannot say, editing goes ahead.
-	 */
-	async function startEditing() {
-		if (checkingRevision) return;
-		checkingRevision = true;
-		const revision = await fetchServerRevision();
-		checkingRevision = false;
-		// the import wizard may have handed a failed save to edit mode meanwhile
-		if ($hearthEditMode) return;
-		if (revision === undefined || revision <= $hearthRevision) {
-			enterEditMode();
-			return;
-		}
-		requestConfirmation({
-			title: $lang('hearth_newer_config_title'),
-			message: $lang('hearth_newer_config_message'),
-			confirmLabel: $lang('hearth_reload'),
-			action: () => location.reload(),
-			cancelLabel: $lang('hearth_edit_anyway'),
-			cancel: enterEditMode
 		});
 	}
 
@@ -226,66 +192,11 @@
 			onclick={() => saveWithFeedback()}>{$lang('save')}</button
 		>
 	</div>
-{:else if !hideEditToggle && !$hearthLoadError}
-	<button
-		type="button"
-		class="edit-toggle pressable"
-		class:right={toggleRight}
-		class:busy={checkingRevision}
-		aria-busy={checkingRevision}
-		aria-label={$lang('hearth_edit_configuration')}
-		onclick={startEditing}
-	>
-		<Icon name="edit" size={ICON.control} />
-		<span>{$lang('hearth_edit_configuration')}</span>
-	</button>
+{:else if !hideEditToggle}
+	<EditToggle />
 {/if}
 
 <style>
-	/* a labeled row at the rail's foot rather than an anonymous floating pencil */
-	.edit-toggle {
-		position: absolute;
-		/* the insets clear an installed app's home indicator and a landscape cutout */
-		left: calc(14px + var(--h-pad-x) + var(--h-safe-left));
-		bottom: calc(14px + var(--h-pad-y) + var(--h-safe-bottom));
-		z-index: var(--h-layer-bar);
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		padding: 12px 16px;
-		border-radius: var(--h-radius-sm);
-		color: var(--h-text-4);
-		font-size: var(--h-type-body);
-		cursor: pointer;
-		opacity: 0.75;
-		border: 0;
-		background: rgb(var(--h-surface-rgb) / calc(0.035 * var(--h-fill-scale)));
-		font-family: inherit;
-	}
-
-	/* waiting on the revision check; further taps are ignored */
-	.edit-toggle.busy,
-	.edit-toggle.busy:hover {
-		cursor: progress;
-		opacity: 0.45;
-	}
-
-	/* see breakpoints.ts: folded, there is no rail column to follow */
-	@media (min-width: 901px) {
-		.edit-toggle.right {
-			left: auto;
-			right: calc(14px + var(--h-pad-x) + var(--h-safe-right));
-		}
-	}
-
-	@media (hover: hover) {
-		.edit-toggle:hover {
-			opacity: 1;
-			color: var(--h-text-3);
-			background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
-		}
-	}
-
 	.edit-bar {
 		position: absolute;
 		bottom: calc(18px + var(--h-pad-y) + var(--h-safe-bottom));

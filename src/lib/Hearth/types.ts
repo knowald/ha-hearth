@@ -303,6 +303,8 @@ export interface AlertRule {
 	entity?: string;
 }
 
+export type EditLock = 'hold' | 'pin';
+
 export type ScreensaverBackground = 'none' | 'image' | 'radar';
 export type ScreensaverClockSize = 'small' | 'medium' | 'large';
 
@@ -343,6 +345,11 @@ export interface HearthConfig {
 	/** Weather entity whose condition and temperature show under the clock. */
 	screensaver_weather_entity?: string;
 	keep_screen_on?: boolean;
+	// what the edit toggle asks for before edit mode, against accidental taps
+	// on a wall tablet; a pin without a valid edit_pin falls back to a hold
+	edit_lock?: EditLock;
+	/** 4 to 8 digits, asked for when edit_lock is `pin`. */
+	edit_pin?: string;
 	// progressive blur where a scroll container cuts content off; costs a
 	// backdrop pass per layer, so weak tablets can turn it off
 	scroll_edge_blur?: boolean;

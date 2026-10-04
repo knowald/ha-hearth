@@ -28,8 +28,8 @@ test('two application settings saves use successive revisions', async ({ page })
 	const revisions: number[] = [];
 	for (let i = 0; i < 2; i++) {
 		await page.getByRole('button', { name: 'Settings', exact: true }).click();
-		await page.getByRole('button', { name: /Application settings/ }).click();
-		const sheet = page.getByRole('dialog', { name: 'Application settings' });
+		await page.getByRole('button', { name: /Server settings/ }).click();
+		const sheet = page.getByRole('dialog', { name: 'Server settings' });
 		const response = page.waitForResponse(
 			(response) =>
 				response.url().endsWith('/_api/save_config') && response.request().method() === 'POST'

@@ -2,16 +2,13 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-	cancelEdit,
 	confirmRequestedAction,
 	dismissConfirmation,
 	editor,
-	enterEditMode,
-	requestedConfirmation,
-	updateConfig
+	requestedConfirmation
 } from '../store';
 import { configuration } from '$lib/core/app/configuration';
-import { deviceName, saveDeviceName } from '$lib/core/app/device';
+import { screenOverrides } from '$lib/core/app/screen';
 import en from '../../../../static/translations/en.json';
 import AppSettingsEditSheet from './AppSettingsEditSheet.svelte';
 
@@ -65,15 +62,6 @@ describe('AppSettingsEditSheet', () => {
 		expect(get(editor)).toEqual({ kind: 'settings' });
 	});
 
-	it('asks before opening Custom CSS drops staged changes', async () => {
-		render(AppSettingsEditSheet);
-		await stageAChange();
-		await fireEvent.click(screen.getByRole('button', { name: /Custom CSS/ }));
-		expect(get(editor)).toEqual({ kind: 'appSettings' });
-		confirmRequestedAction();
-		expect(get(editor)).toEqual({ kind: 'customCss' });
-	});
-
 	it('closes without asking once a staged change is toggled back', async () => {
 		render(AppSettingsEditSheet);
 		await stageAChange();
@@ -83,37 +71,22 @@ describe('AppSettingsEditSheet', () => {
 		expect(get(editor)).toBeNull();
 	});
 
+	it("shows the shared values, not this screen's own", () => {
+		configuration.set({ locale: 'en', motion: false } as never);
+		screenOverrides.set({ reduce_motion: false });
+		render(AppSettingsEditSheet);
+		expect(
+			screen.getByRole('switch', { name: en.hearth_reduce_motion }).getAttribute('aria-checked')
+		).toBe('true');
+		expect(screen.getByText(en.hearth_server_settings_note)).toBeTruthy();
+		screenOverrides.set({});
+		configuration.set(undefined as never);
+	});
+
 	it('names its header action Save, since it writes to the server', () => {
 		render(AppSettingsEditSheet);
 		expect(screen.getByRole('button', { name: en.save })).toBeTruthy();
 		expect(screen.queryByRole('button', { name: en.done })).toBeNull();
-	});
-
-	it('asks through the shared dialog before logging out', async () => {
-		const confirmSpy = vi.fn(() => true);
-		vi.stubGlobal('confirm', confirmSpy);
-		render(AppSettingsEditSheet);
-		await fireEvent.click(screen.getByRole('button', { name: new RegExp(en.log_out) }));
-		expect(confirmSpy).not.toHaveBeenCalled();
-		expect(get(requestedConfirmation)).toMatchObject({
-			title: en.hearth_logout_confirm,
-			message: en.hearth_logout_confirm_message,
-			confirmLabel: en.log_out
-		});
-	});
-
-	it('says the logout drops unsaved dashboard edits, since the browser will not ask again', async () => {
-		enterEditMode();
-		updateConfig((config) => {
-			config.rooms[0].name = 'Renamed';
-		});
-		try {
-			render(AppSettingsEditSheet);
-			await fireEvent.click(screen.getByRole('button', { name: new RegExp(en.log_out) }));
-			expect(get(requestedConfirmation)?.message).toBe(en.hearth_logout_confirm_edits_message);
-		} finally {
-			cancelEdit();
-		}
 	});
 });
 
@@ -164,49 +137,5 @@ describe('AppSettingsEditSheet revision conflict', () => {
 		await waitFor(() => expect(get(editor)).toBeNull());
 		expect(saves.map((save) => save.revision)).toEqual([4, 7]);
 		expect(get(configuration)?.revision).toBe(8);
-	});
-});
-
-describe('AppSettingsEditSheet device name', () => {
-	beforeEach(() => {
-		configuration.set({ locale: 'en', revision: 1 } as never);
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async (address: string) =>
-				address.endsWith('/_api/save_config')
-					? { ok: true, status: 200, json: async (): Promise<unknown> => ({ revision: 2 }) }
-					: { ok: false, json: async (): Promise<unknown> => null }
-			)
-		);
-		editor.set({ kind: 'appSettings' });
-	});
-
-	afterEach(() => {
-		vi.unstubAllGlobals();
-		editor.set(null);
-		configuration.set(undefined as never);
-		saveDeviceName('');
-	});
-
-	it('keeps the name in this browser once saved', async () => {
-		render(AppSettingsEditSheet);
-		await fireEvent.input(screen.getByLabelText(en.hearth_device_name), {
-			target: { value: ' kitchen ' }
-		});
-		await fireEvent.click(screen.getByRole('button', { name: en.save }));
-		await waitFor(() => expect(get(editor)).toBeNull());
-		expect(get(deviceName)).toBe('kitchen');
-		expect(localStorage.getItem('hearthDevice')).toBe('kitchen');
-	});
-
-	it('leaves a name from the URL out of storage when another setting is saved', async () => {
-		localStorage.removeItem('hearthDevice');
-		deviceName.set('hall');
-		render(AppSettingsEditSheet);
-		await stageAChange();
-		await fireEvent.click(screen.getByRole('button', { name: en.save }));
-		await waitFor(() => expect(get(editor)).toBeNull());
-		expect(localStorage.getItem('hearthDevice')).toBeNull();
-		expect(get(deviceName)).toBe('hall');
 	});
 });

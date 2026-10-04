@@ -28,7 +28,8 @@
 		inputmode?: 'numeric' | 'decimal';
 		autocomplete?: FullAutoFill;
 		/** Ask the surrounding sheet to focus this field when it opens, unless on a touch screen. */
-		autofocus?: boolean;
+		/** 'always' takes focus on a touch screen too, for a field that must be typed into anyway. */
+		autofocus?: boolean | 'always';
 		hint?: string;
 		/** Shown in place of nothing when the value is not acceptable; marks the input invalid. */
 		error?: string | null;
@@ -44,7 +45,7 @@
 			{type}
 			{inputmode}
 			{autocomplete}
-			data-autofocus={autofocus || undefined}
+			data-autofocus={autofocus === 'always' ? 'always' : autofocus || undefined}
 			bind:value
 			{placeholder}
 			spellcheck="false"

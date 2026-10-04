@@ -76,4 +76,17 @@ describe('EditSheet initial focus', () => {
 		renderSheet({ children: field });
 		expect(document.activeElement).toBe(screen.getByRole('button', { name: en.done }));
 	});
+
+	it('focuses a field marked always on a touch screen too', () => {
+		vi.stubGlobal('matchMedia', () => ({
+			matches: false,
+			addEventListener: () => {},
+			removeEventListener: () => {}
+		}));
+		const token = createRawSnippet(() => ({
+			render: () => '<input aria-label="Token" data-autofocus="always" />'
+		}));
+		renderSheet({ children: token });
+		expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Token' }));
+	});
 });

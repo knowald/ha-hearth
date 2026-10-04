@@ -57,6 +57,6 @@ actions:
 | `open_popup`    | `entity`, optional `name`. Ignored in edit mode; wakes the sleep screen.                                                                                                                                                                                              |
 | `close_popup`   | `entity` (optional). Without it, the open popup closes; with it, only that entity's popup closes.                                                                                                                                                                     |
 
-Every action accepts `device`, a name or a list of names. Without it, every screen acts on the event. With it, only screens whose device name matches exactly act on it. Set the name under Settings > Application settings > Device name, which is stored in that browser, or with `?device=<name>` in the URL.
+Every action accepts `device`, a name or a list of names. Without it, every screen acts on the event. With it, only screens whose device name matches exactly act on it. Set the name under This screen > Device name, which is stored in that browser, or with `?device=<name>` in the URL.
 
 To reload every screen, fire `HEARTH` with `event_data: { event: refresh }`. This ignores `device`. A screen in edit mode reloads once its edits are saved or cancelled.

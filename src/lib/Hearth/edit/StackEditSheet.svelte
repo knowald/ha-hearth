@@ -117,7 +117,11 @@
 		bind:value={title}
 		placeholder={$lang('hearth_example_page_name')}
 	/>
-	<SelectField label={$lang('fan_direction')} bind:value={direction} options={DIRECTION_OPTIONS} />
+	<SelectField
+		label={$lang('hearth_stack_direction')}
+		bind:value={direction}
+		options={DIRECTION_OPTIONS}
+	/>
 	<SelectField
 		label={$lang('hearth_fill_leftover_height')}
 		bind:value={fill}
