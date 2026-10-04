@@ -1,34 +1,64 @@
 # Changelog
 
-## [Unreleased]
-
-### Added
-
-- Show a slideshow of uploaded photos on the sleep screen, with a slow zoom and crossfade, in shuffled or listed order
-- Fill the sleep screen with a sky gradient that follows the sun, deep blue at night, warm at dawn and dusk and light by day
-- Show the playing track with its album art on the sleep screen, and a chosen background while nothing plays
-- Edit a single card or widget as YAML from its sheet with a Form | YAML switch, which also takes options the form has no field for
-- Copy a card or widget as YAML and paste it onto another page or into the sidebar; a pasted item gets a new id
-- Share a theme: copy or download it as YAML, and import one from text, the clipboard or a file
-- Animate tile icons with their entity: a running fan spins faster at a higher speed, a cleaning vacuum sways, a playing media player shows level bars, a heating or cooling climate entity pulses and a light that is on glows in its color. Turn them off in Settings > Appearance; reduced motion always stops them
-- Play a short synthesized chime when an alert fires, chosen per rule or per severity with a volume, off by default; a screen can mute them under This screen
-- Greet people on the page header and the sleep screen for a while after they come home, with a greeting for the time of day
-- Show a badge on the energy widget while today's use is below the average of the previous 7 days over the same hours
-- End the setup with the wall tablet's address and a QR code for it, with an optional device name added as `?device=`
-- Start from a starter layout for a kitchen tablet, a phone remote or a bedside screen, built from your own entities
-- Add only the entities an area's page does not show yet when importing areas again, without touching the rest of the page
-- Suggest the cards of its area on an empty page named after one, each added with one tap
-- Star entities in their popup to get a favorites page on your phone, kept in that browser
-- Winter, Spring meadow, Autumn and Holiday theme presets
-- Switch the day theme by date range or by conditions with `theme_schedule`, for example Winter from December to February or Holiday while a helper is on, with an optional night theme per entry; edit it under Theme > Schedule
-- Give a page its own theme and background image, with a shade over the image, shown while the page is open; set it under Look in the page editor
-- Let a card span two or three columns, or the full width, on pages with more than one column with `span`; phones and edit mode keep it in its column
+## [0.7.0] - 2026-10-04
 
 ### Changed
 
-- Theme values are applied through the browser's style API, so a value can only set its own token. A value that could not stay inside its token now falls back to that token's default when hearth.yaml loads, and is refused on import and in the YAML editor with its line number, and on save
-- A short hex colour such as `#f80` now works for the accent, cool, bad, surface and line colours, in hearth.yaml, a theme import and the YAML editor, and is stored as `#ff8800`
-- A media query inside an `or` group of a card or widget's visibility conditions now matches the screen; before, only media queries at the top level of the list were read and nested ones never held
+- Regroup Settings into Appearance, Layout and navigation, Size and spacing, Wall display, Alerts, Pages, Server and Maintenance, each saying which screens it applies to; Application settings is now Server settings ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Mark advanced options in the card and widget editors and fold them away until used ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Load the editing tools only when edit mode opens, which makes the dashboard's startup code about 15 percent smaller ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Theme values are applied through the browser's style API, so a value can only set its own token. A value that could not stay inside its token now falls back to that token's default when hearth.yaml loads, and is refused on import and in the YAML editor with its line number, and on save ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- A short hex colour such as `#f80` now works for the accent, cool, bad, surface and line colours, in hearth.yaml, a theme import and the YAML editor, and is stored as `#ff8800` ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- A media query inside an `or` group of a card or widget's visibility conditions now matches the screen; before, only media queries at the top level of the list were read and nested ones never held ([#31](https://github.com/knowald/ha-hearth/pull/31))
+
+### Added
+
+- Translate Hearth into every language Home Assistant ships, 64 besides English, following the language set in Home Assistant or per screen ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Ask before an edit sheet, the YAML editor or Versions drops unsaved changes on a backdrop tap, Escape, the back gesture or close, and before a reload leaves unsaved edits ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Offer to reload when another screen saved a newer configuration before editing starts ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Keep settings per screen in This screen, without edit mode: keep awake, sleep screen delay, scale, language, reduced motion, touch feedback and the device name ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Guard the edit button against stray taps with `edit_lock: hold` or a PIN with `edit_lock: pin` ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Tap a card, stack or widget in edit mode to open its editor ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Duplicate cards, stacks, widgets and pages, move a card to another page or column, and remove a stack with its cards ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Remove a card or widget at once with an Undo button in the toast, and see a dot on Save while there are unsaved changes ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Add pages from the phone page strip in edit mode and reorder them under Settings > Pages ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Mark required fields in the editors, say why Done is disabled and warn about entities Home Assistant does not report ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Search the entity picker by area and device, filter it by area, pick several entities at once and see recent picks first ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Set tap and hold actions on tiles and the status widget with Lovelace's names: toggle, more-info, perform-action, navigate, url or none, with an optional confirmation ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Run scenes and scripts from search ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Let Home Assistant automations switch the page, wake the screen or start the sleep screen through the `HEARTH` event ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Show or hide pages with visibility conditions, and match conditions on the device name, a time window and weekdays, or an entity attribute ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Restyle tiles with `style` rules: a colour, icon or class while conditions hold, and read `data-entity`, `data-domain` and `data-state` from custom CSS ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Render Home Assistant templates in a template card, and in a tile's name or state with `name_template` and `state_template` ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Show a to-do list card for `todo.*` entities: add, tick off, rename and delete items ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Show a slideshow of uploaded photos on the sleep screen, with a slow zoom and crossfade, in shuffled or listed order ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Fill the sleep screen with a sky gradient that follows the sun, deep blue at night, warm at dawn and dusk and light by day ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Show the playing track with its album art on the sleep screen, and a chosen background while nothing plays ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Edit a single card or widget as YAML from its sheet with a Form | YAML switch, which also takes options the form has no field for ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Copy a card or widget as YAML and paste it onto another page or into the sidebar; a pasted item gets a new id ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Share a theme: copy or download it as YAML, and import one from text, the clipboard or a file ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Animate tile icons with their entity: a running fan spins faster at a higher speed, a cleaning vacuum sways, a playing media player shows level bars, a heating or cooling climate entity pulses and a light that is on glows in its color. Turn them off in Settings > Appearance; reduced motion always stops them ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Play a short synthesized chime when an alert fires, chosen per rule or per severity with a volume, off by default; a screen can mute them under This screen ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Greet people on the page header and the sleep screen for a while after they come home, with a greeting for the time of day ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Show a badge on the energy widget while today's use is below the average of the previous 7 days over the same hours ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- End the setup with the wall tablet's address and a QR code for it, with an optional device name added as `?device=` ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Start from a starter layout for a kitchen tablet, a phone remote or a bedside screen, built from your own entities ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Add only the entities an area's page does not show yet when importing areas again, without touching the rest of the page ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Suggest the cards of its area on an empty page named after one, each added with one tap ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Star entities in their popup to get a favorites page on your phone, kept in that browser ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Winter, Spring meadow, Autumn and Holiday theme presets ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Switch the day theme by date range or by conditions with `theme_schedule`, for example Winter from December to February or Holiday while a helper is on, with an optional night theme per entry; edit it under Theme > Schedule ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Give a page its own theme and background image, with a shade over the image, shown while the page is open; set it under Look in the page editor ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Let a card span two or three columns, or the full width, on pages with more than one column with `span`; phones and edit mode keep it in its column ([#31](https://github.com/knowald/ha-hearth/pull/31))
+
+### Fixed
+
+- Stop a tap that closes a sheet from also tapping what sits underneath it ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Wait with a Home Assistant refresh event and the sleep screen until edit mode ends ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Reload reliably from the newer configuration, conflict and log out prompts; before, the page could stay as it was ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Clear an old save failure or conflict message when an edit session starts ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Give editor controls finger-sized touch targets at every interface scale, readable hint contrast, names for icon buttons and a 16 px input text size that stops iOS zooming ([#31](https://github.com/knowald/ha-hearth/pull/31))
+- Follow a reduced motion change at once, and drag tiles and cards reliably by touch, also on iPad ([#31](https://github.com/knowald/ha-hearth/pull/31))
 
 ## [0.6.0] - 2026-10-03
 
@@ -231,6 +261,7 @@
 
 - Keep the standard `backdrop-filter` in the built stylesheet; writing the `-webkit-` prefix by hand made the minifier drop it, so no blur in the application took effect
 
+[0.7.0]: https://github.com/knowald/ha-hearth/releases/tag/0.7.0
 [0.6.0]: https://github.com/knowald/ha-hearth/releases/tag/0.6.0
 [0.5.1]: https://github.com/knowald/ha-hearth/releases/tag/0.5.1
 [0.5.0]: https://github.com/knowald/ha-hearth/releases/tag/0.5.0
