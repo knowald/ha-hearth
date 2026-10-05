@@ -1,4 +1,5 @@
 import type {
+	EditLock,
 	HearthConfig,
 	HearthRoom,
 	MobileSlot,
@@ -12,6 +13,22 @@ import type {
 } from './types';
 
 export type * from './types';
+
+export const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+export type Weekday = (typeof WEEKDAYS)[number];
+
+/** A time of day as HH:MM on the 24 hour clock. */
+export const CLOCK_TIME = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
+const MONTH_LENGTHS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** A day of the year as MM-DD; 02-29 counts, for the years that have it. */
+export function isMonthDay(value: unknown): value is string {
+	const match = typeof value === 'string' ? /^(\d\d)-(\d\d)$/.exec(value) : null;
+	if (!match) return false;
+	const [month, day] = [Number(match[1]), Number(match[2])];
+	return month >= 1 && month <= 12 && day >= 1 && day <= MONTH_LENGTHS[month - 1];
+}
 
 /** A gap with no height is the one that absorbs the rail's leftover space. */
 function isFlexibleGap(widget: RailWidget): boolean {
@@ -114,6 +131,12 @@ export function railPositionOf(config: Pick<HearthConfig, 'rail_position'>): Rai
 	return config.rail_position ?? 'left';
 }
 
+/** The lock the edit toggle applies; a PIN lock with no valid PIN still asks for a hold. */
+export function editLockOf(config: Pick<HearthConfig, 'edit_lock' | 'edit_pin'>): EditLock | 'off' {
+	if (config.edit_lock === 'pin') return config.edit_pin ? 'pin' : 'hold';
+	return config.edit_lock ?? 'off';
+}
+
 export function railSideOf(widget: RailWidget): RailSide {
 	return widget.side === 'right' ? 'right' : 'left';
 }
@@ -154,6 +177,91 @@ export function isStack(item: OverviewItem): item is OverviewStack {
 	return 'kind' in item && item.kind === 'stack';
 }
 
+/** Columns a top-level item covers on a page of `columns`; stacks and plain cards cover one. */
+export function cardSpan(item: OverviewItem, columns: number): number {
+	if (isStack(item) || !item.span || columns < 2) return 1;
+	return item.span === 'full' ? columns : Math.min(columns, item.span);
+}
+
+/** Whether any card on a page of these columns covers more than its own. */
+export function hasSpans(columns: OverviewItem[][]): boolean {
+	return columns.some((column) => column.some((item) => cardSpan(item, columns.length) > 1));
+}
+
+/**
+ * One block of the spanned layout, placed on the page grid: a run of a
+ * column's items between its spanning cards, or one spanning card. Rows and
+ * columns count from 1, as CSS grid lines do.
+ */
+export type SpanCell =
+	| { kind: 'run'; column: number; row: number; items: OverviewItem[] }
+	| {
+			kind: 'span';
+			column: number;
+			row: number;
+			card: OverviewCard;
+			start: number;
+			span: number;
+	  };
+
+/**
+ * Lays out a page whose cards span columns. Every column is cut at its
+ * spanning cards into runs. The n-th runs of all columns share a grid row,
+ * and below it the n-th spanning card of each column takes a row of its own,
+ * in column order; then the columns resume. A spanning card starts at its own
+ * column, moved left as far as it needs to fit. The cells come in reading
+ * order: column by column, every card where it is stored, as the page reads
+ * folded to one column and as focus and screen readers walk it on any width.
+ * `rows` says which grid rows hold runs and which hold spans.
+ */
+export function spanLayout(columns: OverviewItem[][]): {
+	cells: SpanCell[];
+	rows: ('run' | 'span')[];
+} {
+	const count = columns.length;
+	const bands = columns.map((column) => {
+		const runs: OverviewItem[][] = [[]];
+		const spans: OverviewCard[] = [];
+		for (const item of column) {
+			if (cardSpan(item, count) > 1) {
+				spans.push(item as OverviewCard);
+				runs.push([]);
+			} else runs[runs.length - 1].push(item);
+		}
+		return { runs, spans };
+	});
+
+	const cells: SpanCell[] = [];
+	const rows: ('run' | 'span')[] = [];
+	const depth = Math.max(...bands.map((band) => band.runs.length));
+	for (let band = 0; band < depth; band++) {
+		if (bands.some(({ runs }) => runs[band]?.length)) {
+			rows.push('run');
+			bands.forEach(({ runs }, column) => {
+				const items = runs[band];
+				if (items?.length) cells.push({ kind: 'run', column, row: rows.length, items });
+			});
+		}
+		bands.forEach(({ spans }, column) => {
+			const card = spans[band];
+			if (!card) return;
+			rows.push('span');
+			const span = cardSpan(card, count);
+			cells.push({
+				kind: 'span',
+				column,
+				row: rows.length,
+				card,
+				start: Math.min(column, count - span) + 1,
+				span
+			});
+		});
+	}
+
+	// within a column, rows already follow the stored order
+	return { cells: cells.sort((a, b) => a.column - b.column || a.row - b.row), rows };
+}
+
 /** Mutable list containing an id-addressed card or stack. */
 export function findOverviewItemList(
 	config: HearthConfig,
@@ -170,6 +278,23 @@ export function findOverviewItemList(
 		}
 	}
 	return undefined;
+}
+
+/**
+ * Drops the stack whose card list `cards` is, once its last card moved out:
+ * an empty stack shows nothing outside the editor.
+ */
+export function pruneEmptyStack(config: HearthConfig, cards: OverviewItem[]) {
+	if (cards.length) return;
+	for (const room of config.rooms) {
+		for (const column of room.cards ?? []) {
+			const index = column.findIndex((item) => isStack(item) && item.cards === cards);
+			if (index >= 0) {
+				column.splice(index, 1);
+				return;
+			}
+		}
+	}
 }
 
 export function findOverviewCard(
@@ -196,6 +321,9 @@ export function wildcardEntityIds(pattern: string | undefined, entityIds: string
 /** Card types that take a share of the leftover height unless told otherwise. */
 /** The longest an alert rule may wait, one day; longer waits belong in Home Assistant. */
 export const MAX_ALERT_SECONDS = 86_400;
+
+/** How long after an arrival a greeting may still show, unless `greeting.minutes` says otherwise. */
+export const GREETING_MINUTES = 10;
 
 export const DEFAULT_HEARTH_CONFIG: HearthConfig = {
 	// sun.sun is part of a standard Home Assistant installation; without a
@@ -232,8 +360,41 @@ function normalizeVisibilityCondition(raw: any): VisibilityCondition | null {
 	if (typeof raw.media === 'string' && raw.media.trim()) {
 		return { media: raw.media };
 	}
+	if ('device' in raw) {
+		// the editor keeps a list as comma-separated text until it is saved
+		const listed = typeof raw.device === 'string' ? raw.device.split(',') : raw.device;
+		const names = (Array.isArray(listed) ? listed : [])
+			.filter((name: unknown): name is string => typeof name === 'string')
+			.map((name: string) => name.trim())
+			.filter(Boolean);
+		if (!names.length) return null;
+		return { device: names.length === 1 && !Array.isArray(raw.device) ? names[0] : names };
+	}
+	/*
+	 * A time window that cannot be read is kept as it is, so it holds never
+	 * (see inTimeWindow): dropping it would show the item at every hour. The
+	 * issue checker reports it.
+	 */
+	if ('time' in raw) {
+		const source = raw.time && typeof raw.time === 'object' ? raw.time : {};
+		const time: { after?: string; before?: string; weekdays?: Weekday[] } = {};
+		for (const key of ['after', 'before'] as const) {
+			if (source[key] !== undefined && source[key] !== null && source[key] !== '')
+				time[key] = String(source[key]).trim();
+		}
+		if (Array.isArray(source.weekdays) && source.weekdays.length) {
+			const days = source.weekdays.map((day: unknown) => String(day).trim().toLowerCase());
+			time.weekdays = [
+				...WEEKDAYS.filter((day) => days.includes(day)),
+				...days.filter((day: string) => !(WEEKDAYS as readonly string[]).includes(day))
+			];
+		}
+		return { time };
+	}
 	if (typeof raw.entity === 'string' && raw.entity.trim()) {
 		const condition: VisibilityCondition = { entity: raw.entity };
+		if (typeof raw.attribute === 'string' && raw.attribute.trim())
+			condition.attribute = raw.attribute.trim();
 		if (typeof raw.state === 'string' && raw.state !== '') condition.state = raw.state;
 		if (typeof raw.state_not === 'string' && raw.state_not !== '')
 			condition.state_not = raw.state_not;
@@ -242,6 +403,67 @@ function normalizeVisibilityCondition(raw: any): VisibilityCondition | null {
 		return condition;
 	}
 	return null;
+}
+
+export function usesMedia(conditions: VisibilityCondition[]): boolean {
+	return conditions.some(
+		(condition) => 'media' in condition || ('or' in condition && usesMedia(condition.or))
+	);
+}
+
+/*
+ * Alert rules are checked when states change, not when the window resizes,
+ * so a media query would read whatever the screen was at the last state
+ * change; style rules follow states the same way. Media conditions are left
+ * out of both; an or-group left empty goes with them.
+ */
+export function withoutMedia(conditions: VisibilityCondition[]): VisibilityCondition[] {
+	return conditions.flatMap((condition): VisibilityCondition[] => {
+		if ('media' in condition) return [];
+		if (!('or' in condition)) return [condition];
+		const or = withoutMedia(condition.or);
+		return or.length ? [{ or }] : [];
+	});
+}
+
+// one class name or several, separated by spaces
+const CLASS_LIST = /^-?[_a-zA-Z][\w-]*(\s+-?[_a-zA-Z][\w-]*)*$/;
+
+/*
+ * Classes Hearth itself puts on a tile, its wrapper and the grid around it.
+ * A style rule that reused one would switch Hearth's own styling on or off.
+ */
+const RESERVED_CLASSES = new Set([
+	'active',
+	'compact',
+	'content',
+	'editing',
+	'empty',
+	'entity-slot',
+	'fill',
+	'fixed',
+	'grid',
+	'hidden',
+	'on',
+	'open',
+	'openable',
+	'pending',
+	'pressable',
+	'stat',
+	'styled',
+	'tile',
+	'unreachable'
+]);
+
+/** What is wrong with a style rule's class list, or undefined when it is usable. */
+export function classListProblem(value: string): 'format' | 'reserved' | undefined {
+	const trimmed = value.trim();
+	if (!CLASS_LIST.test(trimmed)) return 'format';
+	return trimmed
+		.split(/\s+/)
+		.some((name) => RESERVED_CLASSES.has(name) || name.startsWith('svelte-'))
+		? 'reserved'
+		: undefined;
 }
 
 /** Drops the field entirely rather than keeping an empty array. */
@@ -328,6 +550,52 @@ export function moveItem<T>(list: T[], index: number, delta: number) {
  * to zoom 7, and nothing below 3 shows weather at a useful scale.
  */
 export const RADAR_ZOOM = { min: 3, max: 7, fallback: 6 } as const;
+
+/** Seconds each sleep screen photo shows; shorter makes the slideshow restless. */
+export const PHOTO_SECONDS = { min: 5, max: 86_400, fallback: 30 } as const;
+
+// a stand-in origin, so a path can be told apart from an address on another host
+const LINK_BASE = 'http://hearth.invalid';
+
+/**
+ * A link Hearth may open or embed: an absolute http(s) address, or a path on
+ * this host starting with `/`. Backslashes, whitespace and control characters
+ * are refused outright, since browsers repair them in ways that can move the
+ * link to another host (`/\evil.com` reads as `//evil.com`).
+ */
+export function isLinkUrl(value: string): boolean {
+	for (const char of value) {
+		const code = char.charCodeAt(0);
+		if (code <= 0x20 || code === 0x7f || char === '\\') return false;
+	}
+	let url: URL;
+	try {
+		url = new URL(value, LINK_BASE);
+	} catch {
+		return false;
+	}
+	if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+	return /^https?:\/\//i.test(value) || (value.startsWith('/') && url.origin === LINK_BASE);
+}
+
+/**
+ * The page a link names: its id, its name, or the last segment of a Lovelace
+ * path such as `/lovelace/kitchen`.
+ */
+export function resolvePage(
+	rooms: Pick<HearthRoom, 'id' | 'name'>[],
+	path: string
+): string | undefined {
+	const wanted = path.trim();
+	const segment = wanted.split(/[?#]/)[0].split('/').filter(Boolean).at(-1) ?? '';
+	for (const candidate of [wanted, segment]) {
+		const match =
+			rooms.find((room) => room.id === candidate) ??
+			rooms.find((room) => room.name.toLowerCase() === candidate.toLowerCase());
+		if (match) return match.id;
+	}
+	return undefined;
+}
 
 /** A Leaflet raster tile template: http(s) with {z}, {x} and {y} placeholders. */
 export function isTileUrl(value: string): boolean {

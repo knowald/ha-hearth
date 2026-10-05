@@ -18,20 +18,26 @@
 	import Icon from './Icon.svelte';
 	import TuneButton from './TuneButton.svelte';
 	import { horizontalDrag } from './drag';
-	import { activateOnKeyboard } from './interaction';
+	import { activateOnKeyboard, longPress } from './interaction';
+	import { actionRuns, runSurfaceAction, tapToggles } from './actions';
+	import type { HearthAction } from './types';
 
 	let {
 		entity,
 		name = undefined,
+		stateOverride = undefined,
 		icon = undefined,
 		compact = false,
 		readonly = false,
 		sliderUpdates = 'continuous',
 		showTune = false,
+		tapAction = undefined,
+		holdAction = undefined,
 		onedit = undefined
 	}: {
 		entity: string;
 		name?: string;
+		stateOverride?: string;
 		icon?: string;
 		compact?: boolean;
 		/** display only: taps never send a command */
@@ -39,6 +45,8 @@
 		sliderUpdates?: SliderUpdateMode;
 		/** restores the controls glyph beside the long-press gesture */
 		showTune?: boolean;
+		tapAction?: HearthAction;
+		holdAction?: HearthAction;
 		onedit?: () => void;
 	} = $props();
 
@@ -59,12 +67,49 @@
 	);
 
 	let pending = $derived($pendingEntities[entity] !== undefined);
-	let interactive = $derived($hearthEditMode || (!readonly && controllable));
+	// a state_template gives way to the live value while the tile is being
+	// changed, and to the availability text
+	let templatedState = $derived(
+		available &&
+			!pending &&
+			!Object.keys($controlOverrides).some((key) => key.endsWith(`:${entity}`))
+			? stateOverride
+			: undefined
+	);
+	// the tile's own tap, hold and drag; without them a configured action can
+	// still make the tile tappable
+	let ownControls = $derived(!readonly && controllable);
+	let customHold = $derived(actionRuns(holdAction, readonly));
+	let interactive = $derived(
+		$hearthEditMode || ownControls || actionRuns(tapAction, readonly) || customHold
+	);
 	let accessPoint = $derived(coverIsAccessPoint($states?.[entity]));
+
+	function surface(fallback: () => void, fallbackToggles = false) {
+		return {
+			entity,
+			name,
+			readonly,
+			fallbackToggles,
+			detail: { icon, sliderUpdates, readonly },
+			fallback
+		};
+	}
 
 	function handleClick() {
 		if ($hearthEditMode) return onedit?.();
-		if (readonly || !controllable) return;
+		runSurfaceAction(tapAction, surface(defaultTap, true));
+	}
+
+	function handleHold() {
+		runSurfaceAction(
+			holdAction,
+			surface(() => ownControls && openControls())
+		);
+	}
+
+	function defaultTap() {
+		if (!ownControls) return;
 		const opening = !open;
 		guardCoverMotion(
 			[entity],
@@ -102,24 +147,34 @@
 	class:unreachable={!controllable}
 	class:pending
 	data-id={entity}
+	data-entity={entity}
+	data-domain={entity.split('.')[0]}
+	data-state={$states?.[entity]?.state}
 	role="button"
 	tabindex={interactive ? 0 : -1}
-	aria-pressed={open}
+	aria-pressed={tapToggles(tapAction, entity) ? open : undefined}
 	use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
-	onclick={() => $hearthEditMode && onedit?.()}
+	onclick={() => {
+		// with the drag off, the click is the tap
+		if ($hearthEditMode || !ownControls) handleClick();
+	}}
 	onkeydown={(event) =>
 		activateOnKeyboard(event, () =>
-			event.shiftKey && controllable && !readonly && !$hearthEditMode
-				? openControls()
-				: handleClick()
+			event.shiftKey && !$hearthEditMode ? handleHold() : handleClick()
 		)}
 	use:horizontalDrag={{
 		set: slide,
 		updateMode: accessPoint ? 'release' : sliderUpdates,
 		tap: handleClick,
-		hold: openControls,
-		disabled: $hearthEditMode || readonly || !controllable,
+		hold: holdAction?.action === 'none' ? undefined : handleHold,
+		deferOnTouch: customHold,
+		disabled: $hearthEditMode || !ownControls,
 		ignore: '.tune'
+	}}
+	use:longPress={{
+		hold: handleHold,
+		deferOnTouch: true,
+		disabled: $hearthEditMode || ownControls || !customHold || holdAction?.action === 'none'
 	}}
 >
 	<div class="fill" style:width="{position}%"></div>
@@ -127,15 +182,17 @@
 		<Icon
 			name={icon || 'blinds'}
 			size={ICON.tile}
-			color={!controllable
-				? 'var(--h-icon-dim)'
-				: open
-					? 'var(--h-accent-dim-text)'
-					: 'var(--h-icon-dim)'}
+			color={`var(--tile-accent, ${
+				!controllable
+					? 'var(--h-icon-dim)'
+					: open
+						? 'var(--h-accent-dim-text)'
+						: 'var(--h-icon-dim)'
+			})`}
 		/>
 		<div class="copy">
 			<div class="name">{label}</div>
-			<div class="state" class:open>{stateText}</div>
+			<div class="state" class:open>{templatedState ?? stateText}</div>
 		</div>
 	</div>
 	{#if $hearthEditMode && onedit}

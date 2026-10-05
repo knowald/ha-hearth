@@ -92,6 +92,13 @@
 		border-color: rgb(var(--h-accent-rgb) / calc(0.4 * var(--h-accent-scale)));
 	}
 
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		select {
+			font-size: max(var(--h-input-floor), var(--h-type-body));
+		}
+	}
+
 	option {
 		background: var(--h-sheet-0);
 	}

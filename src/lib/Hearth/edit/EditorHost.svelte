@@ -11,6 +11,8 @@
 	import CustomCssEditSheet from './CustomCssEditSheet.svelte';
 	import VersionsEditSheet from './VersionsEditSheet.svelte';
 	import AlertEditSheet from './AlertEditSheet.svelte';
+	import ScreenEditSheet from './ScreenEditSheet.svelte';
+	import { screenSheetOpen } from '../screen';
 </script>
 
 {#if $editor}
@@ -45,4 +47,9 @@
 			<ThemeEditSheet />
 		{/if}
 	{/key}
+{/if}
+
+<!-- after the editor, so opened from Settings it sits above that sheet -->
+{#if $screenSheetOpen}
+	<ScreenEditSheet />
 {/if}

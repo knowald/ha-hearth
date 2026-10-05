@@ -5,10 +5,15 @@
 	import type { EntityRef } from './config';
 	import type { SliderUpdateMode } from '$lib/core/app/configuration';
 	import { onDndReceive } from './drag';
-	import { hearthEditMode } from './store';
+	import { displayTimeZone, hearthEditMode } from './store';
 	import EntityTile from './EntityTile.svelte';
 	import Icon from './Icon.svelte';
 	import StatTile from './StatTile.svelte';
+	import TileTemplates from './TileTemplates.svelte';
+	import { minuteTimer } from '$lib/core/app/clock';
+	import { deviceName } from '$lib/core/app/device';
+	import { states } from '$lib/core/ha/entities';
+	import { matchStyleRule, styleColor, usesTime } from './visibility';
 
 	let {
 		entities,
@@ -45,6 +50,32 @@
 
 	const entityGroup = 'hearth-card-entities';
 
+	// the shared minute clock runs only for grids with a time-based style rule
+	let timed = $derived(
+		entities.some((ref) => ref.style?.some((rule) => usesTime(rule.conditions)))
+	);
+	let now = $state<Date | undefined>();
+	$effect(() => {
+		if (!timed) {
+			now = undefined;
+			return;
+		}
+		return minuteTimer.subscribe((value) => (now = value));
+	});
+	// a grid without style rules never reads the states for them
+	let styled = $derived(entities.some((ref) => ref.style?.length));
+	let styleRules = $derived(
+		styled
+			? entities.map((ref) =>
+					matchStyleRule(ref.style, $states, {
+						device: $deviceName,
+						now,
+						timeZone: $displayTimeZone
+					})
+				)
+			: []
+	);
+
 	// a tablet card's four tracks would leave phone tiles too narrow to read
 	const FOLDED_MAX_COLUMNS = 2;
 </script>
@@ -69,32 +100,51 @@
 	<!-- keyed by entity (index breaks the tie for duplicates): reusing a tile for
 	     a different entity can leave StateLogic showing the previous state -->
 	{#each entities as ref, index (`${ref.entity}-${index}`)}
-		<div class="entity-slot" data-id={JSON.stringify([cardId, index])}>
+		{@const rule = styleRules[index]}
+		{@const accent = styleColor(rule?.color)}
+		<!-- a matching style rule's class goes on the slot, its color reaches the
+		     tile through --tile-accent -->
+		<div
+			class="entity-slot {rule?.class ?? ''}"
+			class:styled={accent !== undefined}
+			style:--tile-accent={accent}
+			data-id={JSON.stringify([cardId, index])}
+		>
 			{#if $hearthEditMode && cardId && showDragHandles}
-				<div class="entity-drag-handle" aria-label={$lang('hearth_rearrange_entity')}>
+				<div class="entity-drag-handle" role="img" aria-label={$lang('hearth_rearrange_entity')}>
 					<Icon name="drag_indicator" size={ICON.inline} />
 				</div>
 			{/if}
-			{#if (ref.display ?? style) === 'stat'}
-				<StatTile
-					entity={ref.entity}
-					name={ref.name}
-					verdictBands={ref.verdict}
-					readonly={ref.readonly ?? readonly}
-				/>
-			{:else}
-				<EntityTile
-					entity={ref.entity}
-					name={ref.name}
-					icon={ref.icon}
-					readonly={ref.readonly ?? readonly}
-					activeEntity={ref.active_entity}
-					activeStates={ref.active_states}
-					sliderUpdates={ref.slider_updates ?? sliderUpdates}
-					showTune={tuneButton}
-					{compact}
-				/>
-			{/if}
+			<TileTemplates nameTemplate={ref.name_template} stateTemplate={ref.state_template}>
+				{#snippet children(templatedName, templatedState)}
+					{#if (ref.display ?? style) === 'stat'}
+						<StatTile
+							entity={ref.entity}
+							name={templatedName ?? ref.name}
+							stateOverride={templatedState}
+							verdictBands={ref.verdict}
+							readonly={ref.readonly ?? readonly}
+							tapAction={ref.tap_action}
+							holdAction={ref.hold_action}
+						/>
+					{:else}
+						<EntityTile
+							entity={ref.entity}
+							name={templatedName ?? ref.name}
+							stateOverride={templatedState}
+							icon={rule?.icon || ref.icon}
+							readonly={ref.readonly ?? readonly}
+							activeEntity={ref.active_entity}
+							activeStates={ref.active_states}
+							sliderUpdates={ref.slider_updates ?? sliderUpdates}
+							showTune={tuneButton}
+							tapAction={ref.tap_action}
+							holdAction={ref.hold_action}
+							{compact}
+						/>
+					{/if}
+				{/snippet}
+			</TileTemplates>
 		</div>
 	{/each}
 </div>
@@ -136,6 +186,12 @@
 		height: 100%;
 	}
 
+	/* a style rule's color outlines the tile, whatever state it is in */
+	.entity-slot.styled > :global(.tile) {
+		border-style: solid;
+		border-color: color-mix(in srgb, var(--tile-accent) 45%, transparent);
+	}
+
 	/* tiles leave room on the right for the handle while editing */
 	.grid.editing :global(.entity-slot) {
 		--tile-pad-right: 48px;
@@ -164,8 +220,9 @@
 			position: absolute;
 			top: 50%;
 			left: 50%;
-			width: 44px;
-			height: 44px;
+			/* capped so a small interface scale cannot spread it over the neighbours */
+			width: min(var(--h-touch-target), 56px);
+			height: min(var(--h-touch-target), 56px);
 			transform: translate(-50%, -50%);
 		}
 	}

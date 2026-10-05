@@ -101,7 +101,7 @@ test('an unapplied YAML edit survives the trip through Versions', async ({ page 
 	await expect(reopened.locator('.cm-content')).toContainText('a note that was never applied');
 });
 
-test('a draft parked for Versions is dropped when Versions is closed', async ({ page }) => {
+test('closing Versions asks before it drops a parked draft', async ({ page }) => {
 	const dialog = await openYamlEditor(page);
 	await dialog.locator('.cm-content').click();
 	await page.keyboard.type('# a note that was abandoned\n');
@@ -111,6 +111,9 @@ test('a draft parked for Versions is dropped when Versions is closed', async ({ 
 	await expect(versions).toBeVisible();
 	// the header's text action and its close icon both read Close
 	await versions.getByRole('button', { name: 'Close' }).last().click();
+	const confirm = page.getByRole('alertdialog');
+	await expect(confirm).toContainText('Discard changes?');
+	await confirm.getByRole('button', { name: 'Discard' }).click();
 	await expect(versions).toBeHidden();
 
 	// the abandoned draft would otherwise come back and overwrite the dashboard

@@ -1,45 +1,36 @@
 <script lang="ts">
-	import { lang } from '$lib/core/i18n';
-	import { validTimeZone, type ClockHourFormat } from '../../clock';
+	import { validTimeZone } from '../../clock';
 	import type { WidgetEditorProps } from '../types';
 	import type { ClockWidget } from './descriptor';
-	import SelectField from '../../edit/SelectField.svelte';
-	import TextField from '../../edit/TextField.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 
-	let { initial: initialProp, onchange }: WidgetEditorProps<ClockWidget> = $props();
+	let { initial, onchange }: WidgetEditorProps<ClockWidget> = $props();
 
 	// remounted per target and type, so the initial value is all the form needs
 	// svelte-ignore state_referenced_locally
-	const initial = initialProp;
-
-	let timezone = $state(initial?.timezone ?? '');
-	let hourFormat = $state<ClockHourFormat>(initial?.hour_format ?? 'auto');
-	let showSeconds = $state(initial?.show_seconds ?? false);
-	let timezoneValid = $derived(!timezone.trim() || !!validTimeZone(timezone));
-
-	$effect(() => {
-		onchange({
-			fields: {
-				timezone: validTimeZone(timezone),
-				hour_format: hourFormat === 'auto' ? undefined : hourFormat,
-				show_seconds: showSeconds || undefined
-			},
-			valid: timezoneValid
-		});
-	});
+	const form = new EditorForm(initial, [
+		{
+			key: 'timezone',
+			kind: 'text',
+			label: 'hearth_time_zone',
+			placeholder: 'Europe/Warsaw',
+			write: (raw) => validTimeZone(String(raw)),
+			invalid: 'hearth_use_an_iana_time_zone_such'
+		},
+		{
+			key: 'hour_format',
+			kind: 'select',
+			label: 'hearth_hour_format',
+			default: 'auto',
+			options: [
+				{ value: 'auto', label: 'hearth_locale_default' },
+				{ value: '12', label: 'hearth_12_hour' },
+				{ value: '24', label: 'hearth_24_hour' }
+			]
+		},
+		{ key: 'show_seconds', kind: 'check', label: 'hearth_show_seconds' }
+	]);
 </script>
 
-<TextField label={$lang('hearth_time_zone')} bind:value={timezone} placeholder="Europe/Warsaw" />
-{#if !timezoneValid}<div class="field-error">{$lang('hearth_use_an_iana_time_zone_such')}</div>{/if}
-<SelectField
-	label={$lang('hearth_hour_format')}
-	bind:value={hourFormat}
-	options={[
-		{ value: 'auto', label: $lang('hearth_locale_default') },
-		{ value: '12', label: $lang('hearth_12_hour') },
-		{ value: '24', label: $lang('hearth_24_hour') }
-	]}
-/>
-<label class="check"
-	><input type="checkbox" bind:checked={showSeconds} /> {$lang('hearth_show_seconds')}</label
->
+<FormRenderer {form} {onchange} />

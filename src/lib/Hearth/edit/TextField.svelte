@@ -10,22 +10,32 @@
 		value = $bindable(''),
 		placeholder = '',
 		type = 'text',
+		inputmode = undefined,
 		autocomplete = undefined,
 		autofocus = false,
 		hint = undefined,
 		error = undefined,
+		required = false,
 		onchange = undefined
 	}: {
 		label: string;
 		value?: string;
 		placeholder?: string;
 		type?: 'text' | 'password';
+		/**
+		 * The on-screen keyboard for a number field. The input stays type text so
+		 * partial entries such as "-" or "20." survive until the number is whole.
+		 */
+		inputmode?: 'numeric' | 'decimal';
 		autocomplete?: FullAutoFill;
-		/** Ask the surrounding sheet to focus this field when it opens. */
-		autofocus?: boolean;
+		/** Ask the surrounding sheet to focus this field when it opens, unless on a touch screen. */
+		/** 'always' takes focus on a touch screen too, for a field that must be typed into anyway. */
+		autofocus?: boolean | 'always';
 		hint?: string;
 		/** Shown in place of nothing when the value is not acceptable; marks the input invalid. */
 		error?: string | null;
+		/** Marks the label and tells assistive tech; the editor decides what blocks Done. */
+		required?: boolean;
 		/** Fires on the input's own change event - blur or Enter, not per keystroke. */
 		onchange?: (value: string) => void;
 	} = $props();
@@ -33,15 +43,17 @@
 
 <div class="field">
 	<label>
-		<span class="field-label">{label}</span>
+		<span class="field-label" class:field-required={required}>{label}</span>
 		<input
 			{type}
+			{inputmode}
 			{autocomplete}
-			data-autofocus={autofocus || undefined}
+			data-autofocus={autofocus === 'always' ? 'always' : autofocus || undefined}
 			bind:value
 			{placeholder}
 			spellcheck="false"
 			aria-invalid={error ? true : undefined}
+			aria-required={required || undefined}
 			aria-describedby={describedBy(uid, hint, error)}
 			onchange={() => onchange?.(value)}
 		/>
@@ -92,7 +104,7 @@
 	/* iOS Safari zooms the page into any input set under 16px */
 	@media (pointer: coarse) {
 		input {
-			font-size: max(16px, var(--h-type-body)); /* literal ok: the iOS no-zoom floor */
+			font-size: max(var(--h-input-floor), var(--h-type-body));
 		}
 	}
 </style>

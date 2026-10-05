@@ -7,17 +7,27 @@
 	import { openEntityDetail } from './details';
 	import { airQualityVerdict } from '$lib/core/domains/sensor';
 	import { entityAvailability, sensorNumber } from '$lib/core/ha/entities';
+	import { actionRuns, runSurfaceAction } from './actions';
+	import { longPress } from './interaction';
+	import type { HearthAction } from './types';
 
 	let {
 		entity,
 		name = undefined,
+		stateOverride = undefined,
 		verdictBands = undefined,
-		readonly = false
+		readonly = false,
+		tapAction = undefined,
+		holdAction = undefined
 	}: {
 		entity: string;
 		name?: string;
+		/** shown in place of the reading and its unit, from a state_template */
+		stateOverride?: string;
 		verdictBands?: false | VerdictBands;
 		readonly?: boolean;
+		tapAction?: HearthAction;
+		holdAction?: HearthAction;
 	} = $props();
 
 	let stateObj = $derived($states?.[entity]);
@@ -41,10 +51,31 @@
 	// a numeric readout earns a tap: its detail sheet with the 24h history.
 	// The sheet of a writable entity (input_number) has controls, which read
 	// only removes
-	let openable = $derived(value !== null && !$hearthEditMode);
+	let readable = $derived(value !== null);
+	let openable = $derived(
+		!$hearthEditMode &&
+			(readable || actionRuns(tapAction, readonly) || actionRuns(holdAction, readonly))
+	);
 
-	function openHistory() {
-		if (openable) openEntityDetail(entity, name, { readonly });
+	function surface(fallback: () => void) {
+		return { entity, name, readonly, detail: { readonly }, fallback };
+	}
+
+	function tap() {
+		if (!$hearthEditMode)
+			runSurfaceAction(
+				tapAction,
+				surface(() => readable && openEntityDetail(entity, name, { readonly }))
+			);
+	}
+
+	// a stat box has no hold of its own
+	function hold() {
+		if (!$hearthEditMode)
+			runSurfaceAction(
+				holdAction,
+				surface(() => {})
+			);
 	}
 </script>
 
@@ -55,9 +86,10 @@
 			<div class="stat-verdict" data-tone={verdict.tone}>{verdict.label}</div>
 		{/if}
 	</div>
-	<div class="stat-value" class:muted={value === null}>
-		{display}{#if unit && value !== null}<span class="stat-unit" class:tight={unit === '%'}
-				>{unit}</span
+	<div class="stat-value" class:muted={value === null && stateOverride === undefined}>
+		{stateOverride ?? display}{#if unit && value !== null && stateOverride === undefined}<span
+				class="stat-unit"
+				class:tight={unit === '%'}>{unit}</span
 			>{/if}
 	</div>
 	{#if verdict}
@@ -75,11 +107,29 @@
 {/snippet}
 
 {#if openable}
-	<button type="button" class="stat openable" onclick={openHistory}>
+	<button
+		type="button"
+		class="stat openable"
+		data-entity={entity}
+		data-domain={entity.split('.')[0]}
+		data-state={stateObj?.state}
+		onclick={tap}
+		use:longPress={{
+			hold,
+			deferOnTouch: true,
+			disabled:
+				$hearthEditMode || !actionRuns(holdAction, readonly) || holdAction?.action === 'none'
+		}}
+	>
 		{@render body()}
 	</button>
 {:else}
-	<div class="stat">
+	<div
+		class="stat"
+		data-entity={entity}
+		data-domain={entity.split('.')[0]}
+		data-state={stateObj?.state}
+	>
 		{@render body()}
 	</div>
 {/if}
@@ -117,7 +167,8 @@
 	.stat-value {
 		font-size: var(--h-type-stat);
 		font-weight: 600;
-		color: var(--h-text-1);
+		/* a matching style rule's color (see EntityGrid) */
+		color: var(--tile-accent, var(--h-text-1));
 		margin-top: 4px;
 	}
 

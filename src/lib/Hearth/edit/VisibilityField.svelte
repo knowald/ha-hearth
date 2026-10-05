@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { numberFromInput } from './numbers';
 	import { ICON } from '../iconSizes';
-	import { lang } from '$lib/core/i18n';
+	import { lang, selectedLanguage } from '$lib/core/i18n';
 	import { activateOnKeyboard } from '../interaction';
-	import type { VisibilityCondition } from '../config';
+	import { CLOCK_TIME, WEEKDAYS, type VisibilityCondition, type Weekday } from '../config';
 	import Icon from '../Icon.svelte';
+	import CheckField from './CheckField.svelte';
 	import EntityField from './EntityField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
@@ -21,11 +22,14 @@
 		media?: boolean;
 	} = $props();
 
-	type RowType = 'entity' | 'numeric' | 'media' | 'or';
+	type RowType = 'entity' | 'numeric' | 'attribute' | 'device' | 'time' | 'media' | 'or';
 
 	let TYPE_OPTIONS = $derived([
 		{ value: 'entity', label: $lang('hearth_entity_state') },
 		{ value: 'numeric', label: $lang('hearth_numeric_state') },
+		{ value: 'attribute', label: $lang('hearth_entity_attribute') },
+		{ value: 'device', label: $lang('hearth_this_device') },
+		{ value: 'time', label: $lang('hearth_time_of_day') },
 		...(media ? [{ value: 'media', label: $lang('hearth_media_query') }] : []),
 		// an or-group inside an or-group adds nothing; keep the tree one level deep
 		...(nested ? [] : [{ value: 'or', label: $lang('hearth_any_of') }])
@@ -34,6 +38,9 @@
 	function rowType(condition: VisibilityCondition): RowType {
 		if ('media' in condition) return 'media';
 		if ('or' in condition) return 'or';
+		if ('device' in condition) return 'device';
+		if ('time' in condition) return 'time';
+		if (condition.attribute !== undefined) return 'attribute';
 		return condition.above !== undefined || condition.below !== undefined ? 'numeric' : 'entity';
 	}
 
@@ -44,10 +51,80 @@
 				? { media: '' }
 				: type === 'or'
 					? { or: [{ entity: '', state: '' }] }
-					: type === 'numeric'
-						? { entity: '', above: 0 }
-						: { entity: '', state: '' };
+					: type === 'device'
+						? { device: '' }
+						: type === 'time'
+							? { time: {} }
+							: type === 'attribute'
+								? { entity: '', attribute: '', state: '' }
+								: type === 'numeric'
+									? { entity: '', above: 0 }
+									: { entity: '', state: '' };
 	}
+
+	function attributeValue(index: number): string {
+		const condition = value[index];
+		return 'entity' in condition ? (condition.attribute ?? '') : '';
+	}
+
+	function setAttribute(index: number, attribute: string) {
+		const condition = value[index];
+		if ('entity' in condition) condition.attribute = attribute;
+	}
+
+	// a list is shown and typed as comma-separated names; saving splits it again
+	function deviceValue(index: number): string {
+		const condition = value[index];
+		if (!('device' in condition)) return '';
+		return Array.isArray(condition.device) ? condition.device.join(', ') : condition.device;
+	}
+
+	function setDevice(index: number, names: string) {
+		const condition = value[index];
+		if ('device' in condition) condition.device = names;
+	}
+
+	function timeValue(index: number, key: 'after' | 'before'): string {
+		const condition = value[index];
+		return 'time' in condition ? (condition.time[key] ?? '') : '';
+	}
+
+	function setTime(index: number, key: 'after' | 'before', text: string) {
+		const condition = value[index];
+		if (!('time' in condition)) return;
+		if (text.trim()) condition.time[key] = text.trim();
+		else delete condition.time[key];
+	}
+
+	function timeError(index: number, key: 'after' | 'before'): string | undefined {
+		const text = timeValue(index, key);
+		return text && !CLOCK_TIME.test(text) ? $lang('hearth_time_format') : undefined;
+	}
+
+	function hasWeekday(index: number, day: Weekday): boolean {
+		const condition = value[index];
+		return 'time' in condition && (condition.time.weekdays ?? []).includes(day);
+	}
+
+	function toggleWeekday(index: number, day: Weekday) {
+		const condition = value[index];
+		if (!('time' in condition)) return;
+		const before = condition.time.weekdays ?? [];
+		const weekdays = WEEKDAYS.filter((entry) =>
+			entry === day ? !before.includes(entry) : before.includes(entry)
+		);
+		if (weekdays.length) condition.time.weekdays = weekdays;
+		else delete condition.time.weekdays;
+	}
+
+	// 2024-01-01 was a Monday, the first day in WEEKDAYS
+	let weekdayNames = $derived(
+		WEEKDAYS.map((_, offset) =>
+			new Date(2024, 0, 1 + offset).toLocaleDateString($selectedLanguage || undefined, {
+				weekday: 'short'
+			})
+		)
+	);
 
 	function entityValue(index: number): string {
 		const condition = value[index];
@@ -156,14 +233,11 @@
 					placeholder="on"
 					bind:value={() => stateValue(index), (state) => setState(index, state)}
 				/>
-				<label class="check">
-					<input
-						type="checkbox"
-						checked={isStateNot(index)}
-						onchange={(event) => setStateNot(index, event.currentTarget.checked)}
-					/>
-					<span>{$lang('hearth_must_not_match')}</span>
-				</label>
+				<CheckField
+					label={$lang('hearth_must_not_match')}
+					checked={isStateNot(index)}
+					onchange={(notMatch) => setStateNot(index, notMatch)}
+				/>
 			{:else if rowType(condition) === 'numeric'}
 				<EntityField
 					label={$lang('entity')}
@@ -179,6 +253,64 @@
 					placeholder="25"
 					bind:value={() => boundValue(index, 'below'), (text) => setBound(index, 'below', text)}
 				/>
+			{:else if rowType(condition) === 'attribute'}
+				<EntityField
+					label={$lang('entity')}
+					bind:value={() => entityValue(index), (entity) => setEntity(index, entity)}
+				/>
+				<TextField
+					label={$lang('hearth_attribute')}
+					placeholder="hvac_action"
+					bind:value={() => attributeValue(index), (text) => setAttribute(index, text)}
+				/>
+				<TextField
+					label={$lang('state')}
+					placeholder="heating"
+					bind:value={() => stateValue(index), (state) => setState(index, state)}
+				/>
+				<TextField
+					label={$lang('hearth_above')}
+					placeholder="20"
+					bind:value={() => boundValue(index, 'above'), (text) => setBound(index, 'above', text)}
+				/>
+				<TextField
+					label={$lang('hearth_below')}
+					placeholder="25"
+					bind:value={() => boundValue(index, 'below'), (text) => setBound(index, 'below', text)}
+				/>
+			{:else if rowType(condition) === 'device'}
+				<TextField
+					label={$lang('hearth_device_names')}
+					placeholder="kitchen, hallway"
+					hint={$lang('hearth_device_names_hint')}
+					bind:value={() => deviceValue(index), (names) => setDevice(index, names)}
+				/>
+			{:else if rowType(condition) === 'time'}
+				<TextField
+					label={$lang('hearth_after')}
+					placeholder="22:00"
+					error={timeError(index, 'after')}
+					bind:value={() => timeValue(index, 'after'), (text) => setTime(index, 'after', text)}
+				/>
+				<TextField
+					label={$lang('hearth_before')}
+					placeholder="06:00"
+					error={timeError(index, 'before')}
+					bind:value={() => timeValue(index, 'before'), (text) => setTime(index, 'before', text)}
+				/>
+				<div class="weekdays" role="group" aria-label={$lang('hearth_weekdays')}>
+					{#each WEEKDAYS as day, dayIndex (day)}
+						<button
+							type="button"
+							class="weekday"
+							aria-pressed={hasWeekday(index, day)}
+							onclick={() => toggleWeekday(index, day)}
+						>
+							{weekdayNames[dayIndex]}
+						</button>
+					{/each}
+				</div>
+				<div class="hint">{$lang('hearth_time_hint')}</div>
 			{:else if rowType(condition) === 'or' && 'or' in condition}
 				<div class="hint">{$lang('hearth_any_of_hint')}</div>
 				<VisibilityField bind:value={condition.or} nested {media} />
@@ -190,15 +322,14 @@
 				/>
 			{/if}
 		</div>
-		<span
+		<button
+			type="button"
 			class="remove"
+			aria-label={$lang('hearth_remove_condition')}
 			onclick={() => removeRow(index)}
-			role="button"
-			tabindex="0"
-			onkeydown={(event) => activateOnKeyboard(event, () => removeRow(index))}
 		>
 			<Icon name="delete" size={ICON.control} />
-		</span>
+		</button>
 	</div>
 {/each}
 <div
@@ -236,26 +367,58 @@
 		flex: 1;
 	}
 
-	.check {
+	.weekdays {
 		display: flex;
-		align-items: center;
-		gap: 10px;
-		font-size: var(--h-type-body);
-		color: var(--h-text-3);
-		margin: -4px 0 14px;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-bottom: 12px;
+	}
+
+	.weekday {
+		min-width: 44px;
+		min-height: 36px;
+		padding: 0 10px;
+		border: 1px solid rgb(var(--h-line-rgb) / calc(0.12 * var(--h-line-scale)));
+		border-radius: var(--h-radius-pill);
+		background: none;
+		color: var(--h-text-4);
+		font: inherit;
+		font-size: var(--h-type-secondary);
 		cursor: pointer;
 	}
 
-	.check input {
-		accent-color: var(--h-accent-deep);
-		width: 16px;
-		height: 16px;
+	@media (pointer: coarse) {
+		.weekday {
+			min-width: var(--h-touch-target);
+			min-height: var(--h-touch-target);
+		}
+	}
+
+	.weekday[aria-pressed='true'] {
+		background: rgb(var(--h-accent-rgb) / calc(0.16 * var(--h-accent-scale)));
+		border-color: rgb(var(--h-accent-rgb) / calc(0.4 * var(--h-accent-scale)));
+		color: var(--h-accent-text);
 	}
 
 	.remove {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		border: 0;
+		background: none;
 		color: var(--h-icon);
 		cursor: pointer;
 		margin-top: 32px;
+	}
+
+	/* a finger-sized button, centered on the first field's input */
+	@media (pointer: coarse) {
+		.remove {
+			min-width: var(--h-touch-target);
+			min-height: var(--h-touch-target);
+			margin-top: 20px;
+		}
 	}
 
 	@media (hover: hover) {
@@ -272,14 +435,14 @@
 		padding: 12px;
 		border-radius: var(--h-radius-xs);
 		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		font-size: var(--h-type-body);
 		cursor: pointer;
 	}
 
 	@media (hover: hover) {
 		.add-row:hover {
-			color: var(--h-text-4);
+			color: var(--h-text-3);
 		}
 	}
 </style>

@@ -6,25 +6,32 @@
 	import type { SliderUpdateMode } from '$lib/core/app/configuration';
 	import { capitalize, PRESS_RIPPLE } from './config';
 	import { horizontalDrag } from './drag';
-	import { activateOnKeyboard } from './interaction';
-	import Icon from './Icon.svelte';
+	import { activateOnKeyboard, longPress } from './interaction';
+	import TileIcon from './TileIcon.svelte';
+	import { iconMotionEnabled, iconMotionFor } from './iconMotion';
 	import { hearthEditMode, popup } from './store';
 	import { controlOverrides, pendingEntities } from '$lib/core/ha/commands';
 	import { lightViewFor, setLightLevel, toggleLight } from '$lib/core/domains/light';
 	import TuneButton from './TuneButton.svelte';
+	import { actionRuns, runSurfaceAction, tapToggles } from './actions';
+	import type { HearthAction } from './types';
 
 	let {
 		entity,
 		name = undefined,
+		stateOverride = undefined,
 		icon = undefined,
 		compact = false,
 		readonly = false,
 		sliderUpdates = 'continuous',
 		showTune = false,
+		tapAction = undefined,
+		holdAction = undefined,
 		onedit = undefined
 	}: {
 		entity: string;
 		name?: string;
+		stateOverride?: string;
 		icon?: string;
 		compact?: boolean;
 		/** display only: neither the tap nor the brightness drag sends a command */
@@ -32,6 +39,8 @@
 		sliderUpdates?: SliderUpdateMode;
 		/** restores the controls glyph beside the long-press gesture */
 		showTune?: boolean;
+		tapAction?: HearthAction;
+		holdAction?: HearthAction;
 		onedit?: () => void;
 	} = $props();
 
@@ -52,7 +61,47 @@
 				: 'var(--h-icon-dim)'
 	);
 	let pending = $derived($pendingEntities[entity] !== undefined);
-	let interactive = $derived($hearthEditMode || (!readonly && controllable));
+	let iconMotion = $derived(
+		$iconMotionEnabled && view.on ? iconMotionFor($states?.[entity], view.colorCss) : undefined
+	);
+	// a state_template gives way to the live value while the tile is being
+	// changed, and to the availability text
+	let templatedState = $derived(
+		available &&
+			!pending &&
+			!Object.keys($controlOverrides).some((key) => key.endsWith(`:${entity}`))
+			? stateOverride
+			: undefined
+	);
+	// the tile's own tap, hold and drag; without them a configured action can
+	// still make the tile tappable
+	let ownControls = $derived(!readonly && controllable);
+	let customHold = $derived(actionRuns(holdAction, readonly));
+	let interactive = $derived(
+		$hearthEditMode || ownControls || actionRuns(tapAction, readonly) || customHold
+	);
+
+	function openControls() {
+		popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates });
+	}
+
+	function surface(fallback: () => void) {
+		return { entity, name, readonly, detail: { icon, sliderUpdates, readonly }, fallback };
+	}
+
+	function tap() {
+		runSurfaceAction(
+			tapAction,
+			surface(() => ownControls && toggleLight(entity))
+		);
+	}
+
+	function hold() {
+		runSurfaceAction(
+			holdAction,
+			surface(() => ownControls && openControls())
+		);
+	}
 </script>
 
 <div
@@ -63,45 +112,60 @@
 	class:unreachable={!controllable}
 	class:pending
 	data-id={entity}
+	data-entity={entity}
+	data-domain={entity.split('.')[0]}
+	data-state={$states?.[entity]?.state}
 	role="button"
 	tabindex={interactive ? 0 : -1}
-	aria-pressed={view.on}
+	aria-pressed={tapToggles(tapAction, entity) ? view.on : undefined}
 	use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
-	onclick={() => $hearthEditMode && onedit?.()}
+	onclick={() => {
+		if ($hearthEditMode) onedit?.();
+		// with the drag off, the click is the tap
+		else if (!ownControls) tap();
+	}}
 	onkeydown={(event) =>
 		activateOnKeyboard(event, () => {
 			if ($hearthEditMode) onedit?.();
-			else if (readonly || !controllable) return;
-			else if (event.shiftKey)
-				popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates });
-			else toggleLight(entity);
+			else if (event.shiftKey) hold();
+			else tap();
 		})}
 	use:horizontalDrag={{
 		set: (value, commit) => setLightLevel(entity, value, commit),
 		updateMode: sliderUpdates,
-		tap: () => toggleLight(entity),
-		hold: () => popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates }),
-		disabled: $hearthEditMode || readonly || !controllable,
+		tap,
+		hold: holdAction?.action === 'none' ? undefined : hold,
+		deferOnTouch: customHold,
+		disabled: $hearthEditMode || !ownControls,
 		ignore: '.tune'
+	}}
+	use:longPress={{
+		hold,
+		deferOnTouch: true,
+		disabled: $hearthEditMode || ownControls || !customHold || holdAction?.action === 'none'
 	}}
 >
 	<div class="fill" style:width="{view.on ? view.level : 0}%"></div>
 	<div class="content">
-		<Icon name={icon || 'lightbulb'} size={ICON.tile} color={iconColor} fill={view.on} />
+		<TileIcon
+			name={icon || 'lightbulb'}
+			size={ICON.tile}
+			color="var(--tile-accent, {iconColor})"
+			fill={view.on}
+			motion={iconMotion}
+		/>
 		<div class="text">
 			<div class="name">{label}</div>
 			<div class="state">
-				{available ? (view.on ? `${view.level}%` : capitalize($lang('off'))) : availabilityText}
+				{templatedState ??
+					(available ? (view.on ? `${view.level}%` : capitalize($lang('off'))) : availabilityText)}
 			</div>
 		</div>
 	</div>
 	{#if $hearthEditMode && onedit}
 		<TuneButton icon="edit" onopen={onedit} alignEdge />
 	{:else if showTune && !$hearthEditMode && !readonly && controllable}
-		<TuneButton
-			alignEdge
-			onopen={() => popup.set({ kind: 'light', entity, name: label, icon, sliderUpdates })}
-		/>
+		<TuneButton alignEdge onopen={openControls} />
 	{/if}
 </div>
 

@@ -1,9 +1,10 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /*
  * Edit-mode sweep: every card and widget type goes through its gallery entry,
- * editor and Done, and every sheet opens and closes, with the page error log
- * asserted empty at the end. Cheap insurance for the on-demand editors.
+ * editor and Done (its required field filled first), and every sheet opens
+ * and closes, with the page error log asserted empty at the end. Cheap
+ * insurance for the on-demand editors.
  */
 
 const CARD_NAMES = [
@@ -17,7 +18,9 @@ const CARD_NAMES = [
 	'Climate',
 	'Scenes',
 	'Days since',
-	'Now playing'
+	'Now playing',
+	'Template',
+	'To-do list'
 ];
 const WIDGET_NAMES = [
 	'Clock',
@@ -37,6 +40,38 @@ const WIDGET_NAMES = [
 	'Notifications',
 	'Web page'
 ];
+
+// types that block Done until their one required field is filled
+const REQUIRED_VALUES: Record<string, string> = {
+	Sensor: 'sensor.temperature',
+	Media: 'media_player.living',
+	Vacuum: 'vacuum.robot',
+	Camera: 'camera.front',
+	Image: 'image.floorplan',
+	Climate: 'climate.living',
+	'Days since': 'input_datetime.filter_changed',
+	'To-do list': 'todo.shopping',
+	Weather: 'weather.home',
+	'Energy today': 'sensor.energy',
+	Progress: 'sensor.printer_status',
+	Calendar: 'calendar.family',
+	Entity: 'light.desk',
+	Chart: 'sensor.power',
+	Timer: 'timer.laundry',
+	'Web page': 'https://example.com'
+};
+
+async function fillRequired(sheet: Locator, name: string) {
+	const done = sheet.getByRole('button', { name: 'Done' });
+	if (name === 'Template') {
+		await expect(done).toBeDisabled();
+		await sheet.locator('.cm-content').fill("{{ states('sun.sun') }}");
+	} else if (REQUIRED_VALUES[name]) {
+		await expect(done).toBeDisabled();
+		await sheet.locator('input[aria-required="true"]').fill(REQUIRED_VALUES[name]);
+	}
+	await expect(done).toBeEnabled();
+}
 
 function collectPageErrors(page: Page): string[] {
 	const errors: string[] = [];
@@ -61,6 +96,7 @@ test('every card type opens its editor and lands on the page', async ({ page }) 
 		// a new card opens on the type gallery; picking a kind collapses it
 		await sheet.getByRole('option', { name: new RegExp(`^${name}\\b`) }).click();
 		await expect(sheet.getByRole('button', { name: /Card type/ })).toBeVisible();
+		await fillRequired(sheet, name);
 		await sheet.getByRole('button', { name: 'Done' }).click();
 		await expect(sheet).toBeHidden();
 	}
@@ -75,6 +111,7 @@ test('every widget type opens its editor and lands in the rail', async ({ page }
 		const sheet = page.getByRole('dialog', { name: 'Add widget' });
 		await expect(sheet).toBeVisible();
 		await sheet.getByRole('option', { name: new RegExp(`^${name}\\b`) }).click();
+		await fillRequired(sheet, name);
 		await sheet.getByRole('button', { name: 'Done' }).click();
 		await expect(sheet).toBeHidden();
 	}
@@ -112,8 +149,8 @@ test('pages, stacks and the settings sheets open and close', async ({ page }) =>
 	}
 
 	await page.getByRole('button', { name: 'Settings' }).click();
-	await page.getByRole('button', { name: /Application settings/ }).click();
-	const appSheet = page.getByRole('dialog', { name: 'Application settings' });
+	await page.getByRole('button', { name: /Server settings/ }).click();
+	const appSheet = page.getByRole('dialog', { name: 'Server settings' });
 	await expect(appSheet).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(appSheet).toBeHidden();

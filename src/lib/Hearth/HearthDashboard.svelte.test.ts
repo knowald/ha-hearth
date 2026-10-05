@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import en from '../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { states } from '$lib/core/ha/entities';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from './config';
 import {
@@ -46,10 +46,14 @@ describe('HearthDashboard first run', () => {
 	});
 
 	it('keeps a way back to the area import on the home page after the wizard is skipped', async () => {
+		// the wizard loads on demand; compiling the chunk here, outside the
+		// findBy timeout, keeps a cold transform under a loaded suite from
+		// failing the test
+		await import('./SetupWizard.svelte');
 		hearthNeedsSetup.set(true);
 		render(HearthDashboard);
 		expect(get(setupWizardOpen)).toBe(true);
-		await fireEvent.click(screen.getByRole('button', { name: en.hearth_skip_for_now }));
+		await fireEvent.click(await screen.findByRole('button', { name: en.hearth_skip_for_now }));
 		expect(get(setupWizardOpen)).toBe(false);
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_setup }));
 		expect(get(setupWizardOpen)).toBe(true);
@@ -159,6 +163,76 @@ describe('HearthDashboard navigation', () => {
 		expect(new URL(location.href).searchParams.get('room')).toBe('home');
 	});
 
+	it('leaves a hidden page out of the nav widget and the phone strip, dimmed while editing', async () => {
+		const config = withRooms([{ id: 'nav', type: 'nav' }]);
+		config.rooms[1].visibility = [{ entity: 'input_boolean.cooking', state: 'on' }];
+		hearthConfig.set(config);
+		const { container } = render(HearthDashboard);
+		await act();
+		const pages = () => ({
+			rail: [...container.querySelectorAll<HTMLElement>('.rail-scroll .nav-item')].map(
+				(node) => node.dataset.id
+			),
+			strip: [...container.querySelectorAll('.phone-nav .page')].map(
+				(node) => node.lastElementChild?.textContent
+			)
+		});
+		expect(pages()).toEqual({ rail: ['home'], strip: ['Home'] });
+
+		await act(() => states.set({ 'input_boolean.cooking': { state: 'on' } } as never));
+		expect(pages().rail).toEqual(['home', 'kitchen']);
+
+		await act(() => states.set({}));
+		await act(() => enterEditMode());
+		const kitchen = container.querySelector('.rail-scroll [data-id="kitchen"]')!;
+		expect(kitchen.classList.contains('visibility-dimmed')).toBe(true);
+		expect(container.querySelectorAll('.phone-nav .page.visibility-dimmed')).toHaveLength(1);
+	});
+
+	it('keeps a page on screen when it becomes hidden there, or when editing ends on it', async () => {
+		const config = withRooms([{ id: 'nav', type: 'nav' }]);
+		config.rooms[1].visibility = [{ entity: 'input_boolean.cooking', state: 'on' }];
+		hearthConfig.set(config);
+		states.set({ 'input_boolean.cooking': { state: 'on' } } as never);
+		const { container } = render(HearthDashboard);
+		await act();
+		await fireEvent.click(container.querySelector('.rail-scroll [data-id="kitchen"]')!);
+		expect(container.querySelector('[data-page="kitchen"]')).not.toBeNull();
+
+		await act(() => states.set({ 'input_boolean.cooking': { state: 'off' } } as never));
+		expect(get(currentRoom)).toBe('kitchen');
+		expect(container.querySelector('[data-page="kitchen"]')).not.toBeNull();
+		expect(container.querySelector('.rail-scroll [data-id="kitchen"]')).toBeNull();
+
+		await fireEvent.click(container.querySelector('.rail-scroll [data-id="home"]')!);
+		expect(container.querySelector('[data-page="home"]')).not.toBeNull();
+
+		// a hidden page picked while editing stays once editing ends
+		await act(() => enterEditMode());
+		await fireEvent.click(container.querySelector('.rail-scroll [data-id="kitchen"]')!);
+		await act(() => cancelEdit());
+		expect(get(currentRoom)).toBe('kitchen');
+		expect(container.querySelector('[data-page="kitchen"]')).not.toBeNull();
+	});
+
+	it('sends a ?room= link to a hidden page to the first page shown', async () => {
+		history.replaceState(null, '', '/?room=kitchen');
+		const config = withRooms([{ id: 'nav', type: 'nav' }]);
+		config.rooms.unshift({
+			id: 'night',
+			name: 'Night',
+			icon: 'bedtime',
+			visibility: [{ entity: 'input_boolean.night', state: 'on' }],
+			cards: [[]]
+		});
+		config.rooms[2].visibility = [{ entity: 'input_boolean.cooking', state: 'on' }];
+		hearthConfig.set(config);
+		render(HearthDashboard);
+		await act();
+		expect(get(currentRoom)).toBe('home');
+		expect(new URL(location.href).searchParams.get('room')).toBe('home');
+	});
+
 	it('closes the search overlay on back', async () => {
 		hearthConfig.set(withRooms([{ id: 'search', type: 'search' }]));
 		render(HearthDashboard);
@@ -174,10 +248,15 @@ describe('HearthDashboard navigation', () => {
 		hearthConfig.set(withRooms([{ id: 'nav', type: 'nav' }]));
 		render(HearthDashboard);
 		await act();
-		const withPreset = document.head.innerHTML;
+		// theme tokens are set through the CSSOM, so they show in the rules, not the markup
+		const tokens = () =>
+			[...document.head.querySelectorAll<HTMLStyleElement>('style[data-hearth-theme]')]
+				.map((element) => (element.sheet?.cssRules[0] as CSSStyleRule).style.cssText)
+				.join('\n');
+		const withPreset = tokens();
 		await act(() => enterEditMode());
-		expect(document.head.innerHTML).not.toBe(withPreset);
+		expect(tokens()).not.toBe(withPreset);
 		await act(() => cancelEdit());
-		expect(document.head.innerHTML).toBe(withPreset);
+		expect(tokens()).toBe(withPreset);
 	});
 });

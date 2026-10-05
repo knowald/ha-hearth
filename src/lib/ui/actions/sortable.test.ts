@@ -1,44 +1,40 @@
 import Sortable from 'sortablejs';
-import { afterEach, describe, expect, it } from 'vitest';
-import { nestZoomedGhost, sortable, ZOOM_GHOST_SHELL } from './sortable';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { loadSortable, nestZoomedGhost, sortable, ZOOM_GHOST_SHELL } from './sortable';
 
-function mount(zoom: number) {
-	const node = document.createElement('div');
-	Object.defineProperty(node, 'currentCSSZoom', { configurable: true, value: zoom });
-	document.body.append(node);
-	const action = sortable(node, {
-		group: 'test',
-		items: [],
-		animation: 150,
-		onFinalize: () => {}
-	});
-	return { node, action, instance: Sortable.get(node)! };
+function options(disabled: boolean) {
+	return { group: 'test', items: [], disabled, onFinalize: () => {} };
 }
 
-describe('sortable animation under zoom', () => {
+describe('sortable loading', () => {
 	afterEach(() => {
 		document.body.replaceChildren();
 	});
 
-	it('keeps the configured animation at 100%', () => {
-		const { instance, action } = mount(1);
-		expect(instance.options.animation).toBe(150);
+	it('leaves a disabled list alone until it is enabled', async () => {
+		await loadSortable();
+		const node = document.createElement('div');
+		const action = sortable(node, options(true));
+		await Promise.resolve();
+		expect(Sortable.get(node)).toBeFalsy();
+
+		action.update?.(options(false));
+		await vi.waitFor(() => expect(Sortable.get(node)).toBeTruthy());
+		expect(Sortable.get(node)!.options.disabled).toBe(false);
+
+		action.update?.(options(true));
+		expect(Sortable.get(node)!.options.disabled).toBe(true);
 		action.destroy?.();
+		expect(Sortable.get(node)).toBeFalsy();
 	});
 
-	it('turns the animation off while the page is zoomed', () => {
-		const { node, instance, action } = mount(1.5);
-		expect(instance.options.animation).toBe(0);
-		Object.defineProperty(node, 'currentCSSZoom', { configurable: true, value: 1 });
-		expect(instance.options.animation).toBe(150);
+	it('creates nothing for a list destroyed while SortableJS loads', async () => {
+		const node = document.createElement('div');
+		const action = sortable(node, options(false));
 		action.destroy?.();
-	});
-
-	it('still accepts option updates', () => {
-		const { instance, action } = mount(1);
-		action.update?.({ group: 'test', items: [], animation: 300, onFinalize: () => {} });
-		expect(instance.options.animation).toBe(300);
-		action.destroy?.();
+		await loadSortable();
+		await new Promise((resolve) => setTimeout(resolve));
+		expect(Sortable.get(node)).toBeFalsy();
 	});
 });
 

@@ -1,16 +1,18 @@
 import type * as v from 'valibot';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import type {
+	ActionSchema,
 	EntityRefSchema,
 	MediaShortcutSchema,
 	SceneRefSchema,
+	StyleRuleSchema,
 	VacuumModeRefSchema,
 	VisibilityConditionSchema
 } from './schema';
 import type { VerdictBands } from '$lib/core/domains/sensor';
-import type { DayNightSwitch, HearthTheme } from '$lib/core/theme';
+import type { DayNightSwitch, HearthTheme, ScrimLevel } from '$lib/core/theme';
 
-export type { DayNightSwitch, HearthTheme, VerdictBands };
+export type { DayNightSwitch, HearthTheme, ScrimLevel, VerdictBands };
 
 /*
  * The configuration vocabulary: pages, cards, widgets and their references.
@@ -36,11 +38,39 @@ export interface HearthRoom {
 	fill_screen?: boolean;
 	// fixes the page's card column count
 	columns?: number;
+	// the page leaves navigation while these do not hold; edit mode keeps it
+	visibility?: VisibilityCondition[];
+	/** A URL or `hearth-images/<file>`, shown behind the dashboard while this page is open. */
+	background_image?: string;
+	// the shade over that image; there always is one, medium when unset
+	background_scrim?: ScrimLevel;
+	/** A preset id or a saved theme's name, worn while this page is open in the day. */
+	theme?: string;
 	cards: OverviewItem[][];
 }
 
+/** A preset id, a saved theme's name, or the theme's tokens written out. */
+export type ThemeChoice = string | HearthTheme;
+
+/**
+ * Replaces the day theme while it holds: from `from` to `to` (MM-DD, both
+ * days included, across the new year when from is later), and while every
+ * `when` condition holds. The first entry that holds wins.
+ */
+export interface ThemeScheduleEntry {
+	theme: ThemeChoice;
+	// replaces theme_night as well; without it the night theme stays
+	night?: ThemeChoice;
+	from?: string;
+	to?: string;
+	when?: VisibilityCondition[];
+}
+
+/** A configured tap or hold action; see ActionSchema. */
+export type HearthAction = v.InferOutput<typeof ActionSchema>;
 export type EntityRef = v.InferOutput<typeof EntityRefSchema>;
 export type SceneRef = v.InferOutput<typeof SceneRefSchema>;
+export type StyleRule = v.InferOutput<typeof StyleRuleSchema>;
 export type VacuumModeRef = v.InferOutput<typeof VacuumModeRefSchema>;
 export type VisibilityCondition = v.InferOutput<typeof VisibilityConditionSchema>;
 export type MediaShortcut = v.InferOutput<typeof MediaShortcutSchema>;
@@ -68,6 +98,8 @@ type RailWidgetVariant =
 			price?: number;
 			price_entity?: string;
 			currency?: string;
+			// false hides the badge shown while today runs below the past week
+			average_badge?: boolean;
 	  }
 	// generic running-activity row (washer, 3d print, charging, ...); hidden
 	// unless the status entity is active - by the active_states list when given,
@@ -95,7 +127,15 @@ type RailWidgetVariant =
 			travel_entity?: string;
 			lookahead_hours?: number;
 	  }
-	| { id: string; type: 'status'; icon?: string; text?: string; entity?: string }
+	| {
+			id: string;
+			type: 'status';
+			icon?: string;
+			text?: string;
+			entity?: string;
+			tap_action?: HearthAction;
+			hold_action?: HearthAction;
+	  }
 	| {
 			id: string;
 			type: 'entity';
@@ -237,8 +277,30 @@ type OverviewCardVariant =
 	// `bar` renders the persistent scene row: equal-width tiles, active one lit
 	| { id: string; type: 'scenes'; title?: string; style?: 'chips' | 'bar'; scenes: SceneRef[] }
 	| { id: string; type: 'iframe'; url?: string; title?: string; height?: number }
+	// Markdown rendered from a Home Assistant template; entities only names what
+	// the template reads, for the features that look up a card's entities
+	| {
+			id: string;
+			type: 'template';
+			content?: string;
+			title?: string;
+			icon?: string;
+			entities?: string[];
+	  }
 	// days since an input_datetime was last reset, with a one-tap reset
 	| { id: string; type: 'days_since'; entity?: string; title?: string; icon?: string }
+	// a todo.* list: tick, add, rename and delete items as the list allows.
+	// Completed items sit in a section that starts open with show_completed.
+	| {
+			id: string;
+			type: 'todo';
+			entity?: string;
+			title?: string;
+			show_completed?: boolean;
+			/** Unset keeps the list's own order. */
+			sort?: 'alphabetical' | 'due';
+			hide_add?: boolean;
+	  }
 	// the media card for whichever listed player is active; a paused player
 	// keeps the card for timeout seconds before the next one takes over
 	| {
@@ -258,7 +320,11 @@ type OverviewCardVariant =
 export type OverviewCard = OverviewCardVariant & {
 	visibility?: VisibilityCondition[];
 	fill?: number;
+	// columns a top-level card covers on a wide page; see spanRows in config.ts
+	span?: CardSpan;
 };
+
+export type CardSpan = 2 | 3 | 'full';
 
 /**
  * A named horizontal or vertical layout container, parity with the original
@@ -279,6 +345,25 @@ export interface OverviewStack {
 export type OverviewItem = OverviewCard | OverviewStack;
 
 export type AlertSeverity = 'info' | 'warning' | 'critical';
+
+/** A short synthesized tone; `true` is the plain chime. */
+export type AlertChime = true | 'soft' | 'bell' | 'none';
+
+/** The chime per severity for rules that name none, and how loud chimes play. */
+export interface AlertChimes {
+	info?: AlertChime;
+	warning?: AlertChime;
+	critical?: AlertChime;
+	/** 1 to 100 percent; 60 when unset. */
+	volume?: number;
+}
+
+/** Greets a person on the header and the sleep screen for a while after they come home. */
+export interface PresenceGreeting {
+	persons: string[];
+	/** How long after the arrival a screen may still greet; 10 when unset. */
+	minutes?: number;
+}
 
 /**
  * An alert raised from entity states: it fires once every condition has held
@@ -301,9 +386,16 @@ export interface AlertRule {
 	auto_close?: boolean;
 	// pops up this entity's detail popup instead of an alert card
 	entity?: string;
+	// unset plays the chime alert_chimes sets for the severity, if any
+	chime?: AlertChime;
 }
 
-export type ScreensaverBackground = 'none' | 'image' | 'radar';
+export type EditLock = 'hold' | 'pin';
+
+export type ScreensaverBackground = 'none' | 'image' | 'radar' | 'photos' | 'sun' | 'media';
+/** What a `media` sleep screen shows behind the clock while nothing plays. */
+export type ScreensaverMediaFallback = Exclude<ScreensaverBackground, 'media'>;
+export type ScreensaverPhotoOrder = 'shuffle' | 'sequence';
 export type ScreensaverClockSize = 'small' | 'medium' | 'large';
 
 /** The radar map's view; the location falls back to the Home Assistant home. */
@@ -323,6 +415,7 @@ export interface HearthConfig {
 	// full replacement for theme while day_night resolves to night
 	theme_night?: HearthTheme;
 	day_night?: DayNightSwitch;
+	theme_schedule?: ThemeScheduleEntry[];
 	// unset is a single rail on the left
 	rail_position?: RailPosition;
 	rail: RailWidget[];
@@ -338,14 +431,31 @@ export interface HearthConfig {
 	/** A URL or `hearth-images/<file>`, shown when the background is `image`. */
 	screensaver_image?: string;
 	screensaver_radar?: ScreensaverRadar;
+	/** Uploaded images (`hearth-images/<file>`) the `photos` background steps through. */
+	screensaver_photos?: string[];
+	/** Seconds per photo, 30 when unset. */
+	screensaver_photo_seconds?: number;
+	// unset shuffles
+	screensaver_photo_order?: ScreensaverPhotoOrder;
+	// the `media` background follows this player, or any playing one when unset
+	screensaver_media_entity?: string;
+	screensaver_media_fallback?: ScreensaverMediaFallback;
 	screensaver_show_date?: boolean;
 	screensaver_clock_size?: ScreensaverClockSize;
 	/** Weather entity whose condition and temperature show under the clock. */
 	screensaver_weather_entity?: string;
 	keep_screen_on?: boolean;
+	// what the edit toggle asks for before edit mode, against accidental taps
+	// on a wall tablet; a pin without a valid edit_pin falls back to a hold
+	edit_lock?: EditLock;
+	/** 4 to 8 digits, asked for when edit_lock is `pin`. */
+	edit_pin?: string;
 	// progressive blur where a scroll container cuts content off; costs a
 	// backdrop pass per layer, so weak tablets can turn it off
 	scroll_edge_blur?: boolean;
+	// tile icons that move with their entity, such as a spinning fan; reduced
+	// motion stops them whatever this says
+	animations?: boolean;
 	// a sideways swipe over the page moves to the next or previous page,
 	// set apart for the folded (phone) and wide layouts
 	swipe_navigation_mobile?: boolean;
@@ -362,4 +472,6 @@ export interface HearthConfig {
 	scale?: number;
 	mobile_scale?: number;
 	alerts?: AlertRule[];
+	alert_chimes?: AlertChimes;
+	greeting?: PresenceGreeting;
 }

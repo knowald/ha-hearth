@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
-	import { lang } from '$lib/core/i18n';
+	import { fill, lang } from '$lib/core/i18n';
 	import { commandFailure } from '$lib/core/ha/commands';
 	import { sortable } from '$lib/ui/actions/sortable';
 	import { onDndReceive, type DndReceiveDetail } from './drag';
+	import { editTap } from './editTap';
 	import {
 		mobileSlotOf,
 		railDividerIndex,
@@ -17,6 +18,7 @@
 		type RailWidget
 	} from './config';
 	import { editor, hearthConfig, hearthEditMode, updateConfig } from './store';
+	import { widgetDescriptor } from './widgets';
 	import AddControl from './AddControl.svelte';
 	import EditChip from './EditChip.svelte';
 	import RailWidgetRenderer from './RailWidgetRenderer.svelte';
@@ -59,6 +61,16 @@
 
 	function railIndex(widget: RailWidget): number {
 		return indexOfId.get(widget.id) ?? 0;
+	}
+
+	// the page list stays live while editing (see RailWidgetRenderer), so a
+	// tap there picks a page; on every other widget it opens the editor
+	function openTapped(target: Element): boolean {
+		const id = target.closest<HTMLElement>('.widget')?.dataset.id;
+		const widget = $hearthConfig.rail.find((entry) => entry.id === id);
+		if (!widget || widget.type === 'nav') return false;
+		editor.set({ kind: 'railWidget', index: railIndex(widget) });
+		return true;
 	}
 
 	function hiddenHere(widget: RailWidget): boolean {
@@ -123,6 +135,7 @@
 <div
 	class="rail"
 	class:slotted={mobileSlot !== undefined}
+	class:editing={$hearthEditMode}
 	use:sortable={{
 		group: 'hearth-rail',
 		handle: '.drag-handle',
@@ -141,6 +154,7 @@
 		onFinalize: commit
 	}}
 	use:onDndReceive={receive}
+	use:editTap={{ enabled: $hearthEditMode, open: openTapped }}
 >
 	{#each widgets as widget (widget.id)}
 		<VisibilityGate conditions={widget.visibility}>
@@ -153,10 +167,14 @@
 						class:visibility-dimmed={$hearthEditMode && (!visible || hiddenHere(widget))}
 						class:in-switcher={(widget.type === 'nav' || widget.type === 'search') &&
 							!$hearthEditMode}
+						class:nav={widget.type === 'nav'}
 						data-id={widget.id}
 					>
 						{#if $hearthEditMode}
 							<EditChip
+								label={fill($lang('hearth_edit_named'), {
+									name: $lang(widgetDescriptor(widget.type).name)
+								})}
 								onedit={() => editor.set({ kind: 'railWidget', index: railIndex(widget) })}
 							/>
 						{/if}
@@ -191,6 +209,10 @@
 
 	.widget {
 		position: relative;
+	}
+
+	.rail.editing .widget:not(.nav) {
+		cursor: pointer;
 	}
 
 	.widget.spacer {

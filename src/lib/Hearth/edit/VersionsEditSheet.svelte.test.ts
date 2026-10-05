@@ -1,9 +1,15 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
-import { editor, hearthConfig } from '../store';
+import {
+	confirmRequestedAction,
+	dismissConfirmation,
+	editor,
+	hearthConfig,
+	requestedConfirmation
+} from '../store';
 import { configDocument } from '../transfer';
 import VersionsEditSheet from './VersionsEditSheet.svelte';
 
@@ -70,5 +76,45 @@ describe('VersionsEditSheet', () => {
 		render(VersionsEditSheet, { from: code });
 		await fireEvent.click(screen.getByRole('button', { name: en.back }));
 		expect(get(editor)).toEqual(code);
+	});
+
+	describe('with a YAML draft parked for the trip', () => {
+		const from = { kind: 'code', draft: 'rooms: []\n' } as const;
+
+		beforeEach(() => {
+			stubServer('');
+			editor.set({ kind: 'versions', from });
+		});
+
+		afterEach(dismissConfirmation);
+
+		it('asks before the close button or the header action drop the draft', async () => {
+			render(VersionsEditSheet, { from });
+			const icon = screen
+				.getAllByRole('button', { name: en.hearth_close })
+				.find((button) => !button.classList.contains('primary'))!;
+			await fireEvent.click(icon);
+			expect(get(requestedConfirmation)?.title).toBe(en.hearth_discard_sheet_title);
+			dismissConfirmation();
+			await fireEvent.click(closeAction());
+			expect(get(requestedConfirmation)?.title).toBe(en.hearth_discard_sheet_title);
+			confirmRequestedAction();
+			expect(get(editor)).toBeNull();
+		});
+
+		it('hands the draft back through the back arrow without asking', async () => {
+			render(VersionsEditSheet, { from });
+			await fireEvent.click(screen.getByRole('button', { name: en.back }));
+			expect(get(requestedConfirmation)).toBeNull();
+			expect(get(editor)).toEqual(from);
+		});
+
+		it('closes at once when the parked draft matches the dashboard', async () => {
+			const unchanged = { kind: 'code', draft: configDocument(get(hearthConfig)) } as const;
+			render(VersionsEditSheet, { from: unchanged });
+			await fireEvent.click(closeAction());
+			expect(get(requestedConfirmation)).toBeNull();
+			expect(get(editor)).toBeNull();
+		});
 	});
 });

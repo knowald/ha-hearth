@@ -3,18 +3,20 @@ import { readFileSync } from 'node:fs';
 import { load } from 'js-yaml';
 import {
 	DEFAULT_HEARTH_CONFIG,
+	editLockOf,
 	findOverviewCard,
 	findOverviewItemList,
 	isStack,
 	foldedRail,
 	foldedTopCount,
+	isLinkUrl,
 	railDividerIndex,
 	railSides,
 	railSlots,
 	wildcardEntityIds,
 	type RailWidget
 } from './config';
-import { hearthConfigIssues, normalizeHearthConfig } from './normalize';
+import { hearthConfigIssues, newThemeIssues, normalizeHearthConfig } from './normalize';
 import {
 	moveRailWidget,
 	moveToSide,
@@ -231,6 +233,35 @@ describe('normalizeHearthConfig', () => {
 	});
 });
 
+describe('isLinkUrl', () => {
+	it('takes http(s) addresses and paths that stay on this host', () => {
+		for (const url of [
+			'https://example.com/a?b=1',
+			'http://192.168.1.2:8123/x',
+			'/local/page.html',
+			'/lovelace/kitchen#top'
+		])
+			expect(isLinkUrl(url), url).toBe(true);
+	});
+
+	it('refuses other schemes, other hosts by path, backslashes and whitespace', () => {
+		for (const url of [
+			'javascript:alert(1)',
+			'data:text/html,hi',
+			'ftp://example.com',
+			'//evil.com',
+			'/\\evil.com',
+			'\\\\evil.com',
+			'/\t/evil.com',
+			'/\n/evil.com',
+			'https://exa mple.com',
+			'page.html',
+			''
+		])
+			expect(isLinkUrl(url), JSON.stringify(url)).toBe(false);
+	});
+});
+
 describe('hearthConfigIssues', () => {
 	it('gives actionable paths for editor mistakes', () => {
 		const issues = hearthConfigIssues({
@@ -289,10 +320,50 @@ describe('hearthConfigIssues', () => {
 			'rail[0].hour_format must be auto, 12 or 24',
 			'rooms[0].columns must be 1 to 3',
 			'rooms[0].cards[0][0].direction must be horizontal or vertical',
-			'rooms[0].cards[0][0].cards[0].visibility[0] must name an entity, a media query or an or-group',
+			'rooms[0].cards[0][0].cards[0].visibility[0] must name an entity, a media query, a device, a time or an or-group',
 			'rooms[0].cards[0][0].cards[0].fill must be at least 0',
 			'rooms[0].cards[0][1].media_players must be a list of entity ids',
 			'rooms[0].cards[0][1].timeout must be at least 0'
+		]);
+	});
+
+	it('reports tap and hold actions that miss what they need', () => {
+		const issues = hearthConfigIssues({
+			rail: [
+				{ id: 'status', type: 'status', text: 'Hi', tap_action: { action: 'url' } },
+				{ id: 'auto', type: 'status', hold_action: { action: 'none' } }
+			],
+			rooms: [
+				{
+					id: 'home',
+					cards: [
+						[
+							{
+								id: 'e',
+								type: 'entities',
+								entities: [
+									{ entity: 'switch.a', tap_action: { action: 'perform-action' } },
+									{ entity: 'switch.b', hold_action: { action: 'call-service', service: 'x' } },
+									{ entity: 'switch.c', tap_action: { action: 'fire-dom-event' } },
+									{
+										entity: 'switch.d',
+										tap_action: { action: 'call-service', service: 'script.turn_on' },
+										hold_action: { action: 'navigate', navigation_path: '/lovelace/kitchen' }
+									}
+								]
+							}
+						]
+					]
+				}
+			]
+		});
+		const path = 'rooms[0].cards[0][0].entities';
+		expect(issues).toEqual([
+			'rail[0].tap_action needs url_path for url',
+			'rail[1] tap_action and hold_action need text or an entity',
+			`${path}[0].tap_action needs perform_action for perform-action`,
+			`${path}[1].hold_action.service must be a domain.service name, like script.turn_on`,
+			`${path}[2].tap_action.action must be default, toggle, more-info, perform-action, navigate, url or none`
 		]);
 	});
 
@@ -342,7 +413,27 @@ describe('wall tablet settings', () => {
 		expect(config.padding_y).toBeUndefined();
 		expect(config.screensaver_minutes).toBeUndefined();
 		expect(config.theme).toBeUndefined();
-		expect(config.theme_night).toEqual({ accent: '#fff' });
+		expect(config.theme_night).toEqual({ accent: '#ffffff' });
+	});
+
+	it('drops theme values it cannot apply and lengthens a short hex, without an issue', () => {
+		const raw = {
+			rail: [],
+			rooms: [],
+			theme: {
+				accent: '#f80',
+				cool: 'red; display: none',
+				text_1: '#fff /*',
+				text_2: '#ddd'
+			}
+		};
+		expect(hearthConfigIssues(raw)).toEqual([]);
+		// a document being applied gets no such repair
+		expect(newThemeIssues(raw)).toEqual([
+			'theme.cool must be a hex colour like #f0b860',
+			'theme.text_1 must not contain comments, backslashes, braces or angle brackets'
+		]);
+		expect(normalizeHearthConfig(raw).theme).toEqual({ accent: '#ff8800', text_2: '#ddd' });
 	});
 
 	it('keeps the phone strip clock only when turned on', () => {
@@ -354,6 +445,33 @@ describe('wall tablet settings', () => {
 		expect(hearthConfigIssues({ ...base, phone_clock: true })).toEqual([]);
 		expect(hearthConfigIssues({ ...base, phone_clock: 'yes' })).toEqual([
 			'phone_clock must be true or false'
+		]);
+	});
+
+	it('stores tile animations only when turned off', () => {
+		const base = { rail: [], rooms: [] };
+		expect(normalizeHearthConfig({ ...base, animations: false }).animations).toBe(false);
+		expect(normalizeHearthConfig({ ...base, animations: true }).animations).toBeUndefined();
+		expect(hearthConfigIssues({ ...base, animations: 'no' })).toEqual([
+			'animations must be true or false'
+		]);
+	});
+
+	it('keeps a greeting for at least one person, with minutes off the default', () => {
+		const base = { rail: [], rooms: [] };
+		expect(
+			normalizeHearthConfig({
+				...base,
+				greeting: { persons: [' person.anna ', 'light.desk', 'person.anna'], minutes: 200 }
+			}).greeting
+		).toEqual({ persons: ['person.anna'], minutes: 120 });
+		expect(
+			normalizeHearthConfig({ ...base, greeting: { persons: ['person.anna'], minutes: 10 } })
+				.greeting
+		).toEqual({ persons: ['person.anna'], minutes: undefined });
+		expect(normalizeHearthConfig({ ...base, greeting: { persons: [] } }).greeting).toBeUndefined();
+		expect(hearthConfigIssues({ ...base, greeting: { persons: ['light.desk'] } })).toEqual([
+			'greeting.persons[0] must be a person entity id'
 		]);
 	});
 });
@@ -418,6 +536,65 @@ describe('sleep screen settings', () => {
 		).toEqual(['screensaver_radar.tile_url must be an http(s) URL with {z}, {x} and {y}']);
 	});
 
+	it('keeps photo frame and now playing options', () => {
+		const first = `hearth-images/${'a'.repeat(32)}.webp`;
+		const second = `hearth-images/${'b'.repeat(32)}.jpg`;
+		expect(
+			normalizeHearthConfig({
+				...base,
+				screensaver_background: 'photos',
+				screensaver_photos: [` ${first} `, second, first],
+				screensaver_photo_seconds: 12.4,
+				screensaver_photo_order: 'sequence',
+				screensaver_media_entity: ' media_player.living ',
+				screensaver_media_fallback: 'sun'
+			})
+		).toMatchObject({
+			screensaver_background: 'photos',
+			screensaver_photos: [first, second],
+			screensaver_photo_seconds: 12,
+			screensaver_photo_order: 'sequence',
+			screensaver_media_entity: 'media_player.living',
+			screensaver_media_fallback: 'sun'
+		});
+		for (const background of ['sun', 'media'])
+			expect(
+				normalizeHearthConfig({ ...base, screensaver_background: background })
+					.screensaver_background
+			).toBe(background);
+	});
+
+	it('drops photos that are not uploads and options at their default', () => {
+		const config = normalizeHearthConfig({
+			...base,
+			screensaver_photos: ['https://example.com/a.jpg', 'hearth-images/../x.png', 3],
+			screensaver_photo_seconds: 2,
+			screensaver_photo_order: 'shuffle',
+			screensaver_media_fallback: 'media'
+		});
+		expect(config.screensaver_photos).toBeUndefined();
+		expect(config.screensaver_photo_seconds).toBeUndefined();
+		expect(
+			normalizeHearthConfig({ ...base, screensaver_photo_seconds: 1e9 }).screensaver_photo_seconds
+		).toBe(86_400);
+		expect(config.screensaver_photo_order).toBeUndefined();
+		expect(config.screensaver_media_fallback).toBeUndefined();
+		expect(
+			hearthConfigIssues({
+				...base,
+				screensaver_photos: ['https://example.com/a.jpg'],
+				screensaver_photo_seconds: 2,
+				screensaver_photo_order: 'random',
+				screensaver_media_fallback: 'media'
+			})
+		).toEqual([
+			'screensaver_photos[0] must be an uploaded image, hearth-images/<file>',
+			'screensaver_photo_seconds must be 5 to 86400',
+			'screensaver_photo_order must be shuffle or sequence',
+			'screensaver_media_fallback must be none, image, radar, photos or sun'
+		]);
+	});
+
 	it('reports sleep screen values the normalizer would discard', () => {
 		expect(
 			hearthConfigIssues({
@@ -428,7 +605,7 @@ describe('sleep screen settings', () => {
 				screensaver_weather_entity: ''
 			})
 		).toEqual([
-			'screensaver_background must be none, image or radar',
+			'screensaver_background must be none, image, radar, photos, sun or media',
 			'screensaver_radar.latitude must be -90 to 90',
 			'screensaver_radar.zoom must be 3 to 7',
 			'screensaver_radar.basemap must be dark or light',
@@ -810,5 +987,41 @@ describe('interface scale', () => {
 		expect(hearthConfigIssues({ rail: [], rooms: [], mobile_scale: 20 })).toContain(
 			'mobile_scale must be 50 to 200'
 		);
+	});
+});
+
+describe('edit lock', () => {
+	it('keeps a quoted PIN and drops anything else', () => {
+		const normalize = (raw: Record<string, unknown>) =>
+			normalizeHearthConfig({ rail: [], rooms: [], ...raw });
+		expect(normalize({ edit_lock: 'pin', edit_pin: '4821' })).toMatchObject({
+			edit_lock: 'pin',
+			edit_pin: '4821'
+		});
+		// YAML has already turned an unquoted 0815 into 815
+		expect(normalize({ edit_pin: 815 }).edit_pin).toBeUndefined();
+		expect(normalize({ edit_pin: '0042' }).edit_pin).toBe('0042');
+		expect(normalize({ edit_pin: '12' }).edit_pin).toBeUndefined();
+		expect(normalize({ edit_pin: 12.5 }).edit_pin).toBeUndefined();
+		expect(normalize({ edit_lock: 'face' }).edit_lock).toBeUndefined();
+	});
+
+	it('reports a lock or PIN it cannot use', () => {
+		const issues = hearthConfigIssues({ rail: [], rooms: [], edit_lock: 'face', edit_pin: 'abcd' });
+		expect(issues).toContain('edit_lock must be hold or pin');
+		expect(issues).toContain('edit_pin must be 4 to 8 digits');
+		expect(hearthConfigIssues({ rail: [], rooms: [], edit_pin: 1234 })).toEqual([
+			"edit_pin must be quoted, like '0815': unquoted, YAML drops leading zeros"
+		]);
+		expect(hearthConfigIssues({ rail: [], rooms: [], edit_lock: 'pin', edit_pin: '1234' })).toEqual(
+			[]
+		);
+	});
+
+	it('asks for a hold while a PIN lock has no PIN', () => {
+		expect(editLockOf({})).toBe('off');
+		expect(editLockOf({ edit_lock: 'hold' })).toBe('hold');
+		expect(editLockOf({ edit_lock: 'pin' })).toBe('hold');
+		expect(editLockOf({ edit_lock: 'pin', edit_pin: '1234' })).toBe('pin');
 	});
 });

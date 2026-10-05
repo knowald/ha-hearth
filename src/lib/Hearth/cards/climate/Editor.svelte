@@ -1,32 +1,17 @@
 <script lang="ts">
-	import { lang } from '$lib/core/i18n';
 	import type { CardEditorProps } from '../types';
 	import type { ClimateCard } from './descriptor';
-	import EntityField from '../../edit/EntityField.svelte';
-	import TextField from '../../edit/TextField.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 
-	let { initial: initialProp, onchange }: CardEditorProps<ClimateCard> = $props();
+	let { initial, onchange }: CardEditorProps<ClimateCard> = $props();
 
 	// remounted per target and type, so the initial value is all the form needs
 	// svelte-ignore state_referenced_locally
-	const initial = initialProp;
-
-	let title = $state(initial?.title ?? '');
-	let entity = $state(initial?.entity ?? '');
-
-	$effect(() => {
-		onchange({
-			fields: {
-				title: title.trim() || undefined,
-				entity: entity.trim() || undefined
-			}
-		});
-	});
+	const form = new EditorForm(initial, [
+		{ key: 'title', kind: 'text', label: 'hearth_title', example: 'hearth_example_climate_title' },
+		{ key: 'entity', kind: 'entity', required: true, domains: ['climate'] }
+	]);
 </script>
 
-<TextField
-	label={$lang('hearth_title')}
-	bind:value={title}
-	placeholder={$lang('hearth_example_climate_title')}
-/>
-<EntityField label={$lang('entity')} bind:value={entity} domains={['climate']} />
+<FormRenderer {form} {onchange} />

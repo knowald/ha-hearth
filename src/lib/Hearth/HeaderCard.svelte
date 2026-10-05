@@ -3,7 +3,7 @@
 	import { lang } from '$lib/core/i18n';
 	import { activateOnKeyboard } from './interaction';
 	import { states } from '$lib/core/ha/entities';
-	import { hearthEditMode } from './store';
+	import { hearthConfig, hearthEditMode } from './store';
 	import { imageSource } from './images';
 	import { sensorNumber } from '$lib/core/ha/entities';
 	import Icon from './Icon.svelte';
@@ -60,6 +60,11 @@
 	<div class="titles">
 		<div class="name">{title}</div>
 		<div class="summary">{subtitle ?? ''}</div>
+		{#if $hearthConfig.greeting && !$hearthEditMode}
+			{#await import('./Greeting.svelte') then Greeting}
+				<Greeting.default />
+			{/await}
+		{/if}
 	</div>
 	{#if editable}
 		<div class="edit-hint">

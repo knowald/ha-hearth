@@ -1,5 +1,19 @@
 import * as v from 'valibot';
-import { isTileUrl, RADAR_ZOOM } from './config';
+import type { ActionTarget, HaAction } from '$lib/core/ha/commands';
+import { imageFileOf } from '$lib/core/images';
+import { themeValueIssue } from '$lib/core/theme';
+import {
+	classListProblem,
+	CLOCK_TIME,
+	isLinkUrl,
+	isMonthDay,
+	isTileUrl,
+	PHOTO_SECONDS,
+	RADAR_ZOOM,
+	usesMedia,
+	WEEKDAYS,
+	type Weekday
+} from './config';
 
 /*
  * Field-level schemas for the shapes that recur across card and widget types.
@@ -58,6 +72,163 @@ export const VerdictBandsSchema = v.pipe(
 	v.check((bands) => bands.good < bands.fair, 'good must be below fair')
 );
 
+function isMapping(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+const ACTION_KINDS = [
+	'default',
+	'toggle',
+	'more-info',
+	'perform-action',
+	// Lovelace's name for perform-action before Home Assistant 2024.8
+	'call-service',
+	'navigate',
+	'url',
+	'none'
+] as const;
+
+const ServiceNameSchema = v.pipe(
+	v.string('must be a domain.service name'),
+	v.trim(),
+	v.regex(/^[a-z0-9_]+\.[a-z0-9_]+$/, 'must be a domain.service name, like script.turn_on')
+);
+
+const ActionDataSchema = v.custom<Record<string, unknown>>(isMapping, 'must be a mapping');
+
+const TargetIdsSchema = v.optional(
+	v.union([EntityIdSchema, v.array(EntityIdSchema)], 'must be an id or a list of ids')
+);
+
+const ActionTargetSchema = v.object({
+	entity_id: TargetIdsSchema,
+	device_id: TargetIdsSchema,
+	area_id: TargetIdsSchema,
+	floor_id: TargetIdsSchema,
+	label_id: TargetIdsSchema
+});
+
+/** Drops empty target keys; nothing left means no target. */
+function compactTarget(raw: v.InferOutput<typeof ActionTargetSchema> | undefined) {
+	const entries = Object.entries(raw ?? {}).filter(
+		([, ids]) => ids !== undefined && (!Array.isArray(ids) || ids.length > 0)
+	);
+	return entries.length ? (Object.fromEntries(entries) as ActionTarget) : undefined;
+}
+
+/**
+ * A tap or hold action, in Lovelace's own shape so one pasted from a Home
+ * Assistant card works: `call-service`, `service` and `service_data` are read
+ * as `perform-action`, `perform_action` and `data`.
+ */
+export const ActionSchema = v.pipe(
+	v.object({
+		action: v.picklist(
+			ACTION_KINDS,
+			'must be default, toggle, more-info, perform-action, navigate, url or none'
+		),
+		entity: OptionalEntityId,
+		perform_action: v.optional(ServiceNameSchema),
+		service: v.optional(ServiceNameSchema),
+		target: v.optional(ActionTargetSchema),
+		data: v.optional(ActionDataSchema),
+		service_data: v.optional(ActionDataSchema),
+		navigation_path: v.optional(
+			v.pipe(v.string('must be text'), v.trim(), v.minLength(1, 'must not be empty'))
+		),
+		url_path: v.optional(
+			v.pipe(
+				v.string('must be text'),
+				v.trim(),
+				v.check(isLinkUrl, 'must be an http(s) URL or a path on this host')
+			)
+		),
+		confirmation: v.optional(
+			v.union(
+				[v.boolean(), v.object({ text: OptionalText })],
+				'must be true, false or a mapping with text'
+			)
+		)
+	}),
+	v.check(
+		(raw) =>
+			(raw.action !== 'perform-action' && raw.action !== 'call-service') ||
+			Boolean(raw.perform_action ?? raw.service),
+		'needs perform_action for perform-action'
+	),
+	v.check(
+		(raw) => raw.action !== 'navigate' || Boolean(raw.navigation_path),
+		'needs navigation_path for navigate'
+	),
+	v.check((raw) => raw.action !== 'url' || Boolean(raw.url_path), 'needs url_path for url'),
+	v.transform((raw): HaAction => {
+		const text = isMapping(raw.confirmation) ? raw.confirmation.text?.trim() : undefined;
+		const confirmation = text ? { text } : raw.confirmation ? (true as const) : undefined;
+		switch (raw.action) {
+			case 'perform-action':
+			case 'call-service': {
+				const data = { ...raw.service_data, ...raw.data };
+				return {
+					action: 'perform-action',
+					perform_action: (raw.perform_action ?? raw.service)!,
+					target: compactTarget(raw.target),
+					data: Object.keys(data).length ? data : undefined,
+					confirmation
+				};
+			}
+			case 'navigate':
+				return { action: 'navigate', navigation_path: raw.navigation_path!, confirmation };
+			case 'url':
+				return { action: 'url', url_path: raw.url_path!, confirmation };
+			case 'toggle':
+			case 'more-info':
+				return { action: raw.action, entity: raw.entity, confirmation };
+			default:
+				return { action: raw.action, confirmation };
+		}
+	})
+);
+
+// one class name or several, separated by spaces
+/**
+ * Restyles a tile while its conditions hold. Lazy because the condition
+ * schema is declared further down.
+ */
+export const StyleRuleSchema = v.lazy(() =>
+	v.pipe(
+		v.object({
+			conditions: v.pipe(
+				v.array(VisibilityConditionSchema, 'must be a list of conditions'),
+				v.minLength(1, 'must have at least one condition'),
+				v.check(
+					(conditions) => !usesMedia(conditions),
+					'cannot use media queries; style rules follow states, not the screen'
+				)
+			),
+			color: OptionalText,
+			icon: OptionalText,
+			class: v.optional(
+				v.pipe(
+					v.string('must be text'),
+					v.trim(),
+					v.check(
+						(value) => classListProblem(value) !== 'format',
+						'must be CSS class names separated by spaces'
+					),
+					v.check(
+						(value) => classListProblem(value) !== 'reserved',
+						'reuses a class name Hearth uses itself'
+					)
+				)
+			)
+		}),
+		v.check(
+			(rule) => Boolean(rule.color?.trim() || rule.icon?.trim() || rule.class),
+			'needs a color, an icon or a class'
+		)
+	)
+);
+
 export const EntityRefSchema = v.object({
 	entity: EntityIdSchema,
 	name: OptionalText,
@@ -78,11 +249,29 @@ export const EntityRefSchema = v.object({
 	),
 	// stat readouts judge known air sensors by device_class; false suppresses
 	// that, custom bands extend it to any ascending numeric sensor
-	verdict: v.optional(v.union([v.literal(false), VerdictBandsSchema], 'must be false or bands'))
+	verdict: v.optional(v.union([v.literal(false), VerdictBandsSchema], 'must be false or bands')),
+	// unset is the tile's own behaviour for its domain
+	tap_action: v.optional(ActionSchema),
+	hold_action: v.optional(ActionSchema),
+	// Home Assistant templates for the tile's name and state text; the normal
+	// text shows while they load or when they fail
+	name_template: OptionalText,
+	state_template: OptionalText,
+	// the first rule whose conditions hold restyles the tile
+	style: v.optional(v.array(StyleRuleSchema, 'must be a list of style rules'))
 });
 
-// the tile highlight fields mean something else on scenes and nothing on modes
-const RefSchema = v.omit(EntityRefSchema, ['active_entity', 'active_states']);
+// the tile highlight fields mean something else on scenes and nothing on
+// modes, and neither takes configured actions or templated text
+const RefSchema = v.omit(EntityRefSchema, [
+	'active_entity',
+	'active_states',
+	'tap_action',
+	'hold_action',
+	'name_template',
+	'state_template',
+	'style'
+]);
 
 export const SceneRefSchema = v.object({
 	...RefSchema.entries,
@@ -110,28 +299,78 @@ export const VacuumModeRefSchema = v.object({
 
 /**
  * Per-item visibility condition:
- * an entity state match, a numeric window on an entity, a media query, or an
- * `or` group of conditions. All conditions on an item AND together.
+ * an entity state match or numeric window (on the state, or on one attribute
+ * of it), a media query, this screen's device name, a time window, or an `or`
+ * group of conditions. All conditions on an item AND together.
  */
 export type VisibilityConditionInput =
-	| { entity: string; state?: string; state_not?: string; above?: number; below?: number }
+	| {
+			entity: string;
+			attribute?: string;
+			state?: string;
+			state_not?: string;
+			above?: number;
+			below?: number;
+	  }
 	| { media: string }
+	| { device: string | string[] }
+	| { time: { after?: string; before?: string; weekdays?: Weekday[] } }
 	| { or: VisibilityConditionInput[] };
+
+const ClockTimeSchema = v.optional(
+	v.pipe(v.string('must be a time like 22:00'), v.regex(CLOCK_TIME, 'must be a time like 22:00'))
+);
+
+const DeviceNameSchema = v.pipe(
+	v.string('must be a device name'),
+	v.trim(),
+	v.minLength(1, 'must not be empty')
+);
 
 export const VisibilityConditionSchema: v.GenericSchema<VisibilityConditionInput> = v.lazy(() =>
 	v.union(
 		[
 			v.object({
 				entity: EntityIdSchema,
+				attribute: v.optional(
+					v.pipe(v.string('must be text'), v.trim(), v.minLength(1, 'must not be empty'))
+				),
 				state: OptionalText,
 				state_not: OptionalText,
 				above: v.optional(v.number('must be a number')),
 				below: v.optional(v.number('must be a number'))
 			}),
 			v.object({ media: v.string('must be a media query') }),
+			v.object({
+				device: v.union(
+					[
+						DeviceNameSchema,
+						v.pipe(v.array(DeviceNameSchema), v.minLength(1, 'must name at least one device'))
+					],
+					'must be a device name or a list of names'
+				)
+			}),
+			v.object({
+				time: v.pipe(
+					v.object({
+						after: ClockTimeSchema,
+						before: ClockTimeSchema,
+						weekdays: v.optional(
+							v.array(
+								v.picklist(WEEKDAYS, 'must be mon, tue, wed, thu, fri, sat or sun'),
+								'must be a list of weekdays'
+							)
+						)
+					}),
+					v.check(
+						(time) => Boolean(time.after || time.before || time.weekdays?.length),
+						'needs after, before or weekdays'
+					)
+				)
+			}),
 			v.object({ or: v.array(VisibilityConditionSchema, 'must be a list of conditions') })
 		],
-		'must name an entity, a media query or an or-group'
+		'must name an entity, a media query, a device, a time or an or-group'
 	)
 );
 
@@ -163,7 +402,8 @@ export const VisibilityListSchema = v.optional(
 export const CardSharedSchema = v.looseObject({
 	visibility: VisibilityListSchema,
 	fill: optionalNumberAtLeast(0),
-	height: HeightSchema
+	height: HeightSchema,
+	span: v.optional(v.picklist([2, 3, 'full'], 'must be 2, 3 or full'))
 });
 
 export const WidgetSharedSchema = v.looseObject({
@@ -187,6 +427,15 @@ export const RoomSchema = v.looseObject({
 	humidity_entity: OptionalEntityId,
 	hide_header: OptionalFlag,
 	fill_screen: OptionalFlag,
+	visibility: VisibilityListSchema,
+	// the value check is in newThemeIssues, so loading never refuses the file
+	background_image: OptionalText,
+	background_scrim: v.optional(
+		v.picklist(['light', 'medium', 'strong'], 'must be light, medium or strong')
+	),
+	theme: v.optional(
+		v.pipe(v.string('must be text'), v.trim(), v.minLength(1, 'must not be empty'))
+	),
 	columns: v.optional(
 		v.pipe(
 			v.number('must be a number'),
@@ -198,7 +447,7 @@ export const RoomSchema = v.looseObject({
 });
 
 // v.record alone accepts arrays, which are objects to it
-const ThemeSchema = v.pipe(
+export const ThemeSchema = v.pipe(
 	v.custom<Record<string, unknown>>(
 		(value) => !!value && typeof value === 'object' && !Array.isArray(value),
 		'must be a mapping of tokens'
@@ -206,11 +455,83 @@ const ThemeSchema = v.pipe(
 	v.record(v.string(), v.string('must be text'))
 );
 
+/**
+ * ThemeSchema plus the value check, for a theme being imported. Loading
+ * hearth.yaml does not run the check; normalizeTheme drops those values there
+ * so the dashboard still opens.
+ */
+export const NewThemeSchema = v.pipe(
+	ThemeSchema,
+	// each value must stay inside its own custom property; see themeValueIssue
+	v.rawCheck(({ dataset, addIssue }) => {
+		if (!dataset.typed) return;
+		for (const [key, value] of Object.entries(dataset.value)) {
+			const message = themeValueIssue(key, value);
+			if (!message) continue;
+			addIssue({
+				message,
+				path: [{ type: 'object', origin: 'value', input: dataset.value, key, value }]
+			});
+		}
+	})
+);
+
+// the chime an alert plays; false is the same as none
+export const AlertChimeSchema = v.optional(
+	v.union(
+		[v.boolean(), v.picklist(['soft', 'bell', 'none'])],
+		'must be true, false, soft, bell or none'
+	)
+);
+
+export const AlertChimesSchema = v.optional(
+	v.object({
+		info: AlertChimeSchema,
+		warning: AlertChimeSchema,
+		critical: AlertChimeSchema,
+		volume: optionalNumberInRange(1, 100)
+	})
+);
+
+const ThemeChoiceSchema = v.union(
+	[v.pipe(v.string(), v.trim(), v.minLength(1)), ThemeSchema],
+	'must be a preset id, a saved theme name or a mapping of tokens'
+);
+
+const MonthDaySchema = v.optional(
+	v.pipe(
+		v.string('must be a day like 12-24'),
+		v.check((value: string) => isMonthDay(value), 'must be a day like 12-24')
+	)
+);
+
+/** One theme_schedule entry; see ThemeScheduleEntry. */
+export const ThemeScheduleEntrySchema = v.pipe(
+	v.object({
+		theme: ThemeChoiceSchema,
+		night: v.optional(ThemeChoiceSchema),
+		from: MonthDaySchema,
+		to: MonthDaySchema,
+		when: v.optional(
+			v.pipe(
+				v.array(VisibilityConditionSchema, 'must be a list of conditions'),
+				v.check(
+					(conditions) => !usesMedia(conditions),
+					'cannot use media queries; the theme follows states and dates, not the screen'
+				)
+			)
+		)
+	}),
+	v.check((entry) => !entry.from === !entry.to, 'needs both from and to'),
+	v.check((entry) => Boolean(entry.from || entry.when?.length), 'needs from and to, or when')
+);
+
 /** Root settings; `rail` and `rooms` are walked item by item by the issue checker. */
 export const RootSettingsSchema = v.looseObject({
 	theme: v.optional(ThemeSchema),
 	theme_night: v.optional(ThemeSchema),
 	day_night: v.optional(DayNightSwitchSchema),
+	theme_schedule: v.optional(v.array(ThemeScheduleEntrySchema, 'must be a list')),
 	rail_position: v.optional(
 		v.picklist(['left', 'right', 'both', 'none'], 'must be left, right, both or none')
 	),
@@ -218,7 +539,10 @@ export const RootSettingsSchema = v.looseObject({
 	screensaver_drift: OptionalFlag,
 	screensaver_brightness: optionalNumberInRange(10, 100),
 	screensaver_background: v.optional(
-		v.picklist(['none', 'image', 'radar'], 'must be none, image or radar')
+		v.picklist(
+			['none', 'image', 'radar', 'photos', 'sun', 'media'],
+			'must be none, image, radar, photos, sun or media'
+		)
 	),
 	screensaver_image: OptionalText,
 	screensaver_radar: v.optional(
@@ -236,13 +560,45 @@ export const RootSettingsSchema = v.looseObject({
 			attribution: OptionalText
 		})
 	),
+	screensaver_photos: v.optional(
+		v.array(
+			v.pipe(
+				v.string('must be text'),
+				v.check(
+					(value) => imageFileOf(value.trim()) !== undefined,
+					'must be an uploaded image, hearth-images/<file>'
+				)
+			),
+			'must be a list'
+		)
+	),
+	screensaver_photo_seconds: optionalNumberInRange(PHOTO_SECONDS.min, PHOTO_SECONDS.max),
+	screensaver_photo_order: v.optional(
+		v.picklist(['shuffle', 'sequence'], 'must be shuffle or sequence')
+	),
+	screensaver_media_entity: OptionalEntityId,
+	screensaver_media_fallback: v.optional(
+		v.picklist(
+			['none', 'image', 'radar', 'photos', 'sun'],
+			'must be none, image, radar, photos or sun'
+		)
+	),
 	screensaver_show_date: OptionalFlag,
 	screensaver_clock_size: v.optional(
 		v.picklist(['small', 'medium', 'large'], 'must be small, medium or large')
 	),
 	screensaver_weather_entity: OptionalEntityId,
 	keep_screen_on: OptionalFlag,
+	edit_lock: v.optional(v.picklist(['hold', 'pin'], 'must be hold or pin')),
+	// YAML reads an unquoted 0815 as the number 815, so only quoted text is a PIN
+	edit_pin: v.optional(
+		v.pipe(
+			v.string("must be quoted, like '0815': unquoted, YAML drops leading zeros"),
+			v.regex(/^\d{4,8}$/, 'must be 4 to 8 digits')
+		)
+	),
 	scroll_edge_blur: OptionalFlag,
+	animations: OptionalFlag,
 	swipe_navigation_mobile: OptionalFlag,
 	swipe_navigation_desktop: OptionalFlag,
 	phone_clock: OptionalFlag,
@@ -251,7 +607,20 @@ export const RootSettingsSchema = v.looseObject({
 	mobile_padding_x: optionalNumberAtLeast(0),
 	mobile_padding_y: optionalNumberAtLeast(0),
 	scale: optionalNumberInRange(50, 200),
-	mobile_scale: optionalNumberInRange(50, 200)
+	mobile_scale: optionalNumberInRange(50, 200),
+	alert_chimes: AlertChimesSchema,
+	greeting: v.optional(
+		v.object({
+			persons: v.array(
+				v.pipe(
+					v.string('must be text'),
+					v.regex(/^person\.[a-z0-9_]+$/, 'must be a person entity id')
+				),
+				'must be a list'
+			),
+			minutes: optionalNumberInRange(1, 120)
+		})
+	)
 });
 
 /**

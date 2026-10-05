@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
 import { get } from 'svelte/store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { confirmRequestedAction, dismissConfirmation, requestedConfirmation } from '../store';
 import EditSheet from './EditSheet.svelte';
 
@@ -47,5 +47,86 @@ describe('EditSheet remove action', () => {
 		await fireEvent.click(button);
 		expect(get(requestedConfirmation)).toBeNull();
 		expect(onremove).toHaveBeenCalledOnce();
+	});
+});
+
+describe('EditSheet initial focus', () => {
+	const field = createRawSnippet(() => ({
+		render: () => '<input aria-label="Title" data-autofocus />'
+	}));
+
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('focuses a field that asks for it under a mouse or trackpad', () => {
+		vi.stubGlobal('matchMedia', (query: string) => ({
+			matches: query === '(pointer: fine)',
+			addEventListener: () => {},
+			removeEventListener: () => {}
+		}));
+		renderSheet({ children: field });
+		expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Title' }));
+	});
+
+	it('focuses Done instead on a touch screen, so no keyboard rises', () => {
+		vi.stubGlobal('matchMedia', () => ({
+			matches: false,
+			addEventListener: () => {},
+			removeEventListener: () => {}
+		}));
+		renderSheet({ children: field });
+		expect(document.activeElement).toBe(screen.getByRole('button', { name: en.done }));
+	});
+
+	it('focuses a field marked always on a touch screen too', () => {
+		vi.stubGlobal('matchMedia', () => ({
+			matches: false,
+			addEventListener: () => {},
+			removeEventListener: () => {}
+		}));
+		const token = createRawSnippet(() => ({
+			render: () => '<input aria-label="Token" data-autofocus="always" />'
+		}));
+		renderSheet({ children: token });
+		expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Token' }));
+	});
+});
+
+describe('EditSheet done reason', () => {
+	it('shows the reason under a disabled Done and describes the button with it', () => {
+		renderSheet({ doneDisabled: true, doneReason: 'Entity is required' });
+		const done = screen.getByRole('button', { name: en.done });
+		const reason = screen.getByText('Entity is required');
+		expect(done).toHaveProperty('disabled', true);
+		expect(done.getAttribute('aria-describedby')).toBe(reason.id);
+		expect(reason.classList.contains('field-warning')).toBe(true);
+	});
+
+	it('keeps the line for a sheet that can block Done, so the form does not jump', () => {
+		const { container } = render(EditSheet, {
+			title: 'Edit card',
+			children,
+			onclose: () => {},
+			ondone: () => {},
+			doneReason: null
+		});
+		expect(container.querySelector('.done-reason')).not.toBeNull();
+	});
+
+	it('draws no line for a sheet that never blocks Done', () => {
+		const { container } = render(EditSheet, {
+			title: 'Edit card',
+			children,
+			onclose: () => {},
+			ondone: () => {}
+		});
+		expect(container.querySelector('.done-reason')).toBeNull();
+	});
+
+	it('drops the reason once Done is enabled', () => {
+		renderSheet({ doneDisabled: false, doneReason: 'Entity is required' });
+		expect(screen.queryByText('Entity is required')).toBeNull();
+		expect(
+			screen.getByRole('button', { name: en.done }).getAttribute('aria-describedby')
+		).toBeNull();
 	});
 });

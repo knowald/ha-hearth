@@ -5,9 +5,11 @@
 	import type { ScenesCard } from './descriptor';
 	import { activateOnKeyboard } from '../../interaction';
 	import EntityField from '../../edit/EntityField.svelte';
+	import EntityPicker from '../../edit/EntityPicker.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 	import Icon from '../../Icon.svelte';
 	import IconField from '../../edit/IconField.svelte';
-	import SelectField from '../../edit/SelectField.svelte';
 	import TextField from '../../edit/TextField.svelte';
 
 	let { initial: initialProp, onchange }: CardEditorProps<ScenesCard> = $props();
@@ -15,6 +17,8 @@
 	// remounted per target and type, so the initial value is all the form needs
 	// svelte-ignore state_referenced_locally
 	const initial = initialProp;
+
+	const SCENE_DOMAINS = ['scene', 'script'];
 
 	type EditableSceneRef = {
 		entity: string;
@@ -25,8 +29,20 @@
 		active_state: string;
 	};
 
-	let title = $state(initial?.title ?? '');
-	let style = $state<string>(initial?.style ?? 'chips');
+	const form = new EditorForm(initial, [
+		{ key: 'title', kind: 'text', label: 'hearth_title', example: 'hearth_example_scenes_title' },
+		{
+			key: 'style',
+			kind: 'select',
+			label: 'hearth_style',
+			default: 'chips',
+			options: [
+				{ value: 'chips', label: 'hearth_scene_chips' },
+				{ value: 'bar', label: 'hearth_scene_bar' }
+			]
+		}
+	]);
+	let style = $derived(form.values.style);
 	let scenes = $state<EditableSceneRef[]>(
 		(initial?.scenes ?? []).map((ref) => ({
 			entity: ref.entity ?? '',
@@ -38,22 +54,20 @@
 		}))
 	);
 
+	let pickingMany = $state(false);
+
+	function blankScene(entity = ''): EditableSceneRef {
+		return { entity, name: '', icon: '', caption: '', active_entity: '', active_state: '' };
+	}
+
 	function addScene() {
-		scenes.push({
-			entity: '',
-			name: '',
-			icon: '',
-			caption: '',
-			active_entity: '',
-			active_state: ''
-		});
+		scenes.push(blankScene());
 	}
 
 	$effect(() => {
 		onchange({
 			fields: {
-				title: title.trim() || undefined,
-				style: style === 'bar' ? 'bar' : undefined,
+				...form.stored,
 				scenes: scenes
 					.map((ref) => ({
 						entity: ref.entity.trim(),
@@ -69,19 +83,7 @@
 	});
 </script>
 
-<TextField
-	label={$lang('hearth_title')}
-	bind:value={title}
-	placeholder={$lang('hearth_example_scenes_title')}
-/>
-<SelectField
-	label={$lang('hearth_style')}
-	bind:value={style}
-	options={[
-		{ value: 'chips', label: $lang('hearth_scene_chips') },
-		{ value: 'bar', label: $lang('hearth_scene_bar') }
-	]}
-/>
+<FormRenderer {form} />
 {#if style === 'bar'}
 	<div class="hint">
 		{$lang('hearth_equal_width_tiles_on_one_row')}
@@ -92,7 +94,12 @@
 {#each scenes as ref, refIndex (refIndex)}
 	<div class="filter-row">
 		<div class="filter-fields">
-			<EntityField label={$lang('entity')} bind:value={ref.entity} domains={['scene', 'script']} />
+			<EntityField
+				label={$lang('entity')}
+				bind:value={ref.entity}
+				domains={SCENE_DOMAINS}
+				hint={ref.entity.trim() ? undefined : $lang('hearth_empty_row_removed')}
+			/>
 			<TextField label={$lang('hearth_name_optional')} bind:value={ref.name} />
 			<IconField label={$lang('hearth_icon_optional')} bind:value={ref.icon} />
 			{#if style === 'bar'}
@@ -112,15 +119,14 @@
 				placeholder="on"
 			/>
 		</div>
-		<span
+		<button
+			type="button"
 			class="remove"
-			role="button"
-			tabindex="0"
+			aria-label={$lang('hearth_remove_scene')}
 			onclick={() => scenes.splice(refIndex, 1)}
-			onkeydown={(event) => activateOnKeyboard(event, () => scenes.splice(refIndex, 1))}
 		>
 			<Icon name="delete" size={ICON.control} />
-		</span>
+		</button>
 	</div>
 {/each}
 <div class="hint">
@@ -136,3 +142,23 @@
 	<Icon name="add" size={ICON.control} />
 	<span>{$lang('hearth_add_scene')}</span>
 </div>
+<div
+	class="add-filter"
+	role="button"
+	tabindex="0"
+	onclick={() => (pickingMany = true)}
+	onkeydown={(event) => activateOnKeyboard(event, () => (pickingMany = true))}
+>
+	<Icon name="playlist_add" size={ICON.control} />
+	<span>{$lang('hearth_pick_several_entities')}</span>
+</div>
+
+{#if pickingMany}
+	<EntityPicker
+		multiple
+		domains={SCENE_DOMAINS}
+		taken={scenes.map((ref) => ref.entity.trim()).filter(Boolean)}
+		onselectmany={(entityIds) => scenes.push(...entityIds.map((entityId) => blankScene(entityId)))}
+		onclose={() => (pickingMany = false)}
+	/>
+{/if}

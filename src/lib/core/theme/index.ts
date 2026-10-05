@@ -1,6 +1,6 @@
 /*
  * Theme tokens, derivation and presets. A theme is a flat map of knob name to
- * value that `themeStyle()` turns into the `--h-*` custom properties every
+ * value that `themeDeclarations()` turns into the `--h-*` custom properties every
  * surface reads.
  */
 
@@ -83,7 +83,7 @@ export const THEME_VARS: Record<string, { cssVar: string; rgb?: boolean; raw?: b
 
 /**
  * Default value for every theme knob - the Calm Hearth look. Serves both as
- * the base `:root` stylesheet (via themeStyle) and as picker defaults when a
+ * the base `:root` rule (via themeDeclarations) and as picker defaults when a
  * knob is not set in the user theme.
  */
 export const THEME_DEFAULTS: Record<string, string> = {
@@ -382,6 +382,18 @@ export const VOID_THEME: HearthTheme = {
 	bad_text: '#ffb0a8'
 };
 
+/**
+ * Gradients drawn over a background photo so panels and text stay legible,
+ * from a light veil to a strong shade. Medium is the Glass preset's own.
+ */
+export const BACKGROUND_SCRIMS = {
+	light: 'linear-gradient(180deg, rgba(10, 8, 6, 0.15), rgba(10, 8, 6, 0.35))',
+	medium: 'linear-gradient(180deg, rgba(10, 8, 6, 0.3), rgba(10, 8, 6, 0.6))',
+	strong: 'linear-gradient(180deg, rgba(10, 8, 6, 0.5), rgba(10, 8, 6, 0.8))'
+} as const;
+
+export type ScrimLevel = keyof typeof BACKGROUND_SCRIMS;
+
 /*
  * Translucent panels floating over the background image. The photo is the
  * user's own - set background_image to a room shot; the scrim keeps text
@@ -400,7 +412,7 @@ export const GLASS_THEME: HearthTheme = {
 		textFade: 0.35
 	}),
 	text_shadow: '0 2px 12px rgba(0, 0, 0, 0.6)',
-	background_scrim: 'linear-gradient(180deg, rgba(10, 8, 6, 0.3), rgba(10, 8, 6, 0.6))',
+	background_scrim: BACKGROUND_SCRIMS.medium,
 	surface_blur: 'blur(20px) saturate(140%)',
 	// panels carry their weight in the tint and the hairline, not a shadow
 	fill_scale: '2.2',
@@ -464,28 +476,135 @@ export const THEME_PRESETS: { id: string; theme: HearthTheme | null }[] = [
 			...deriveRadii(0.36),
 			font_ui: "'Inter Variable', system-ui"
 		}
+	},
+	// seasonal looks, for theme_schedule date ranges as much as for picking by hand
+	{
+		id: 'winter',
+		theme: buildTheme({
+			accent: '#9cc8e8',
+			cool: '#b4bff0',
+			backgroundInner: '#1a2230',
+			backgroundOuter: '#0c1119',
+			ink: '#eef5fb'
+		})
+	},
+	{
+		id: 'spring',
+		theme: {
+			...buildTheme({
+				accent: '#6fa85a',
+				cool: '#4f8fb8',
+				backgroundInner: '#f5f8ef',
+				backgroundOuter: '#e7efdc',
+				ink: '#1d2618',
+				light: true
+			}),
+			good: '#3f7a3a',
+			good_text: '#356a31',
+			bad: '#c0503f',
+			bad_text: '#a03a2c',
+			media: '#12a04a'
+		}
+	},
+	{
+		id: 'autumn',
+		theme: buildTheme({
+			accent: '#e08a3c',
+			cool: '#8fb0a0',
+			backgroundInner: '#2a1c14',
+			backgroundOuter: '#140d08',
+			ink: '#f8ece0'
+		})
+	},
+	{
+		id: 'holiday',
+		theme: {
+			...buildTheme({
+				accent: '#e86b5f',
+				cool: '#e3c06a',
+				backgroundInner: '#16271d',
+				backgroundOuter: '#09140e',
+				ink: '#f6f1e6'
+			}),
+			good: '#8fd6a0',
+			good_text: '#a8dcb4'
+		}
 	}
 ];
 
+/** `#f80` as `#ff8800`; anything else comes back as it was. */
+function longHex(value: string) {
+	const short = /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/.exec(value.trim());
+	return short ? `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}` : value;
+}
+
 function hexToTriplet(value: string) {
-	const hex = value.trim();
+	const hex = longHex(value.trim());
 	if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return value;
 	return `${parseInt(hex.slice(1, 3), 16)} ${parseInt(hex.slice(3, 5), 16)} ${parseInt(hex.slice(5, 7), 16)}`;
 }
 
-export function themeStyle(theme?: HearthTheme): string {
-	if (!theme) return '';
+/**
+ * Why a token value cannot be used, or null when it can. A value must stay
+ * inside its own custom property: no `;` outside brackets and quotes, no
+ * comment, escape, brace or angle bracket, and balanced brackets and quotes.
+ * That still lets `url(data:image/png;base64,...)` through. The rgb knobs
+ * take a hex colour, short or long, which the dashboard splits into a triplet.
+ */
+export function themeValueIssue(key: string, value: string): string | null {
+	if (THEME_VARS[key]?.rgb && !/^#([0-9a-fA-F]{3}){1,2}$/.test(value.trim())) {
+		return 'must be a hex colour like #f0b860'; // copy ok: yaml diagnostic
+	}
+	if (/\/\*|\*\/|[\\{}<>]/.test(value)) {
+		return 'must not contain comments, backslashes, braces or angle brackets'; // copy ok: yaml diagnostic
+	}
+	let depth = 0;
+	let quote: string | null = null;
+	for (const char of value) {
+		if (quote) {
+			if (char === quote) quote = null;
+		} else if (char === '"' || char === "'") quote = char;
+		else if (char === '(' || char === '[') depth += 1;
+		else if (char === ')' || char === ']') {
+			depth -= 1;
+			if (depth < 0) return 'has an unmatched bracket'; // copy ok: yaml diagnostic
+		} else if (char === ';' && depth === 0) {
+			return 'must be one CSS value, without ;'; // copy ok: yaml diagnostic
+		}
+	}
+	return quote || depth ? 'has an unclosed bracket or quote' : null; // copy ok: yaml diagnostic
+}
+
+/**
+ * A value as it is kept: a short `#f80` on an rgb knob becomes `#ff8800`, and
+ * anything themeValueIssue rejects is null, so a file that is loaded leaves
+ * that token at its default instead of locking the dashboard.
+ */
+export function usableThemeValue(key: string, value: string): string | null {
+	if (themeValueIssue(key, value)) return null;
+	return THEME_VARS[key]?.rgb ? longHex(value.trim()) : value;
+}
+
+/**
+ * The custom properties a theme sets, as [property, value] pairs for
+ * CSSStyleDeclaration.setProperty. Values go through the CSSOM rather than
+ * into stylesheet text, so no value can end its property or the rule; one the
+ * browser cannot parse is dropped and the default under it stays.
+ */
+export function themeDeclarations(theme?: HearthTheme): [string, string][] {
+	if (!theme) return [];
 	return Object.entries(theme)
-		.filter(([key]) => key in THEME_VARS)
+		.filter(([key, value]) => key in THEME_VARS && typeof value === 'string')
 		.map(([key, value]) => {
 			const { cssVar, rgb, raw } = THEME_VARS[key];
-			// the result lands in a raw <style> tag, so strip anything that could
-			// close the tag or the :root block (no legal CSS value needs these)
-			const safe = String(value).replace(/[<>{}]/g, '');
-			const resolved = rgb ? hexToTriplet(safe) : !raw && /^\d+$/.test(safe) ? `${safe}px` : safe;
-			return `${cssVar}: ${resolved};`;
-		})
-		.join(' ');
+			const trimmed = value.trim();
+			const resolved = rgb
+				? hexToTriplet(trimmed)
+				: !raw && /^\d+$/.test(trimmed)
+					? `${trimmed}px`
+					: trimmed;
+			return [cssVar, resolved];
+		});
 }
 
 /**
@@ -572,6 +691,11 @@ export const STRUCTURE_CSS = [
 	...Object.entries(MOTION).map(([name, ms]) => `--h-motion-${name}: ${ms}ms;`),
 	'--h-ease: ease;',
 	'--h-focus-ring: 2px solid var(--h-accent-text);',
+	// a finger-sized target in screen pixels: the interface scale shrinks CSS
+	// pixels, so the floor grows as the zoom drops below 1
+	'--h-touch-target: max(44px, calc(44px / var(--h-zoom, 1)));',
+	// iOS Safari zooms the page into a focused input set under 16 screen pixels
+	'--h-input-floor: max(16px, calc(16px / var(--h-zoom, 1)));',
 	// surfaces drawn over artwork or photos: fixed dark scrims and light ink,
 	// independent of the theme so they read on any album cover
 	'--h-art-scrim-1: rgba(20, 14, 9, 0.55);',

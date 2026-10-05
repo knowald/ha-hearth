@@ -46,9 +46,11 @@ describe('TokenPrompt', () => {
 		);
 	});
 
-	it('opens with focus in the token field', () => {
+	it('opens with focus in the token field under a mouse or trackpad', () => {
+		vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(pointer: fine)' }));
 		render(TokenPrompt, { onclose: vi.fn() });
 		expect(document.activeElement).toBe(screen.getByLabelText('Long-lived access token'));
+		vi.unstubAllGlobals();
 	});
 
 	it('saves the token and closes once Home Assistant accepts it', async () => {

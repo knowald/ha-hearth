@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
 import { cancelEdit, editor, enterEditMode, hearthConfig } from '../store';
 import AlertEditSheet from './AlertEditSheet.svelte';
@@ -54,6 +54,15 @@ describe('AlertEditSheet', () => {
 		expect(get(editor)).toEqual({ kind: 'settings' });
 	});
 
+	it('picks a chime for the rule, or leaves it to the severity', async () => {
+		render(AlertEditSheet, { index: 0 });
+		const sound = screen.getByLabelText(en.hearth_alert_chime) as HTMLSelectElement;
+		expect(sound.value).toBe('');
+		await fireEvent.change(sound, { target: { value: 'chime' } });
+		await fireEvent.click(screen.getByRole('button', { name: en.done }));
+		expect(get(hearthConfig).alerts?.[0].chime).toBe(true);
+	});
+
 	it('blocks Done for a delay that is not a whole number of seconds', async () => {
 		render(AlertEditSheet, { index: 0 });
 		await fireEvent.input(screen.getByLabelText(en.hearth_alert_delay), {
@@ -66,5 +75,27 @@ describe('AlertEditSheet', () => {
 	it('needs a condition before a new rule can be added', () => {
 		render(AlertEditSheet, { index: null });
 		expect(screen.getByRole('button', { name: en.done })).toHaveProperty('disabled', true);
+	});
+
+	it('says why Done is disabled, the title first, then the conditions', async () => {
+		render(AlertEditSheet, { index: null });
+		const done = screen.getByRole('button', { name: en.done });
+		const titleReason = en.hearth_field_required.replace('{field}', en.hearth_title);
+		const reason = screen.getByText(titleReason);
+		expect(done.getAttribute('aria-describedby')).toBe(reason.id);
+		expect(screen.getByLabelText(en.hearth_title).getAttribute('aria-required')).toBe('true');
+		await fireEvent.input(screen.getByLabelText(en.hearth_title), {
+			target: { value: 'Door open' }
+		});
+		expect(screen.queryByText(titleReason)).toBeNull();
+		expect(screen.getByText(en.hearth_alert_needs_condition)).toBeTruthy();
+	});
+
+	it('points a bad delay back at its field', async () => {
+		render(AlertEditSheet, { index: 0 });
+		await fireEvent.input(screen.getByLabelText(en.hearth_alert_delay), {
+			target: { value: '-3' }
+		});
+		expect(screen.getByText(en.hearth_fix_marked_fields)).toBeTruthy();
 	});
 });

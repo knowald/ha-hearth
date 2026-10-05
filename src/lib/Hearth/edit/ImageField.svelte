@@ -24,6 +24,7 @@
 		value = $bindable(''),
 		placeholder = undefined,
 		hint = undefined,
+		issue = undefined,
 		onchange = undefined
 	}: {
 		label: string;
@@ -31,6 +32,8 @@
 		value?: string;
 		placeholder?: string;
 		hint?: string;
+		/** Why the parent will not apply the current value, shown like an upload error. */
+		issue?: string | null;
 		/** Fires when a value is committed: typed and left, uploaded, picked or cleared. */
 		onchange?: (value: string) => void;
 	} = $props();
@@ -43,6 +46,7 @@
 	let libraryLoading = $state(false);
 	let previewFailed = $state<string>();
 
+	let message = $derived(error || issue || '');
 	let source = $derived(imageSource(value));
 	let selectedFile = $derived(imageFileOf(value.trim()));
 
@@ -135,7 +139,7 @@
 			bind:value
 			placeholder={placeholder ?? $lang('hearth_image_url_or_upload')}
 			spellcheck="false"
-			aria-describedby={describedBy(uid, hint, error)}
+			aria-describedby={describedBy(uid, hint, message)}
 			onchange={() => commit(value.trim())}
 		/>
 		{#if value.trim()}
@@ -219,7 +223,7 @@
 		</div>
 	{/if}
 
-	<FieldMessages id={uid} {hint} {error} />
+	<FieldMessages id={uid} {hint} error={message} />
 </div>
 
 <style>
@@ -284,6 +288,13 @@
 
 	input::placeholder {
 		color: var(--h-text-6);
+	}
+
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		.input-row input[type='text'] {
+			font-size: max(var(--h-input-floor), var(--h-type-body));
+		}
 	}
 
 	.file {
@@ -385,7 +396,7 @@
 	.empty {
 		padding: 10px;
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		text-align: center;
 	}
 </style>

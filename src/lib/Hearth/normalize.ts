@@ -6,17 +6,24 @@ import type {
 	OverviewCard,
 	OverviewItem,
 	OverviewStack,
+	PresenceGreeting,
 	RailPosition,
 	RailWidget,
-	ScreensaverRadar
+	ScreensaverRadar,
+	ThemeChoice,
+	ThemeScheduleEntry
 } from './types';
 import {
 	DEFAULT_HEARTH_CONFIG,
+	GREETING_MINUTES,
+	isMonthDay,
 	normalizeVisibility,
 	isTileUrl,
+	PHOTO_SECONDS,
 	RADAR_ZOOM,
 	resizeCardColumns,
-	uniqueId
+	uniqueId,
+	withoutMedia
 } from './config';
 import {
 	isRecord,
@@ -33,8 +40,10 @@ import {
 	widgetDefinition
 } from './model/registry';
 import { currentHearthConfig } from './format';
-import { AlertRuleSchema, normalizeAlertRules } from './model/alerts';
+import { imageFileOf } from '$lib/core/images';
+import { AlertRuleSchema, normalizeAlertChimes, normalizeAlertRules } from './model/alerts';
 import * as v from 'valibot';
+import { themeValueIssue, usableThemeValue } from '$lib/core/theme';
 import {
 	CardSharedSchema,
 	issueLines,
@@ -68,15 +77,79 @@ function normalizeMobileSlot(widget: any): MobileSlot | undefined {
 	return widget.hide_mobile === true ? 'hidden' : undefined;
 }
 
-/** Token maps are string to string; other values (arrays, numbers, nested maps) are dropped. */
-function normalizeTheme(raw: unknown): HearthTheme | undefined {
+/**
+ * Token maps are string to string; other values (arrays, numbers, nested maps)
+ * are dropped, and so is a value the dashboard cannot apply, which leaves its
+ * token at the default. See usableThemeValue.
+ */
+export function normalizeTheme(raw: unknown): HearthTheme | undefined {
 	if (!isRecord(raw)) return undefined;
 	return Object.fromEntries(
-		Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+		Object.entries(raw).flatMap(([key, value]) => {
+			const usable = typeof value === 'string' ? usableThemeValue(key, value) : null;
+			return usable === null ? [] : [[key, usable]];
+		})
 	);
 }
 
+function normalizeThemeChoice(raw: unknown): ThemeChoice | undefined {
+	return trimmedOrUndefined(raw) ?? normalizeTheme(raw);
+}
+
+/**
+ * Entries need a theme and a date range or conditions to hold by; one
+ * without is dropped, as is a lone from or to. Media conditions never hold
+ * here, see ThemeScheduleEntrySchema.
+ */
+function normalizeThemeSchedule(raw: unknown): ThemeScheduleEntry[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const entries = raw.filter(isRecord).flatMap((entry): ThemeScheduleEntry[] => {
+		const theme = normalizeThemeChoice(entry.theme);
+		const night = normalizeThemeChoice(entry.night);
+		const dated = isMonthDay(entry.from) && isMonthDay(entry.to);
+		const when = normalizeVisibility(entry.when);
+		const conditions = when && withoutMedia(when);
+		if (!theme || (!dated && !conditions?.length)) return [];
+		return [
+			{
+				theme,
+				...(night ? { night } : {}),
+				...(dated ? { from: entry.from as string, to: entry.to as string } : {}),
+				...(conditions?.length ? { when: conditions } : {})
+			}
+		];
+	});
+	return entries.length ? entries : undefined;
+}
+
+/**
+ * A page background the dashboard can apply, by the same rule as a theme's
+ * background_image; see themeValueIssue.
+ */
+export function pageBackgroundIssue(value: string): string | null {
+	return themeValueIssue('background_image', `url(${value})`);
+}
+
+const SCRIM_LEVELS = new Set<unknown>(['light', 'medium', 'strong']);
+const CARD_SPANS = new Set<unknown>([2, 3, 'full']);
+
 const SCREENSAVER_CLOCK_SIZES = new Set<unknown>(['small', 'medium', 'large']);
+// 'none' is the default and is stored as unset
+const SCREENSAVER_BACKGROUNDS = new Set<unknown>(['image', 'radar', 'photos', 'sun', 'media']);
+
+function normalizePhotoSeconds(raw: unknown): number | undefined {
+	const seconds = normalizeWholeNumber(raw, PHOTO_SECONDS.min);
+	return seconds === undefined ? undefined : Math.min(PHOTO_SECONDS.max, seconds);
+}
+
+// only uploads: a slideshow must not reach out to other hosts on a wall tablet
+function normalizeScreensaverPhotos(raw: unknown): string[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const photos = [
+		...new Set(raw.map((entry) => (typeof entry === 'string' ? entry.trim() : '')))
+	].filter((entry) => imageFileOf(entry) !== undefined);
+	return photos.length ? photos : undefined;
+}
 
 function coordinate(raw: unknown, limit: number): number | undefined {
 	return typeof raw === 'number' && Number.isFinite(raw) && Math.abs(raw) <= limit
@@ -102,6 +175,40 @@ function normalizeScreensaverRadar(raw: unknown): ScreensaverRadar | undefined {
 		attribution: trimmedOrUndefined(raw.attribution)
 	};
 	return Object.values(radar).some((value) => value !== undefined) ? radar : undefined;
+}
+
+/**
+ * Theme values hearthConfigIssues lets through for a file that is loaded, but
+ * that a document being applied or saved must not carry. See themeValueIssue.
+ */
+export function newThemeIssues(raw: unknown): string[] {
+	if (!isRecord(raw)) return [];
+	const tokenIssues = (theme: unknown, path: string) => {
+		if (!isRecord(theme)) return [];
+		return Object.entries(theme).flatMap(([key, value]) => {
+			const message = typeof value === 'string' ? themeValueIssue(key, value) : null;
+			return message ? [`${path}.${key} ${message}`] : [];
+		});
+	};
+	const schedule = Array.isArray(raw.theme_schedule) ? raw.theme_schedule : [];
+	const rooms = Array.isArray(raw.rooms) ? raw.rooms : [];
+	return [
+		...tokenIssues(raw.theme, 'theme'),
+		...tokenIssues(raw.theme_night, 'theme_night'),
+		...schedule.flatMap((entry, index) =>
+			isRecord(entry)
+				? [
+						...tokenIssues(entry.theme, `theme_schedule[${index}].theme`),
+						...tokenIssues(entry.night, `theme_schedule[${index}].night`)
+					]
+				: []
+		),
+		...rooms.flatMap((room, index) => {
+			const image = isRecord(room) ? room.background_image : undefined;
+			const message = typeof image === 'string' ? pageBackgroundIssue(image.trim()) : null;
+			return message ? [`rooms[${index}].background_image ${message}`] : [];
+		})
+	];
 }
 
 export function hearthConfigIssues(raw: unknown): string[] {
@@ -217,6 +324,7 @@ function normalizeCard(raw: any, fallbackId: string, taken: string[]): OverviewC
 		...(descriptor?.normalize?.(raw) ?? {}),
 		...(descriptor?.sizable ? { height: normalizeHeight(raw.height) } : {}),
 		fill: normalizeFill(raw.fill),
+		span: CARD_SPANS.has(raw.span) ? raw.span : undefined,
 		visibility: normalizeVisibility(raw.visibility)
 	} as OverviewCard;
 }
@@ -280,6 +388,11 @@ function normalizeRoomCards(
 		: cards;
 }
 
+function normalizePageBackground(raw: unknown): string | undefined {
+	const value = trimmedOrUndefined(raw);
+	return value && !pageBackgroundIssue(value) ? value : undefined;
+}
+
 /**
  * `taken` collects the ids already handed out and is mutated here: two pages
  * sharing an id would make every id-keyed lookup (nav, drag, editor targets)
@@ -303,6 +416,10 @@ function normalizeRoom(raw: any, index: number, taken: string[], takenItems: str
 		hide_header: raw?.hide_header === true ? true : undefined,
 		fill_screen: raw?.fill_screen === true ? true : undefined,
 		columns,
+		visibility: normalizeVisibility(raw?.visibility),
+		background_image: normalizePageBackground(raw?.background_image),
+		background_scrim: SCRIM_LEVELS.has(raw?.background_scrim) ? raw.background_scrim : undefined,
+		theme: trimmedOrUndefined(raw?.theme),
 		cards: normalizeRoomCards(raw, id, columns, takenItems)
 	};
 }
@@ -311,6 +428,30 @@ function normalizeRoom(raw: any, index: number, taken: string[], takenItems: str
 function normalizeScale(raw: unknown): number | undefined {
 	if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
 	return Math.min(200, Math.max(50, Math.round(raw)));
+}
+
+// an unquoted PIN arrives from YAML as a number, which has lost any leading
+// zero; the issue checker asks for quotes, and until then there is no PIN
+function normalizePin(raw: unknown): string | undefined {
+	return typeof raw === 'string' && /^\d{4,8}$/.test(raw.trim()) ? raw.trim() : undefined;
+}
+
+// a greeting without a person to greet is off
+function normalizeGreeting(raw: unknown): PresenceGreeting | undefined {
+	if (!isRecord(raw) || !Array.isArray(raw.persons)) return undefined;
+	const persons = [
+		...new Set(
+			raw.persons
+				.map((person) => trimmedOrUndefined(person))
+				.filter((person): person is string => !!person?.startsWith('person.'))
+		)
+	];
+	if (!persons.length) return undefined;
+	const minutes =
+		typeof raw.minutes === 'number' && Number.isFinite(raw.minutes)
+			? Math.min(120, Math.max(1, Math.round(raw.minutes)))
+			: undefined;
+	return { persons, minutes: minutes === GREETING_MINUTES ? undefined : minutes };
 }
 
 /**
@@ -366,6 +507,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'theme',
 		'theme_night',
 		'day_night',
+		'theme_schedule',
 		'rail_position',
 		'rail',
 		'rooms',
@@ -375,11 +517,19 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'screensaver_background',
 		'screensaver_image',
 		'screensaver_radar',
+		'screensaver_photos',
+		'screensaver_photo_seconds',
+		'screensaver_photo_order',
+		'screensaver_media_entity',
+		'screensaver_media_fallback',
 		'screensaver_show_date',
 		'screensaver_clock_size',
 		'screensaver_weather_entity',
 		'keep_screen_on',
+		'edit_lock',
+		'edit_pin',
 		'scroll_edge_blur',
+		'animations',
 		'swipe_navigation_mobile',
 		'swipe_navigation_desktop',
 		'phone_clock',
@@ -389,7 +539,9 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'mobile_padding_y',
 		'scale',
 		'mobile_scale',
-		'alerts'
+		'alerts',
+		'alert_chimes',
+		'greeting'
 	]) {
 		delete extensions[key];
 	}
@@ -399,6 +551,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		theme: normalizeTheme(config.theme),
 		theme_night: normalizeTheme(config.theme_night),
 		day_night: dayNight,
+		theme_schedule: normalizeThemeSchedule(config.theme_schedule),
 		rail_position: RAIL_POSITIONS.has(config.rail_position) ? config.rail_position : undefined,
 		rail,
 		rooms,
@@ -409,12 +562,20 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 			Number.isFinite(config.screensaver_brightness)
 				? Math.min(100, Math.max(10, Math.round(config.screensaver_brightness)))
 				: undefined,
-		screensaver_background:
-			config.screensaver_background === 'image' || config.screensaver_background === 'radar'
-				? config.screensaver_background
-				: undefined,
+		screensaver_background: SCREENSAVER_BACKGROUNDS.has(config.screensaver_background)
+			? config.screensaver_background
+			: undefined,
 		screensaver_image: trimmedOrUndefined(config.screensaver_image),
 		screensaver_radar: normalizeScreensaverRadar(config.screensaver_radar),
+		screensaver_photos: normalizeScreensaverPhotos(config.screensaver_photos),
+		screensaver_photo_seconds: normalizePhotoSeconds(config.screensaver_photo_seconds),
+		screensaver_photo_order: config.screensaver_photo_order === 'sequence' ? 'sequence' : undefined,
+		screensaver_media_entity: trimmedOrUndefined(config.screensaver_media_entity),
+		screensaver_media_fallback:
+			config.screensaver_media_fallback !== 'media' &&
+			SCREENSAVER_BACKGROUNDS.has(config.screensaver_media_fallback)
+				? config.screensaver_media_fallback
+				: undefined,
 		screensaver_show_date:
 			typeof config.screensaver_show_date === 'boolean' ? config.screensaver_show_date : undefined,
 		screensaver_clock_size: SCREENSAVER_CLOCK_SIZES.has(config.screensaver_clock_size)
@@ -422,8 +583,12 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 			: undefined,
 		screensaver_weather_entity: trimmedOrUndefined(config.screensaver_weather_entity),
 		keep_screen_on: typeof config.keep_screen_on === 'boolean' ? config.keep_screen_on : undefined,
+		edit_lock:
+			config.edit_lock === 'hold' || config.edit_lock === 'pin' ? config.edit_lock : undefined,
+		edit_pin: normalizePin(config.edit_pin),
 		scroll_edge_blur:
 			typeof config.scroll_edge_blur === 'boolean' ? config.scroll_edge_blur : undefined,
+		animations: config.animations === false ? false : undefined,
 		swipe_navigation_mobile: config.swipe_navigation_mobile === true ? true : undefined,
 		swipe_navigation_desktop: config.swipe_navigation_desktop === true ? true : undefined,
 		phone_clock: config.phone_clock === true ? true : undefined,
@@ -433,6 +598,8 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		mobile_padding_y: normalizeWholeNumber(config.mobile_padding_y, 0),
 		scale: normalizeScale(config.scale),
 		mobile_scale: normalizeScale(config.mobile_scale),
-		alerts: normalizeAlertRules(config.alerts)
+		alerts: normalizeAlertRules(config.alerts),
+		alert_chimes: normalizeAlertChimes(config.alert_chimes),
+		greeting: normalizeGreeting(config.greeting)
 	};
 }

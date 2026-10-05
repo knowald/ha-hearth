@@ -21,14 +21,18 @@
 	import { guardLockCommand } from '$lib/core/domains/lock';
 	import { detailOffersMore, openEntityDetail } from '$lib/Hearth/details';
 	import BlindTile from './BlindTile.svelte';
-	import Icon from './Icon.svelte';
+	import TileIcon from './TileIcon.svelte';
+	import { iconMotionEnabled, iconMotionFor } from './iconMotion';
 	import LightTile from './LightTile.svelte';
 	import TuneButton from './TuneButton.svelte';
 	import { activateOnKeyboard, longPress } from './interaction';
+	import { actionRuns, customAction, runSurfaceAction, tapToggles } from './actions';
+	import type { HearthAction } from './types';
 
 	let {
 		entity,
 		name = undefined,
+		stateOverride = undefined,
 		icon = undefined,
 		compact = false,
 		readonly = false,
@@ -36,10 +40,14 @@
 		activeStates = undefined,
 		sliderUpdates = 'continuous',
 		showTune = false,
+		tapAction = undefined,
+		holdAction = undefined,
 		onedit = undefined
 	}: {
 		entity: string;
 		name?: string;
+		/** shown in place of the state text, from a state_template */
+		stateOverride?: string;
 		icon?: string;
 		compact?: boolean;
 		/** display only: taps never send a command */
@@ -49,6 +57,9 @@
 		sliderUpdates?: SliderUpdateMode;
 		/** restores the controls glyph beside the long-press gesture */
 		showTune?: boolean;
+		/** configured actions run as set; `readonly` only quiets the tile's own behaviour */
+		tapAction?: HearthAction;
+		holdAction?: HearthAction;
 		onedit?: () => void;
 	} = $props();
 
@@ -71,10 +82,14 @@
 	// the toggle a tap sends acts on the tile's own entity, whatever lights it
 	let pressed = $derived(available && entityActiveFor(entity, stateObj, $controlOverrides));
 	let pending = $derived($pendingEntities[entity] !== undefined);
+	// a state_template gives way to the availability text and to a command in flight
+	let templatedState = $derived(available && !pending ? stateOverride : undefined);
 	let label = $derived(name || stateObj?.attributes?.friendly_name || entity);
 	let iconColor = $derived(
 		!controllable ? 'var(--h-icon-dim)' : on ? 'var(--h-accent-icon)' : 'var(--h-icon-dim)'
 	);
+
+	let iconMotion = $derived($iconMotionEnabled && available ? iconMotionFor(stateObj) : undefined);
 
 	let bareModal = $derived(entityIsReadout(entity, stateObj));
 	// what a tap earns: a command, a history chart, a domain modal - or, for a
@@ -90,7 +105,18 @@
 	);
 	// read only means no commands: a history chart still opens, controls do not
 	let opens = $derived(!readonly || tapSurface === 'history');
-	let interactive = $derived($hearthEditMode || (opens && controllable && tapSurface !== 'none'));
+	let interactive = $derived(
+		$hearthEditMode ||
+			actionRuns(tapAction, readonly) ||
+			actionRuns(holdAction, readonly) ||
+			(opens && controllable && tapSurface !== 'none')
+	);
+	let holdDisabled = $derived(
+		$hearthEditMode ||
+			(customAction(holdAction)
+				? !actionRuns(holdAction, readonly) || holdAction?.action === 'none'
+				: !opens || !controllable)
+	);
 	// a toggle whose detail sheet only repeats the tap earns no tune glyph
 	let tunable = $derived(
 		!readonly &&
@@ -99,14 +125,32 @@
 			(tapSurface !== 'toggle' || detailOffersMore(entity))
 	);
 
+	let detail = $derived({ icon, sliderUpdates, readonly });
+
 	function openDetail() {
-		openEntityDetail(entity, name, { icon, sliderUpdates, readonly });
+		openEntityDetail(entity, name, detail);
 	}
 
 	function handleClick() {
-		if ($hearthEditMode) {
-			onedit?.();
-		} else if (!controllable || !opens) {
+		if ($hearthEditMode) onedit?.();
+		else
+			runSurfaceAction(tapAction, {
+				entity,
+				name,
+				readonly,
+				detail,
+				fallbackToggles: tapSurface === 'toggle',
+				fallback: defaultTap
+			});
+	}
+
+	function handleHold() {
+		if ($hearthEditMode) return;
+		runSurfaceAction(holdAction, { entity, name, readonly, detail, fallback: openControls });
+	}
+
+	function defaultTap() {
+		if (!controllable || !opens) {
 			return;
 		} else if (tapSurface === 'history') {
 			openDetail();
@@ -131,9 +175,33 @@
 </script>
 
 {#if domainDescriptor(domain).tile === 'light'}
-	<LightTile {entity} {name} {icon} {compact} {readonly} {sliderUpdates} {showTune} {onedit} />
+	<LightTile
+		{entity}
+		{name}
+		{stateOverride}
+		{icon}
+		{compact}
+		{readonly}
+		{sliderUpdates}
+		{showTune}
+		{tapAction}
+		{holdAction}
+		{onedit}
+	/>
 {:else if domainDescriptor(domain).tile === 'cover'}
-	<BlindTile {entity} {name} {icon} {compact} {readonly} {sliderUpdates} {showTune} {onedit} />
+	<BlindTile
+		{entity}
+		{name}
+		{stateOverride}
+		{icon}
+		{compact}
+		{readonly}
+		{sliderUpdates}
+		{showTune}
+		{tapAction}
+		{holdAction}
+		{onedit}
+	/>
 {:else}
 	<div
 		class="tile"
@@ -142,23 +210,35 @@
 		class:unreachable={!controllable}
 		class:pending
 		class:pressable={interactive}
+		data-entity={entity}
+		data-domain={domain}
+		data-state={stateObj?.state}
 		role="button"
 		tabindex={interactive ? 0 : -1}
-		aria-pressed={pressed}
+		aria-pressed={tapToggles(tapAction, entity) ? pressed : undefined}
 		use:Ripple={interactive ? PRESS_RIPPLE : { color: 'transparent' }}
 		use:longPress={{
-			hold: openControls,
-			disabled: $hearthEditMode || !opens || !controllable
+			hold: handleHold,
+			disabled: holdDisabled,
+			deferOnTouch: customAction(holdAction)
 		}}
 		onclick={handleClick}
-		onkeydown={(event) => activateOnKeyboard(event, event.shiftKey ? openControls : handleClick)}
+		onkeydown={(event) => activateOnKeyboard(event, event.shiftKey ? handleHold : handleClick)}
 	>
 		<div class="content">
-			<Icon name={icon || domainIcon(entity)} size={ICON.tile} color={iconColor} fill={on} />
+			<TileIcon
+				name={icon || domainIcon(entity)}
+				size={ICON.tile}
+				color="var(--tile-accent, {iconColor})"
+				fill={on}
+				motion={iconMotion}
+			/>
 			<div class="text">
 				<div class="name">{label}</div>
 				<div class="state" class:on={on && available}>
-					{#if available}
+					{#if templatedState !== undefined}
+						{templatedState}
+					{:else if available}
 						<StateLogic entity_id={entity} />
 					{:else if availability === 'missing'}
 						{$lang('hearth_missing_entity')}

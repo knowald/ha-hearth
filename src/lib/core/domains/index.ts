@@ -81,7 +81,8 @@ const DESCRIPTORS: DomainDescriptor[] = [
 		summaryWords: (entity) => {
 			const deviceClass: string | undefined = entity?.attributes?.device_class;
 			if (deviceClass && OPEN_CLOSED_CLASSES.includes(deviceClass)) return ['open', 'closed'];
-			if (deviceClass === 'motion' || deviceClass === 'occupancy') return ['detected', 'clear'];
+			if (deviceClass === 'motion' || deviceClass === 'occupancy')
+				return ['hearth_detected', 'hearth_clear'];
 			return ['on', 'off'];
 		}
 	},

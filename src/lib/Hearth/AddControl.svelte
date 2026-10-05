@@ -30,7 +30,7 @@
 		min-height: 58px;
 		border-radius: var(--h-radius-md);
 		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		font-size: var(--h-type-body);
 		cursor: pointer;
 		user-select: none;
@@ -39,7 +39,7 @@
 
 	@media (hover: hover) {
 		.add:hover {
-			color: var(--h-text-4);
+			color: var(--h-text-3);
 			border-color: rgb(var(--h-line-rgb) / calc(0.25 * var(--h-line-scale)));
 		}
 	}

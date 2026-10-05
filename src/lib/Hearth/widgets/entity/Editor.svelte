@@ -1,49 +1,27 @@
 <script lang="ts">
-	import { lang } from '$lib/core/i18n';
 	import type { WidgetEditorProps } from '../types';
 	import type { EntityWidget } from './descriptor';
-	import EntityField from '../../edit/EntityField.svelte';
-	import IconField from '../../edit/IconField.svelte';
-	import SelectField from '../../edit/SelectField.svelte';
-	import TextField from '../../edit/TextField.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 
-	let { initial: initialProp, onchange }: WidgetEditorProps<EntityWidget> = $props();
+	let { initial, onchange }: WidgetEditorProps<EntityWidget> = $props();
 
 	// remounted per target and type, so the initial value is all the form needs
 	// svelte-ignore state_referenced_locally
-	const initial = initialProp;
-
-	let entity = $state(initial?.entity ?? '');
-	let name = $state(initial?.name ?? '');
-	let icon = $state(initial?.icon ?? '');
-	let verticalPadding = $state(initial?.vertical_padding ?? '');
-
-	$effect(() => {
-		onchange({
-			fields: {
-				entity: entity.trim() || undefined,
-				name: name.trim() || undefined,
-				icon: icon.trim() || undefined,
-				vertical_padding: verticalPadding === 'compact' ? 'compact' : undefined
-			}
-		});
-	});
+	const form = new EditorForm(initial, [
+		{ key: 'entity', kind: 'entity', required: true },
+		{ key: 'name', kind: 'text', label: 'hearth_name_optional' },
+		{ key: 'icon', kind: 'icon', label: 'hearth_icon_optional', beside: true },
+		{
+			key: 'vertical_padding',
+			kind: 'select',
+			label: 'hearth_vertical_padding',
+			options: [
+				{ value: '', label: 'hearth_standard_density' },
+				{ value: 'compact', label: 'hearth_compact' }
+			]
+		}
+	]);
 </script>
 
-<EntityField label={$lang('entity')} bind:value={entity} />
-<div class="row">
-	<div class="grow">
-		<TextField label={$lang('hearth_name_optional')} bind:value={name} />
-	</div>
-	<div class="icon-column">
-		<IconField label={$lang('hearth_icon_optional')} bind:value={icon} />
-	</div>
-</div>
-<SelectField
-	label={$lang('hearth_vertical_padding')}
-	bind:value={verticalPadding}
-	options={[
-		{ value: '', label: $lang('hearth_standard_density') },
-		{ value: 'compact', label: $lang('hearth_compact') }
-	]}
-/>
+<FormRenderer {form} {onchange} />

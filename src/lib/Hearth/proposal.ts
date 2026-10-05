@@ -16,6 +16,8 @@ export type ProposalCategory = 'lights' | 'covers' | 'climate' | 'media' | 'came
 
 export interface ProposedPage {
 	room: HearthRoom;
+	/** The area's other names, which an existing page may carry instead. */
+	aliases?: string[];
 	areaId: string;
 	floorName?: string;
 	counts: Record<ProposalCategory, number>;
@@ -365,6 +367,7 @@ export function buildProposal(
 
 		pages.push({
 			areaId: area.area_id,
+			...(area.aliases?.length ? { aliases: area.aliases } : {}),
 			floorName: area.floor_id ? floorNames.get(area.floor_id) : undefined,
 			counts: {
 				lights: lights.length,

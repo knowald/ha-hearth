@@ -5,8 +5,16 @@
 	import { lang } from '$lib/core/i18n';
 	import { PRESS_RIPPLE } from '../../config';
 	import type { HearthRoom } from '../../config';
-	import { currentRoom, editor, hearthConfig, hearthEditMode, updateConfig } from '../../store';
+	import {
+		currentRoom,
+		editor,
+		goToPage,
+		hearthConfig,
+		hearthEditMode,
+		updateConfig
+	} from '../../store';
 	import Icon from '../../Icon.svelte';
+	import { hiddenPages, navigablePages } from '../../pages';
 	import type { NavWidget } from './descriptor';
 
 	let { widget }: { widget: NavWidget } = $props();
@@ -30,15 +38,16 @@
 			})
 	}}
 >
-	{#each $hearthConfig.rooms as room (room.id)}
+	{#each $navigablePages as room (room.id)}
 		<button
 			type="button"
 			class="nav-item pressable"
 			data-id={room.id}
 			class:active={$currentRoom === room.id}
+			class:visibility-dimmed={$hearthEditMode && $hiddenPages.includes(room.id)}
 			aria-current={$currentRoom === room.id ? 'page' : undefined}
 			use:Ripple={PRESS_RIPPLE}
-			onclick={() => currentRoom.set(room.id)}
+			onclick={() => goToPage(room.id)}
 		>
 			<Icon name={room.icon} size={ICON.control} />
 			<span class="nav-name">{room.name}</span>
@@ -93,6 +102,11 @@
 		color: var(--h-accent-text);
 	}
 
+	/* hidden by its visibility conditions; only edit mode lists it */
+	.nav-item.visibility-dimmed {
+		opacity: 0.45;
+	}
+
 	.nav-item.add {
 		border: 1px dashed rgb(var(--h-line-rgb) / calc(0.15 * var(--h-line-scale)));
 		color: var(--h-text-6);
@@ -108,6 +122,8 @@
 		margin-left: auto;
 		color: var(--h-icon-dim);
 		cursor: grab;
+		/* the browser would take a touch on the handle as a scroll */
+		touch-action: none;
 	}
 
 	/* phones (the rail's own fold): rooms become a horizontal chip row

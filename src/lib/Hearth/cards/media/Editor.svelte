@@ -4,7 +4,8 @@
 	import { activateOnKeyboard } from '../../interaction';
 	import type { CardEditorProps } from '../types';
 	import type { MediaCard } from './descriptor';
-	import EntityField from '../../edit/EntityField.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 	import Icon from '../../Icon.svelte';
 	import TextField from '../../edit/TextField.svelte';
 
@@ -14,8 +15,15 @@
 	// svelte-ignore state_referenced_locally
 	const initial = initialProp;
 
-	let entity = $state(initial?.entity ?? '');
-	let defaultDevice = $state(initial?.default_device ?? '');
+	const form = new EditorForm(initial, [
+		{ key: 'entity', kind: 'entity', required: true, domains: ['media_player'] },
+		{
+			key: 'default_device',
+			kind: 'text',
+			label: 'hearth_default_device',
+			example: 'hearth_example_speaker'
+		}
+	]);
 	let shortcuts = $state(
 		(initial?.shortcuts ?? []).map((shortcut) => ({
 			name: shortcut.name,
@@ -37,21 +45,13 @@
 			}))
 			.filter((shortcut) => shortcut.name && shortcut.uri);
 		onchange({
-			fields: {
-				entity: entity.trim() || undefined,
-				shortcuts: list.length ? list : undefined,
-				default_device: defaultDevice.trim() || undefined
-			}
+			fields: { ...form.stored, shortcuts: list.length ? list : undefined },
+			...form.validity
 		});
 	});
 </script>
 
-<EntityField label={$lang('entity')} bind:value={entity} domains={['media_player']} />
-<TextField
-	label={$lang('hearth_default_device')}
-	bind:value={defaultDevice}
-	placeholder={$lang('hearth_example_speaker')}
-/>
+<FormRenderer {form} />
 <div class="group-label">{$lang('hearth_quick_play')}</div>
 <div class="hint">{$lang('hearth_shortcuts_hint')}</div>
 {#each shortcuts as shortcut, index (index)}
@@ -73,15 +73,14 @@
 				placeholder="https://"
 			/>
 		</div>
-		<span
+		<button
+			type="button"
 			class="remove"
-			role="button"
-			tabindex="0"
+			aria-label={$lang('hearth_remove_shortcut')}
 			onclick={() => shortcuts.splice(index, 1)}
-			onkeydown={(event) => activateOnKeyboard(event, () => shortcuts.splice(index, 1))}
 		>
 			<Icon name="delete" size={ICON.control} />
-		</span>
+		</button>
 	</div>
 {/each}
 <div

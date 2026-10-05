@@ -76,6 +76,28 @@ async function lightsTracks(page: Page) {
 	return new Set(boxes.map(Math.round)).size;
 }
 
+/* a finger drag in small steps, as real touch input with its pointer events */
+async function touchDrag(page: Page, start: Point, end: Point) {
+	const session = await page.context().newCDPSession(page);
+	await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
+	const steps = 12;
+	for (let step = 1; step <= steps; step += 1) {
+		await session.send('Input.dispatchTouchEvent', {
+			type: 'touchMove',
+			touchPoints: [
+				{
+					x: start.x + ((end.x - start.x) * step) / steps,
+					y: start.y + ((end.y - start.y) * step) / steps
+				}
+			]
+		});
+	}
+	await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+	await session.detach();
+}
+
+type Point = { x: number; y: number };
+
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
 test.afterEach(() => writeFileSync(HEARTH_FILE, HEARTH_FIXTURE));
@@ -196,6 +218,75 @@ test.describe('the shared fixture', () => {
 		});
 		expect(hitArea.width).toBeGreaterThanOrEqual(44);
 		expect(hitArea.height).toBeGreaterThanOrEqual(44);
+	});
+
+	test('edit chips take a finger-sized touch on the grip and the pencil', async ({ page }) => {
+		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		const card = page.locator('.card-slot', { hasText: 'Lights' });
+		const pencil = card.getByRole('button', { name: 'Edit Lights', exact: true });
+		await expect(pencil).toBeVisible();
+		// a touch on a grip drags; anywhere else it still scrolls the page
+		const grip = card.locator('.chip .drag-handle');
+		await expect(grip).toHaveCSS('touch-action', 'none');
+		await expect(page.locator('.room-list .drag-handle').first()).toHaveCSS('touch-action', 'none');
+
+		for (const part of [grip, pencil]) {
+			const visible = (await part.boundingBox())!;
+			expect(visible.width).toBeLessThan(44);
+			const hitArea = await part.evaluate((element) => {
+				const style = getComputedStyle(element, '::before');
+				return { width: parseFloat(style.width), height: parseFloat(style.height) };
+			});
+			expect(hitArea.width).toBeGreaterThanOrEqual(44);
+			expect(hitArea.height).toBeGreaterThanOrEqual(44);
+		}
+
+		// the two areas meet in the gap instead of one covering the other
+		const box = (await pencil.boundingBox())!;
+		const hits = await page.evaluate(
+			({ x, y }) => ({
+				right: document.elementFromPoint(x + 18, y)?.closest('.pencil, .drag-handle')?.className,
+				left: document.elementFromPoint(x - 18, y)?.closest('.pencil, .drag-handle')?.className
+			}),
+			{ x: box.x + box.width / 2, y: box.y + box.height / 2 }
+		);
+		expect(hits.right).toContain('pencil');
+		expect(hits.left).toContain('drag-handle');
+	});
+
+	test('a touch drag on an entity handle reorders the tiles', async ({ page }) => {
+		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		const card = page.locator('.card-slot', { hasText: 'Lights' });
+		const slots = card.locator('.entity-slot');
+		await expect(slots.first()).toContainText('Desk lamp');
+
+		const from = (await card.locator('.entity-drag-handle').nth(2).boundingBox())!;
+		const to = (await slots.first().boundingBox())!;
+		await touchDrag(
+			page,
+			{ x: from.x + from.width / 2, y: from.y + from.height / 2 },
+			{ x: from.x + from.width / 2, y: to.y + to.height * 0.25 }
+		);
+
+		await expect(slots.first()).toContainText('Ceiling fan');
+		await expect(slots.nth(1)).toContainText('Desk lamp');
+	});
+
+	test('a touch drag on a card grip moves the card', async ({ page }) => {
+		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		const cards = page.locator('.column > .card-slot');
+		await expect(cards.first()).toHaveAttribute('data-id', 'lights');
+
+		const grip = page.locator('.card-slot[data-id="readings"] .chip .drag-handle');
+		const from = (await grip.boundingBox())!;
+		const to = (await cards.first().boundingBox())!;
+		await touchDrag(
+			page,
+			{ x: from.x + from.width / 2, y: from.y + from.height / 2 },
+			{ x: from.x + from.width / 2, y: to.y + to.height * 0.25 }
+		);
+
+		await expect(cards.first()).toHaveAttribute('data-id', 'readings');
 	});
 });
 

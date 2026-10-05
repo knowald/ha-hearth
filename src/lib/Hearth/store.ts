@@ -3,6 +3,8 @@ import { base } from '$app/paths';
 import { validTimeZone } from './clock';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import { vibrate } from '$lib/core/app/haptics';
+import { holdReloads, reloadPage } from '$lib/core/app/reload';
+import { lang } from '$lib/core/i18n';
 import {
 	DEFAULT_HEARTH_CONFIG,
 	type AlertSeverity,
@@ -32,9 +34,14 @@ export const hearthNeedsSetup = writable(false);
 export const configurationLoadError = writable<string | null>(null);
 
 export const setupWizardOpen = writable(false);
+/** What the setup wizard opens on: the area import or the starter layouts. */
+export const setupWizardSource = writable<'areas' | 'starter'>('areas');
 
 // shows the sleep screen at once, even with the idle timeout off
 export const screensaverPreview = writable(false);
+
+// true while the sleep screen covers the dashboard, previews included
+export const screensaverActive = writable(false);
 
 // server-managed save counter for conflict detection between tabs
 export const hearthRevision = writable(0);
@@ -78,9 +85,62 @@ export function redoConfig() {
 	syncHistoryFlags();
 }
 
+/*
+ * A removal is undone from its toast rather than confirmed first. The offer
+ * holds the config the removal produced, and Undo only steps back while that
+ * is still the current one: any later change ends the offer, so the toast
+ * can never undo something other than the removal it names.
+ */
+export const UNDO_OFFER_MS = 6000;
+/** `serial` tells two offers with the same message apart, so each is announced. */
+export const undoOffer = writable<{ message: string; serial: number } | null>(null);
+let undoTarget: HearthConfig | null = null;
+let undoTimer: ReturnType<typeof setTimeout> | undefined;
+let undoSerial = 0;
+
+export function offerUndo(message: string) {
+	undoTarget = get(hearthConfig);
+	undoSerial += 1;
+	undoOffer.set({ message, serial: undoSerial });
+	resumeUndoOffer();
+}
+
+/** Holds the offer while the pointer or focus is on its toast. */
+export function pauseUndoOffer() {
+	clearTimeout(undoTimer);
+}
+
+/** Gives a held offer its full time again, so it never vanishes under a leaving pointer. */
+export function resumeUndoOffer() {
+	clearTimeout(undoTimer);
+	if (undoTarget) undoTimer = setTimeout(dismissUndoOffer, UNDO_OFFER_MS);
+}
+
+export function dismissUndoOffer() {
+	clearTimeout(undoTimer);
+	undoTarget = null;
+	undoOffer.set(null);
+}
+
+export function acceptUndoOffer() {
+	if (undoTarget && get(hearthConfig) === undoTarget) undoConfig();
+	dismissUndoOffer();
+}
+
+hearthConfig.subscribe((config) => {
+	if (undoTarget && config !== undoTarget) dismissUndoOffer();
+});
+
 /* edit mode */
 
 export const hearthEditMode = writable(false);
+
+hearthEditMode.subscribe((editing) => {
+	if (!editing) dismissUndoOffer();
+});
+
+// a reload Home Assistant asks for mid-edit would drop the draft, so it waits for Save or Cancel
+hearthEditMode.subscribe(holdReloads);
 
 // edit mode arranges layout; taps there must never fire real device commands
 
@@ -107,27 +167,82 @@ export type Editor =
 
 export const editor = writable<Editor | null>(null);
 
+// the next editor is the next piece of work; the removal's toast is behind it
+editor.subscribe((open) => {
+	if (open) dismissUndoOffer();
+});
+
 // The dashboard previews this slot while the theme editor is open.
 export const editedThemeSlot = writable<'day' | 'night'>('day');
 
 let editSnapshot: HearthConfig | null = null;
+// an import in the session clears the first-run state, which Cancel brings back
+let setupSnapshot = false;
 
-export function enterEditMode() {
-	editSnapshot = structuredClone(get(hearthConfig));
+/** What the dashboard was before a change that was applied outside edit mode. */
+export interface UnsavedChange {
+	config: HearthConfig;
+	needsSetup: boolean;
+}
+
+/**
+ * `unsaved` hands over a change that was applied and failed to save outside
+ * edit mode: Cancel returns to what came before it, and the failure stays on
+ * the bar.
+ */
+export function enterEditMode(unsaved?: UnsavedChange) {
+	editSnapshot = structuredClone(unsaved?.config ?? get(hearthConfig));
+	setupSnapshot = unsaved?.needsSetup ?? get(hearthNeedsSetup);
 	undoStack.length = 0;
 	redoStack.length = 0;
 	syncHistoryFlags();
+	if (!unsaved) clearSaveFeedback();
 	hearthEditMode.set(true);
 }
 
 export function cancelEdit() {
-	if (editSnapshot) hearthConfig.set(editSnapshot);
+	if (editSnapshot) {
+		hearthConfig.set(editSnapshot);
+		hearthNeedsSetup.set(setupSnapshot);
+	}
 	editSnapshot = null;
 	undoStack.length = 0;
 	redoStack.length = 0;
 	syncHistoryFlags();
+	clearSaveFeedback();
 	editor.set(null);
 	hearthEditMode.set(false);
+}
+
+/** The edit bar's Cancel: at once when nothing changed, otherwise once the user agrees to drop the edits. */
+export function requestCancelEdit() {
+	if (!hasUnsavedEdits()) {
+		cancelEdit();
+		return;
+	}
+	const text = get(lang);
+	requestConfirmation({
+		title: text('hearth_discard_edits_title'),
+		message: text('hearth_discard_edits_message'),
+		confirmLabel: text('hearth_discard'),
+		action: cancelEdit
+	});
+}
+
+/** The revision the server holds now, or undefined when it cannot say. */
+export async function fetchServerRevision(): Promise<number | undefined> {
+	try {
+		// a slow server must not keep the editor from opening
+		const response = await fetch(`${base}/_api/hearth_versions`, {
+			cache: 'no-store',
+			signal: AbortSignal.timeout(3000)
+		});
+		if (!response.ok) return undefined;
+		const { revision } = await response.json();
+		return Number.isInteger(revision) ? revision : undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 /** True when the draft differs from what edit mode started with or last saved. */
@@ -145,6 +260,35 @@ saveState.subscribe((state) => {
 /** Why the last save failed, from the server when it said. */
 export const saveFailure = writable<string | null>(null);
 let savedToastTimer: ReturnType<typeof setTimeout>;
+
+// an old failure or conflict belongs to the session that hit it
+function clearSaveFeedback() {
+	clearTimeout(savedToastTimer);
+	saveState.set('idle');
+	saveFailure.set(null);
+}
+
+let unloadAllowed = false;
+// an editor sheet holding typed changes that Done has not applied yet
+let sheetChanges = false;
+
+export function reportSheetChanges(dirty: boolean) {
+	sheetChanges = dirty;
+}
+
+/** beforeunload handler: the browser asks before a reload or a close drops unsaved edits. */
+export function guardUnload(event: BeforeUnloadEvent) {
+	if (unloadAllowed || !(sheetChanges || hasUnsavedEdits())) return;
+	event.preventDefault();
+	// older WebViews on wall tablets only ask when returnValue is set
+	event.returnValue = '';
+}
+
+/** Reload once the user agreed to drop the edits, without the browser asking again. */
+export function reloadDiscardingEdits() {
+	unloadAllowed = true;
+	void reloadPage();
+}
 
 /** Save and surface the outcome through saveState instead of throwing. */
 export async function saveWithFeedback(force = false): Promise<void> {
@@ -219,6 +363,7 @@ async function performSave(force: boolean): Promise<boolean> {
 		// so the editor stays open with its history and Cancel now returns to
 		// what was just saved
 		editSnapshot = config;
+		setupSnapshot = false;
 		return true;
 	}
 	editSnapshot = null;
@@ -246,6 +391,18 @@ export const displayTimeZone = derived(railClock, ($clock) => validTimeZone($clo
 
 export const currentRoom = writable<string>('home');
 
+/** This browser's favorites page is on screen in place of the current page; see favorites.ts. */
+export const favoritesOpen = writable(false);
+
+/**
+ * Shows a page, leaving the favorites page. Setting currentRoom alone would
+ * not, when the page asked for is the one the favorites page covers.
+ */
+export function goToPage(id: string) {
+	favoritesOpen.set(false);
+	currentRoom.set(id);
+}
+
 export type Popup = {
 	kind: 'light' | 'blind' | 'fan' | 'media' | 'detail';
 	entity: string;
@@ -263,16 +420,32 @@ export interface RequestedConfirmation {
 	message: string;
 	confirmLabel: string;
 	action: () => void;
+	/** Names the cancel button when it does more than dismiss. */
+	cancelLabel?: string;
+	/**
+	 * Runs from the cancel button only. Escape, back and a backdrop tap just
+	 * dismiss, so a stray one never picks this choice for the user.
+	 */
+	cancel?: () => void;
 }
 
 export const requestedConfirmation = writable<RequestedConfirmation | null>(null);
 
+/** Replaces any request still open; the replaced one is dismissed without running either choice. */
 export function requestConfirmation(request: RequestedConfirmation) {
+	requestedConfirmation.set(null);
 	requestedConfirmation.set(request);
 }
 
 export function dismissConfirmation() {
 	requestedConfirmation.set(null);
+}
+
+/** The dialog's cancel button: dismiss, then run the request's own cancel choice. */
+export function cancelRequestedAction() {
+	const request = get(requestedConfirmation);
+	requestedConfirmation.set(null);
+	request?.cancel?.();
 }
 
 export function confirmRequestedAction() {

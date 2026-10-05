@@ -12,12 +12,13 @@ Hearth is pre-1.0. The configuration format and features can still change betwee
 
 ## Features
 
-- Visual editor: drag cards and widgets, edit them in place, undo and redo, or edit the YAML directly.
-- Area import that builds a page for each Home Assistant area from its lights, covers, climate, media, cameras and other devices.
+- Visual editor: tap a card or widget to edit it and drag it by its grip to move it; hold Alt while dropping to place a copy instead. Editors duplicate cards, stacks, widgets and pages and send a card to another page. A removal can be taken back from its toast, edits undone and redone, or the YAML edited directly. Unsaved changes are not dropped by a stray tap, a reload or the sleep screen.
+- Area import that builds a page for each Home Assistant area from its lights, covers, climate, media, cameras and other devices, or adds only the entities a page does not show yet. Starter layouts for a kitchen tablet, a phone remote and a bedside screen, built from your own entities.
+- Favorites: star entities in their popup to get a page of them on your phone.
 - Layouts for tablets, phones and desktops. A sidebar holds clocks, weather, page navigation, calendars, energy, timers, notifications and other widgets. Place it on the left, the right or both sides, or hide it.
 - Swipe between pages on phones, and with a mouse drag on wider screens.
 - Theme presets, background images and custom CSS.
-- Cards for entities, headers, sensors, climate, media, vacuums, cameras, images, scenes, web pages and more.
+- Cards for entities, headers, sensors, climate, media, vacuums, cameras, images, scenes, to-do lists, web pages and more.
 - Camera playback over WebRTC or HLS, with a still image as fallback.
 - Alerts from dashboard rules or Home Assistant automations, shown as popups and in the notifications widget.
 - Sleep screen with a clock, the current weather and an image or live weather radar map behind it.
@@ -25,7 +26,7 @@ Hearth is pre-1.0. The configuration format and features can still change betwee
 
 ## Not supported yet
 
-Hearth has no picture-elements card (an image with entity overlays), no calendar or to-do editing and no map of tracked devices. Entities without dedicated controls open a detail sheet with state, attributes and history.
+Hearth has no picture-elements card (an image with entity overlays), no calendar editing and no map of tracked devices. Entities without dedicated controls open a detail sheet with state, attributes and history.
 
 ## Install
 
@@ -85,13 +86,15 @@ Set `HASS_URL` to an address the Hearth server can reach. If the browser cannot 
 
 ## First run
 
-Open Hearth and sign in through Home Assistant. Hearth offers to import your Home Assistant areas as pages; choose Skip for now to start from an empty page. To add cards and widgets, press Edit Hearth configuration.
+Open Hearth and sign in through Home Assistant. Hearth offers to import your Home Assistant areas as pages, or to start from a starter layout; choose Skip for now to start from an empty page. To add cards and widgets, press Edit Hearth configuration. A page named after an area suggests that area's cards while it is empty.
+
+The setup ends with the address for your wall tablet and a QR code for it. Enter a device name there to add `?device=<name>` to the address. When you set up Hearth through the Home Assistant sidebar, that address is not usable on a tablet; set up [direct access](https://github.com/knowald/addon-ha-hearth#direct-access) and enter the address of the app's port instead.
 
 In the Home Assistant companion app, sign in with a long-lived access token instead: create one in your Home Assistant profile under Security and enter it when Hearth asks.
 
 ## Security
 
-Hearth has no user accounts of its own. Anyone who can reach it can change the dashboard and its settings. If you enter a long-lived access token in Application settings, Hearth stores it in `configuration.yaml` and sends it to every browser that opens Hearth. Run Hearth on a trusted network or behind an authenticated reverse proxy, and keep the data directory private.
+Hearth has no user accounts of its own. Anyone who can reach it can change the dashboard and its settings. If you enter a long-lived access token in Server settings, Hearth stores it in `configuration.yaml` and sends it to every browser that opens Hearth. Run Hearth on a trusted network or behind an authenticated reverse proxy, and keep the data directory private.
 
 ## Documentation
 

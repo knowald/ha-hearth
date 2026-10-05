@@ -5,12 +5,15 @@
 	import { THEME_PRESETS, type HearthTheme } from '$lib/core/theme';
 	import {
 		currentRoom,
+		goToPage,
+		guardUnload,
 		hearthConfig,
 		hearthEditMode,
 		hearthLoadError,
 		hearthNeedsSetup,
 		screensaverPreview,
-		setupWizardOpen
+		setupWizardOpen,
+		setupWizardSource
 	} from './store';
 	import {
 		foldedRail,
@@ -20,7 +23,15 @@
 		type RailPosition,
 		type RailSide
 	} from './config';
-	import { conditionsHold, mediaQueriesIn, railWidgetShown } from './visibility';
+	import { get } from 'svelte/store';
+	import {
+		clockFor,
+		conditionsHeldAtMost,
+		conditionsHold,
+		mediaQueriesIn,
+		railWidgetShown
+	} from './visibility';
+	import { navigablePages, showPage } from './pages';
 	import type { AlertHost } from './alertEngine';
 	import { openEntityDetail } from './details';
 	import { loadMarkdownRenderer } from './markdown';
@@ -30,9 +41,9 @@
 	import Rail from './Rail.svelte';
 	import RoomDetail from './RoomDetail.svelte';
 	import SearchOverlay from './SearchOverlay.svelte';
-	import SetupWizard from './SetupWizard.svelte';
 	import ConfirmDialog from './shell/ConfirmDialog.svelte';
-	import EditBar from './shell/EditBar.svelte';
+	import EditLoadError from './shell/EditLoadError.svelte';
+	import EditToggle from './shell/EditToggle.svelte';
 	import Keyboard from './shell/Keyboard.svelte';
 	import PhoneNav from './shell/PhoneNav.svelte';
 	import ThemeStyle from './shell/ThemeStyle.svelte';
@@ -40,12 +51,16 @@
 	import NavWidget from './widgets/nav/Widget.svelte';
 	import type { NavWidget as NavWidgetConfig } from './widgets/nav/descriptor';
 	import { wakeLock } from './wakeLock';
+	import { iconMotionPaused } from './iconMotion';
+	import { screenSettings, screenSheetOpen, startCornerHold } from './screen';
 	import ScrollEdge from '$lib/ui/ScrollEdge.svelte';
 	import { scrollEdges, type ScrollEdges } from '$lib/ui/actions/scrollEdges';
 	import { mediaQuery } from '$lib/ui/mediaQuery';
 	import { FOLD_QUERY, SHORT_QUERY } from './breakpoints';
 	import { layerDepth } from '$lib/ui/layers';
 	import { neighborRoom, swipeNav, type SwipeDirection } from './swipeNav';
+	import { loadEditBar, loadEditorHost } from './editLoader';
+	import { favoritesOpen, favoritesPageOffered } from './favorites';
 
 	let showSearch = $state(false);
 
@@ -54,6 +69,38 @@
 		return import('./Screensaver.svelte').catch((error) => {
 			console.warn('screensaver unavailable', error);
 			screensaverPreview.set(false);
+			throw error;
+		});
+	}
+
+	/*
+	 * Edit mode without its bar has no Save or Cancel, and without the editor
+	 * host no sheet opens. Either part failing to load puts EditLoadError where
+	 * the bar goes; its Retry loads both again.
+	 */
+	let editAttempt = $state(0);
+	let editorHostFailed = $state(false);
+	let editBarFailed = $state(false);
+
+	function loadEditPart<T>(load: () => Promise<T>, report: (failed: boolean) => void) {
+		const loading = load();
+		loading.then(
+			() => report(false),
+			() => report(true)
+		);
+		return loading;
+	}
+
+	// the next opening, the first-run prompt's included, starts on the import
+	function closeSetupWizard() {
+		setupWizardOpen.set(false);
+		setupWizardSource.set('areas');
+	}
+
+	function loadSetupWizard() {
+		return import('./SetupWizard.svelte').catch((error) => {
+			console.warn('setup unavailable', error);
+			closeSetupWizard();
 			throw error;
 		});
 	}
@@ -98,14 +145,36 @@
 	let layoutCut = $state<ScrollEdges>(NOTHING_CUT);
 	let edgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
 
-	// the selected page, or the first one when it was renamed away or deleted
+	/*
+	 * The selected page, or the first one shown when it was renamed away,
+	 * deleted or opened while hidden (a ?room= link). A page that was already
+	 * on screen once the states were in stays there when its conditions stop
+	 * holding, or when editing ends on it; it only leaves the navigation.
+	 */
+	let keptRoom = $state('');
 	let activeRoomId = $derived(
-		$hearthConfig.rooms.some((room) => room.id === $currentRoom)
+		$navigablePages.some((room) => room.id === $currentRoom) ||
+			($currentRoom === keptRoom && $hearthConfig.rooms.some((room) => room.id === $currentRoom))
 			? $currentRoom
-			: ($hearthConfig.rooms[0]?.id ?? '')
+			: ($navigablePages[0]?.id ?? '')
+	);
+	$effect(() => {
+		if ($states !== undefined && $navigablePages.some((room) => room.id === activeRoomId))
+			keptRoom = activeRoomId;
+	});
+
+	// swiping walks the shown pages, starting from a kept hidden one too
+	let swipePages = $derived(
+		$hearthConfig.rooms.filter(
+			(room) => room.id === activeRoomId || $navigablePages.some((shown) => shown.id === room.id)
+		)
 	);
 
 	let activeRoom = $derived($hearthConfig.rooms.find((room) => room.id === activeRoomId));
+
+	// this browser's favorites stand in for the page on phone-width screens only
+	let favoritesOffered = $derived($narrow && $favoritesPageOffered && !$hearthEditMode);
+	let showFavorites = $derived(favoritesOffered && $favoritesOpen);
 
 	// sideways swipes walk the pages in rail order; each layout has its own
 	// setting, since a mouse drag on a wall tablet is a different habit
@@ -115,11 +184,22 @@
 			!$hearthEditMode &&
 			$layerDepth === 0
 	);
-	let activeIndex = $derived($hearthConfig.rooms.findIndex((room) => room.id === activeRoomId));
+	let activeIndex = $derived(swipePages.findIndex((room) => room.id === activeRoomId));
+	// the favorites page, when offered, is the first position a swipe reaches
+	let swipeOffset = $derived(favoritesOffered ? 1 : 0);
+	let swipeIndex = $derived(showFavorites ? 0 : activeIndex + swipeOffset);
 
 	function swipeTo(direction: SwipeDirection) {
-		const roomId = neighborRoom($hearthConfig.rooms, activeRoomId, direction);
-		if (roomId) currentRoom.set(roomId);
+		if (showFavorites) {
+			if (direction === 'next' && swipePages[0]) goToPage(swipePages[0].id);
+			return;
+		}
+		if (direction === 'previous' && swipeOffset && activeIndex === 0) {
+			favoritesOpen.set(true);
+			return;
+		}
+		const roomId = neighborRoom(swipePages, activeRoomId, direction);
+		if (roomId) goToPage(roomId);
 	}
 
 	// a fill page clips whatever does not fit, which is invisible until you walk
@@ -231,6 +311,13 @@
 
 	$effect(syncRoomParam);
 
+	// TileIcon pauses its animations off this attribute
+	$effect(() => {
+		const root = document.documentElement;
+		if ($iconMotionPaused) root.dataset.tileMotion = 'paused';
+		else delete root.dataset.tileMotion;
+	});
+
 	onMount(() => {
 		const params = new URLSearchParams(location.search);
 		if ($hearthNeedsSetup && !$hearthLoadError) setupWizardOpen.set(true);
@@ -240,17 +327,28 @@
 
 		const roomId = params.get('room');
 		if (roomId && $hearthConfig.rooms.some((room) => room.id === roomId)) {
-			currentRoom.set(roomId);
+			goToPage(roomId);
 		}
 
 		hideEditToggle = params.get('menu') === 'false';
 		roomParamRead = true;
 	});
 
+	$effect(() => {
+		if (!hideEditToggle) return;
+		return startCornerHold(() => {
+			if (!$hearthEditMode) screenSheetOpen.set(true);
+		});
+	});
+
 	// see AlertHost in alertEngine.ts for why these are handed over
 	const alertHost: AlertHost = {
 		openDetail: openEntityDetail,
 		holds: conditionsHold,
+		clockFor,
+		heldAtMost: conditionsHeldAtMost,
+		showPage,
+		sleepBlocked: () => get(screenSheetOpen) || get(setupWizardOpen),
 		layer,
 		loadMarkdown: loadMarkdownRenderer
 	};
@@ -263,21 +361,21 @@
 	});
 </script>
 
-<svelte:window onpopstate={syncRoomParam} />
+<svelte:window onpopstate={syncRoomParam} onbeforeunload={guardUnload} />
 <Keyboard onsearch={openSearch} />
-<ThemeStyle {presetOverride} />
+<ThemeStyle {presetOverride} pageId={showFavorites ? undefined : activeRoomId} />
 
 {#snippet pageColumn()}
 	<div class="main-wrap">
 		<main
 			class="main"
-			class:fill={activeRoom?.fill_screen}
+			class:fill={activeRoom?.fill_screen && !showFavorites}
 			bind:this={mainElement}
 			use:scrollEdges={{ report: (edges) => (mainCut = edges) }}
 			use:swipeNav={{
 				enabled: swipeEnabled,
-				hasPrevious: activeIndex > 0,
-				hasNext: activeIndex >= 0 && activeIndex < $hearthConfig.rooms.length - 1,
+				hasPrevious: swipeIndex > 0,
+				hasNext: swipeIndex >= 0 && swipeIndex < swipePages.length + swipeOffset - 1,
 				onswipe: swipeTo
 			}}
 		>
@@ -291,7 +389,15 @@
 					/>
 				</div>
 			{/if}
-			<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+			{#if showFavorites}
+				{#await import('./FavoritesPage.svelte') then FavoritesPage}
+					<FavoritesPage.default />
+				{:catch}
+					<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+				{/await}
+			{:else}
+				<RoomDetail roomId={activeRoomId} fillScreen={activeRoom?.fill_screen ?? false} />
+			{/if}
 		</main>
 		{#if edgeBlur}
 			<ScrollEdge edge="top" size={96} active={mainCut.top} />
@@ -310,7 +416,13 @@
 	</div>
 {/snippet}
 
-<section class="frame" use:wakeLock={$hearthConfig.keep_screen_on ?? true}>
+<!-- data-sleep says whether this screen loads the sleep screen at all, for the
+     browser tests' "stays awake" checks -->
+<section
+	class="frame"
+	data-sleep={$screenSettings.sleepMinutes > 0 ? 'on' : 'off'}
+	use:wakeLock={$screenSettings.keepScreenOn}
+>
 	<div
 		class="layout"
 		class:editing={$hearthEditMode}
@@ -348,32 +460,36 @@
 		<ScrollEdge edge="bottom" size={96} active={layoutCut.bottom} />
 	{/if}
 	<ControlPopup />
-	{#if $hearthEditMode}
-		<!-- the edit sheets and their editors load with edit mode, not the dashboard -->
-		{#await import('./edit/EditorHost.svelte') then EditorHost}
-			<EditorHost.default />
-		{:catch}
-			<div class="edit-load-error" role="alert">
-				{$lang('hearth_could_not_load_component')}
-				<button type="button" onclick={() => hearthEditMode.set(false)}>
-					{$lang('hearth_exit_edit_mode')}
-				</button>
-			</div>
-		{/await}
+	{#if $hearthEditMode || $screenSheetOpen}
+		<!-- the edit sheets and their editors load with edit mode or the This
+		     screen sheet, not the dashboard; one boundary for both keeps the
+		     shared sheet code out of the eager chunks -->
+		{#key editAttempt}
+			{#await loadEditPart(loadEditorHost, (failed) => (editorHostFailed = failed)) then EditorHost}
+				<EditorHost.default />
+			{:catch}
+				<!-- reported by EditLoadError while editing -->
+			{/await}
+		{/key}
 	{/if}
 	{#if showSearch}
 		<SearchOverlay onclose={() => (showSearch = false)} />
 	{/if}
-	{#if ($hearthConfig.screensaver_minutes ?? 0) > 0 || $screensaverPreview}
+	{#if $screenSettings.sleepMinutes > 0 || $screensaverPreview}
 		<!-- loads once armed; the dashboard never waits on it -->
 		{#await loadScreensaver() then Screensaver}
-			<Screensaver.default minutes={$hearthConfig.screensaver_minutes} />
+			<Screensaver.default minutes={$screenSettings.sleepMinutes || undefined} />
 		{:catch}
 			<!-- offline or a stale deploy: no screensaver, tried again on the next mount -->
 		{/await}
 	{/if}
 	{#if $setupWizardOpen}
-		<SetupWizard firstRun={$hearthNeedsSetup} onclose={() => setupWizardOpen.set(false)} />
+		<!-- discovery runs once per home, so it stays out of the eager bundle -->
+		{#await loadSetupWizard() then SetupWizard}
+			<SetupWizard.default firstRun={$hearthNeedsSetup} onclose={closeSetupWizard} />
+		{:catch}
+			<!-- offline or a stale deploy: closed, so the next open tries again -->
+		{/await}
 	{/if}
 	<!-- alerts are not needed to draw the first frame; the layer loads after it -->
 	{#await import('./AlertLayer.svelte') then AlertLayer}
@@ -381,7 +497,20 @@
 	{/await}
 	<ConfirmDialog />
 	<Toasts {overflowBy} />
-	<EditBar {hideEditToggle} />
+	{#if $hearthEditMode}
+		{#key editAttempt}
+			{#await loadEditPart(loadEditBar, (failed) => (editBarFailed = failed)) then EditBar}
+				{#if !editorHostFailed}<EditBar.default />{/if}
+			{:catch}
+				<!-- reported by EditLoadError -->
+			{/await}
+		{/key}
+		{#if editorHostFailed || editBarFailed}
+			<EditLoadError onretry={() => (editAttempt += 1)} />
+		{/if}
+	{:else if !hideEditToggle}
+		<EditToggle />
+	{/if}
 </section>
 
 <style>

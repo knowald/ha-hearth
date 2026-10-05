@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from '../config';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { editor, hearthConfig, hearthEditMode, requestedConfirmation } from '../store';
 import CardColumns from '../CardColumns.svelte';
 import StackEditSheet from './StackEditSheet.svelte';
@@ -107,10 +107,10 @@ describe('editing a stack', () => {
 		expect(select.value).toBe('0');
 	});
 
-	it('moves up from the header and still saves the moved stack', async () => {
+	it('stages a move up from the header and saves the moved stack on Done', async () => {
 		render(StackEditSheet, { roomId: 'den', column: 0, index: 1 });
 		await fireEvent.click(screen.getByTitle(en.hearth_move_up));
-		expect(denColumn().map((item) => item.id)).toEqual(['stack', 'first']);
+		expect(denColumn().map((item) => item.id)).toEqual(['first', 'stack']);
 		await fireEvent.input(screen.getByRole('textbox', { name: en.hearth_title_optional }), {
 			target: { value: 'Lights' }
 		});

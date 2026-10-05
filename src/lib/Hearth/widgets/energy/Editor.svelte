@@ -1,44 +1,49 @@
 <script lang="ts">
-	import { numberFromInput } from '../../edit/numbers';
-	import { lang } from '$lib/core/i18n';
 	import type { WidgetEditorProps } from '../types';
 	import type { EnergyWidget } from './descriptor';
-	import EntityField from '../../edit/EntityField.svelte';
-	import TextField from '../../edit/TextField.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
 
-	let { initial: initialProp, onchange }: WidgetEditorProps<EnergyWidget> = $props();
+	let { initial, onchange }: WidgetEditorProps<EnergyWidget> = $props();
 
 	// remounted per target and type, so the initial value is all the form needs
 	// svelte-ignore state_referenced_locally
-	const initial = initialProp;
-
-	let entity = $state(initial?.entity ?? '');
-	let price = $state(typeof initial?.price === 'number' ? String(initial.price) : '');
-	let priceEntity = $state(initial?.price_entity ?? '');
-	let currency = $state(initial?.currency ?? '');
-
-	$effect(() => {
-		const parsedPrice = numberFromInput(price);
-		onchange({
-			fields: {
-				entity: entity.trim() || undefined,
-				price: Number.isFinite(parsedPrice) ? parsedPrice : undefined,
-				price_entity: priceEntity.trim() || undefined,
-				currency: currency.trim() || undefined
-			}
-		});
-	});
+	const form = new EditorForm(initial, [
+		{
+			key: 'entity',
+			kind: 'entity',
+			label: 'hearth_energy_sensor_today_total_or_increasing',
+			required: true,
+			shortLabel: 'hearth_energy_sensor',
+			domains: ['sensor']
+		},
+		{
+			key: 'price',
+			kind: 'number',
+			label: 'hearth_price_per_kwh_optional',
+			placeholder: '0.72',
+			inputmode: 'decimal'
+		},
+		{
+			key: 'price_entity',
+			kind: 'entity',
+			label: 'hearth_price_entity_optional_overrides_static_price',
+			domains: ['sensor', 'input_number']
+		},
+		{
+			key: 'currency',
+			kind: 'text',
+			label: 'hearth_currency_label_optional',
+			placeholder: 'zł'
+		},
+		{
+			key: 'average_badge',
+			kind: 'check',
+			label: 'hearth_energy_average_badge',
+			hint: 'hearth_energy_average_badge_hint',
+			default: true
+		}
+	]);
 </script>
 
-<EntityField
-	label={$lang('hearth_energy_sensor_today_total_or_increasing')}
-	bind:value={entity}
-	domains={['sensor']}
-/>
-<TextField label={$lang('hearth_price_per_kwh_optional')} bind:value={price} placeholder="0.72" />
-<EntityField
-	label={$lang('hearth_price_entity_optional_overrides_static_price')}
-	bind:value={priceEntity}
-	domains={['sensor', 'input_number']}
-/>
-<TextField label={$lang('hearth_currency_label_optional')} bind:value={currency} placeholder="zł" />
+<FormRenderer {form} {onchange} />

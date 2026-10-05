@@ -16,6 +16,7 @@
 		transferFileName,
 		withoutRevision
 	} from '../transfer';
+	import { confirmDiscard } from './discard';
 	import EditSheet from './EditSheet.svelte';
 	import Icon from '../Icon.svelte';
 
@@ -34,6 +35,11 @@
 
 	// the document a restore would replace, frozen at open time
 	const dashboard = configDocument($hearthConfig);
+
+	// an unapplied YAML draft parked here is lost by every way out but the back arrow
+	let carriesDraft = $derived(
+		from?.kind === 'code' && from.draft !== undefined && from.draft !== dashboard
+	);
 
 	let versions = $state<Version[]>([]);
 	let savedRevision = $state(0);
@@ -124,7 +130,9 @@
 	title={$lang('hearth_versions')}
 	onclose={() => editor.set(null)}
 	onback={from ? () => editor.set(from) : undefined}
-	ondone={() => editor.set(null)}
+	ondone={() => confirmDiscard(carriesDraft, () => editor.set(null))}
+	dirty={carriesDraft}
+	backKeepsChanges
 	doneLabel={$lang('hearth_close')}
 	wide
 >
@@ -277,13 +285,13 @@
 
 	.entry-sub {
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 
 	.empty {
 		padding: 14px;
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 
 	.preview {
@@ -306,7 +314,7 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 
 	.state.bad {

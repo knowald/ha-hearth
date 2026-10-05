@@ -14,6 +14,8 @@
 		placeholder = undefined
 	}: { label: string; value?: string; placeholder?: string } = $props();
 
+	const uid = $props.id();
+
 	// shown when no filter is typed - the full set is thousands of icons, so
 	// browsing starts from ones relevant to home automation, grouped: lights,
 	// climate, media, security, covers, rooms, appliances, outdoor, energy, misc
@@ -173,33 +175,36 @@
 </script>
 
 <div class="field">
-	<span class="field-label">{label}</span>
+	<label class="field-label" for="{uid}-input">{label}</label>
 	<div class="input-row field-frame">
 		<span class="preview" class:empty={!value.trim()}>
 			<Icon name={value.trim() || 'category'} size={ICON.control} />
 		</span>
 		<input
+			id="{uid}-input"
 			type="text"
 			bind:value
 			placeholder={placeholder ?? $lang('hearth_material_symbols_name')}
 			spellcheck="false"
 		/>
-		<span
+		<button
+			type="button"
 			class="expand pressable"
+			aria-label={$lang('hearth_browse_icons')}
+			aria-expanded={expanded}
+			aria-controls="{uid}-picker"
 			use:Ripple={PRESS_RIPPLE}
 			onclick={toggle}
-			role="button"
-			tabindex="0"
-			onkeydown={(event) => activateOnKeyboard(event, toggle)}
 		>
 			<Icon name={expanded ? 'expand_less' : 'apps'} size={ICON.control} />
-		</span>
+		</button>
 	</div>
 	{#if expanded}
-		<div class="picker" use:layer={() => (expanded = false)}>
+		<div id="{uid}-picker" class="picker" use:layer={() => (expanded = false)}>
 			<input
 				class="filter"
 				type="text"
+				aria-label={$lang('hearth_search_all_icons')}
 				bind:value={filter}
 				oninput={() => (limit = PAGE_SIZE)}
 				placeholder={$lang('hearth_search_all_icons')}
@@ -211,6 +216,7 @@
 						class="cell pressable"
 						class:selected={name === value.trim()}
 						title={name}
+						aria-label={name}
 						use:Ripple={PRESS_RIPPLE}
 						onclick={() => pick(name)}
 						role="button"
@@ -301,8 +307,12 @@
 
 	.expand {
 		display: flex;
+		align-items: center;
+		justify-content: center;
 		padding: 6px;
+		border: 0;
 		border-radius: var(--h-radius-xs);
+		background: none;
 		color: var(--h-icon);
 		cursor: pointer;
 	}
@@ -335,6 +345,19 @@
 
 	.filter:focus {
 		border-color: rgb(var(--h-accent-rgb) / calc(0.4 * var(--h-accent-scale)));
+	}
+
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		.input-row input,
+		.filter {
+			font-size: max(var(--h-input-floor), var(--h-type-secondary));
+		}
+
+		.expand {
+			min-width: var(--h-touch-target);
+			min-height: var(--h-touch-target);
+		}
 	}
 
 	.grid {
@@ -374,7 +397,7 @@
 		grid-column: 1 / -1;
 		padding: 10px;
 		font-size: var(--h-type-small);
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 		text-align: center;
 	}
 

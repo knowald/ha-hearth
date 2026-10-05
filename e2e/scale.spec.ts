@@ -79,4 +79,24 @@ test.describe('phone', () => {
 		const sheet = await openSettings(page);
 		await expectInsideViewport(page, sheet);
 	});
+
+	test('edit controls stay finger-sized on screen at 80%', async ({ page }) => {
+		await page.goto('/');
+		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		const pencil = page.getByRole('button', { name: 'Edit Lights', exact: true });
+		// the hit area in screen pixels: its CSS size times the root zoom
+		const pencilArea = await pencil.evaluate((element) => {
+			const style = getComputedStyle(element, '::before');
+			const zoom = element.currentCSSZoom;
+			return [parseFloat(style.width) * zoom, parseFloat(style.height) * zoom];
+		});
+		expect(Math.min(...pencilArea)).toBeGreaterThanOrEqual(43.9);
+
+		await pencil.click();
+		const sheet = page.getByRole('dialog', { name: 'Edit card' });
+		const close = (await sheet.getByRole('button', { name: 'Close', exact: true }).boundingBox())!;
+		expect(Math.min(close.width, close.height)).toBeGreaterThanOrEqual(43.9);
+		const done = (await sheet.getByRole('button', { name: 'Done' }).boundingBox())!;
+		expect(done.height).toBeGreaterThanOrEqual(43.9);
+	});
 });

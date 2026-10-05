@@ -2,6 +2,7 @@ import type { Action } from 'svelte/action';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import { vibrate } from '$lib/core/app/haptics';
 import { claimGesture } from '$lib/ui/gestures';
+import { HOLD_MS } from './interaction';
 
 interface DragOptions {
 	/** Updates the preview. `commit` says whether device state should also be sent. */
@@ -9,6 +10,8 @@ interface DragOptions {
 	tap?: () => void;
 	/** Long-press without movement; suppresses the tap for that gesture. */
 	hold?: () => void;
+	/** On touch, run `hold` at the release; see longPress's option of the same name. */
+	deferOnTouch?: boolean;
 	end?: (value: number) => void;
 	updateMode?: SliderUpdateMode;
 	/** Percentage points between touch-feedback ticks while dragging. */
@@ -48,6 +51,8 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 	let tracking: {
 		moved: boolean;
 		held: boolean;
+		// a deferred touch hold, run by the release
+		heldUntilRelease?: boolean;
 		pointerId: number;
 		startX: number;
 		startY: number;
@@ -108,21 +113,28 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 			lastStep: stepIndex(Math.round(fraction(event) * 100))
 		};
 		clearTimeout(holdTimer);
+		const defer = Boolean(current.deferOnTouch) && event.pointerType === 'touch';
 		if (current.hold) {
 			holdTimer = setTimeout(() => {
 				if (!tracking || tracking.moved) return;
 				tracking.held = true;
 				vibrate('hold');
-				current.hold?.();
-			}, 500);
+				if (defer) tracking.heldUntilRelease = true;
+				else current.hold?.();
+			}, HOLD_MS);
 		}
 	}
 
 	function handleMove(event: PointerEvent) {
-		if (!tracking || event.pointerId !== tracking.pointerId || tracking.held) return;
+		if (!tracking || event.pointerId !== tracking.pointerId) return;
+		const dx = Math.abs(event.clientX - tracking.startX);
+		const dy = Math.abs(event.clientY - tracking.startY);
+		if (tracking.held) {
+			// moving away withdraws a deferred hold; the release then does nothing
+			if (dx > 10 || dy > 10) tracking.heldUntilRelease = false;
+			return;
+		}
 		if (!tracking.moved) {
-			const dx = Math.abs(event.clientX - tracking.startX);
-			const dy = Math.abs(event.clientY - tracking.startY);
 			if (dy > 10 && dy >= dx) {
 				finishTracking(event.pointerId);
 				return;
@@ -141,7 +153,9 @@ export const horizontalDrag: Action<HTMLElement, DragOptions> = (node, options) 
 
 	function handleUp(event: PointerEvent) {
 		if (!tracking || event.pointerId !== tracking.pointerId) return;
-		if (tracking.held) {
+		if (tracking.heldUntilRelease) {
+			current.hold?.();
+		} else if (tracking.held) {
 			// the hold already acted; the release must not toggle on top of it
 		} else if (!tracking.moved && current.tap) {
 			current.tap();

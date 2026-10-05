@@ -1,5 +1,14 @@
-import type { EntityRef, SceneRef, VacuumModeRef, VerdictBands } from './types';
-import { uniqueId } from './config';
+import * as v from 'valibot';
+import type {
+	EntityRef,
+	HearthAction,
+	SceneRef,
+	StyleRule,
+	VacuumModeRef,
+	VerdictBands
+} from './types';
+import { classListProblem, isLinkUrl, normalizeVisibility, uniqueId, withoutMedia } from './config';
+import { ActionSchema, StyleRuleSchema } from './schema';
 
 /*
  * Field-level normalizers that card and widget descriptors compose. Nothing
@@ -46,16 +55,42 @@ export function normalizeVerdict(raw: unknown): false | VerdictBands | undefined
 	return undefined;
 }
 
-type RefFields = Omit<EntityRef, 'active_entity' | 'active_states'>;
+/**
+ * A tap or hold action in Hearth's or Lovelace's spelling, rewritten to the
+ * current Lovelace keys. An action missing what it needs, such as a
+ * perform-action without a service, is dropped, so the surface keeps its own
+ * behaviour.
+ */
+export function normalizeAction(raw: unknown): HearthAction | undefined {
+	const parsed = v.safeParse(ActionSchema, raw);
+	return parsed.success ? parsed.output : undefined;
+}
+
+type RefFields = Omit<
+	EntityRef,
+	| 'active_entity'
+	| 'active_states'
+	| 'tap_action'
+	| 'hold_action'
+	| 'name_template'
+	| 'state_template'
+	| 'style'
+>;
 
 function normalizeRefFields(raw: any): RefFields | null {
 	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
 	const entity = trimmedOrUndefined(raw.entity);
 	if (!entity) return null;
-	// the tile highlight fields are typed per ref kind by its own normalizer
+	// the tile highlight, action and template fields are typed per ref kind by
+	// its own normalizer
 	const rest = { ...raw };
 	delete rest.active_entity;
 	delete rest.active_states;
+	delete rest.tap_action;
+	delete rest.hold_action;
+	delete rest.name_template;
+	delete rest.state_template;
+	delete rest.style;
 	return {
 		...rest,
 		entity,
@@ -79,8 +114,34 @@ export function normalizeEntityRef(raw: unknown): EntityRef | null {
 	return {
 		...ref,
 		active_entity: trimmedOrUndefined(raw.active_entity),
-		active_states: normalizeStateList(raw.active_states)
+		active_states: normalizeStateList(raw.active_states),
+		tap_action: normalizeAction(raw.tap_action),
+		hold_action: normalizeAction(raw.hold_action),
+		name_template: normalizeTemplate(raw.name_template),
+		state_template: normalizeTemplate(raw.state_template),
+		style: normalizeStyleRules(raw.style)
 	};
+}
+
+/**
+ * Tile style rules. An unusable class is dropped on its own, and media
+ * conditions like in alert rules; a rule left without conditions, or that
+ * restyles nothing, is dropped whole.
+ */
+export function normalizeStyleRules(raw: unknown): StyleRule[] | undefined {
+	if (!Array.isArray(raw)) return undefined;
+	const rules = raw.flatMap((entry): StyleRule[] => {
+		if (!isRecord(entry)) return [];
+		const className = trimmedOrUndefined(entry.class);
+		const parsed = v.safeParse(StyleRuleSchema, {
+			conditions: withoutMedia(normalizeVisibility(entry.conditions) ?? []),
+			color: trimmedOrUndefined(entry.color),
+			icon: trimmedOrUndefined(entry.icon),
+			class: className && !classListProblem(className) ? className : undefined
+		});
+		return parsed.success ? [parsed.output] : [];
+	});
+	return rules.length ? rules : undefined;
 }
 
 /** A list of HA states; YAML scalars such as `on` or `22` count as their text. */
@@ -100,6 +161,11 @@ export function trimmedOrUndefined(value: unknown): string | undefined {
 	return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
+/** A Home Assistant template, kept verbatim: its whitespace can be part of the output. */
+export function normalizeTemplate(value: unknown): string | undefined {
+	return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
 /**
  * A URL an embed may load: absolute http(s), or a path on this host such as
  * `/local/page.html`, plus the blank placeholder. Other schemes (javascript:,
@@ -109,7 +175,7 @@ export function trimmedOrUndefined(value: unknown): string | undefined {
 export function normalizeEmbedUrl(value: unknown): string | undefined {
 	const url = trimmedOrUndefined(value);
 	if (!url) return undefined;
-	return url === 'about:blank' || /^(https?:\/\/|\/(?!\/))/i.test(url) ? url : undefined;
+	return url === 'about:blank' || isLinkUrl(url) ? url : undefined;
 }
 
 export function normalizeSceneRef(raw: any): SceneRef | null {

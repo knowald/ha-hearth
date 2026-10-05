@@ -3,8 +3,10 @@
 	import { motion } from '$lib/core/app/motion';
 	import { ICON } from '../iconSizes';
 	import { states } from '$lib/core/ha/entities';
-	import { currentRoom, hearthConfig, hearthEditMode } from '../store';
+	import { currentRoom, editor, goToPage, hearthConfig, hearthEditMode } from '../store';
 	import { searchAvailable } from '../visibility';
+	import { hiddenPages, navigablePages } from '../pages';
+	import { favoritesOpen, favoritesPageOffered } from '../favorites';
 	import Icon from '../Icon.svelte';
 	import PhoneClock from './PhoneClock.svelte';
 	import { mediaQuery } from '$lib/ui/mediaQuery';
@@ -43,19 +45,44 @@
 		<PhoneClock />
 	{/if}
 	<div class="pages">
-		{#each $hearthConfig.rooms as room (room.id)}
+		{#if $favoritesPageOffered && $narrow && !$hearthEditMode}
+			<!-- this browser's own list, ahead of the shared pages -->
 			<button
 				type="button"
 				class="page pressable"
-				class:active={$currentRoom === room.id}
-				aria-current={$currentRoom === room.id ? 'page' : undefined}
+				class:active={$favoritesOpen}
+				aria-current={$favoritesOpen ? 'page' : undefined}
+				onclick={() => favoritesOpen.set(true)}
+			>
+				<Icon name="star" size={ICON.inline} />
+				<span>{$lang('hearth_favorites')}</span>
+			</button>
+		{/if}
+		{#each $navigablePages as room (room.id)}
+			<button
+				type="button"
+				class="page pressable"
+				class:active={$currentRoom === room.id && !$favoritesOpen}
+				class:visibility-dimmed={$hearthEditMode && $hiddenPages.includes(room.id)}
+				aria-current={$currentRoom === room.id && !$favoritesOpen ? 'page' : undefined}
 				bind:this={pills[room.id]}
-				onclick={() => currentRoom.set(room.id)}
+				onclick={() => goToPage(room.id)}
 			>
 				<Icon name={room.icon} size={ICON.inline} />
 				<span>{room.name}</span>
 			</button>
 		{/each}
+		{#if $hearthEditMode}
+			<!-- the only way to add a page when the rail is off or has no page list -->
+			<button
+				type="button"
+				class="page add pressable"
+				aria-label={$lang('hearth_add_page')}
+				onclick={() => editor.set({ kind: 'room', id: null })}
+			>
+				<Icon name="add" size={ICON.inline} />
+			</button>
+		{/if}
 	</div>
 	{#if hasSearch && !$hearthEditMode}
 		<button type="button" class="search pressable" aria-label={$lang('search')} onclick={onsearch}>
@@ -137,10 +164,21 @@
 		cursor: pointer;
 	}
 
-	.search {
+	.search,
+	.page.add {
 		width: 44px;
 		padding: 0;
 		justify-content: center;
+	}
+
+	.page.add {
+		border-style: dashed;
+		color: var(--h-text-5);
+	}
+
+	/* hidden by its visibility conditions; only edit mode lists it */
+	.page.visibility-dimmed {
+		opacity: 0.45;
 	}
 
 	.page.active {

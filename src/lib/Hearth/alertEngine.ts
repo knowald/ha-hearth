@@ -6,14 +6,17 @@ import { states } from '$lib/core/ha/entities';
 import {
 	activeAlerts,
 	closePopup,
+	displayTimeZone,
 	hearthConfig,
 	hearthEditMode,
 	popup,
 	requestWake,
+	screensaverPreview,
 	type HearthAlert,
 	type Popup
 } from './store';
-import type { AlertRule, AlertSeverity, VisibilityCondition } from './types';
+import type { AlertChime, AlertRule, AlertSeverity, VisibilityCondition } from './types';
+import { armChimes, chimesConfigured, chimeTone, playAlertChime } from './chimeGate';
 
 /*
  * Raises and clears alerts. Rules from the configuration are checked against
@@ -34,6 +37,14 @@ export interface AlertHost {
 	openDetail: (entityId: string, name?: string) => void;
 	/** Whether visibility conditions hold for these states (visibility.ts). */
 	holds: (conditions: VisibilityCondition[], $states: HassEntities | undefined) => boolean;
+	/** The minute clock while conditions read the time (visibility.ts). */
+	clockFor: typeof import('./visibility').clockFor;
+	/** The longest the conditions besides entity states can have held, in ms (visibility.ts). */
+	heldAtMost: (conditions: VisibilityCondition[]) => number;
+	/** Shows a page that is not hidden; see pages.ts. */
+	showPage: (path: string) => boolean;
+	/** Whether something the sleep screen must not cover is open (This screen, setup). */
+	sleepBlocked: () => boolean;
 	layer: typeof import('$lib/ui/layers').layer;
 	loadMarkdown: typeof import('./markdown').loadMarkdownRenderer;
 }
@@ -57,7 +68,7 @@ interface RuleState {
 	phase: 'pending' | 'active' | 'acknowledged';
 	holding: boolean;
 	since: number;
-	/** The latest last_changed among the rule's entities seen while it held, server clock. */
+	/** The latest change among the rule's entities seen while it held, server clock; see latestChange. */
 	changed: number;
 	/**
 	 * The popup this activation opened. Only that popup is closed when the rule
@@ -103,35 +114,48 @@ function publish() {
 	activeAlerts.set(raised);
 }
 
-function conditionEntities(conditions: VisibilityCondition[]): string[] {
+interface EntityRead {
+	entity: string;
+	attribute: boolean;
+}
+
+function conditionEntities(conditions: VisibilityCondition[]): EntityRead[] {
 	return conditions.flatMap((condition) =>
 		'or' in condition
 			? conditionEntities(condition.or)
 			: 'entity' in condition
-				? [condition.entity]
+				? [{ entity: condition.entity, attribute: Boolean(condition.attribute) }]
 				: []
 	);
 }
 
 /*
- * Conditions read states only, so they cannot have changed since the latest
- * last_changed among their entities: the conditions have held at least that
- * long. After a reload this keeps a door that has been open for ten minutes
- * from waiting out the full delay again. last_changed is the server's clock,
- * so a browser clock that is off would shorten every delay; it is only
- * consulted for states that changed while nobody was watching (see
+ * Entity conditions cannot have changed since the latest change among
+ * their entities: those conditions have held at least that long. After a
+ * reload this keeps a door that has been open for ten minutes from waiting
+ * out the full delay again. A time window caps it at the time since the
+ * window opened, and a device condition, whose start is not known, caps it
+ * at 0 (see heldAtMost in visibility.ts). An attribute changing moves only
+ * last_updated, so an attribute condition reads that instead; an entity
+ * read both ways counts from the later of the two. Both are the server's
+ * clock, so a browser clock that is off would shorten every delay; they are
+ * only consulted for states that changed while nobody was watching (see
  * catchingUp), never for a change seen live.
  */
 function latestChange(conditions: VisibilityCondition[], $states: HassEntities | undefined) {
 	const changes = conditionEntities(conditions)
-		.map((id) => Date.parse($states?.[id]?.last_changed ?? ''))
+		.map(({ entity, attribute }) => {
+			const state = $states?.[entity];
+			return Date.parse((attribute ? state?.last_updated : state?.last_changed) ?? '');
+		})
 		.filter((time) => Number.isFinite(time));
 	return changes.length ? Math.max(...changes) : -Infinity;
 }
 
 function heldFor(conditions: VisibilityCondition[], $states: HassEntities | undefined): number {
 	const latest = latestChange(conditions, $states);
-	return Number.isFinite(latest) ? Math.max(0, Date.now() - latest) : 0;
+	const held = Number.isFinite(latest) ? Math.max(0, Date.now() - latest) : 0;
+	return Math.min(held, host?.heldAtMost(conditions) ?? 0);
 }
 
 function ruleHolds(rule: AlertRule, $states: HassEntities | undefined): boolean {
@@ -150,6 +174,15 @@ function openOwnPopup(entry: RuleState) {
 	requestWake();
 }
 
+// a chime belongs to the moment an alert arrives, so edit mode skips it
+// rather than saving it for later
+function chime(chosen: AlertChime | undefined, severity: AlertSeverity) {
+	if (get(hearthEditMode)) return;
+	const config = get(hearthConfig);
+	const tone = chimeTone(chosen, severity, config.alert_chimes);
+	if (tone) void playAlertChime(tone, config.alert_chimes?.volume);
+}
+
 function activate(id: string) {
 	const entry = rules.get(id);
 	if (!entry) return;
@@ -164,6 +197,7 @@ function activate(id: string) {
 	entry.since = Date.now();
 	publish();
 	const { rule } = entry;
+	chime(rule.chime, rule.severity);
 	if (rule.popup === false) return;
 	if (get(hearthEditMode)) {
 		if (rule.entity) deferred.add(id);
@@ -279,10 +313,21 @@ export type HearthAction =
 			severity: AlertSeverity;
 			popup: boolean;
 			entity?: string;
+			chime?: AlertChime;
 	  }
 	| { action: 'dismiss_alert'; tag: string }
 	| { action: 'open_popup'; entity: string; name?: string }
-	| { action: 'close_popup'; entity?: string };
+	| { action: 'close_popup'; entity?: string }
+	| { action: 'navigate'; page: string }
+	| { action: 'wake' }
+	| { action: 'sleep' };
+
+// kept in step with normalizeChime in model/alerts.ts
+function chimeOf(value: unknown): AlertChime | undefined {
+	if (value === true) return true;
+	if (value === false) return 'none';
+	return value === 'soft' || value === 'bell' || value === 'none' ? value : undefined;
+}
 
 function text(value: unknown): string | undefined {
 	return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -291,7 +336,10 @@ function text(value: unknown): string | undefined {
 /** Whether an event's `device` (a name or a list of names) includes this screen. */
 function forThisDevice(target: unknown, device: string): boolean {
 	if (target === undefined || target === null) return true;
-	const names = (Array.isArray(target) ? target : [target]).map((name) => String(name).trim());
+	// an empty name or list targets no screen, not every screen
+	const names = (Array.isArray(target) ? target : [target])
+		.map((name) => String(name).trim())
+		.filter(Boolean);
 	return names.includes(device.trim());
 }
 
@@ -317,7 +365,8 @@ export function parseHearthEvent(
 				icon: text(data.icon),
 				severity: isAlertSeverity(data.severity) ? data.severity : 'info',
 				popup: data.popup !== false,
-				entity
+				entity,
+				chime: chimeOf(data.chime)
 			};
 		}
 		case 'dismiss_alert': {
@@ -328,6 +377,14 @@ export function parseHearthEvent(
 			return entity ? { action: 'open_popup', entity, name: text(data.name) } : null;
 		case 'close_popup':
 			return { action: 'close_popup', entity };
+		case 'navigate': {
+			// navigation_path is the key Lovelace's own navigate action uses
+			const page = text(data.page) ?? text(data.navigation_path);
+			return page ? { action: 'navigate', page } : null;
+		}
+		case 'wake':
+		case 'sleep':
+			return { action: data.action };
 		default:
 			return null;
 	}
@@ -337,6 +394,8 @@ export function handleHearthAction(action: HearthAction) {
 	switch (action.action) {
 		case 'alert': {
 			const { tag, title, message, icon, severity, popup: pops, entity } = action;
+			// an update to an alert already up replaces it quietly
+			const arriving = !events.has(tag);
 			events.delete(tag);
 			events.set(tag, {
 				key: `event:${tag}`,
@@ -349,6 +408,7 @@ export function handleHearthAction(action: HearthAction) {
 				since: Date.now()
 			});
 			publish();
+			if (arriving) chime(action.chime, severity);
 			if (pops && !get(hearthEditMode)) requestWake();
 			return;
 		}
@@ -363,6 +423,22 @@ export function handleHearthAction(action: HearthAction) {
 			return;
 		case 'close_popup':
 			if (!action.entity || get(popup)?.entity === action.entity) closePopup();
+			return;
+		// edit mode keeps the page and the screen the editor is working on
+		case 'navigate':
+			if (!get(hearthEditMode)) host?.showPage(action.page);
+			return;
+		case 'wake':
+			requestWake();
+			return;
+		// an alert card on screen must stay readable, the same rule the idle timeout follows
+		case 'sleep':
+			if (
+				!get(hearthEditMode) &&
+				!get(activeAlerts).some((alert) => alert.popup) &&
+				!host?.sleepBlocked()
+			)
+				screensaverPreview.set(true);
 	}
 }
 
@@ -377,9 +453,14 @@ export function resetAlerts() {
 /** Starts checking rules and listening for HEARTH events; returns the stop function. */
 export function startAlerts(services: AlertHost): () => void {
 	setAlertHost(services);
-	const stopRules = derived([hearthConfig, states], (values) => values).subscribe(
-		([$config, $states]) => syncRules($config.alerts ?? [], $states)
+	// rules that read the time are checked again on every new minute
+	const clock = services.clockFor(
+		derived(hearthConfig, ($config) => ($config.alerts ?? []).flatMap((rule) => rule.conditions))
 	);
+	const stopRules = derived(
+		[hearthConfig, states, clock, deviceName, displayTimeZone],
+		(values) => values
+	).subscribe(([$config, $states]) => syncRules($config.alerts ?? [], $states));
 	const stopEvents = subscribeHearthEvents((data) => {
 		const action = parseHearthEvent(data, get(deviceName));
 		if (action) handleHearthAction(action);
@@ -391,8 +472,16 @@ export function startAlerts(services: AlertHost): () => void {
 	const stopEditing = hearthEditMode.subscribe(($editing) => {
 		if (!$editing) openDeferred();
 	});
+	let disarmChimes: (() => void) | undefined;
+	const stopChimes = hearthConfig.subscribe(($config) => {
+		if (!disarmChimes && chimesConfigured($config.alerts, $config.alert_chimes)) {
+			disarmChimes = armChimes();
+		}
+	});
 	return () => {
 		stopRules();
+		stopChimes();
+		disarmChimes?.();
 		stopEvents();
 		stopHealth();
 		stopEditing();

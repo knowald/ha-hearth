@@ -1,50 +1,42 @@
 <script lang="ts">
-	import { numberFromInput } from '../../edit/numbers';
-	import { lang } from '$lib/core/i18n';
 	import type { WidgetEditorProps } from '../types';
 	import type { CalendarWidget } from './descriptor';
-	import EntityField from '../../edit/EntityField.svelte';
-	import TextField from '../../edit/TextField.svelte';
+	import FormRenderer from '../../edit/FormRenderer.svelte';
+	import { EditorForm } from '../../edit/form.svelte';
+	import { numberFromInput } from '../../edit/numbers';
 
-	let { initial: initialProp, onchange }: WidgetEditorProps<CalendarWidget> = $props();
+	let { initial, onchange }: WidgetEditorProps<CalendarWidget> = $props();
 
 	// remounted per target and type, so the initial value is all the form needs
 	// svelte-ignore state_referenced_locally
-	const initial = initialProp;
-
-	let entities = $state((initial?.entities ?? []).join(', '));
-	let travelEntity = $state(initial?.travel_entity ?? '');
-	let lookaheadHours = $state(
-		typeof initial?.lookahead_hours === 'number' ? String(initial.lookahead_hours) : ''
-	);
-
-	$effect(() => {
-		const parsedHours = numberFromInput(lookaheadHours);
-		onchange({
-			fields: {
-				entities: entities
-					.split(',')
-					.map((entry) => entry.trim())
-					.filter(Boolean),
-				travel_entity: travelEntity.trim() || undefined,
-				lookahead_hours: Number.isFinite(parsedHours) && parsedHours > 0 ? parsedHours : undefined
+	const form = new EditorForm(initial, [
+		{
+			key: 'entities',
+			kind: 'list',
+			label: 'hearth_calendar_entities_comma_separated',
+			required: true,
+			reason: 'hearth_calendar_entities_required',
+			placeholder: 'calendar.family, calendar.work'
+		},
+		{
+			key: 'travel_entity',
+			kind: 'entity',
+			label: 'hearth_travel_time_entity_minutes_optional',
+			domains: ['sensor']
+		},
+		{
+			key: 'lookahead_hours',
+			kind: 'number',
+			label: 'hearth_look_ahead_hours_default_24',
+			placeholder: '24',
+			inputmode: 'decimal',
+			advanced: true,
+			write: (raw) => {
+				const hours = numberFromInput(String(raw));
+				return Number.isFinite(hours) && hours > 0 ? hours : undefined;
 			}
-		});
-	});
+		}
+	]);
 </script>
 
-<TextField
-	label={$lang('hearth_calendar_entities_comma_separated')}
-	bind:value={entities}
-	placeholder="calendar.family, calendar.work"
-/>
-<EntityField
-	label={$lang('hearth_travel_time_entity_minutes_optional')}
-	bind:value={travelEntity}
-	domains={['sensor']}
-/>
-<TextField
-	label={$lang('hearth_look_ahead_hours_default_24')}
-	bind:value={lookaheadHours}
-	placeholder="24"
-/>
+<FormRenderer {form} {onchange} />

@@ -240,6 +240,73 @@ describe('horizontalDrag pointer tracking', () => {
 	});
 });
 
+describe('horizontalDrag deferOnTouch', () => {
+	afterEach(() => vi.useRealTimers());
+
+	function touch(type: string) {
+		const event = pointer(type, 20);
+		Object.defineProperty(event, 'pointerType', { value: 'touch' });
+		return event;
+	}
+
+	it('runs a touch hold at the release, not at the threshold, and no tap', () => {
+		vi.useFakeTimers();
+		const node = new TestNode();
+		const hold = vi.fn();
+		const tap = vi.fn();
+		horizontalDrag(node as unknown as HTMLElement, { set: vi.fn(), hold, tap, deferOnTouch: true });
+
+		node.dispatchEvent(touch('pointerdown'));
+		vi.advanceTimersByTime(600);
+		expect(hold).not.toHaveBeenCalled();
+		node.dispatchEvent(touch('pointerup'));
+		expect(hold).toHaveBeenCalledOnce();
+		expect(tap).not.toHaveBeenCalled();
+	});
+
+	it('drops a deferred touch hold that the browser cancels', () => {
+		vi.useFakeTimers();
+		const node = new TestNode();
+		const hold = vi.fn();
+		horizontalDrag(node as unknown as HTMLElement, { set: vi.fn(), hold, deferOnTouch: true });
+
+		node.dispatchEvent(touch('pointerdown'));
+		vi.advanceTimersByTime(600);
+		node.dispatchEvent(touch('pointercancel'));
+		expect(hold).not.toHaveBeenCalled();
+	});
+
+	it('drops a deferred touch hold that moves away before the release', () => {
+		vi.useFakeTimers();
+		const node = new TestNode();
+		const hold = vi.fn();
+		const set = vi.fn();
+		const tap = vi.fn();
+		horizontalDrag(node as unknown as HTMLElement, { set, hold, tap, deferOnTouch: true });
+
+		node.dispatchEvent(touch('pointerdown'));
+		vi.advanceTimersByTime(600);
+		const move = pointer('pointermove', 80);
+		Object.defineProperty(move, 'pointerType', { value: 'touch' });
+		node.dispatchEvent(move);
+		node.dispatchEvent(touch('pointerup'));
+		expect(hold).not.toHaveBeenCalled();
+		expect(tap).not.toHaveBeenCalled();
+		expect(set).not.toHaveBeenCalled();
+	});
+
+	it('keeps a mouse hold at the threshold', () => {
+		vi.useFakeTimers();
+		const node = new TestNode();
+		const hold = vi.fn();
+		horizontalDrag(node as unknown as HTMLElement, { set: vi.fn(), hold, deferOnTouch: true });
+
+		node.dispatchEvent(pointer('pointerdown', 20));
+		vi.advanceTimersByTime(500);
+		expect(hold).toHaveBeenCalledOnce();
+	});
+});
+
 describe('horizontalDrag tapSets', () => {
 	it('commits the value under a stationary tap', () => {
 		const node = new TestNode();

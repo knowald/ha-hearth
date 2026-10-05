@@ -8,6 +8,7 @@
 	import EditSheet from './EditSheet.svelte';
 
 	let value = $state('');
+	let saved = $state('');
 	let loaded = $state(false);
 	let saving = $state(false);
 	let error = $state<string | null>(null);
@@ -16,7 +17,7 @@
 		try {
 			const response = await fetch(`${base}/_api/custom_css`);
 			if (!response.ok) throw new Error(`${response.status}`);
-			value = await response.json();
+			value = saved = await response.json();
 			// saving stays disabled unless the current file was read, so a failed
 			// load can never be replaced by an empty one
 			loaded = true;
@@ -26,8 +27,11 @@
 		}
 	});
 
+	let dirty = $derived(loaded && value !== saved);
+
+	// opened from the Appearance section of Settings, so back and Save return there
 	function back() {
-		editor.set({ kind: 'appSettings' });
+		editor.set({ kind: 'settings' });
 	}
 
 	async function save() {
@@ -46,7 +50,7 @@
 			}
 			// a reload would discard the dashboard draft the edit bar has not saved
 			customCss.set(value);
-			editor.set(null);
+			back();
 		} catch (failure) {
 			console.error(failure);
 			error = $lang('hearth_save_failed');
@@ -61,6 +65,7 @@
 	onclose={() => editor.set(null)}
 	onback={back}
 	ondone={save}
+	{dirty}
 	doneLabel={$lang('save')}
 	doneDisabled={!loaded || saving}
 >

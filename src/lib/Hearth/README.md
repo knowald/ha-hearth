@@ -7,10 +7,10 @@ This directory owns dashboard layout, navigation, editing and device presentatio
 1. Add the type to the `OverviewCard` or `RailWidget` union in `types.ts`. Put field schemas that several types share in `schema.ts`.
 2. Add its pure definition under `model/cards/` or `model/widgets/`. Every definition supplies `label`, `name` and `sub` translation keys, an `icon`, `normalize`, a Valibot `schema` and `entityIds`. Cards also require `needsConfiguration`.
 3. Register the definition in `model/registry.ts`. `pnpm check` fails if a type in `types.ts` has no definition, or a definition has no type.
-4. Add a renderer, descriptor and optional editor under `cards/<type>/` or `widgets/<type>/`. The descriptor combines the definition with its Svelte component and lazy editor loader. Register it in the corresponding rendering registry.
+4. Add a renderer, descriptor and optional editor under `cards/<type>/` or `widgets/<type>/`. The descriptor combines the definition with its Svelte component and lazy editor loader. Register it in the corresponding rendering registry. An editor marks a field the type cannot work without as `required` and reports `requireFields(...)` from `edit/validation.ts` with its draft, so Done stays disabled and says why.
 5. Add a configured example to `e2e/fixture-matrix`, add unit tests for its normalization and component, and add a browser test that opens its editor.
 
-Definitions, schemas and normalization must not import renderers, stores, browser APIs or server code. Page load, the save endpoint and the YAML editor all validate with `hearthConfigIssues`, so the server never stores a document the editor rejects.
+Definitions, schemas and normalization must not import renderers, stores, browser APIs or server code. Page load, the save endpoint and the YAML editor all validate with `hearthConfigIssues`, so the server never stores a document the editor rejects. The save endpoint and the YAML editor also run `newThemeIssues`; page load does not, and `normalizeTheme` drops a theme value the dashboard cannot apply so its token keeps the default.
 
 ## State and interaction
 

@@ -127,7 +127,7 @@
 				tabindex="0"
 				onkeydown={(event) => activateOnKeyboard(event, selectWhite)}
 			>
-				{$lang('white')}
+				{$lang('hearth_white')}
 			</div>
 		{/if}
 	</div>

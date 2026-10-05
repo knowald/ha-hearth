@@ -75,6 +75,20 @@ describe('Hearth save endpoint', () => {
 		expect(disk.data).not.toContain('revision: 41');
 	});
 
+	it('refuses a theme value that would leave its token', async () => {
+		const config = { rail: [], rooms: [], theme: { text_1: 'red; display: none' } };
+		await expect(post(JSON.stringify({ revision: 0, config }))).rejects.toMatchObject({
+			status: 400
+		});
+		expect(disk.data).toBeNull();
+	});
+
+	it('stores a short hex colour as a long one', async () => {
+		const config = { rail: [], rooms: [], theme: { accent: '#f80' } };
+		expect((await post(JSON.stringify({ revision: 0, config }))).status).toBe(200);
+		expect(disk.data).toContain("accent: '#ff8800'");
+	});
+
 	it('rejects malformed JSON, arrays and invalid revisions', async () => {
 		await expect(post(JSON.stringify({ rail: [], rooms: [] }))).rejects.toMatchObject({
 			status: 400

@@ -19,6 +19,7 @@ import {
 	type HassServices
 } from 'home-assistant-js-websocket';
 import type { Configuration, PersistentNotification } from '../app/configuration';
+import { requestReload } from '../app/reload';
 import { states } from './entities';
 
 /*
@@ -245,10 +246,7 @@ export async function authentication(
 					if (typeof trigger !== 'string') return;
 					event.set(trigger);
 					for (const listener of triggerListeners) listener(trigger);
-					if (trigger === 'refresh') {
-						sessionStorage.setItem('event', 'refresh');
-						location.reload();
-					}
+					if (trigger === 'refresh') requestReload();
 				},
 				{
 					type: 'subscribe_trigger',

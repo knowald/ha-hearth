@@ -6,6 +6,7 @@
 	import { health } from '$lib/core/ha/connection';
 	import { commandFailure, dismissCommandFailure } from '$lib/core/ha/commands';
 	import { lang, fill } from '$lib/core/i18n';
+	import { reloadPage } from '$lib/core/app/reload';
 	import {
 		configurationLoadError,
 		copyState,
@@ -15,6 +16,10 @@
 		hearthLoadErrorKind,
 		saveFailure,
 		saveState,
+		acceptUndoOffer,
+		pauseUndoOffer,
+		resumeUndoOffer,
+		undoOffer,
 		type HearthErrorKind
 	} from '../store';
 	import Icon from '../Icon.svelte';
@@ -50,13 +55,44 @@
 		invalid: ['hearth_config_invalid', 'hearth_config_invalid_hint']
 	};
 	let hearthErrorTitle = $derived(hearthErrorCopy[$hearthLoadErrorKind ?? 'invalid']);
+
+	/*
+	 * A second removal with the same message would leave the status line's
+	 * text unchanged, and so unannounced. Each offer clears the line first
+	 * and writes its text a beat later, which reads as a change.
+	 */
+	let undoAnnouncement = $state('');
+	$effect(() => {
+		const offer = $undoOffer;
+		undoAnnouncement = '';
+		if (!offer) return;
+		const text = fill($lang('hearth_undo_available'), { message: offer.message });
+		const timer = setTimeout(() => (undoAnnouncement = text), 100);
+		return () => clearTimeout(timer);
+	});
+
+	// a live region only announces changes to content it already held, so the
+	// status line stays mounted and the toasts below are its visual copies
+	let announcement = $derived(
+		[
+			shownIssue &&
+				$lang(shownIssue === 'lost' ? 'hearth_connection_lost' : 'hearth_connection_degraded'),
+			$saveState === 'saved' && $lang('saved'),
+			$copyState === 'copied' && $lang('copied'),
+			undoAnnouncement
+		]
+			.filter(Boolean)
+			.join('. ')
+	);
 </script>
+
+<div class="announcer" role="status">{announcement}</div>
 
 {#if shownIssue}
 	<div
 		class="connection-toast"
 		class:degraded={shownIssue === 'degraded'}
-		role="status"
+		aria-hidden="true"
 		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
 	>
 		<Icon name={shownIssue === 'lost' ? 'cloud_off' : 'sync_problem'} size={ICON.control} />
@@ -73,7 +109,7 @@
 					<span>{$lang('hearth_settings_file_unreadable_hint')}</span>
 					<span class="detail">{$configurationLoadError}</span>
 				</div>
-				<button type="button" class="load-error-action" onclick={() => location.reload()}>
+				<button type="button" class="load-error-action" onclick={reloadPage}>
 					{$lang('hearth_reload')}
 				</button>
 			</div>
@@ -87,7 +123,7 @@
 					<span>{$lang('hearth_editing_is_disabled_to_protect_the')}</span>
 					<span class="detail">{$hearthLoadError}</span>
 				</div>
-				<button type="button" class="load-error-action" onclick={() => location.reload()}>
+				<button type="button" class="load-error-action" onclick={reloadPage}>
 					{$lang('hearth_reload')}
 				</button>
 			</div>
@@ -95,7 +131,11 @@
 	</div>
 {/if}
 {#if $saveState === 'saved'}
-	<div class="save-toast" transition:fade={{ duration: $motion ? MOTION.slow : 0 }}>
+	<div
+		class="save-toast"
+		aria-hidden="true"
+		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
+	>
 		<Icon name="check_circle" size={ICON.control} />
 		{$lang('saved')}
 	</div>
@@ -105,11 +145,30 @@
 		class="save-toast"
 		class:failed={$copyState === 'failed'}
 		class:editing={$hearthEditMode}
-		role={$copyState === 'failed' ? 'alert' : 'status'}
+		role={$copyState === 'failed' ? 'alert' : undefined}
+		aria-hidden={$copyState === 'failed' ? undefined : 'true'}
 		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
 	>
 		<Icon name={$copyState === 'failed' ? 'error' : 'content_copy'} size={ICON.control} />
 		{$lang($copyState === 'failed' ? 'hearth_copy_failed' : 'copied')}
+	</div>
+{/if}
+{#if $undoOffer}
+	<!-- the status line above announces the message; the toast adds the way back -->
+	<div
+		class="save-toast undo-toast editing"
+		class:raised={$copyState !== 'idle'}
+		role="group"
+		aria-label={$undoOffer.message}
+		transition:fade={{ duration: $motion ? MOTION.slow : 0 }}
+		onpointerenter={pauseUndoOffer}
+		onpointerleave={resumeUndoOffer}
+		onfocusin={pauseUndoOffer}
+		onfocusout={resumeUndoOffer}
+	>
+		<Icon name="delete" size={ICON.control} />
+		<span aria-hidden="true">{$undoOffer.message}</span>
+		<button type="button" class="toast-action" onclick={acceptUndoOffer}>{$lang('undo')}</button>
 	</div>
 {/if}
 <!-- an open sheet covers the edit bar, which otherwise carries this state and its actions -->
@@ -160,6 +219,15 @@
 {/if}
 
 <style>
+	.announcer {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
 	.connection-toast {
 		position: absolute;
 		top: calc(18px + var(--h-pad-y));
@@ -265,6 +333,26 @@
 
 	.save-toast.failed {
 		color: var(--h-bad-text);
+	}
+
+	.undo-toast {
+		color: var(--h-text-2);
+	}
+
+	/* the Copied toast takes the same spot; this one steps up over it */
+	.save-toast.undo-toast.raised {
+		margin-bottom: 56px; /* literal ok: one toast height plus a gap */
+	}
+
+	.toast-action {
+		padding: 6px 12px;
+		border-radius: var(--h-radius-xs);
+		border: 1px solid rgb(var(--h-accent-rgb) / calc(0.35 * var(--h-accent-scale)));
+		background: none;
+		color: var(--h-accent-text);
+		font: inherit;
+		font-weight: 600;
+		cursor: pointer;
 	}
 
 	.save-alert {

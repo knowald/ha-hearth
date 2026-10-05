@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from '../config';
-import { editor, hearthConfig } from '../store';
+import { confirmRequestedAction, editor, hearthConfig, requestedConfirmation } from '../store';
 import CardEditSheet from './CardEditSheet.svelte';
 import RailWidgetEditSheet from './RailWidgetEditSheet.svelte';
 import RoomEditSheet from './RoomEditSheet.svelte';
@@ -73,21 +73,37 @@ describe('reordering from the sheet header', () => {
 	beforeEach(seed);
 	afterEach(() => {
 		editor.set(null);
+		requestedConfirmation.set(null);
 		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
 	});
 
-	it('moves a card within its column and keeps editing it', async () => {
+	it('stages a card move until Done and stops at the ends', async () => {
+		render(CardEditSheet, { roomId: 'den', id: 'second' });
+		const up = screen.getByTitle(en.hearth_move_up) as HTMLButtonElement;
+		const down = screen.getByTitle(en.hearth_move_down) as HTMLButtonElement;
+		expect(down.disabled).toBe(true);
+		await fireEvent.click(up);
+		expect(cardIds()).toEqual(['first', 'second']);
+		expect(up.disabled).toBe(true);
+		expect(down.disabled).toBe(false);
+		await fireEvent.click(screen.getByRole('button', { name: en.done }));
+		expect(cardIds()).toEqual(['second', 'first']);
+	});
+
+	it('leaves a moved card where it was when the sheet is cancelled', async () => {
 		render(CardEditSheet, { roomId: 'den', id: 'second' });
 		await fireEvent.click(screen.getByTitle(en.hearth_move_up));
-		expect(cardIds()).toEqual(['second', 'first']);
-		await fireEvent.click(screen.getByTitle(en.hearth_move_down));
+		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+		// the staged move counts as a change, so closing asks first
+		expect(get(requestedConfirmation)?.confirmLabel).toBe(en.hearth_discard);
+		confirmRequestedAction();
 		expect(cardIds()).toEqual(['first', 'second']);
 	});
 
-	it('moves a widget and saves it where it went', async () => {
+	it('moves a widget on Done and saves it where it went', async () => {
 		render(RailWidgetEditSheet, { index: 1 });
 		await fireEvent.click(screen.getByTitle(en.hearth_move_up));
-		expect(widgetIds()).toEqual(['status', 'clock']);
+		expect(widgetIds()).toEqual(['clock', 'status']);
 		await fireEvent.click(screen.getByRole('button', { name: en.done }));
 		expect(widgetIds()).toEqual(['status', 'clock']);
 		expect(get(hearthConfig).rail[1]).toMatchObject({ id: 'clock', type: 'clock' });

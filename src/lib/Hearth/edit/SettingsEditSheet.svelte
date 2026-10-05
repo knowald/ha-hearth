@@ -4,11 +4,19 @@
 	import { ICON } from '../iconSizes';
 	import { fill, lang } from '$lib/core/i18n';
 	import { config as haConfig } from '$lib/core/ha/connection';
+	import { states } from '$lib/core/ha/entities';
+	import { screenOverrides } from '$lib/core/app/screen';
 	import {
+		GREETING_MINUTES,
 		isTileUrl,
+		moveItem,
+		PHOTO_SECONDS,
 		RADAR_ZOOM,
 		railPositionOf,
+		type AlertChimes,
+		type AlertSeverity,
 		type RailPosition,
+		type ScreensaverBackground,
 		type ScreensaverRadar
 	} from '../config';
 	import {
@@ -16,18 +24,24 @@
 		hearthConfig,
 		screensaverPreview,
 		setupWizardOpen,
+		setupWizardSource,
 		updateConfig
 	} from '../store';
 	import EditSheet from './EditSheet.svelte';
 	import EntityField from './EntityField.svelte';
 	import Icon from '../Icon.svelte';
 	import ImageField from './ImageField.svelte';
+	import PhotoListField from './PhotoListField.svelte';
 	import SelectField from './SelectField.svelte';
 	import SettingsRow from './SettingsRow.svelte';
 	import TextField from './TextField.svelte';
 	import Switch from '../Switch.svelte';
 	import { wakeLockState } from '../wakeLock';
 	import { zoomSupported } from '../zoom';
+	import { screenSheetOpen } from '../screen';
+	import type { ChimeTone } from '../chime';
+	import { DEFAULT_CHIME_VOLUME } from '../model/alerts';
+	import { chimeOptions, chimeValue, sleepOptions, storedChime, withCurrent } from './options';
 
 	let screensaver = $derived(String($hearthConfig.screensaver_minutes ?? 0));
 	let screensaverDrift = $derived($hearthConfig.screensaver_drift ?? false);
@@ -38,6 +52,15 @@
 	let background = $derived($hearthConfig.screensaver_background ?? 'none');
 	let backgroundImage = $derived($hearthConfig.screensaver_image ?? '');
 	let radar = $derived($hearthConfig.screensaver_radar ?? {});
+	let photos = $derived($hearthConfig.screensaver_photos ?? []);
+	let photoSeconds = $derived(
+		String($hearthConfig.screensaver_photo_seconds ?? PHOTO_SECONDS.fallback)
+	);
+	let photoOrder = $derived($hearthConfig.screensaver_photo_order ?? 'shuffle');
+	let mediaEntity = $derived($hearthConfig.screensaver_media_entity ?? '');
+	let mediaFallback = $derived($hearthConfig.screensaver_media_fallback ?? 'none');
+	// a media background shows its fallback's fields too, since that is what shows most of the time
+	let scene = $derived(background === 'media' ? mediaFallback : background);
 	let useHomeLocation = $derived(radar.latitude === undefined || radar.longitude === undefined);
 	// without a home location in Home Assistant, only custom coordinates can work
 	let homeKnown = $derived(
@@ -47,6 +70,7 @@
 	let tileUrlInvalid = $state(false);
 	let keepScreenOn = $derived($hearthConfig.keep_screen_on ?? true);
 	let scrollEdgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
+	let animations = $derived($hearthConfig.animations ?? true);
 	let railPosition = $derived(railPositionOf($hearthConfig));
 	let swipeMobile = $derived($hearthConfig.swipe_navigation_mobile ?? false);
 	let swipeDesktop = $derived($hearthConfig.swipe_navigation_desktop ?? false);
@@ -58,21 +82,50 @@
 	let scale = $derived($hearthConfig.scale ?? 100);
 	let mobileScale = $derived($hearthConfig.mobile_scale ?? scale);
 
-	let SCREENSAVER_OPTIONS = $derived([
-		{ value: '0', label: $lang('off') },
-		{ value: '1', label: $lang('hearth_after_1_minute') },
-		{ value: '5', label: $lang('hearth_after_5_minutes') },
-		{ value: '10', label: $lang('hearth_after_10_minutes') },
-		{ value: '15', label: $lang('hearth_after_15_minutes') },
-		{ value: '30', label: $lang('hearth_after_30_minutes') },
-		{ value: '60', label: $lang('hearth_after_1_hour') }
+	let SCREENSAVER_OPTIONS = $derived(withCurrent(sleepOptions($lang), screensaver, $lang));
+	let SCREENSAVER_BRIGHTNESS_OPTIONS = $derived(
+		withCurrent(
+			[
+				{ value: '18', label: $lang('hearth_very_dim') },
+				{ value: '32', label: $lang('hearth_dim') },
+				{ value: '50', label: $lang('fan_speed_medium') },
+				{ value: '75', label: $lang('hearth_bright') }
+			],
+			screensaverBrightness,
+			$lang
+		)
+	);
+
+	// a row whose value this screen overrides says so, or a change here would
+	// seem to do nothing on the screen being edited
+	function sharedSub(key: keyof typeof $screenOverrides, sub?: string) {
+		return $screenOverrides[key] === undefined ? sub : $lang('hearth_this_screen_uses_its_own');
+	}
+
+	let editLock = $derived($hearthConfig.edit_lock ?? 'off');
+	let editPin = $derived($hearthConfig.edit_pin ?? '');
+	let pinInvalid = $state(false);
+	let EDIT_LOCK_OPTIONS = $derived([
+		{ value: 'off', label: $lang('off') },
+		{ value: 'hold', label: $lang('hearth_edit_lock_hold') },
+		{ value: 'pin', label: $lang('hearth_edit_lock_pin') }
 	]);
-	let SCREENSAVER_BRIGHTNESS_OPTIONS = $derived([
-		{ value: '18', label: $lang('hearth_very_dim') },
-		{ value: '32', label: $lang('hearth_dim') },
-		{ value: '50', label: $lang('fan_speed_medium') },
-		{ value: '75', label: $lang('hearth_bright') }
-	]);
+
+	function setEditLock(value: string) {
+		updateConfig((config) => {
+			config.edit_lock = value === 'hold' || value === 'pin' ? value : undefined;
+			if (value !== 'pin') config.edit_pin = undefined;
+		});
+	}
+
+	function setEditPin(value: string) {
+		const pin = value.trim();
+		pinInvalid = !/^\d{4,8}$/.test(pin);
+		if (pinInvalid) return;
+		updateConfig((config) => {
+			config.edit_pin = pin;
+		});
+	}
 
 	let RAIL_POSITION_OPTIONS = $derived([
 		{ value: 'left', label: $lang('hearth_sidebar_left') },
@@ -80,6 +133,10 @@
 		{ value: 'both', label: $lang('hearth_sidebar_both') },
 		{ value: 'none', label: $lang('hearth_sidebar_none') }
 	]);
+
+	function movePage(index: number, delta: number) {
+		updateConfig((config) => moveItem(config.rooms, index, delta));
+	}
 
 	function setRailPosition(value: string) {
 		updateConfig((config) => {
@@ -95,8 +152,30 @@
 	let BACKGROUND_OPTIONS = $derived([
 		{ value: 'none', label: $lang('hearth_sleep_background_none') },
 		{ value: 'image', label: $lang('hearth_sleep_background_image') },
-		{ value: 'radar', label: $lang('hearth_sleep_background_radar') }
+		{ value: 'radar', label: $lang('hearth_sleep_background_radar') },
+		{ value: 'photos', label: $lang('hearth_sleep_background_photos') },
+		{ value: 'sun', label: $lang('hearth_sleep_background_sun') },
+		{ value: 'media', label: $lang('hearth_sleep_background_media') }
 	]);
+	let MEDIA_FALLBACK_OPTIONS = $derived(
+		BACKGROUND_OPTIONS.filter((option) => option.value !== 'media')
+	);
+	let PHOTO_ORDER_OPTIONS = $derived([
+		{ value: 'shuffle', label: $lang('hearth_sleep_photo_order_shuffle') },
+		{ value: 'sequence', label: $lang('hearth_sleep_photo_order_sequence') }
+	]);
+	let PHOTO_SECONDS_OPTIONS = $derived(
+		withCurrent(
+			[
+				{ value: '10', label: $lang('hearth_every_10_seconds') },
+				{ value: '30', label: $lang('hearth_every_30_seconds') },
+				{ value: '60', label: $lang('hearth_every_minute') },
+				{ value: '300', label: $lang('hearth_every_5_minutes') }
+			],
+			photoSeconds,
+			$lang
+		)
+	);
 	let BASEMAP_OPTIONS = $derived([
 		{ value: 'dark', label: $lang('hearth_dark') },
 		{ value: 'light', label: $lang('hearth_light') }
@@ -149,9 +228,48 @@
 		});
 	}
 
+	const BACKGROUNDS = new Set<string>(['image', 'radar', 'photos', 'sun', 'media']);
+
 	function setBackground(value: string) {
 		updateConfig((config) => {
-			config.screensaver_background = value === 'image' || value === 'radar' ? value : undefined;
+			config.screensaver_background = BACKGROUNDS.has(value)
+				? (value as ScreensaverBackground)
+				: undefined;
+		});
+	}
+
+	function setPhotos(value: string[]) {
+		updateConfig((config) => {
+			config.screensaver_photos = value.length ? value : undefined;
+		});
+	}
+
+	function setPhotoSeconds(value: string) {
+		const seconds = integerFromInput(value);
+		updateConfig((config) => {
+			config.screensaver_photo_seconds =
+				seconds === PHOTO_SECONDS.fallback || seconds < PHOTO_SECONDS.min ? undefined : seconds;
+		});
+	}
+
+	function setPhotoOrder(value: string) {
+		updateConfig((config) => {
+			config.screensaver_photo_order = value === 'sequence' ? 'sequence' : undefined;
+		});
+	}
+
+	function setMediaEntity(value: string) {
+		updateConfig((config) => {
+			config.screensaver_media_entity = value.trim() || undefined;
+		});
+	}
+
+	function setMediaFallback(value: string) {
+		updateConfig((config) => {
+			config.screensaver_media_fallback =
+				value !== 'media' && BACKGROUNDS.has(value)
+					? (value as Exclude<ScreensaverBackground, 'media'>)
+					: undefined;
 		});
 	}
 
@@ -205,6 +323,101 @@
 	function setScrollEdgeBlur(enabled: boolean) {
 		updateConfig((config) => {
 			config.scroll_edge_blur = enabled ? undefined : false;
+		});
+	}
+
+	function setAnimations(enabled: boolean) {
+		updateConfig((config) => {
+			config.animations = enabled ? undefined : false;
+		});
+	}
+
+	let chimes = $derived($hearthConfig.alert_chimes ?? {});
+	let chimeVolume = $derived(String(chimes.volume ?? DEFAULT_CHIME_VOLUME));
+	let CHIME_SEVERITIES = $derived([
+		{ severity: 'info', label: $lang('hearth_alert_chime_info') },
+		{ severity: 'warning', label: $lang('hearth_alert_chime_warning') },
+		{ severity: 'critical', label: $lang('hearth_alert_chime_critical') }
+	] as const);
+	let CHIME_OPTIONS = $derived(chimeOptions($lang));
+	let VOLUME_OPTIONS = $derived(
+		withCurrent(
+			['20', '40', '60', '80', '100'].map((value) => ({ value, label: `${value}%` })),
+			chimeVolume,
+			$lang
+		)
+	);
+
+	/** Applies a change to the alert chimes, dropping keys that are back at their default. */
+	function setChimes(patch: Partial<AlertChimes>) {
+		updateConfig((config) => {
+			const next: AlertChimes = { ...config.alert_chimes, ...patch };
+			if (next.volume === DEFAULT_CHIME_VOLUME) next.volume = undefined;
+			const kept = Object.entries(next).filter(([, value]) => value !== undefined);
+			config.alert_chimes = kept.length ? Object.fromEntries(kept) : undefined;
+		});
+	}
+
+	function setSeverityChime(severity: AlertSeverity, value: string) {
+		const chime = storedChime(value);
+		setChimes({ [severity]: chime === 'none' ? undefined : chime });
+	}
+
+	// the tone of the most severe alert that chimes, so the test sounds like one
+	let previewTone = $derived.by((): ChimeTone => {
+		for (const severity of ['critical', 'warning', 'info'] as const) {
+			const chime = chimes[severity];
+			if (chime === true) return 'chime';
+			if (chime === 'soft' || chime === 'bell') return chime;
+		}
+		return 'chime';
+	});
+
+	async function playTestChime() {
+		const { previewChime } = await import('../chimeGate');
+		await previewChime(previewTone, Number(chimeVolume));
+	}
+
+	let greeting = $derived($hearthConfig.greeting);
+	let greetingMinutes = $derived(String(greeting?.minutes ?? GREETING_MINUTES));
+	// every person Home Assistant knows, plus any configured one it no longer reports
+	let persons = $derived(
+		[
+			...new Set([
+				...Object.keys($states ?? {}).filter((id) => id.startsWith('person.')),
+				...(greeting?.persons ?? [])
+			])
+		].sort()
+	);
+	let GREETING_MINUTE_OPTIONS = $derived(
+		withCurrent(
+			['5', '10', '15', '30', '60'].map((value) => ({
+				value,
+				label: fill($lang('hearth_minutes_count'), { count: value })
+			})),
+			greetingMinutes,
+			$lang
+		)
+	);
+
+	function setGreetingPerson(person: string, greeted: boolean) {
+		updateConfig((config) => {
+			const current = config.greeting?.persons ?? [];
+			const next = greeted
+				? [...new Set([...current, person])]
+				: current.filter((entry) => entry !== person);
+			config.greeting = next.length ? { ...config.greeting, persons: next } : undefined;
+		});
+	}
+
+	function setGreetingMinutes(value: string) {
+		const minutes = integerFromInput(value);
+		updateConfig((config) => {
+			if (!config.greeting) return;
+			config.greeting = {
+				...config.greeting,
+				minutes: minutes === GREETING_MINUTES ? undefined : minutes
+			};
 		});
 	}
 
@@ -301,7 +514,14 @@
 			...labels,
 			// the mobile row's hint is the only place that explains the mobile rows,
 			// so the unsupported note goes on the main row alone
-			sub: zoomSupported || key === 'mobile_scale' ? labels.sub : 'hearth_scale_unsupported',
+			sub:
+				// a screen's own scale also applies at narrow widths (see screen.ts)
+				$screenOverrides[key] !== undefined ||
+				(key === 'mobile_scale' && $screenOverrides.scale !== undefined)
+					? 'hearth_this_screen_uses_its_own'
+					: zoomSupported || key === 'mobile_scale'
+						? labels.sub
+						: 'hearth_scale_unsupported',
 			value,
 			step: 5,
 			min: 50,
@@ -311,8 +531,7 @@
 		};
 	}
 
-	// mobile rows follow the tablet ones; their hint reads "instead of the values above"
-	let displayRows = $derived([
+	let wideRows = $derived([
 		scaleRow('scale', scale, {
 			label: 'hearth_interface_scale',
 			decrease: 'hearth_decrease_interface_scale',
@@ -329,7 +548,11 @@
 			label: 'hearth_top_bottom_padding',
 			decrease: 'hearth_decrease_top_bottom_padding',
 			increase: 'hearth_increase_top_bottom_padding'
-		}),
+		})
+	]);
+
+	// mobile rows follow the wide ones; their hint reads "instead of the values above"
+	let narrowRows = $derived([
 		scaleRow('mobile_scale', mobileScale, {
 			label: 'hearth_mobile_interface_scale',
 			decrease: 'hearth_decrease_mobile_interface_scale',
@@ -396,6 +619,11 @@
 	</SettingsRow>
 {/snippet}
 
+{#snippet sectionHead(title: string, scope?: string)}
+	<div class="section-title">{title}</div>
+	{#if scope}<div class="section-scope">{scope}</div>{/if}
+{/snippet}
+
 <!-- every row applies as it changes, so the header action only closes -->
 <EditSheet
 	title={$lang('settings')}
@@ -404,13 +632,183 @@
 	doneLabel={$lang('hearth_close')}
 >
 	<div class="settings">
+		<div class="settings-note">{$lang('hearth_settings_note')}</div>
+
 		<section>
-			<div class="section-title">{$lang('hearth_sleep_screen')}</div>
+			{@render sectionHead($lang('hearth_this_screen'), $lang('hearth_scope_this_browser'))}
 			<div class="rows">
-				<SettingsRow label={$lang('hearth_screensaver')}>
+				<SettingsRow
+					icon="display_settings"
+					label={$lang('hearth_this_screen')}
+					sub={$lang('hearth_this_screen_sub')}
+					onclick={() => screenSheetOpen.set(true)}
+				/>
+			</div>
+		</section>
+
+		<section>
+			{@render sectionHead($lang('hearth_appearance'), $lang('hearth_scope_dashboard'))}
+			<div class="rows">
+				<SettingsRow
+					icon="palette"
+					label={$lang('theme')}
+					sub={$lang('hearth_theme_row_sub')}
+					onclick={() => editor.set({ kind: 'theme' })}
+				/>
+				<SettingsRow
+					icon="css"
+					label={$lang('hearth_custom_css')}
+					sub={$lang('hearth_custom_css_sub')}
+					onclick={() => editor.set({ kind: 'customCss' })}
+				/>
+				<SettingsRow
+					label={$lang('hearth_scroll_edge_blur')}
+					sub={$lang('hearth_blurs_content_where_a_list_runs_off')}
+				>
+					<Switch
+						checked={scrollEdgeBlur}
+						label={$lang('hearth_scroll_edge_blur')}
+						onchange={setScrollEdgeBlur}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={$lang('hearth_tile_animations')}
+					sub={$lang('hearth_tile_animations_sub')}
+				>
+					<Switch
+						checked={animations}
+						label={$lang('hearth_tile_animations')}
+						onchange={setAnimations}
+					/>
+				</SettingsRow>
+			</div>
+		</section>
+
+		<section>
+			{@render sectionHead($lang('hearth_layout_and_navigation'), $lang('hearth_scope_dashboard'))}
+			<div class="rows">
+				<SettingsRow
+					label={$lang('hearth_sidebar')}
+					sub={$lang(
+						railPosition === 'none'
+							? 'hearth_sidebar_widgets_hidden_but_kept'
+							: 'hearth_where_widgets_sit_on_wide_screens'
+					)}
+				>
 					<SelectField
 						inline
-						label={$lang('hearth_screensaver')}
+						label={$lang('hearth_sidebar')}
+						value={railPosition}
+						options={RAIL_POSITION_OPTIONS}
+						onchange={setRailPosition}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={$lang('hearth_swipe_between_pages_on_phones')}
+					sub={$lang('hearth_swipe_sideways_over_the_page')}
+				>
+					<Switch
+						checked={swipeMobile}
+						label={$lang('hearth_swipe_between_pages_on_phones')}
+						onchange={(enabled) => setSwipe('swipe_navigation_mobile', enabled)}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={$lang('hearth_swipe_between_pages_on_wide_screens')}
+					sub={$lang('hearth_drag_sideways_over_the_page')}
+				>
+					<Switch
+						checked={swipeDesktop}
+						label={$lang('hearth_swipe_between_pages_on_wide_screens')}
+						onchange={(enabled) => setSwipe('swipe_navigation_desktop', enabled)}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					label={$lang('hearth_clock_in_the_phone_page_strip')}
+					sub={$lang('hearth_shows_the_time_and_date_beside')}
+				>
+					<Switch
+						checked={phoneClock}
+						label={$lang('hearth_clock_in_the_phone_page_strip')}
+						onchange={setPhoneClock}
+					/>
+				</SettingsRow>
+			</div>
+		</section>
+
+		<section>
+			{@render sectionHead($lang('hearth_size_and_spacing'), $lang('hearth_scope_dashboard'))}
+			<div class="rows">
+				{#each wideRows as row (row.label)}
+					{@render stepperRow(row)}
+				{/each}
+				<div class="group-title">{$lang('hearth_screens_900_px_and_narrower')}</div>
+				{#each narrowRows as row (row.label)}
+					{@render stepperRow(row)}
+				{/each}
+			</div>
+		</section>
+
+		<section>
+			{@render sectionHead($lang('hearth_wall_display'), $lang('hearth_scope_dashboard'))}
+			<div class="rows">
+				<SettingsRow
+					label={$lang('hearth_keep_screen_awake')}
+					sub={sharedSub('keep_screen_on', $lang('hearth_while_the_dashboard_is_open'))}
+				>
+					<Switch
+						checked={keepScreenOn}
+						label={$lang('hearth_keep_screen_awake')}
+						onchange={setKeepScreenOn}
+					/>
+				</SettingsRow>
+				{#if keepScreenOn && ($wakeLockState === 'unsupported' || $wakeLockState === 'denied')}
+					<div class="setting-warning" role="alert">
+						<Icon name="warning" size={ICON.control} />
+						<span>
+							{#if $wakeLockState === 'unsupported'}
+								{$lang('hearth_screen_wake_lock_is_unavailable_open')}
+							{:else}
+								{$lang('hearth_the_browser_denied_the_screen_wake')}
+							{/if}
+						</span>
+					</div>
+				{/if}
+				<SettingsRow label={$lang('hearth_edit_lock')} sub={$lang('hearth_edit_lock_sub')}>
+					<SelectField
+						inline
+						label={$lang('hearth_edit_lock')}
+						value={editLock}
+						options={EDIT_LOCK_OPTIONS}
+						onchange={setEditLock}
+					/>
+				</SettingsRow>
+				{#if editLock === 'pin'}
+					<SettingsRow
+						label={$lang('hearth_edit_pin')}
+						sub={$lang(pinInvalid || !editPin ? 'hearth_edit_pin_invalid' : 'hearth_edit_pin_sub')}
+					>
+						<input
+							class="inline-text"
+							type="text"
+							inputmode="numeric"
+							autocomplete="off"
+							maxlength="8"
+							aria-label={$lang('hearth_edit_pin')}
+							aria-invalid={pinInvalid || undefined}
+							value={editPin}
+							onchange={(event) => setEditPin(event.currentTarget.value)}
+						/>
+					</SettingsRow>
+				{/if}
+				<div class="group-title">{$lang('hearth_sleep_screen')}</div>
+				<SettingsRow
+					label={$lang('hearth_sleep_turn_on_after')}
+					sub={sharedSub('screensaver_minutes')}
+				>
+					<SelectField
+						inline
+						label={$lang('hearth_sleep_turn_on_after')}
 						value={screensaver}
 						options={SCREENSAVER_OPTIONS}
 						onchange={setScreensaver}
@@ -466,7 +864,41 @@
 						onchange={setBackground}
 					/>
 				</SettingsRow>
-				{#if background === 'radar'}
+				{#if background === 'media'}
+					<SettingsRow
+						label={$lang('hearth_sleep_media_fallback')}
+						sub={$lang('hearth_sleep_media_fallback_sub')}
+					>
+						<SelectField
+							inline
+							label={$lang('hearth_sleep_media_fallback')}
+							value={mediaFallback}
+							options={MEDIA_FALLBACK_OPTIONS}
+							onchange={setMediaFallback}
+						/>
+					</SettingsRow>
+				{/if}
+				{#if scene === 'photos'}
+					<SettingsRow label={$lang('hearth_sleep_photo_seconds')}>
+						<SelectField
+							inline
+							label={$lang('hearth_sleep_photo_seconds')}
+							value={photoSeconds}
+							options={PHOTO_SECONDS_OPTIONS}
+							onchange={setPhotoSeconds}
+						/>
+					</SettingsRow>
+					<SettingsRow label={$lang('hearth_sleep_photo_order')}>
+						<SelectField
+							inline
+							label={$lang('hearth_sleep_photo_order')}
+							value={photoOrder}
+							options={PHOTO_ORDER_OPTIONS}
+							onchange={setPhotoOrder}
+						/>
+					</SettingsRow>
+				{/if}
+				{#if scene === 'radar'}
 					<SettingsRow label={$lang('hearth_sleep_radar_map_style')}>
 						<SelectField
 							inline
@@ -528,7 +960,24 @@
 					{/if}
 				{/if}
 				<div class="row-fields">
-					{#if background === 'radar'}
+					{#if background === 'media'}
+						<EntityField
+							label={$lang('hearth_sleep_media_entity')}
+							hint={$lang('hearth_sleep_media_entity_hint')}
+							domains={['media_player']}
+							value={mediaEntity}
+							onchange={setMediaEntity}
+						/>
+					{/if}
+					{#if scene === 'photos'}
+						<PhotoListField
+							label={$lang('hearth_sleep_photos')}
+							hint={$lang('hearth_sleep_photos_hint')}
+							value={photos}
+							onchange={setPhotos}
+						/>
+					{/if}
+					{#if scene === 'radar'}
 						<TextField
 							label={$lang('hearth_sleep_tile_url')}
 							value={radar.tile_url ?? ''}
@@ -545,7 +994,7 @@
 							/>
 						{/if}
 					{/if}
-					{#if background === 'image'}
+					{#if scene === 'image'}
 						<ImageField
 							label={$lang('hearth_background_image')}
 							value={backgroundImage}
@@ -560,98 +1009,38 @@
 						onchange={setWeatherEntity}
 					/>
 				</div>
-			</div>
-		</section>
-
-		<section>
-			<div class="section-title">{$lang('hearth_display_2')}</div>
-			<div class="rows">
-				<SettingsRow
-					label={$lang('hearth_keep_screen_awake')}
-					sub={$lang('hearth_while_the_dashboard_is_open')}
-				>
-					<Switch
-						checked={keepScreenOn}
-						label={$lang('hearth_keep_screen_awake')}
-						onchange={setKeepScreenOn}
-					/>
-				</SettingsRow>
-				{#if keepScreenOn && ($wakeLockState === 'unsupported' || $wakeLockState === 'denied')}
-					<div class="setting-warning" role="alert">
-						<Icon name="warning" size={ICON.control} />
-						<span>
-							{#if $wakeLockState === 'unsupported'}
-								{$lang('hearth_screen_wake_lock_is_unavailable_open')}
-							{:else}
-								{$lang('hearth_the_browser_denied_the_screen_wake')}
-							{/if}
-						</span>
-					</div>
-				{/if}
-				<SettingsRow
-					label={$lang('hearth_scroll_edge_blur')}
-					sub={$lang('hearth_blurs_content_where_a_list_runs_off')}
-				>
-					<Switch
-						checked={scrollEdgeBlur}
-						label={$lang('hearth_scroll_edge_blur')}
-						onchange={setScrollEdgeBlur}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					label={$lang('hearth_sidebar')}
-					sub={$lang(
-						railPosition === 'none'
-							? 'hearth_sidebar_widgets_hidden_but_kept'
-							: 'hearth_where_widgets_sit_on_wide_screens'
-					)}
-				>
-					<SelectField
-						inline
-						label={$lang('hearth_sidebar')}
-						value={railPosition}
-						options={RAIL_POSITION_OPTIONS}
-						onchange={setRailPosition}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					label={$lang('hearth_swipe_between_pages_on_phones')}
-					sub={$lang('hearth_swipe_sideways_over_the_page')}
-				>
-					<Switch
-						checked={swipeMobile}
-						label={$lang('hearth_swipe_between_pages_on_phones')}
-						onchange={(enabled) => setSwipe('swipe_navigation_mobile', enabled)}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					label={$lang('hearth_swipe_between_pages_on_wide_screens')}
-					sub={$lang('hearth_drag_sideways_over_the_page')}
-				>
-					<Switch
-						checked={swipeDesktop}
-						label={$lang('hearth_swipe_between_pages_on_wide_screens')}
-						onchange={(enabled) => setSwipe('swipe_navigation_desktop', enabled)}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					label={$lang('hearth_clock_in_the_phone_page_strip')}
-					sub={$lang('hearth_shows_the_time_and_date_beside')}
-				>
-					<Switch
-						checked={phoneClock}
-						label={$lang('hearth_clock_in_the_phone_page_strip')}
-						onchange={setPhoneClock}
-					/>
-				</SettingsRow>
-				{#each displayRows as row (row.label)}
-					{@render stepperRow(row)}
+				<div class="group-title">{$lang('hearth_greeting')}</div>
+				{#each persons as person (person)}
+					{@const name = $states?.[person]?.attributes?.friendly_name || person}
+					<SettingsRow label={fill($lang('hearth_greet_person'), { name })}>
+						<Switch
+							checked={greeting?.persons.includes(person) ?? false}
+							label={fill($lang('hearth_greet_person'), { name })}
+							onchange={(greeted) => setGreetingPerson(person, greeted)}
+						/>
+					</SettingsRow>
+				{:else}
+					<div class="row-note">{$lang('hearth_greeting_no_persons')}</div>
 				{/each}
+				{#if greeting}
+					<SettingsRow
+						label={$lang('hearth_greeting_minutes')}
+						sub={$lang('hearth_greeting_minutes_sub')}
+					>
+						<SelectField
+							inline
+							label={$lang('hearth_greeting_minutes')}
+							value={greetingMinutes}
+							options={GREETING_MINUTE_OPTIONS}
+							onchange={setGreetingMinutes}
+						/>
+					</SettingsRow>
+				{/if}
 			</div>
 		</section>
 
 		<section>
-			<div class="section-title">{$lang('hearth_alerts')}</div>
+			{@render sectionHead($lang('hearth_alerts'), $lang('hearth_scope_dashboard'))}
 			<div class="rows">
 				{#each $hearthConfig.alerts ?? [] as rule, index (rule.id)}
 					<SettingsRow
@@ -667,24 +1056,116 @@
 					sub={$lang('hearth_alerts_sub')}
 					onclick={() => editor.set({ kind: 'alert', index: null })}
 				/>
+				<div class="group-title">{$lang('hearth_alert_chimes')}</div>
+				{#each CHIME_SEVERITIES as { severity, label } (severity)}
+					<SettingsRow {label}>
+						<SelectField
+							inline
+							{label}
+							value={chimeValue(chimes[severity]) || 'none'}
+							options={CHIME_OPTIONS}
+							onchange={(value) => setSeverityChime(severity, value)}
+						/>
+					</SettingsRow>
+				{/each}
+				<SettingsRow label={$lang('hearth_alert_chime_volume')}>
+					<SelectField
+						inline
+						label={$lang('hearth_alert_chime_volume')}
+						value={chimeVolume}
+						options={VOLUME_OPTIONS}
+						onchange={(value) => setChimes({ volume: integerFromInput(value) })}
+					/>
+				</SettingsRow>
+				<SettingsRow
+					icon="volume_up"
+					label={$lang('hearth_alert_chime_test')}
+					sub={$lang(
+						$screenOverrides.mute_chimes
+							? 'hearth_alert_chime_muted_here'
+							: 'hearth_alert_chime_first_tap'
+					)}
+					chevron={false}
+					onclick={playTestChime}
+				/>
 			</div>
 		</section>
 
 		<section>
-			<div class="section-title">{$lang('hearth_advanced')}</div>
+			{@render sectionHead($lang('hearth_pages'), $lang('hearth_scope_dashboard'))}
 			<div class="rows">
+				<!-- every page in rail order, reachable whatever the rail shows -->
+				{#each $hearthConfig.rooms as room, index (room.id)}
+					<div class="page-row">
+						<button
+							type="button"
+							class="page-open"
+							onclick={() => editor.set({ kind: 'room', id: room.id })}
+						>
+							<Icon name={room.icon} size={ICON.control} />
+							<span class="page-name">{room.name || room.id}</span>
+						</button>
+						<button
+							type="button"
+							class="step"
+							aria-label={fill($lang('hearth_move_named_up'), { name: room.name || room.id })}
+							disabled={index === 0}
+							onclick={() => movePage(index, -1)}
+						>
+							<Icon name="arrow_upward" size={ICON.control} />
+						</button>
+						<button
+							type="button"
+							class="step"
+							aria-label={fill($lang('hearth_move_named_down'), { name: room.name || room.id })}
+							disabled={index === $hearthConfig.rooms.length - 1}
+							onclick={() => movePage(index, 1)}
+						>
+							<Icon name="arrow_downward" size={ICON.control} />
+						</button>
+					</div>
+				{/each}
+				<SettingsRow
+					icon="add"
+					label={$lang('hearth_add_page')}
+					onclick={() => editor.set({ kind: 'room', id: null })}
+				/>
 				<SettingsRow
 					icon="auto_awesome"
 					label={$lang('hearth_setup')}
 					sub={$lang('hearth_setup_row_sub')}
-					onclick={() => setupWizardOpen.set(true)}
+					onclick={() => {
+						setupWizardSource.set('areas');
+						setupWizardOpen.set(true);
+					}}
 				/>
 				<SettingsRow
-					icon="settings_applications"
-					label={$lang('hearth_application_settings')}
-					sub={$lang('hearth_language_motion_add_ons_version_and')}
+					icon="dashboard_customize"
+					label={$lang('hearth_starter_layouts')}
+					sub={$lang('hearth_starter_layouts_sub')}
+					onclick={() => {
+						setupWizardSource.set('starter');
+						setupWizardOpen.set(true);
+					}}
+				/>
+			</div>
+		</section>
+
+		<section>
+			{@render sectionHead($lang('hearth_server'), $lang('hearth_scope_saved_now'))}
+			<div class="rows">
+				<SettingsRow
+					icon="dns"
+					label={$lang('hearth_server_settings')}
+					sub={$lang('hearth_server_settings_sub')}
 					onclick={() => editor.set({ kind: 'appSettings' })}
 				/>
+			</div>
+		</section>
+
+		<section>
+			{@render sectionHead($lang('hearth_maintenance'))}
+			<div class="rows">
 				<SettingsRow
 					icon="code"
 					label={$lang('hearth_edit_configuration_yaml')}
@@ -718,7 +1199,43 @@
 		letter-spacing: 2px;
 		text-transform: uppercase;
 		color: var(--h-label);
+		margin: 0 0 4px;
+	}
+
+	.section-scope,
+	.settings-note,
+	.row-note {
+		font-size: var(--h-type-small);
+		color: var(--h-text-6);
 		margin: 0 0 8px;
+	}
+
+	.row-note {
+		margin: 0;
+		padding: 10px 16px 14px;
+	}
+
+	/* a run of rows inside a section, set off by its own small heading */
+	.group-title {
+		padding: 14px 16px 4px;
+		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
+		font-family: var(--h-font-mono);
+		font-size: var(--h-type-label);
+		letter-spacing: 2px;
+		text-transform: uppercase;
+		color: var(--h-label);
+	}
+
+	.inline-text {
+		width: 120px;
+		border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
+		border-radius: var(--h-radius-xs);
+		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+		color: var(--h-text-2);
+		font-family: var(--h-font-mono);
+		font-size: var(--h-type-body);
+		padding: 8px 12px;
+		outline: none;
 	}
 
 	.rows {
@@ -804,6 +1321,50 @@
 	.unit-input input::-webkit-inner-spin-button {
 		appearance: none;
 		margin: 0;
+	}
+
+	.page-row {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		padding: 6px 10px 6px 0;
+		min-height: 56px;
+		border-bottom: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
+	}
+
+	.page-open {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		align-self: stretch;
+		padding: 0 16px;
+		border: 0;
+		background: none;
+		color: var(--h-icon);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.page-name {
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		font-size: var(--h-type-body);
+		color: var(--h-text-2);
+	}
+
+	@media (hover: hover) {
+		.page-open:hover .page-name {
+			color: var(--h-accent-text);
+		}
+	}
+
+	.step:disabled {
+		color: var(--h-icon-dim);
+		cursor: default;
 	}
 
 	.setting-warning {

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { customCss } from '$lib/ui/CustomCss.svelte';
 import { editor } from '../store';
 import CustomCssEditSheet from './CustomCssEditSheet.svelte';
@@ -16,13 +16,19 @@ function stubServer() {
 }
 
 describe('CustomCssEditSheet', () => {
+	// the sheet loads CodeMirror on demand; transforming it cold under a loaded
+	// suite can outlast waitFor's timeout, so it is loaded before the tests
+	beforeAll(async () => {
+		await import('$lib/ui/CodeEditor.svelte');
+	});
+
 	afterEach(() => {
 		vi.unstubAllGlobals();
 		customCss.set('');
 		editor.set(null);
 	});
 
-	it('applies the saved stylesheet in place, keeping the page and its draft', async () => {
+	it('applies the saved stylesheet in place and returns to Settings', async () => {
 		const fetchMock = stubServer();
 		editor.set({ kind: 'customCss' });
 		const { container } = render(CustomCssEditSheet);
@@ -35,7 +41,8 @@ describe('CustomCssEditSheet', () => {
 			'/_api/custom_css',
 			expect.objectContaining({ method: 'POST' })
 		);
-		expect(get(editor)).toBeNull();
+		// back to Settings, where Custom CSS was opened from
+		expect(get(editor)).toEqual({ kind: 'settings' });
 	});
 
 	it('saves on cmd+s inside the editor', async () => {

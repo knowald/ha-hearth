@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as yaml from 'js-yaml';
+	import { parseYaml } from '../yamlText';
 	import { entityIds } from '$lib/core/ha/entities';
 
 	let {
@@ -7,7 +7,9 @@
 		value = $bindable(''),
 		placeholder = '',
 		language = 'yaml',
-		expectMapping = language === 'yaml'
+		expectMapping = language === 'yaml',
+		required = false,
+		compact = false
 	}: {
 		label: string;
 		value?: string;
@@ -15,28 +17,31 @@
 		language?: 'yaml' | 'jinja2' | 'css';
 		/** Off for languages a YAML parser would reject, such as a bare template. */
 		expectMapping?: boolean;
+		/** Marks the label; the editor decides what blocks Done. */
+		required?: boolean;
+		/** Starts at three lines and grows with the text, for a one-line template in a list row. */
+		compact?: boolean;
 	} = $props();
 
 	let error = $derived.by(() => {
 		if (!expectMapping || !value.trim()) return null;
-		try {
-			const parsed = yaml.load(value);
-			return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-				? null
-				: 'Expected a YAML mapping'; // copy ok: yaml diagnostic
-		} catch (parseError) {
-			return parseError instanceof Error ? parseError.message.split('\n')[0] : 'Invalid YAML'; // copy ok: yaml diagnostic
-		}
+		const loaded = parseYaml(value);
+		if (loaded.issue !== null) return loaded.issue;
+		const parsed = loaded.value;
+		return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+			? null
+			: 'Expected a YAML mapping'; // copy ok: yaml diagnostic
 	});
 </script>
 
-<div class="field code-field">
-	<span class="field-label">{label}</span>
+<div class="field code-field" class:compact>
+	<span class="field-label" class:field-required={required}>{label}</span>
 	<div class="code-workspace">
 		{#await import('$lib/ui/CodeEditor.svelte') then CodeEditor}
 			<CodeEditor.default
 				{value}
 				{label}
+				{required}
 				{placeholder}
 				type={language}
 				transitionend={false}
@@ -68,6 +73,16 @@
 
 	.code-workspace {
 		min-height: 160px;
+	}
+
+	/* three lines of the editor's 1.4 line height, plus its padding and border */
+	.compact .code-workspace {
+		min-height: calc(4.2 * var(--h-type-emphasis) + 10px);
+	}
+
+	.compact .code-workspace :global(.cm-content),
+	.compact .code-workspace :global(.cm-gutter) {
+		min-height: 4.2em;
 	}
 
 	.error {

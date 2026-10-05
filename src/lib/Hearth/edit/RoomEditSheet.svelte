@@ -2,13 +2,30 @@
 	import { integerFromInput } from './numbers';
 	import { fill, lang } from '$lib/core/i18n';
 	import { get } from 'svelte/store';
-	import { moveItem, resizeCardColumns, slugify, uniqueId } from '../config';
+	import {
+		normalizeVisibility,
+		resizeCardColumns,
+		slugify,
+		uniqueId,
+		type VisibilityCondition
+	} from '../config';
+	import { duplicateRoom, shiftItem } from '../model/layoutEdits';
+	import { confirmDiscard } from './discard';
 	import { currentRoom, editor, hearthConfig, updateConfig } from '../store';
+	import { pageBackgroundIssue } from '../normalize';
+	import { loadSavedThemes, savedThemes } from '../themeSchedule';
+	import type { ScrimLevel } from '../types';
+	import FormSection from './FormSection.svelte';
+	import ImageField from './ImageField.svelte';
+	import { themeOptions, withCurrent } from './options';
+	import CheckField from './CheckField.svelte';
 	import EditSheet from './EditSheet.svelte';
 	import EntityField from './EntityField.svelte';
 	import IconField from './IconField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
+	import VisibilitySection from './VisibilitySection.svelte';
+	import { requireFields } from './validation';
 
 	let { id }: { id: string | null } = $props();
 
@@ -25,6 +42,61 @@
 	let hideHeader = $state(initial?.hide_header ?? false);
 	let fillScreen = $state(initial?.fill_screen ? 'fill' : 'scroll');
 	let columns = $state(initial?.columns ? String(initial.columns) : '');
+	// header moves are staged with the rest and applied on Done
+	let moveBy = $state(0);
+	let roomIndex = $derived($hearthConfig.rooms.findIndex((entry) => entry.id === id));
+	let stagedIndex = $derived(roomIndex + moveBy);
+	let visibility = $state<VisibilityCondition[]>(
+		(initial?.visibility ?? []).map((condition) => ({ ...condition }))
+	);
+	let backgroundImage = $state(initial?.background_image ?? '');
+	let backgroundScrim = $state<ScrimLevel>(initial?.background_scrim ?? 'medium');
+	let pageTheme = $state(initial?.theme ?? '');
+
+	let backgroundIssue = $derived(
+		backgroundImage.trim() ? pageBackgroundIssue(backgroundImage.trim()) : null
+	);
+
+	$effect(() => {
+		void loadSavedThemes();
+	});
+
+	function look() {
+		const image = backgroundImage.trim();
+		return {
+			background_image: image || undefined,
+			// medium is the default, so it is stored as unset
+			background_scrim: image && backgroundScrim !== 'medium' ? backgroundScrim : undefined,
+			theme: pageTheme.trim() || undefined
+		};
+	}
+
+	function staged() {
+		return {
+			name,
+			icon,
+			summary,
+			tempEntity,
+			humidityEntity,
+			hideHeader,
+			fillScreen,
+			columns,
+			moveBy,
+			visibility,
+			backgroundImage,
+			backgroundScrim,
+			pageTheme
+		};
+	}
+
+	let validity = $derived(
+		backgroundIssue
+			? { valid: false, reason: $lang('hearth_fix_marked_fields') }
+			: requireFields($lang('hearth_field_required'), { label: $lang('name'), value: name })
+	);
+
+	const untouched = JSON.stringify(staged());
+	let dirty = $derived(JSON.stringify(staged()) !== untouched);
 
 	function close() {
 		editor.set(null);
@@ -48,9 +120,12 @@
 				room.hide_header = hideHeader || undefined;
 				room.fill_screen = fillScreen === 'fill' || undefined;
 				room.columns = roomColumns;
+				room.visibility = normalizeVisibility($state.snapshot(visibility));
+				Object.assign(room, look());
 				if (roomColumns !== undefined && room.cards?.length && room.cards.length !== roomColumns) {
 					room.cards = resizeCardColumns(room.cards, roomColumns);
 				}
+				if (moveBy) shiftItem(next.rooms, next.rooms.indexOf(room), moveBy);
 			} else {
 				next.rooms.push({
 					id: uniqueId(
@@ -65,6 +140,8 @@
 					hide_header: hideHeader || undefined,
 					fill_screen: fillScreen === 'fill' || undefined,
 					columns: roomColumns,
+					visibility: normalizeVisibility($state.snapshot(visibility)),
+					...look(),
 					cards: Array.from({ length: roomColumns ?? 1 }, () => [])
 				});
 			}
@@ -83,13 +160,24 @@
 	}
 
 	function move(delta: number) {
-		updateConfig((next) =>
-			moveItem(
-				next.rooms,
-				next.rooms.findIndex((entry) => entry.id === id),
-				delta
-			)
-		);
+		const target = Math.max(0, Math.min($hearthConfig.rooms.length - 1, stagedIndex + delta));
+		moveBy = target - roomIndex;
+	}
+
+	// copies the page as saved, opens the copy and shows it behind the sheet
+	function duplicate() {
+		if (!id || !initial) return;
+		const source = id;
+		const copyName = fill($lang('hearth_page_copy_name'), { name: initial.name });
+		confirmDiscard(dirty, () => {
+			let copyId: string | undefined;
+			updateConfig((next) => {
+				copyId = duplicateRoom(next, source, copyName);
+			});
+			if (!copyId) return;
+			currentRoom.set(copyId);
+			editor.set({ kind: 'room', id: copyId });
+		});
 	}
 </script>
 
@@ -97,13 +185,19 @@
 	title={$lang(id ? 'hearth_edit_page' : 'hearth_add_page')}
 	onclose={close}
 	ondone={done}
-	doneDisabled={!name.trim()}
+	{dirty}
+	doneDisabled={!validity.valid}
+	doneReason={validity.reason ?? null}
 	onremove={id && $hearthConfig.rooms.length > 1 ? remove : undefined}
 	onmoveup={id ? () => move(-1) : undefined}
 	onmovedown={id ? () => move(1) : undefined}
+	moveUpDisabled={stagedIndex <= 0}
+	moveDownDisabled={stagedIndex >= $hearthConfig.rooms.length - 1}
+	onduplicate={id ? duplicate : undefined}
 >
 	<TextField
 		label={$lang('name')}
+		required
 		bind:value={name}
 		placeholder={$lang('hearth_example_page_name')}
 	/>
@@ -117,11 +211,13 @@
 		label={$lang('hearth_temperature_sensor')}
 		bind:value={tempEntity}
 		domains={['sensor']}
+		deviceClass="temperature"
 	/>
 	<EntityField
 		label={$lang('hearth_humidity_sensor')}
 		bind:value={humidityEntity}
 		domains={['sensor']}
+		deviceClass="humidity"
 	/>
 	<SelectField
 		label={$lang('hearth_screen_height')}
@@ -143,32 +239,47 @@
 		]}
 	/>
 
-	<label class="check">
-		<input type="checkbox" bind:checked={hideHeader} />
-		<span>{$lang('hearth_hide_page_header')}</span>
-	</label>
+	<CheckField label={$lang('hearth_hide_page_header')} bind:checked={hideHeader} />
 	<div class="field-hint">
 		{$lang('hearth_everything_on_the_page_is_a')}
 		{#if id && $hearthConfig.rooms.length === 1}
 			{$lang('hearth_this_is_the_last_page_so')}
 		{/if}
 	</div>
+
+	<VisibilitySection bind:value={visibility} />
+	<div class="field-hint">{$lang('hearth_page_visibility_hint')}</div>
+
+	<FormSection title={$lang('hearth_page_look')}>
+		<SelectField
+			label={$lang('theme')}
+			bind:value={pageTheme}
+			options={withCurrent(
+				[
+					{ value: '', label: $lang('hearth_page_theme_default') },
+					...themeOptions($lang, $savedThemes)
+				],
+				pageTheme,
+				$lang
+			)}
+			hint={$lang('hearth_page_theme_hint')}
+		/>
+		<ImageField
+			label={$lang('hearth_background_image')}
+			bind:value={backgroundImage}
+			issue={backgroundIssue}
+			placeholder={$lang('hearth_example_background_image')}
+		/>
+		{#if backgroundImage.trim()}
+			<SelectField
+				label={$lang('hearth_background_scrim')}
+				bind:value={backgroundScrim}
+				options={(['light', 'medium', 'strong'] as const).map((level) => ({
+					value: level,
+					label: $lang(`hearth_scrim_${level}`)
+				}))}
+				hint={$lang('hearth_page_scrim_hint')}
+			/>
+		{/if}
+	</FormSection>
 </EditSheet>
-
-<style>
-	.check {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		font-size: var(--h-type-body);
-		color: var(--h-text-3);
-		padding: 6px 0;
-		cursor: pointer;
-	}
-
-	.check input {
-		accent-color: var(--h-accent-deep);
-		width: 16px;
-		height: 16px;
-	}
-</style>

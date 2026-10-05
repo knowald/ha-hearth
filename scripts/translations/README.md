@@ -1,6 +1,6 @@
 # Translations
 
-Translations are pulled from a local Home Assistant Docker container by editing and running `generate.sh`
+Translations are pulled from a local Home Assistant Docker container by editing and running `generate.sh`. It writes `static/translations/<locale>.json` and never touches `static/translations/hearth/`, which holds Hearth's own copy (see [development](../../docs/development.md#translations)).
 
 ## Edit
 

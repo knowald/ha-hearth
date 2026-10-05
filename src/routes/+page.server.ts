@@ -1,11 +1,11 @@
 import { readFile } from 'fs/promises';
-import { dev } from '$app/environment';
 import * as yaml from 'js-yaml';
 import { ConfigurationSchema, type Configuration } from '$lib/core/app/configuration';
 import * as v from 'valibot';
 import type { Translations } from '$lib/core/i18n';
 import { CONFIG_VERSION, configVersion } from '$lib/Hearth/format';
 import { hearthConfigIssues } from '$lib/Hearth/normalize';
+import { loadTranslations } from '$lib/server/translations';
 import type { HearthErrorKind } from '$lib/Hearth/store';
 import dotenv from 'dotenv';
 import type { PageServerLoad } from './$types';
@@ -22,14 +22,6 @@ async function loadYaml(file: string) {
 	}
 }
 
-async function loadJson(file: string) {
-	try {
-		return JSON.parse(await readFile(file, 'utf8'));
-	} catch {
-		return {};
-	}
-}
-
 export const load = (async ({
 	request
 }): Promise<{
@@ -41,6 +33,7 @@ export const load = (async ({
 	hearthNeedsSetup: boolean;
 	hearthRevision: number;
 	translations: Translations;
+	translationsLocale: string;
 }> => {
 	let configuration: Configuration = { revision: 0 };
 	let configurationError: string | null = null;
@@ -109,14 +102,13 @@ export const load = (async ({
 			? `${forwardedProto}://${forwardedHost}`
 			: process.env.HASS_PUBLIC_URL || process.env.HASS_URL) || undefined;
 
-	// Load the selected language with English fallback.
-	const dir = dev ? './static' : './build/client';
-	const [en, locale] = await Promise.all([
-		loadJson(`${dir}/translations/en.json`),
-		configuration?.locale && configuration.locale !== 'en'
-			? loadJson(`${dir}/translations/${configuration.locale}.json`)
-			: undefined
-	]);
+	// an unknown locale in configuration.yaml shows English, and the page
+	// names the language it actually shows
+	let translationsLocale = configuration.locale || 'en';
+	const translations = await loadTranslations(translationsLocale).catch(() => {
+		translationsLocale = 'en';
+		return loadTranslations('en');
+	});
 
 	return {
 		configuration,
@@ -126,6 +118,7 @@ export const load = (async ({
 		hearthErrorKind,
 		hearthNeedsSetup,
 		hearthRevision,
-		translations: locale ? { ...locale, _default: en } : en
+		translations,
+		translationsLocale
 	};
 }) satisfies PageServerLoad;

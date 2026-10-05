@@ -4,7 +4,9 @@
 	import { lang, fill } from '$lib/core/i18n';
 	import { activateOnKeyboard } from '../interaction';
 	import { base } from '$app/paths';
+	import { onDestroy } from 'svelte';
 	import { get } from 'svelte/store';
+	import { SvelteMap } from 'svelte/reactivity';
 	import {
 		deriveAccent,
 		deriveBackground,
@@ -12,6 +14,7 @@
 		deriveCool,
 		deriveRadii,
 		deriveText,
+		BACKGROUND_SCRIMS,
 		isLightTheme,
 		RADIUS_SCALES,
 		SURFACE_BLUR_SCALES,
@@ -20,21 +23,37 @@
 		textContrastOf,
 		THEME_DEFAULTS,
 		THEME_PRESETS,
+		themeValueIssue,
+		usableThemeValue,
 		type HearthTheme
 	} from '$lib/core/theme';
 	import {
 		editedThemeSlot,
 		editor,
 		hearthConfig,
+		hearthEditMode,
+		reportCopy,
 		requestConfirmation,
 		updateConfig
 	} from '../store';
+	import { downloadText } from '$lib/ui/download';
+	import { copyText } from '$lib/ui/clipboard';
+	import Ripple from '$lib/ui/actions/ripple';
+	import { PRESS_RIPPLE } from '../config';
+	import { themeDocument, themeFileName, themeFromDocument } from '../snippets';
 	import EditSheet from './EditSheet.svelte';
 	import ColorField from './ColorField.svelte';
+	import CopyFallback from './CopyFallback.svelte';
+	import SnippetInput from './SnippetInput.svelte';
 	import EntityField from './EntityField.svelte';
 	import ImageField from './ImageField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
+	import { themeOptions, withCurrent } from './options';
+	import VisibilityField from './VisibilityField.svelte';
+	import { isMonthDay, normalizeVisibility, withoutMedia } from '../config';
+	import type { ThemeChoice, ThemeScheduleEntry, VisibilityCondition } from '../types';
+	import { savedThemes as sharedSavedThemes } from '../themeSchedule';
 	import Icon from '../Icon.svelte';
 
 	interface SavedTheme {
@@ -75,12 +94,17 @@
 		});
 	}
 
+	let backgroundImageIssue = $derived.by(() => {
+		const url = backgroundImageUrl.trim();
+		return url ? themeValueIssue('background_image', `url(${url})`) : null;
+	});
+
 	// applied when the field is left rather than per keystroke: the dashboard
 	// behind the window previews the new wallpaper without the undo stack
 	// collecting a step for every character
 	function applyBackgroundImage() {
 		const url = backgroundImageUrl.trim();
-		if (url === unwrapUrl(theme.background_image)) return;
+		if (url === unwrapUrl(theme.background_image) || backgroundImageIssue) return;
 		writeTheme((current) => {
 			if (url) return { ...current, background_image: `url(${url})` };
 			const next = { ...current };
@@ -95,6 +119,15 @@
 
 	function patchTheme(patch: HearthTheme) {
 		writeTheme((current) => ({ ...current, ...patch }));
+	}
+
+	/** Sets one knob, dropping it again when the choice is its default. */
+	function setKnob(key: string, value: string) {
+		writeTheme((current) => {
+			const next = { ...current, [key]: value };
+			if (value === THEME_DEFAULTS[key]) delete next[key];
+			return next;
+		});
 	}
 
 	function applyPreset(preset: HearthTheme | null) {
@@ -139,6 +172,115 @@
 		selectSlot('day');
 	}
 
+	/*
+	 * The schedule is edited as drafts and written when a field is left, an
+	 * entry is added or removed, or the sheet closes. Only complete entries
+	 * reach the config: a theme, and both days or a condition. An entry whose
+	 * days are mistyped or half filled keeps what it last wrote, and holds
+	 * Done until they are fixed.
+	 */
+	interface ScheduleDraft {
+		key: number;
+		// a preset id or saved theme name; INLINE_TOKENS for tokens written out in YAML
+		theme: string;
+		tokens?: HearthTheme;
+		night?: ThemeChoice;
+		from: string;
+		to: string;
+		when: VisibilityCondition[];
+	}
+
+	const INLINE_TOKENS = '#tokens';
+	let draftKey = 0;
+	// what each draft last wrote, by key; a mistyped day falls back to it
+	const lastEntries = new SvelteMap<number, ThemeScheduleEntry>();
+
+	function scheduleDraft(entry: ThemeScheduleEntry): ScheduleDraft {
+		lastEntries.set(draftKey, entry);
+		return {
+			key: draftKey++,
+			theme: typeof entry.theme === 'string' ? entry.theme : INLINE_TOKENS,
+			tokens: typeof entry.theme === 'string' ? undefined : entry.theme,
+			night: entry.night,
+			from: entry.from ?? '',
+			to: entry.to ?? '',
+			when: structuredClone(entry.when ?? [])
+		};
+	}
+
+	let schedule = $state<ScheduleDraft[]>(
+		(get(hearthConfig).theme_schedule ?? []).map(scheduleDraft)
+	);
+
+	function draftConditions(draft: ScheduleDraft) {
+		return withoutMedia(normalizeVisibility(draft.when) ?? []);
+	}
+
+	/** Why one of a draft's days cannot be written, if it cannot. */
+	function dayError(draft: ScheduleDraft, side: 'from' | 'to'): string | undefined {
+		const value = draft[side].trim();
+		if (value && !isMonthDay(value)) return $lang('hearth_schedule_day_format');
+		const other = draft[side === 'from' ? 'to' : 'from'].trim();
+		// a day alone is half a range, and an entry needs days or a condition
+		if (!value && (other || !draftConditions(draft).length)) {
+			const label = side === 'from' ? 'hearth_schedule_from' : 'hearth_schedule_to';
+			return fill($lang('hearth_field_required'), { field: $lang(label) });
+		}
+		return undefined;
+	}
+
+	function draftError(draft: ScheduleDraft): string | undefined {
+		return dayError(draft, 'from') ?? dayError(draft, 'to');
+	}
+
+	let scheduleError = $derived(schedule.map(draftError).find(Boolean) ?? null);
+
+	function scheduleEntries(drafts: ScheduleDraft[]): ThemeScheduleEntry[] {
+		return drafts.flatMap((draft): ThemeScheduleEntry[] => {
+			const last = lastEntries.get(draft.key);
+			if (draftError(draft)) return last ? [last] : [];
+			const theme = draft.theme === INLINE_TOKENS ? draft.tokens : draft.theme;
+			if (!theme) return [];
+			const from = draft.from.trim();
+			const to = draft.to.trim();
+			const when = draftConditions(draft);
+			const entry: ThemeScheduleEntry = {
+				theme,
+				...(draft.night ? { night: draft.night } : {}),
+				...(from ? { from, to } : {}),
+				...(when.length ? { when } : {})
+			};
+			lastEntries.set(draft.key, entry);
+			return [entry];
+		});
+	}
+
+	function applySchedule() {
+		const entries = scheduleEntries($state.snapshot(schedule) as ScheduleDraft[]);
+		const current = get(hearthConfig).theme_schedule ?? [];
+		if (JSON.stringify(entries) === JSON.stringify(current)) return;
+		updateConfig((config) => {
+			config.theme_schedule = entries.length ? entries : undefined;
+		});
+	}
+
+	// a condition's entity chosen in the picker fires no change event, and the
+	// sheet can go without its close button (another editor opening); a
+	// cancelled edit session must not get the drafts back
+	onDestroy(() => {
+		if (get(hearthEditMode)) applySchedule();
+	});
+
+	function addScheduleEntry() {
+		schedule.push({ key: draftKey++, theme: 'winter', from: '12-01', to: '02-29', when: [] });
+		applySchedule();
+	}
+
+	function removeScheduleEntry(key: number) {
+		schedule = schedule.filter((draft) => draft.key !== key);
+		applySchedule();
+	}
+
 	let savedThemes = $state<SavedTheme[]>([]);
 	let themesLoading = $state(false);
 	let themesError = $state('');
@@ -155,6 +297,8 @@
 				return;
 			}
 			savedThemes = await response.json();
+			// the dashboard resolves saved theme names from the same list
+			sharedSavedThemes.set(savedThemes);
 		} catch (err: any) {
 			console.error(err);
 			themesError = $lang('hearth_themes_load_failed');
@@ -192,9 +336,54 @@
 		}
 	}
 
+	// a saved theme file is not checked when written, and the save endpoint
+	// would refuse a value the dashboard cannot apply
 	function applySavedTheme(saved: SavedTheme) {
-		writeTheme(() => ({ ...saved.theme }));
-		backgroundImageUrl = unwrapUrl(saved.theme.background_image);
+		const usable = Object.entries(saved.theme).flatMap(([key, value]) => {
+			const kept = typeof value === 'string' ? usableThemeValue(key, value) : null;
+			return kept === null ? [] : [[key, kept]];
+		});
+		const next: HearthTheme = Object.fromEntries(usable);
+		writeTheme(() => next);
+		backgroundImageUrl = unwrapUrl(next.background_image);
+	}
+
+	function sameTheme(left: HearthTheme, right: HearthTheme) {
+		const keys = Object.keys(left);
+		return (
+			keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key])
+		);
+	}
+
+	/*
+	 * Export and Import move a theme between dashboards as YAML, in the same
+	 * shape the server keeps saved themes in. An import is checked and shown
+	 * before it applies, and applies like a preset: one undoable step.
+	 */
+	let exportName = $derived(
+		savedThemes.find((saved) => sameTheme(saved.theme, theme))?.name ??
+			(newThemeName.trim() || $lang(slot === 'night' ? 'hearth_theme_night' : 'day'))
+	);
+	let importing = $state(false);
+	let copyFallback = $state<string | null>(null);
+
+	async function copyThemeYaml() {
+		const text = themeDocument(exportName, theme);
+		if (await copyText(text)) reportCopy('copied');
+		else copyFallback = text;
+	}
+
+	function downloadTheme() {
+		downloadText(themeFileName(exportName), themeDocument(exportName, theme));
+	}
+
+	function importTheme(text: string): string | null {
+		const result = themeFromDocument(text);
+		if (result.issue !== null) return result.issue;
+		writeTheme(() => ({ ...result.value.theme }));
+		backgroundImageUrl = unwrapUrl(result.value.theme.background_image);
+		importing = false;
+		return null;
 	}
 
 	function confirmDeleteSavedTheme(saved: SavedTheme) {
@@ -219,6 +408,7 @@
 				return;
 			}
 			savedThemes = savedThemes.filter((entry) => entry.id !== saved.id);
+			sharedSavedThemes.set(savedThemes);
 		} catch (err: any) {
 			console.error(err);
 			themesError = $lang('hearth_theme_delete_failed');
@@ -246,6 +436,42 @@
 		return (match ?? SURFACE_BLUR_SCALES[current === 'none' ? 0 : 2]).value;
 	});
 
+	// darkens a bright photo behind the panels; the medium step is the Glass preset's
+	const SCRIM_OPTIONS = [
+		{ value: 'none', label: 'hearth_scrim_none' },
+		...Object.entries(BACKGROUND_SCRIMS).map(([level, value]) => ({
+			value,
+			label: `hearth_scrim_${level}`
+		}))
+	];
+	let scrim = $derived(knob('background_scrim'));
+
+	// the two bundled faces, plus ones every device already has
+	const SYSTEM_FONT = 'system-ui, sans-serif'; // copy ok: css value
+	const ROUNDED_FONT = "ui-rounded, 'SF Pro Rounded', system-ui, sans-serif"; // copy ok: css value
+	const SERIF_FONT = "ui-serif, Georgia, 'Times New Roman', serif"; // copy ok: css value
+	const SYSTEM_MONO_FONT = 'ui-monospace, Menlo, Consolas, monospace'; // copy ok: css value
+	const UI_FONTS = [
+		{ value: THEME_DEFAULTS.font_ui, label: 'hearth_font_default' },
+		{ value: SYSTEM_FONT, label: 'hearth_font_system' },
+		{ value: ROUNDED_FONT, label: 'hearth_font_rounded' },
+		{ value: SERIF_FONT, label: 'hearth_font_serif' },
+		{ value: THEME_DEFAULTS.font_mono, label: 'hearth_font_mono' }
+	];
+	const MONO_FONTS = [
+		{ value: THEME_DEFAULTS.font_mono, label: 'hearth_font_default' },
+		{ value: SYSTEM_MONO_FONT, label: 'hearth_font_system_mono' },
+		{ value: 'var(--h-font-ui)', label: 'hearth_font_same_as_text' }
+	];
+
+	// a font stack off the list shows by its first family
+	function familyName(stack: string) {
+		return stack
+			.split(',')[0]
+			.trim()
+			.replace(/^['"]|['"]$/g, '');
+	}
+
 	let textContrast = $derived(textContrastOf(theme));
 	let textFade = $derived(
 		TEXT_CONTRAST_SCALES.find((scale) => scale.value === textContrast)?.fade ?? 1
@@ -262,15 +488,47 @@
 	function close() {
 		applyBackgroundImage();
 		applySwitch();
+		applySchedule();
 		editedThemeSlot.set('day');
 		editor.set(null);
 	}
 </script>
 
+{#snippet importPreview(text: string)}
+	{@const shared = themeFromDocument(text).value}
+	{#if shared}
+		<div class="import-preview" aria-live="polite">
+			<div class="dots">
+				{#each ['background_inner', 'accent', 'cool', 'text_1'] as key (key)}
+					<span class="dot" style:background={shared.theme[key] ?? THEME_DEFAULTS[key]}></span>
+				{/each}
+			</div>
+			<span class="saved-theme-name">{shared.name ?? $lang('hearth_imported_theme')}</span>
+			<span class="token-count">
+				{fill(
+					$lang(
+						Object.keys(shared.theme).length === 1
+							? 'hearth_theme_token_count_one'
+							: 'hearth_theme_token_count'
+					),
+					{ count: Object.keys(shared.theme).length }
+				)}
+			</span>
+		</div>
+		{#if shared.ignored.length}
+			<div class="field-hint">
+				{fill($lang('hearth_theme_keys_left_out'), { keys: shared.ignored.join(', ') })}
+			</div>
+		{/if}
+	{/if}
+{/snippet}
+
 <EditSheet
 	title={$lang('theme')}
 	onclose={close}
 	ondone={close}
+	doneDisabled={Boolean(scheduleError)}
+	doneReason={scheduleError}
 	doneLabel={$lang('hearth_close')}
 	floating
 >
@@ -295,7 +553,7 @@
 			onkeydown={(event) => activateOnKeyboard(event, () => selectSlot('night'))}
 		>
 			<Icon name="dark_mode" size={ICON.control} />
-			<span>{$lang('alarm_modes_armed_night')}</span>
+			<span>{$lang('hearth_theme_night')}</span>
 			{#if !nightEnabled}<span class="slot-note">{$lang('hearth_off')}</span>{/if}
 		</div>
 	</div>
@@ -337,6 +595,63 @@
 			{$lang('hearth_turn_off_the_night_theme')}
 		</div>
 	{/if}
+
+	<div class="group-label">{$lang('hearth_theme_schedule')}</div>
+	<div class="field-hint">{$lang('hearth_theme_schedule_hint')}</div>
+	<div class="schedule" onchange={applySchedule}>
+		{#each schedule as draft, index (draft.key)}
+			<div class="schedule-entry">
+				<div class="schedule-head">
+					<SelectField
+						label={fill($lang('hearth_schedule_entry'), { number: index + 1 })}
+						bind:value={draft.theme}
+						options={withCurrent(
+							[
+								...themeOptions($lang, savedThemes),
+								...(draft.tokens
+									? [{ value: INLINE_TOKENS, label: $lang('hearth_schedule_tokens') }]
+									: [])
+							],
+							draft.theme,
+							$lang
+						)}
+					/>
+					<button
+						type="button"
+						class="icon-button"
+						aria-label={fill($lang('hearth_remove_schedule_entry'), { number: index + 1 })}
+						onclick={() => removeScheduleEntry(draft.key)}
+					>
+						<Icon name="delete" size={ICON.control} />
+					</button>
+				</div>
+				<div class="schedule-days">
+					<TextField
+						label={$lang('hearth_schedule_from')}
+						bind:value={draft.from}
+						placeholder="12-01"
+						error={dayError(draft, 'from')}
+					/>
+					<TextField
+						label={$lang('hearth_schedule_to')}
+						bind:value={draft.to}
+						placeholder="02-29"
+						error={dayError(draft, 'to')}
+					/>
+				</div>
+				<VisibilityField bind:value={draft.when} media={false} />
+			</div>
+		{/each}
+		<button
+			type="button"
+			class="hearth-button secondary pressable"
+			use:Ripple={PRESS_RIPPLE}
+			onclick={addScheduleEntry}
+		>
+			<Icon name="add" size={ICON.inline} />
+			{$lang('hearth_add_schedule_entry')}
+		</button>
+	</div>
 
 	<div class="group-label">{$lang('hearth_presets')}</div>
 	<div class="presets">
@@ -417,6 +732,56 @@
 		{$lang('hearth_saving_or_deleting_a_theme_writes')}
 	</div>
 
+	<div class="group-label">{$lang('hearth_share_theme')}</div>
+	{#if importing}
+		<SnippetInput
+			label={$lang('hearth_theme_yaml')}
+			hint={$lang('hearth_theme_import_hint')}
+			submitLabel={$lang('hearth_apply')}
+			accept=".yaml,.yml,text/yaml,application/yaml,application/x-yaml,text/plain"
+			check={(text) => themeFromDocument(text).issue}
+			preview={importPreview}
+			onsubmit={importTheme}
+			oncancel={() => (importing = false)}
+		/>
+	{:else}
+		<div class="share-row">
+			<button
+				type="button"
+				class="hearth-button secondary pressable"
+				use:Ripple={PRESS_RIPPLE}
+				onclick={copyThemeYaml}
+			>
+				<Icon name="content_copy" size={ICON.inline} />
+				{$lang('hearth_copy_as_yaml')}
+			</button>
+			<button
+				type="button"
+				class="hearth-button secondary pressable"
+				use:Ripple={PRESS_RIPPLE}
+				onclick={downloadTheme}
+			>
+				<Icon name="download" size={ICON.inline} />
+				{$lang('hearth_download')}
+			</button>
+			<button
+				type="button"
+				class="hearth-button secondary pressable"
+				use:Ripple={PRESS_RIPPLE}
+				onclick={() => {
+					copyFallback = null;
+					importing = true;
+				}}
+			>
+				<Icon name="upload_file" size={ICON.inline} />
+				{$lang('hearth_import')}
+			</button>
+		</div>
+	{/if}
+	{#if copyFallback !== null}
+		<CopyFallback text={copyFallback} onclose={() => (copyFallback = null)} />
+	{/if}
+
 	<div class="group-label">{$lang('hearth_colors')}</div>
 	<div class="picker-grid">
 		<ColorField
@@ -474,8 +839,47 @@
 	<ImageField
 		label={$lang('hearth_background_image')}
 		bind:value={backgroundImageUrl}
+		issue={backgroundImageIssue}
 		placeholder={$lang('hearth_example_background_image')}
 		onchange={applyBackgroundImage}
+	/>
+
+	{#if theme.background_image && theme.background_image !== 'none'}
+		<SelectField
+			label={$lang('hearth_background_scrim')}
+			value={scrim}
+			options={withCurrent(
+				SCRIM_OPTIONS.map(({ value, label }) => ({ value, label: $lang(label) })),
+				scrim,
+				$lang,
+				$lang('hearth_custom_scrim')
+			)}
+			onchange={(value) => setKnob('background_scrim', value)}
+		/>
+	{/if}
+
+	<SelectField
+		label={$lang('hearth_font')}
+		value={knob('font_ui')}
+		options={withCurrent(
+			UI_FONTS.map(({ value, label }) => ({ value, label: $lang(label) })),
+			knob('font_ui'),
+			$lang,
+			familyName(knob('font_ui'))
+		)}
+		onchange={(value) => setKnob('font_ui', value)}
+	/>
+
+	<SelectField
+		label={$lang('hearth_label_font')}
+		value={knob('font_mono')}
+		options={withCurrent(
+			MONO_FONTS.map(({ value, label }) => ({ value, label: $lang(label) })),
+			knob('font_mono'),
+			$lang,
+			familyName(knob('font_mono'))
+		)}
+		onchange={(value) => setKnob('font_mono', value)}
 	/>
 
 	<SelectField
@@ -554,6 +958,44 @@
 		display: contents;
 	}
 
+	.schedule {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 10px;
+		margin-bottom: 18px;
+	}
+
+	.schedule-entry {
+		align-self: stretch;
+		padding: 12px 12px 0;
+		border-radius: var(--h-radius-xs);
+		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
+	}
+
+	.schedule-head {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.schedule-head > :global(.field) {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.schedule-days {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+	}
+
+	.schedule .hearth-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+
 	.slots {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -585,7 +1027,7 @@
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-label);
 		letter-spacing: 1px;
-		color: var(--h-text-6);
+		color: var(--h-text-4);
 	}
 
 	.group-label {
@@ -673,6 +1115,13 @@
 
 	.save-row input::placeholder {
 		color: var(--h-text-6);
+	}
+
+	/* iOS Safari zooms the page into any input set under 16px */
+	@media (pointer: coarse) {
+		.save-row input {
+			font-size: max(var(--h-input-floor), var(--h-type-body));
+		}
 	}
 
 	.save-row .button {
@@ -782,5 +1231,36 @@
 		font-size: var(--h-type-small);
 		color: var(--h-bad-text);
 		margin-bottom: 10px;
+	}
+
+	.share-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-bottom: 18px;
+	}
+
+	.share-row .hearth-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.import-preview {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 12px;
+		margin-bottom: 8px;
+		border-radius: var(--h-radius-xs);
+		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+		font-size: var(--h-type-body);
+		color: var(--h-text-3);
+	}
+
+	.token-count {
+		flex: none;
+		font-size: var(--h-type-small);
+		color: var(--h-text-5);
 	}
 </style>

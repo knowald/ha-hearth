@@ -8,12 +8,19 @@ import { WebSocketServer } from 'ws';
  * Recorder statistics, state history, calendar events, template renders and
  * weather forecasts are synthesized so data-driven widgets have something to
  * draw. Camera capabilities and WebRTC signaling are answered without media.
+ * To-do lists answer todo/item/subscribe and the todo.* services, pushing
+ * the changed list to every subscriber. todo.broken is in the state machine
+ * but not a list the todo integration knows, so it gets Home Assistant's
+ * errors.
  * Test endpoints: GET /_test/calls lists received service calls,
  * GET /_test/camera lists received camera/* messages,
  * POST /_test/reset restores the initial states and clears the call log,
  * POST /_test/state with { entity_id, state, attributes } patches one entity,
  * POST /_test/fire_event with an event data object fires a HEARTH event at
- * every subscribe_trigger subscription listening for it.
+ * every subscribe_trigger subscription listening for it,
+ * POST /_test/todo_subscribe with { supported: false } answers
+ * todo/item/subscribe the way a Home Assistant without it does.
+ * GET /api/media_player_proxy/<entity> answers with a 1x1 PNG as album art.
  */
 
 const PORT = Number(process.env.FAKE_HASS_PORT ?? 8124);
@@ -55,6 +62,8 @@ function initialStates() {
 		},
 		'switch.fan': { s: 'on', a: { friendly_name: 'Ceiling fan' } },
 		'switch.heater': { s: 'off', a: { friendly_name: 'Space heater' } },
+		// in the Office area but on no page of the shared fixture, for the import's add-new mode
+		'switch.desk_charger': { s: 'off', a: { friendly_name: 'Desk charger' } },
 		// a config entity: reachable, but never proposed for a page
 		'switch.firmware_update': { s: 'off', a: { friendly_name: 'Firmware update' } },
 		'fan.bedroom': {
@@ -286,11 +295,26 @@ function initialStates() {
 			}
 		},
 		'calendar.family': { s: 'off', a: { friendly_name: 'Family' } },
+		// create, delete, update and due dates; no reordering
+		'todo.shopping': { s: '2', a: { friendly_name: 'Shopping list', supported_features: 23 } },
+		'todo.broken': { s: '0', a: { friendly_name: 'Broken list', supported_features: 23 } },
 		'sun.sun': { s: 'above_horizon', a: { friendly_name: 'Sun' } }
 	};
 }
 
+function initialTodoItems() {
+	return {
+		'todo.shopping': [
+			{ uid: 'milk', summary: 'Milk', status: 'needs_action' },
+			{ uid: 'bread', summary: 'Bread', status: 'needs_action', due: '2026-10-06' },
+			{ uid: 'coffee', summary: 'Coffee', status: 'completed' }
+		]
+	};
+}
+
 let states = initialStates();
+let todoItems = initialTodoItems();
+let todoSubscribeSupported = true;
 let calls = [];
 let cameraRequests = [];
 // Stream types as Home Assistant reports them through camera/capabilities; the
@@ -299,6 +323,8 @@ const cameraStreamTypes = { 'camera.front': [], 'camera.door': ['web_rtc'] };
 const entitySubscribers = new Map();
 // socket -> subscription ids of subscribe_trigger messages for HEARTH events
 const triggerSubscribers = new Map();
+// socket -> Map(subscription id -> todo entity id)
+const todoSubscribers = new Map();
 
 function now() {
 	return Math.floor(Date.now() / 1000);
@@ -320,6 +346,54 @@ function pushChange(entityId) {
 			socket.send(JSON.stringify({ id, type: 'event', event: change }));
 		}
 	}
+}
+
+function pushTodoItems(entityId) {
+	const items = todoItems[entityId] ?? [];
+	states[entityId].s = String(items.filter((item) => item.status === 'needs_action').length);
+	pushChange(entityId);
+	for (const [socket, subscriptions] of todoSubscribers) {
+		if (socket.readyState !== socket.OPEN) continue;
+		for (const [id, subscribed] of subscriptions) {
+			if (subscribed === entityId) {
+				socket.send(JSON.stringify({ id, type: 'event', event: { items } }));
+			}
+		}
+	}
+}
+
+/** Applies a todo.* service the way Home Assistant does; returns an error message or null. */
+function applyTodoService(service, data) {
+	const entityId = [].concat(data.entity_id ?? [])[0];
+	const items = todoItems[entityId];
+	if (!items) return `${entityId} is not a to-do list`;
+	const find = (key) => items.find((item) => item.uid === key || item.summary === key);
+	switch (service) {
+		case 'add_item':
+			items.push({ uid: `item-${Date.now()}`, summary: data.item, status: 'needs_action' });
+			break;
+		case 'update_item': {
+			const item = find(data.item);
+			if (!item) return `Unable to find to-do list item: ${data.item}`;
+			if (data.rename) item.summary = data.rename;
+			if (data.status) item.status = data.status;
+			break;
+		}
+		case 'remove_item': {
+			const keys = [].concat(data.item ?? []);
+			todoItems[entityId] = items.filter(
+				(item) => !keys.includes(item.uid) && !keys.includes(item.summary)
+			);
+			break;
+		}
+		case 'remove_completed_items':
+			todoItems[entityId] = items.filter((item) => item.status !== 'completed');
+			break;
+		default:
+			return null;
+	}
+	pushTodoItems(entityId);
+	return null;
 }
 
 function applyService(domain, service, data) {
@@ -510,11 +584,15 @@ function statisticRows(statisticId, start, end, period) {
 		period === '5minute' ? 300 : period === 'hour' ? 3600 : period === 'day' ? 86400 : 604800;
 	const rows = [];
 	const base = statisticId.includes('energy') ? 0 : statisticId.includes('humidity') ? 45 : 20;
+	// a statistic named for a quiet day uses a third of the usual energy today
+	const midnight = new Date().setHours(0, 0, 0, 0);
+	const quiet = statisticId.includes('quiet_day');
 	let sum = 1200;
 	for (let t = Math.floor(start / 1000); t < end / 1000; t += step) {
 		const phase = ((t / 3600) % 24) / 24;
 		const mean = base + Math.sin(phase * Math.PI * 2) * 3 + Math.cos(t / 7000) * 0.6;
-		const change = 0.4 + Math.max(0, Math.sin(phase * Math.PI * 2)) * 1.6;
+		const usual = 0.4 + Math.max(0, Math.sin(phase * Math.PI * 2)) * 1.6;
+		const change = quiet && t * 1000 >= midnight ? usual / 3 : usual;
 		sum += change;
 		rows.push({
 			start: t * 1000,
@@ -602,7 +680,14 @@ function handleMessage(socket, message) {
 				switch: { turn_on: {}, turn_off: {}, toggle: {} },
 				cover: { open_cover: {}, close_cover: {}, set_cover_position: {} },
 				climate: { set_temperature: {}, set_hvac_mode: {} },
-				calendar: { get_events: {} }
+				calendar: { get_events: {} },
+				todo: {
+					add_item: {},
+					update_item: {},
+					remove_item: {},
+					remove_completed_items: {},
+					get_items: {}
+				}
 			});
 			return;
 		case 'persistent_notification/subscribe':
@@ -631,10 +716,66 @@ function handleMessage(socket, message) {
 				});
 				return;
 			}
-			applyService(domain, service, merged);
+			if (domain === 'todo' && service === 'get_items') {
+				const entityId = [].concat(merged.entity_id ?? [])[0];
+				if (!todoItems[entityId]) {
+					// what Home Assistant answers when return_response matches no entity
+					socket.send(
+						JSON.stringify({
+							id: message.id,
+							type: 'result',
+							success: false,
+							error: {
+								code: 'service_validation_error',
+								message: 'Service call requested response data but did not match any entities'
+							}
+						})
+					);
+					return;
+				}
+				reply({
+					context: { id: 'ctx' },
+					response: { [entityId]: { items: todoItems[entityId] ?? [] } }
+				});
+				return;
+			}
+			if (domain === 'todo') {
+				const error = applyTodoService(service, merged);
+				if (error) {
+					socket.send(
+						JSON.stringify({
+							id: message.id,
+							type: 'result',
+							success: false,
+							error: { code: 'service_validation_error', message: error }
+						})
+					);
+					return;
+				}
+			} else {
+				applyService(domain, service, merged);
+			}
 			reply({ context: { id: 'ctx', parent_id: null, user_id: null } });
 			return;
 		}
+		case 'todo/item/subscribe': {
+			if (!todoSubscribeSupported || !todoItems[message.entity_id]) {
+				const error = todoSubscribeSupported
+					? { code: 'not_found', message: 'Entity not found' }
+					: { code: 'unknown_command', message: 'Unknown command.' };
+				socket.send(JSON.stringify({ id: message.id, type: 'result', success: false, error }));
+				return;
+			}
+			if (!todoSubscribers.has(socket)) todoSubscribers.set(socket, new Map());
+			todoSubscribers.get(socket).set(message.id, message.entity_id);
+			reply(null);
+			event({ items: todoItems[message.entity_id] });
+			return;
+		}
+		case 'unsubscribe_events':
+			todoSubscribers.get(socket)?.delete(message.subscription);
+			reply(null);
+			return;
 		case 'config/floor_registry/list':
 			reply([{ floor_id: 'ground', name: 'Ground floor', level: 0 }]);
 			return;
@@ -660,6 +801,16 @@ function handleMessage(socket, message) {
 				}))
 			);
 			return;
+		case 'config/entity_registry/list_for_display':
+			// the compact form the entity picker reads
+			reply({
+				entity_categories: { 0: 'config', 1: 'diagnostic' },
+				entities: Object.keys(states).map((entityId) => ({
+					ei: entityId,
+					ai: entityId.includes('desk') ? 'office' : 'living'
+				}))
+			});
+			return;
 		case 'recorder/statistics_during_period': {
 			const start = Date.parse(message.start_time);
 			const end = message.end_time ? Date.parse(message.end_time) : Date.now();
@@ -678,13 +829,37 @@ function handleMessage(socket, message) {
 			reply(result);
 			return;
 		}
-		case 'render_template':
+		case 'render_template': {
+			const template = String(message.template ?? '');
+			// stands in for a Jinja error such as an undefined name: with
+			// report_errors Home Assistant accepts the subscription and sends the
+			// error as an event; without it the error only reaches its log
+			if (template.includes('undefined_function')) {
+				reply(null);
+				if (message.report_errors) {
+					event({ error: "UndefinedError: 'undefined_function' is undefined", level: 'ERROR' });
+				}
+				return;
+			}
+			// states('entity') calls are filled in; any other template gets the
+			// fixed sample
+			let substituted = false;
+			const rendered = template.replace(
+				/\{\{\s*states\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}/g,
+				(_, entityId) => {
+					substituted = true;
+					return states[entityId]?.s ?? 'unknown';
+				}
+			);
 			reply(null);
 			event({
-				result: `**${states['sensor.temperature'].s} °C** inside, _${states['weather.home'].s}_ outside`,
+				result: substituted
+					? rendered
+					: `**${states['sensor.temperature'].s} °C** inside, _${states['weather.home'].s}_ outside`,
 				listeners: {}
 			});
 			return;
+		}
 		case 'camera/capabilities':
 			cameraRequests.push({ type: message.type, entity_id: message.entity_id });
 			reply({ frontend_stream_types: cameraStreamTypes[message.entity_id] ?? [] });
@@ -745,7 +920,18 @@ function readBody(request) {
 	});
 }
 
+// one opaque pixel, enough for an <img> to load
+const ALBUM_ART = Buffer.from(
+	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+	'base64'
+);
+
 const http = createServer(async (request, response) => {
+	if (request.url?.startsWith('/api/media_player_proxy/')) {
+		response.setHeader('Content-Type', 'image/png');
+		response.end(ALBUM_ART);
+		return;
+	}
 	if (request.url === '/_test/calls') {
 		response.setHeader('Content-Type', 'application/json');
 		response.end(JSON.stringify(calls));
@@ -758,9 +944,12 @@ const http = createServer(async (request, response) => {
 	}
 	if (request.url === '/_test/reset' && request.method === 'POST') {
 		states = initialStates();
+		todoItems = initialTodoItems();
+		todoSubscribeSupported = true;
 		calls = [];
 		cameraRequests = [];
 		for (const entityId of Object.keys(states)) pushChange(entityId);
+		for (const entityId of Object.keys(todoItems)) pushTodoItems(entityId);
 		response.end('ok');
 		return;
 	}
@@ -782,6 +971,11 @@ const http = createServer(async (request, response) => {
 		if (patch.state !== undefined) entity.s = patch.state;
 		if (patch.attributes) Object.assign(entity.a, patch.attributes);
 		pushChange(patch.entity_id);
+		response.end('ok');
+		return;
+	}
+	if (request.url === '/_test/todo_subscribe' && request.method === 'POST') {
+		todoSubscribeSupported = JSON.parse((await readBody(request)) || '{}').supported !== false;
 		response.end('ok');
 		return;
 	}
@@ -849,6 +1043,7 @@ wss.on('connection', (socket) => {
 	socket.on('close', () => {
 		entitySubscribers.delete(socket);
 		triggerSubscribers.delete(socket);
+		todoSubscribers.delete(socket);
 	});
 });
 

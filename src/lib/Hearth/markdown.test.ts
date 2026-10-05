@@ -15,4 +15,15 @@ describe('markdown renderer', () => {
 		expect(html).toContain('href="https://example.com"');
 		expect(html).toContain('rel="noopener noreferrer"');
 	});
+
+	it('drops form controls that could pass for dashboard controls', async () => {
+		const render = await loadMarkdownRenderer();
+		const html = render(
+			'<form action="/x"><input name="pin"><textarea></textarea><select></select>' +
+				'<button>Unlock</button></form> kept'
+		);
+		for (const tag of ['<form', '<input', '<textarea', '<select', '<button'])
+			expect(html).not.toContain(tag);
+		expect(html).toContain('kept');
+	});
 });

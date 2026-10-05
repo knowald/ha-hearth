@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { base, resolve } from '$app/paths';
 	import { onMount } from 'svelte';
-	import { lang, translation } from '$lib/core/i18n';
+	import { lang, mergeTranslations, translation } from '$lib/core/i18n';
 
 	// the error page renders without the page load that seeds translations and
 	// reads the configured locale, so English is fetched here when nothing is
@@ -11,8 +11,16 @@
 	onMount(async () => {
 		if (Object.keys($translation).length) return;
 		try {
-			const response = await fetch(`${base}/translations/en.json`);
-			if (response.ok) $translation = await response.json();
+			const responses = await Promise.all(
+				['translations/en.json', 'translations/hearth/en.json'].map((path) =>
+					fetch(`${base}/${path}`)
+				)
+			);
+			if (responses.every((response) => response.ok)) {
+				$translation = mergeTranslations(
+					await Promise.all(responses.map((response) => response.json()))
+				);
+			}
 		} catch {
 			// keys render as themselves until copy arrives
 		}

@@ -14,6 +14,8 @@ import { imageCard } from './image/descriptor';
 import { mediaCard } from './media/descriptor';
 import { scenesCard } from './scenes/descriptor';
 import { temperatureCard } from './temperature/descriptor';
+import { templateCard } from './template/descriptor';
+import { todoCard } from './todo/descriptor';
 import { vacuumCard } from './vacuum/descriptor';
 
 export type { CardDescriptor, CardDraft, CardEditorProps, CardFields } from './types';
@@ -29,8 +31,10 @@ const REGISTERED = [
 	climateCard,
 	scenesCard,
 	iframeCard,
+	templateCard,
 	daysSinceCard,
-	conditionalMediaCard
+	conditionalMediaCard,
+	todoCard
 ] as const;
 
 // a card shape in types.ts without a descriptor (or the reverse) fails here

@@ -132,6 +132,23 @@ test('a long press opens the light sheet and Escape closes it', async ({ page })
 	await expect(toggle).toBeHidden();
 });
 
+test('the dashboard loads without the edit bar and drag code', async ({ page }) => {
+	const scripts: string[] = [];
+	page.on('response', async (response) => {
+		if (response.url().endsWith('.js')) scripts.push(await response.text().catch(() => ''));
+	});
+	const loaded = (marker: string) => scripts.some((script) => script.includes(marker));
+	await page.reload();
+	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+	expect(loaded('hearth_copy_edits')).toBe(false);
+	expect(loaded('Sortable: Cannot mount plugin')).toBe(false);
+
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await expect(page.getByRole('button', { name: 'Save' })).toBeVisible();
+	await expect.poll(() => loaded('hearth_copy_edits')).toBe(true);
+	await expect.poll(() => loaded('Sortable: Cannot mount plugin')).toBe(true);
+});
+
 test('edit mode loads the card editor on demand', async ({ page }) => {
 	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
 	await page
@@ -153,6 +170,33 @@ async function openCardEditor(page: Page, title: string) {
 		.click();
 	return page.getByRole('dialog', { name: 'Edit card' });
 }
+
+test('the edit chip names the card it opens', async ({ page }) => {
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await page.getByRole('button', { name: 'Edit Readings', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'Edit card' });
+	await expect(sheet.getByLabel('Title')).toHaveValue('Readings');
+});
+
+test('the entity picker is driven from the keyboard', async ({ page }) => {
+	const sheet = await openCardEditor(page, 'Lights');
+	await sheet.getByRole('button', { name: 'Add entity' }).click();
+	// the new row's own entity field comes before its highlight entity field
+	await sheet.getByRole('button', { name: 'Choose an entity' }).first().click();
+	const picker = page.getByRole('dialog', { name: 'Choose an entity' });
+	const search = picker.getByRole('combobox', { name: 'Search entities' });
+	await expect(search).toBeFocused();
+	await search.fill('fan');
+	// sorted by name, so the first match is highlighted until the arrows move it
+	await expect(picker.getByRole('option', { selected: true })).toContainText('Bedroom fan');
+	await search.press('ArrowDown');
+	await expect(picker.getByRole('option', { selected: true })).toContainText('Ceiling fan');
+	await search.press('Enter');
+	await expect(picker).toBeHidden();
+	await expect(sheet.getByRole('combobox', { name: 'Entity', exact: true })).toHaveValue(
+		'switch.fan'
+	);
+});
 
 test('adds a card and a widget from the galleries', async ({ page }) => {
 	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
@@ -192,7 +236,7 @@ test.describe('saving', () => {
 		await sheet.getByLabel('Title').fill('Lamps');
 		await sheet.getByRole('button', { name: 'Done' }).click();
 		await page.getByRole('button', { name: 'Save', exact: true }).click();
-		await expect(page.getByText('Saved')).toBeVisible();
+		await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toHaveText('Saved');
 		await page.reload();
 		await expect(page.getByText('Lamps')).toBeVisible();
 	});
@@ -212,7 +256,7 @@ test.describe('saving', () => {
 		await expect(page.getByText('Configuration changed elsewhere')).toBeVisible();
 		await page.getByRole('button', { name: 'Overwrite' }).click();
 		await page.getByRole('alertdialog').getByRole('button', { name: 'Overwrite' }).click();
-		await expect(page.getByText('Saved')).toBeVisible();
+		await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toHaveText('Saved');
 		await page.reload();
 		await expect(page.getByText('Mine')).toBeVisible();
 	});

@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { coarsePointer } from './pointer';
 
 /*
  * Touch feedback. Two transports, picked per device:
@@ -85,7 +86,7 @@ function hasVibrationMotor(): boolean {
 	if (!isSecureOrigin()) return false;
 	// Desktop browsers expose vibrate() with no motor behind it. A coarse
 	// pointer is the closest available signal for "this is a touch device".
-	return typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+	return coarsePointer();
 }
 
 function isSecureOrigin(): boolean {

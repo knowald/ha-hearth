@@ -1,10 +1,17 @@
 <script lang="ts">
-	import { lang } from '$lib/core/i18n';
+	import { minuteTimer } from '$lib/core/app/clock';
+	import { deviceName } from '$lib/core/app/device';
+	import { states } from '$lib/core/ha/entities';
+	import { fill as fillText, lang } from '$lib/core/i18n';
+	import { mediaQuery } from '$lib/ui/mediaQuery';
 	import { sortable } from '$lib/ui/actions/sortable';
 	import {
 		cloneOverviewItem,
 		findOverviewItemList,
+		hasSpans,
 		isStack,
+		pruneEmptyStack,
+		spanLayout,
 		takenCardIds,
 		type HearthConfig,
 		type OverviewCard,
@@ -13,8 +20,10 @@
 	} from './config';
 	import { fillWeight, cardDescriptor } from './cards';
 	import { onDndReceive } from './drag';
+	import { editTap } from './editTap';
 	import { provideHearthInteractionMode } from './interaction';
-	import { editor, hearthConfig, hearthEditMode, updateConfig } from './store';
+	import { displayTimeZone, editor, hearthConfig, hearthEditMode, updateConfig } from './store';
+	import { evaluateVisibility, mediaQueriesIn, usesTime } from './visibility';
 	import AddControl from './AddControl.svelte';
 	import CardRenderer from './CardRenderer.svelte';
 	import EditChip from './EditChip.svelte';
@@ -66,7 +75,7 @@
 
 	// a card or stack dropped from another column/stack: move it in one
 	// config update; the source's onEnd then finds nothing to remove and
-	// no-ops. Alt-drop duplicates instead: the source keeps its item and the
+	// no-ops. A stack left empty by the move goes with it. Alt-drop duplicates instead: the source keeps its item and the
 	// target gets a clone with a fresh id.
 	function receiveCard(column: number, id: string, newIndex: number, alt: boolean) {
 		updateConfig((config) => {
@@ -83,6 +92,7 @@
 			} else {
 				const [item] = sourceList.splice(index, 1);
 				locate(config)[column].splice(newIndex, 0, item);
+				pruneEmptyStack(config, sourceList);
 			}
 		});
 	}
@@ -113,13 +123,96 @@
 			} else {
 				sourceList.splice(index, 1);
 				stack.cards.splice(newIndex, 0, source);
+				pruneEmptyStack(config, sourceList);
 			}
 		});
+	}
+
+	// a tap on a card, or on a stack around its cards, opens that one's editor
+	function openTapped(target: Element): boolean {
+		const slot = target.closest<HTMLElement>('.card-slot, .stack-slot');
+		const id = slot?.dataset.id;
+		if (!slot || !id) return false;
+		if (slot.classList.contains('card-slot')) {
+			editor.set({ kind: 'card', roomId, id });
+			return true;
+		}
+		for (const [column, items] of columns.entries()) {
+			const index = items.findIndex((item) => item.id === id);
+			if (index < 0) continue;
+			editor.set({ kind: 'stack', roomId, column, index });
+			return true;
+		}
+		return false;
 	}
 
 	function addStack(column: number) {
 		editor.set({ kind: 'stack', roomId, column, index: null });
 	}
+
+	function cardName(card: OverviewCard): string {
+		const title = 'title' in card && typeof card.title === 'string' ? card.title.trim() : '';
+		return title || $lang(cardDescriptor(card.type).name);
+	}
+
+	/*
+	 * Cards that span columns lay the page out in rows; see spanLayout. Only
+	 * outside the editor: dragging works on whole columns, so while editing a
+	 * spanning card stays in its own column like any other.
+	 */
+	let spanned = $derived(!$hearthEditMode && columns.length > 1 && hasSpans(columns));
+
+	/*
+	 * The spanned layout leaves out the cards hidden right now, so a hidden
+	 * spanning card cuts no column and a run with nothing shown takes no row
+	 * or share of a filled screen's height. A stack always counts as shown.
+	 */
+	let spanConditions = $derived(
+		spanned ? columns.flat().flatMap((item) => (isStack(item) ? [] : (item.visibility ?? []))) : []
+	);
+	let spanMedia = $state<Record<string, boolean>>({});
+	let spanNow = $state<Date | undefined>();
+
+	$effect(() => {
+		const queries = [...new Set(mediaQueriesIn(spanConditions))];
+		const matches: Record<string, boolean> = {};
+		spanMedia = {};
+		const stops = queries.map((query) =>
+			mediaQuery(query).subscribe((value) => {
+				matches[query] = value;
+				spanMedia = { ...matches };
+			})
+		);
+		return () => stops.forEach((stop) => stop());
+	});
+
+	$effect(() => {
+		if (!usesTime(spanConditions)) {
+			spanNow = undefined;
+			return;
+		}
+		return minuteTimer.subscribe((value) => (spanNow = value));
+	});
+
+	function shown(item: OverviewItem): boolean {
+		return (
+			isStack(item) ||
+			evaluateVisibility(item.visibility, $states, spanMedia, {
+				device: $deviceName,
+				now: spanNow,
+				timeZone: $displayTimeZone
+			})
+		);
+	}
+
+	let layout = $derived(
+		spanned ? spanLayout(columns.map((column) => column.filter(shown))) : undefined
+	);
+	let rowTemplate = $derived(
+		layout?.rows
+			.map((kind) => (kind === 'run' && clipToHeight ? 'minmax(0, 1fr)' : 'auto'))
+			.join(' ')
+	);
 
 	// a stack's own sortable container refuses drops of another stack (no
 	// nesting); everything else in the shared group is welcome
@@ -145,7 +238,10 @@
 					class:visibility-dimmed={$hearthEditMode && !visible}
 				>
 					{#if $hearthEditMode}
-						<EditChip onedit={() => editor.set(target)} />
+						<EditChip
+							label={fillText($lang('hearth_edit_named'), { name: cardName(card) })}
+							onedit={() => editor.set(target)}
+						/>
 					{/if}
 					<CardRenderer {card} />
 				</div>
@@ -154,103 +250,142 @@
 	</VisibilityGate>
 {/snippet}
 
-<div
-	class="overview"
-	class:fill
-	class:clip={clipToHeight}
-	style:--overview-columns={columns.length}
->
-	{#each columns as column, columnIndex (columnIndex)}
+{#snippet overviewItem(item: OverviewItem, columnIndex: number, index: number)}
+	{#if isStack(item)}
 		<div
-			class="column"
-			use:sortable={{
-				group: groupName,
-				handle: '.drag-handle',
-				filter: '.add-tile',
-				disabled: !$hearthEditMode,
-				clone: true,
-				cloneItem: cloneEntry,
-				items: column,
-				onFinalize: (items: OverviewItem[]) => reorderColumn(columnIndex, items)
-			}}
-			use:onDndReceive={(detail) =>
-				receiveCard(columnIndex, detail.id, detail.newIndex, detail.alt ?? false)}
+			class="stack-slot"
+			class:stretch={fillWeight(item) > 0}
+			style:--card-fill={fillWeight(item)}
+			data-id={item.id}
+			data-card-type="stack"
 		>
-			{#each column as item, index (item.id)}
-				{#if isStack(item)}
-					<div
-						class="stack-slot"
-						class:stretch={fillWeight(item) > 0}
-						style:--card-fill={fillWeight(item)}
-						data-id={item.id}
-						data-card-type="stack"
-					>
+			<!-- while editing the row holds the stack's chip after the title, so
+			     it never sits on a card or the title; an untitled stack gets
+			     the row only then -->
+			{#if item.title || $hearthEditMode}
+				<div class="group-label" class:untitled={!item.title}>
+					<span class="group-title">
+						{item.title ?? ''}
 						{#if $hearthEditMode}
 							<EditChip
+								label={item.title?.trim()
+									? fillText($lang('hearth_edit_named'), { name: item.title.trim() })
+									: $lang('hearth_edit_stack')}
+								kind={$lang('hearth_stack')}
+								after
 								onedit={() => editor.set({ kind: 'stack', column: columnIndex, index, roomId })}
 							/>
 						{/if}
-						{#if item.title}
-							<div class="group-label">{item.title}</div>
-						{/if}
-						<div
-							class="stack"
-							class:vertical={item.direction === 'vertical'}
-							use:sortable={{
-								group: stackGroup,
-								handle: '.drag-handle',
-								filter: '.add-tile',
-								disabled: !$hearthEditMode,
-								clone: true,
-								cloneItem: cloneEntry,
-								items: item.cards,
-								onFinalize: (items: OverviewCard[]) => reorderStack(columnIndex, item.id, items)
-							}}
-							use:onDndReceive={(detail) =>
-								receiveIntoStack(
-									columnIndex,
-									item.id,
-									detail.id,
-									detail.newIndex,
-									detail.alt ?? false
-								)}
-						>
-							{#each item.cards as card (card.id)}
-								{@render cardSlot(card, {
-									kind: 'card',
-									roomId,
-									id: card.id
-								})}
-							{/each}
-							{#if $hearthEditMode}
-								<AddControl
-									label={$lang('hearth_add_card')}
-									onadd={() =>
-										editor.set({
-											kind: 'card',
-											column: columnIndex,
-											id: null,
-											roomId,
-											stackId: item.id
-										})}
-								/>
-							{/if}
-						</div>
-					</div>
-				{:else}
-					{@render cardSlot(item, { kind: 'card', id: item.id, roomId })}
-				{/if}
-			{/each}
-			{#if $hearthEditMode}
-				<AddControl
-					label={$lang('hearth_add_card')}
-					onadd={() => editor.set({ kind: 'card', column: columnIndex, id: null, roomId })}
-				/>
-				<AddControl label={$lang('hearth_add_stack')} onadd={() => addStack(columnIndex)} />
+					</span>
+				</div>
 			{/if}
+			<div
+				class="stack"
+				class:vertical={item.direction === 'vertical'}
+				use:sortable={{
+					group: stackGroup,
+					handle: '.drag-handle',
+					filter: '.add-tile',
+					disabled: !$hearthEditMode,
+					clone: true,
+					cloneItem: cloneEntry,
+					items: item.cards,
+					onFinalize: (items: OverviewCard[]) => reorderStack(columnIndex, item.id, items)
+				}}
+				use:onDndReceive={(detail) =>
+					receiveIntoStack(columnIndex, item.id, detail.id, detail.newIndex, detail.alt ?? false)}
+			>
+				{#each item.cards as card (card.id)}
+					{@render cardSlot(card, {
+						kind: 'card',
+						roomId,
+						id: card.id
+					})}
+				{/each}
+				{#if $hearthEditMode}
+					<AddControl
+						label={$lang('hearth_add_card')}
+						onadd={() =>
+							editor.set({
+								kind: 'card',
+								column: columnIndex,
+								id: null,
+								roomId,
+								stackId: item.id
+							})}
+					/>
+				{/if}
+			</div>
 		</div>
-	{/each}
-</div>
+	{:else}
+		{@render cardSlot(item, { kind: 'card', id: item.id, roomId })}
+	{/if}
+{/snippet}
+
+{#if layout}
+	<div
+		class="overview spanned"
+		class:fill
+		class:clip={clipToHeight}
+		style:--overview-columns={columns.length}
+		style:--span-rows={rowTemplate}
+	>
+		{#each layout.cells as cell (cell.kind === 'run' ? `run-${cell.column}-${cell.row}` : cell.card.id)}
+			<div
+				class={cell.kind === 'run' ? 'column' : 'span-cell'}
+				style:--row={cell.row}
+				style:--start={cell.kind === 'run' ? cell.column + 1 : cell.start}
+				style:--span={cell.kind === 'run' ? 1 : cell.span}
+			>
+				{#if cell.kind === 'run'}
+					{#each cell.items as item (item.id)}
+						{@render overviewItem(item, cell.column, columns[cell.column].indexOf(item))}
+					{/each}
+				{:else}
+					{@render cardSlot(cell.card, { kind: 'card', id: cell.card.id, roomId })}
+				{/if}
+			</div>
+		{/each}
+	</div>
+{:else}
+	<div
+		class="overview"
+		class:fill
+		class:clip={clipToHeight}
+		class:editing={$hearthEditMode}
+		style:--overview-columns={columns.length}
+		use:editTap={{ enabled: $hearthEditMode, open: openTapped }}
+	>
+		{#each columns as column, columnIndex (columnIndex)}
+			<div
+				class="column"
+				use:sortable={{
+					group: groupName,
+					handle: '.drag-handle',
+					filter: '.add-tile',
+					disabled: !$hearthEditMode,
+					clone: true,
+					cloneItem: cloneEntry,
+					items: column,
+					onFinalize: (items: OverviewItem[]) => reorderColumn(columnIndex, items)
+				}}
+				use:onDndReceive={(detail) =>
+					receiveCard(columnIndex, detail.id, detail.newIndex, detail.alt ?? false)}
+			>
+				{#each column as item, index (item.id)}
+					{@render overviewItem(item, columnIndex, index)}
+				{/each}
+				{#if $hearthEditMode}
+					<AddControl
+						label={$lang('hearth_add_card')}
+						onadd={() => editor.set({ kind: 'card', column: columnIndex, id: null, roomId })}
+					/>
+					<AddControl label={$lang('hearth_add_stack')} onadd={() => addStack(columnIndex)} />
+				{/if}
+			</div>
+		{/each}
+	</div>
+{/if}
 
 <style>
 	.overview {
@@ -285,6 +420,25 @@
 		scrollbar-width: thin;
 	}
 
+	/* rows of runs and spanning cards, placed by spanLayout through custom
+	   properties so the folded layout below can drop the places */
+	.overview.spanned {
+		grid-template-rows: var(--span-rows);
+		row-gap: 18px;
+	}
+
+	.overview.spanned > .column,
+	.overview.spanned > .span-cell {
+		grid-row: var(--row);
+		grid-column: var(--start) / span var(--span);
+	}
+
+	.span-cell {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
 	/* collapse to one column only when the page itself is too narrow for two
 	   readable ones - two ~265px columns is the floor; tiles inside reflow on
 	   their own well below that. Stacked columns then scroll as one page;
@@ -293,6 +447,19 @@
 	@container hearth-page (max-width: 560px) {
 		.overview {
 			grid-template-columns: minmax(0, 1fr);
+		}
+
+		/* spans mean nothing in one column: the cells are in stored order
+		   already, so they only drop their places and take the folded gap */
+		.overview.spanned {
+			grid-template-rows: none;
+			row-gap: 32px;
+		}
+
+		.overview.spanned > .column,
+		.overview.spanned > .span-cell {
+			grid-row: auto;
+			grid-column: auto;
 		}
 
 		.overview.clip {
@@ -311,6 +478,17 @@
 		@media (max-width: 1200px) {
 			.overview {
 				grid-template-columns: minmax(0, 1fr);
+			}
+
+			.overview.spanned {
+				grid-template-rows: none;
+				row-gap: 32px;
+			}
+
+			.overview.spanned > .column,
+			.overview.spanned > .span-cell {
+				grid-row: auto;
+				grid-column: auto;
 			}
 
 			.overview.clip {
@@ -377,6 +555,36 @@
 
 	.stack-slot {
 		position: relative;
+	}
+
+	/* a stack draws no frame of its own; while editing it gets one, so it
+	   reads as the container its chip edits. The outline takes no layout. */
+	.overview.editing .stack-slot {
+		outline: 1px dashed rgb(var(--h-accent-rgb) / calc(0.35 * var(--h-accent-scale)));
+		outline-offset: 8px;
+		border-radius: var(--h-radius-md);
+	}
+
+	.overview.editing .card-slot,
+	.overview.editing .stack-slot {
+		cursor: pointer;
+	}
+
+	/* a tap inside embedded content never reaches the page, so while editing
+	   it falls through to the card and opens its editor */
+	.overview.editing :global(:is(iframe, video, object, embed)) {
+		pointer-events: none;
+	}
+
+	/* the chip's anchor: it rides just past the end of the title */
+	.group-title {
+		position: relative;
+		display: inline-block;
+	}
+
+	/* the chip's height, so an untitled stack's row does not crop it */
+	.group-label.untitled .group-title {
+		height: 20px;
 	}
 
 	.group-label {

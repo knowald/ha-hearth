@@ -6,8 +6,7 @@
 	import '@material-symbols/font-400/rounded.css';
 	import { onDestroy } from 'svelte';
 	import { configuration } from '$lib/core/app/configuration';
-	import { disposeHaptics, haptics, startPressFeedback } from '$lib/core/app/haptics';
-	import { motion } from '$lib/core/app/motion';
+	import { disposeHaptics, startPressFeedback } from '$lib/core/app/haptics';
 	import {
 		connected,
 		connectionError,
@@ -20,9 +19,9 @@
 	import { startConnection, stopConnection } from '$lib/core/ha/connection';
 	import { setCommandGate } from '$lib/core/ha/commands';
 	import { get } from 'svelte/store';
-	import TokenPrompt from '$lib/Hearth/TokenPrompt.svelte';
 	import ThemeStyle from '$lib/Hearth/shell/ThemeStyle.svelte';
 	import { normalizeHearthConfig } from '$lib/Hearth/normalize';
+	import { startScreenSettings } from '$lib/Hearth/screen';
 	import {
 		configurationLoadError,
 		hearthConfig,
@@ -38,6 +37,15 @@
 	let { data }: { data: PageData } = $props();
 
 	let tokenPromptOpen = $state(false);
+
+	// offline or a stale deploy: closed again, so the Sign in button retries
+	function loadTokenPrompt() {
+		return import('$lib/Hearth/TokenPrompt.svelte').catch((error) => {
+			console.warn('sign-in prompt unavailable', error);
+			tokenPromptOpen = false;
+			throw error;
+		});
+	}
 	// opens once when a token becomes necessary; the boot screen button reopens it after a dismiss
 	$effect(() => {
 		if ($tokenNeeded) tokenPromptOpen = true;
@@ -75,22 +83,12 @@
 	// svelte-ignore state_referenced_locally
 	$translation = data?.translations ?? {};
 	// svelte-ignore state_referenced_locally
-	$selectedLanguage = data?.configuration?.locale || 'en';
+	$selectedLanguage = data?.translationsLocale || data?.configuration?.locale || 'en';
 	if (browser) document.documentElement.lang = $selectedLanguage;
 
-	// motion:false in configuration.yaml disables transitions app-wide, and so
-	// does the OS reduced-motion setting unless motion is explicitly true
-	const reducedMotion = browser && matchMedia('(prefers-reduced-motion: reduce)').matches;
-	// svelte-ignore state_referenced_locally
-	if (
-		data?.configuration?.motion === false ||
-		(reducedMotion && data?.configuration?.motion !== true)
-	) {
-		motion.set(0);
-	}
-
-	// svelte-ignore state_referenced_locally
-	haptics.set(data?.configuration?.haptics === true);
+	// language, motion and touch feedback, with this screen's own choices
+	// laid over configuration.yaml (see screen.ts)
+	const stopScreenSettings = browser ? startScreenSettings($selectedLanguage) : undefined;
 	const stopPressFeedback = browser ? startPressFeedback() : undefined;
 
 	if (browser) startConnection($configuration);
@@ -104,6 +102,7 @@
 	setCommandGate(() => !get(hearthEditMode));
 	onDestroy(() => {
 		stopConnection();
+		stopScreenSettings?.();
 		stopPressFeedback?.();
 		disposeHaptics();
 		setCommandGate(() => true);
@@ -165,7 +164,14 @@
 	{/if}
 {/if}
 
-{#if tokenPromptOpen}<TokenPrompt onclose={() => (tokenPromptOpen = false)} />{/if}
+{#if tokenPromptOpen}
+	<!-- most screens never need it, and it brings the edit sheet's code along -->
+	{#await loadTokenPrompt() then TokenPrompt}
+		<TokenPrompt.default onclose={() => (tokenPromptOpen = false)} />
+	{:catch}
+		<!-- closed by loadTokenPrompt -->
+	{/await}
+{/if}
 
 <!-- modules -->
 {#if $configuration?.custom_js}

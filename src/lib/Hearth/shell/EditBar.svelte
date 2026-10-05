@@ -2,19 +2,18 @@
 	import { ICON } from '../iconSizes';
 	import Ripple from '$lib/ui/actions/ripple';
 	import { lang } from '$lib/core/i18n';
-	import { PRESS_RIPPLE, railPositionOf } from '../config';
+	import { reloadPage } from '$lib/core/app/reload';
+	import { PRESS_RIPPLE } from '../config';
 	import {
-		cancelEdit,
 		canRedo,
 		canUndo,
 		editor,
-		enterEditMode,
 		hearthConfig,
 		hasUnsavedEdits,
-		hearthEditMode,
-		hearthLoadError,
 		redoConfig,
+		reloadDiscardingEdits,
 		reportCopy,
+		requestCancelEdit,
 		requestConfirmation,
 		saveState,
 		saveFailure,
@@ -22,11 +21,7 @@
 		undoConfig
 	} from '../store';
 	import Icon from '../Icon.svelte';
-
-	let { hideEditToggle = false }: { hideEditToggle?: boolean } = $props();
-
-	// the toggle sits at the rail's foot, so a lone right rail takes it along
-	let toggleRight = $derived(railPositionOf($hearthConfig) === 'right');
+	import { onMount } from 'svelte';
 
 	// The YAML serializer pulls in js-yaml, which stays out of the eager bundle.
 	// Loading starts with the bar so the copy click does not wait on the
@@ -57,16 +52,16 @@
 		}
 	}
 
-	function cancel() {
+	function reloadAfterConflict() {
 		if (!hasUnsavedEdits()) {
-			cancelEdit();
+			void reloadPage();
 			return;
 		}
 		requestConfirmation({
-			title: $lang('hearth_discard_edits_title'),
-			message: $lang('hearth_discard_edits_message'),
-			confirmLabel: $lang('hearth_discard'),
-			action: cancelEdit
+			title: $lang('hearth_reload_discard_title'),
+			message: $lang('hearth_reload_discard_message'),
+			confirmLabel: $lang('hearth_reload'),
+			action: reloadDiscardingEdits
 		});
 	}
 
@@ -92,6 +87,52 @@
 		};
 	});
 
+	// hasUnsavedEdits reads stores it does not subscribe to; the draft and the
+	// save outcome are what change its answer, so the check reruns on those
+	const unsavedId = $props.id();
+	let unsaved = $derived.by(() => {
+		void $hearthConfig;
+		void $saveState;
+		return hasUnsavedEdits();
+	});
+
+	/*
+	 * The first edit session on a browser says how editing works. Seen once
+	 * it stays away; a browser that blocks storage just shows it each time.
+	 */
+	const HINT_SEEN_KEY = 'hearth-edit-hint-seen';
+	let showHint = $state(false);
+
+	function hintSeen(): boolean {
+		try {
+			return localStorage.getItem(HINT_SEEN_KEY) === '1';
+		} catch {
+			return false;
+		}
+	}
+
+	function dismissHint() {
+		showHint = false;
+		try {
+			localStorage.setItem(HINT_SEEN_KEY, '1');
+		} catch {
+			// nothing to remember it in
+		}
+	}
+
+	// opening any editor is the hint followed, and it would sit over the toasts after
+	$effect(() => {
+		if ($editor && showHint) dismissHint();
+	});
+
+	onMount(() => {
+		showHint = !hintSeen();
+		// leaving edit mode counts as having seen it
+		return () => {
+			if (showHint) dismissHint();
+		};
+	});
+
 	function confirmOverwrite() {
 		requestConfirmation({
 			title: $lang('hearth_overwrite_newer_hearth_configuration'),
@@ -102,137 +143,111 @@
 	}
 </script>
 
-{#if $hearthEditMode}
-	<div class="edit-bar" bind:this={bar}>
-		{#if $saveState === 'conflict'}
-			<span class="save-error">{$lang('hearth_config_changed')}</span>
-			<button
-				type="button"
-				class="bar-button pressable"
-				use:Ripple={PRESS_RIPPLE}
-				onclick={copySessionEdits}
-			>
-				{$lang('hearth_copy_edits')}
-			</button>
-			<button
-				type="button"
-				class="bar-button dangerous pressable"
-				use:Ripple={PRESS_RIPPLE}
-				onclick={confirmOverwrite}
-			>
-				{$lang('hearth_overwrite')}
-			</button>
-			<button
-				type="button"
-				class="bar-button pressable"
-				use:Ripple={PRESS_RIPPLE}
-				onclick={() => location.reload()}
-			>
-				{$lang('hearth_reload')}
-			</button>
-		{:else if $saveState === 'error'}
-			<span class="save-error">
-				{$lang('hearth_save_failed')}{#if $saveFailure}: {$saveFailure}{/if}
-			</span>
-		{/if}
+<div class="edit-bar" bind:this={bar}>
+	{#if $saveState === 'conflict'}
+		<span class="save-error">{$lang('hearth_config_changed')}</span>
 		<button
 			type="button"
-			class="bar-icon pressable"
-			aria-label={$lang('settings')}
-			onclick={() => editor.set({ kind: 'settings' })}
-		>
-			<Icon name="settings" size={ICON.control} />
-		</button>
-		<button
-			type="button"
-			class="bar-icon pressable"
-			aria-label={$lang('theme')}
-			onclick={() => editor.set({ kind: 'theme' })}
-		>
-			<Icon name="palette" size={ICON.control} />
-		</button>
-		<button
-			type="button"
-			class="bar-icon"
-			disabled={!$canUndo}
-			aria-label={$lang('undo')}
-			onclick={undoConfig}
-		>
-			<Icon name="undo" size={ICON.control} />
-		</button>
-		<button
-			type="button"
-			class="bar-icon"
-			disabled={!$canRedo}
-			aria-label={$lang('hearth_redo')}
-			onclick={redoConfig}
-		>
-			<Icon name="redo" size={ICON.control} />
-		</button>
-		<button type="button" class="bar-button pressable" use:Ripple={PRESS_RIPPLE} onclick={cancel}
-			>{$lang('cancel')}</button
-		>
-		<button
-			type="button"
-			class="bar-button primary pressable"
+			class="bar-button pressable"
 			use:Ripple={PRESS_RIPPLE}
-			onclick={() => saveWithFeedback()}>{$lang('save')}</button
+			onclick={copySessionEdits}
 		>
-	</div>
-{:else if !hideEditToggle && !$hearthLoadError}
+			{$lang('hearth_copy_edits')}
+		</button>
+		<button
+			type="button"
+			class="bar-button dangerous pressable"
+			use:Ripple={PRESS_RIPPLE}
+			onclick={confirmOverwrite}
+		>
+			{$lang('hearth_overwrite')}
+		</button>
+		<button
+			type="button"
+			class="bar-button pressable"
+			use:Ripple={PRESS_RIPPLE}
+			onclick={reloadAfterConflict}
+		>
+			{$lang('hearth_reload')}
+		</button>
+	{:else if $saveState === 'error'}
+		<span class="save-error">
+			{$lang('hearth_save_failed')}{#if $saveFailure}: {$saveFailure}{/if}
+		</span>
+	{/if}
 	<button
 		type="button"
-		class="edit-toggle pressable"
-		class:right={toggleRight}
-		aria-label={$lang('hearth_edit_configuration')}
-		onclick={enterEditMode}
+		class="bar-icon pressable"
+		aria-label={$lang('settings')}
+		onclick={() => editor.set({ kind: 'settings' })}
 	>
-		<Icon name="edit" size={ICON.control} />
-		<span>{$lang('hearth_edit_configuration')}</span>
+		<Icon name="settings" size={ICON.control} />
 	</button>
+	<button
+		type="button"
+		class="bar-icon pressable"
+		aria-label={$lang('theme')}
+		onclick={() => editor.set({ kind: 'theme' })}
+	>
+		<Icon name="palette" size={ICON.control} />
+	</button>
+	<button
+		type="button"
+		class="bar-icon"
+		disabled={!$canUndo}
+		aria-label={$lang('undo')}
+		onclick={undoConfig}
+	>
+		<Icon name="undo" size={ICON.control} />
+	</button>
+	<button
+		type="button"
+		class="bar-icon"
+		disabled={!$canRedo}
+		aria-label={$lang('hearth_redo')}
+		onclick={redoConfig}
+	>
+		<Icon name="redo" size={ICON.control} />
+	</button>
+	<button
+		type="button"
+		class="bar-button pressable"
+		use:Ripple={PRESS_RIPPLE}
+		onclick={requestCancelEdit}>{$lang('cancel')}</button
+	>
+	<button
+		type="button"
+		class="bar-button primary pressable"
+		use:Ripple={PRESS_RIPPLE}
+		aria-describedby={unsaved ? unsavedId : undefined}
+		onclick={() => saveWithFeedback()}
+	>
+		{$lang('save')}
+		{#if unsaved}<span class="unsaved-dot" aria-hidden="true"></span>{/if}
+	</button>
+	<!-- a description rather than part of the name, so Save keeps its name -->
+	{#if unsaved}<span class="unsaved-text" id={unsavedId}>{$lang('hearth_unsaved_changes')}</span
+		>{/if}
+</div>
+{#if showHint}
+	<div class="edit-hint" role="note">
+		<Icon name="touch_app" size={ICON.control} />
+		<span>{$lang('hearth_edit_hint')}</span>
+		<button
+			type="button"
+			class="hint-dismiss"
+			aria-label={$lang('hearth_dismiss')}
+			onclick={dismissHint}
+		>
+			<Icon name="close" size={ICON.inline} />
+		</button>
+	</div>
 {/if}
 
 <style>
-	/* a labeled row at the rail's foot rather than an anonymous floating pencil */
-	.edit-toggle {
-		position: absolute;
-		/* the insets clear an installed app's home indicator and a landscape cutout */
-		left: calc(14px + var(--h-pad-x) + var(--h-safe-left));
-		bottom: calc(14px + var(--h-pad-y) + var(--h-safe-bottom));
-		z-index: var(--h-layer-bar);
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		padding: 12px 16px;
-		border-radius: var(--h-radius-sm);
-		color: var(--h-text-4);
-		font-size: var(--h-type-body);
-		cursor: pointer;
-		opacity: 0.75;
-		border: 0;
-		background: rgb(var(--h-surface-rgb) / calc(0.035 * var(--h-fill-scale)));
-		font-family: inherit;
-	}
-
-	/* see breakpoints.ts: folded, there is no rail column to follow */
-	@media (min-width: 901px) {
-		.edit-toggle.right {
-			left: auto;
-			right: calc(14px + var(--h-pad-x) + var(--h-safe-right));
-		}
-	}
-
-	@media (hover: hover) {
-		.edit-toggle:hover {
-			opacity: 1;
-			color: var(--h-text-3);
-			background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
-		}
-	}
-
 	.edit-bar {
 		position: absolute;
-		bottom: calc(18px + var(--h-pad-y));
+		bottom: calc(18px + var(--h-pad-y) + var(--h-safe-bottom));
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: var(--h-layer-toast);
@@ -287,6 +302,62 @@
 		color: var(--h-on-accent);
 	}
 
+	.bar-button.primary {
+		position: relative;
+	}
+
+	.unsaved-dot {
+		position: absolute;
+		top: -4px;
+		right: -4px;
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		background: var(--h-on-accent);
+		border: 2px solid var(--h-accent-deep);
+	}
+
+	/* the dot says it to the eye; this says it to assistive technology */
+	.unsaved-text {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.edit-hint {
+		position: absolute;
+		bottom: calc(
+			18px + var(--h-pad-y) + var(--h-safe-bottom) + var(--h-edit-bar-height, 60px) + 12px
+		); /* literal ok: fallback until the bar is measured */
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: var(--h-layer-toast);
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: max-content;
+		max-width: calc(100 * var(--h-vw) - 32px);
+		padding: 10px 10px 10px 16px;
+		border-radius: var(--h-radius-md);
+		background: linear-gradient(180deg, var(--h-sheet-0), var(--h-sheet-1));
+		border: 1px solid rgb(var(--h-accent-rgb) / calc(0.35 * var(--h-accent-scale)));
+		box-shadow: var(--h-shadow-toast);
+		color: var(--h-text-2);
+		font-size: var(--h-type-body);
+	}
+
+	.hint-dismiss {
+		display: inline-flex;
+		padding: 6px;
+		border: 0;
+		background: none;
+		color: var(--h-icon);
+		cursor: pointer;
+	}
+
 	.bar-button.dangerous {
 		color: var(--h-bad-text);
 		border-color: rgb(var(--h-bad-rgb) / calc(0.35 * var(--h-accent-scale)));
@@ -306,6 +377,12 @@
 
 		.bar-button {
 			padding: 10px 14px;
+		}
+
+		.edit-hint {
+			bottom: calc(
+				8px + var(--h-safe-bottom) + var(--h-edit-bar-height, 60px) + 12px
+			); /* literal ok: fallback until the bar is measured */
 		}
 	}
 </style>

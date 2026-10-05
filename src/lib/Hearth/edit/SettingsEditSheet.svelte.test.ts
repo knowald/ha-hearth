@@ -1,11 +1,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import en from '../../../../static/translations/en.json';
+import { english as en } from '$lib/core/i18n/testing';
 import type { HassConfig } from 'home-assistant-js-websocket';
 import { config as haConfig } from '$lib/core/ha/connection';
+import { states } from '$lib/core/ha/entities';
+import { hassEntity } from '$lib/core/ha/testing';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
 import { editor, hearthConfig, screensaverPreview, setupWizardOpen } from '../store';
+import { screenOverrides } from '$lib/core/app/screen';
+import { fill } from '$lib/core/i18n';
+import { screenSheetOpen } from '../screen';
 import SettingsEditSheet from './SettingsEditSheet.svelte';
 
 const zoom = vi.hoisted(() => ({ zoomSupported: false }));
@@ -17,7 +22,125 @@ describe('SettingsEditSheet', () => {
 		setupWizardOpen.set(false);
 		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
 		screensaverPreview.set(false);
+		screenSheetOpen.set(false);
+		screenOverrides.set({});
 		zoom.zoomSupported = false;
+	});
+
+	it('lists the pages to reorder, open and add, whatever the rail shows', async () => {
+		const config = structuredClone(DEFAULT_HEARTH_CONFIG);
+		config.rail_position = 'none';
+		config.rooms.push({ id: 'kitchen', name: 'Kitchen', icon: 'kitchen', cards: [[]] });
+		hearthConfig.set(config);
+		render(SettingsEditSheet);
+		const up = (name: string) =>
+			screen.getByRole('button', {
+				name: fill(en.hearth_move_named_up, { name })
+			}) as HTMLButtonElement;
+		expect(up('Home').disabled).toBe(true);
+		await fireEvent.click(up('Kitchen'));
+		expect(get(hearthConfig).rooms.map((room) => room.id)).toEqual(['kitchen', 'home']);
+
+		await fireEvent.click(screen.getByRole('button', { name: /^Kitchen$/ }));
+		expect(get(editor)).toEqual({ kind: 'room', id: 'kitchen' });
+		await fireEvent.click(screen.getByRole('button', { name: new RegExp(en.hearth_add_page) }));
+		expect(get(editor)).toEqual({ kind: 'room', id: null });
+	});
+
+	it('groups the rows into sections that say where each one is kept', () => {
+		const { container } = render(SettingsEditSheet);
+		const titles = [...container.querySelectorAll('.section-title')].map(
+			(node) => node.textContent
+		);
+		expect(titles).toEqual([
+			en.hearth_this_screen,
+			en.hearth_appearance,
+			en.hearth_layout_and_navigation,
+			en.hearth_size_and_spacing,
+			en.hearth_wall_display,
+			en.hearth_alerts,
+			en.hearth_pages,
+			en.hearth_server,
+			en.hearth_maintenance
+		]);
+		const scopes = [...container.querySelectorAll('.section-scope')].map(
+			(node) => node.textContent
+		);
+		expect(scopes[0]).toBe(en.hearth_scope_this_browser);
+		expect(scopes.filter((scope) => scope === en.hearth_scope_dashboard)).toHaveLength(6);
+		expect(scopes).toContain(en.hearth_scope_saved_now);
+		expect(screen.getByText(en.hearth_settings_note)).toBeTruthy();
+		const groups = [...container.querySelectorAll('.group-title')].map((node) => node.textContent);
+		expect(groups).toEqual([
+			en.hearth_screens_900_px_and_narrower,
+			en.hearth_sleep_screen,
+			en.hearth_greeting,
+			en.hearth_alert_chimes
+		]);
+	});
+
+	it.each([
+		[en.theme, { kind: 'theme' }],
+		[en.hearth_custom_css, { kind: 'customCss' }],
+		[en.hearth_server_settings, { kind: 'appSettings' }]
+	])('opens %s from its section', async (label, kind) => {
+		render(SettingsEditSheet);
+		await fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${label}`) }));
+		expect(get(editor)).toEqual(kind);
+	});
+
+	it('opens This screen over the sheet', async () => {
+		render(SettingsEditSheet);
+		await fireEvent.click(
+			screen.getByRole('button', { name: new RegExp(en.hearth_this_screen_sub) })
+		);
+		expect(get(screenSheetOpen)).toBe(true);
+	});
+
+	it('keeps a sleep delay and brightness from YAML that no preset matches', () => {
+		hearthConfig.set({
+			...structuredClone(DEFAULT_HEARTH_CONFIG),
+			screensaver_minutes: 7,
+			screensaver_brightness: 40
+		});
+		render(SettingsEditSheet);
+		const delay = screen.getByLabelText(en.hearth_sleep_turn_on_after) as HTMLSelectElement;
+		expect(delay.value).toBe('7');
+		expect(delay.selectedOptions[0].textContent).toBe(fill(en.hearth_custom_value, { value: '7' }));
+		const brightness = screen.getByLabelText(en.hearth_screensaver_brightness) as HTMLSelectElement;
+		expect(brightness.value).toBe('40');
+	});
+
+	it('says when this screen overrides a shared row', () => {
+		screenOverrides.set({ keep_screen_on: false });
+		render(SettingsEditSheet);
+		expect(screen.getByText(en.hearth_this_screen_uses_its_own)).toBeTruthy();
+	});
+
+	it('marks both scale rows when this screen picked its own scale', () => {
+		screenOverrides.set({ scale: 130 });
+		render(SettingsEditSheet);
+		expect(screen.getAllByText(en.hearth_this_screen_uses_its_own)).toHaveLength(2);
+	});
+
+	it('sets an edit lock and only keeps a PIN of 4 to 8 digits', async () => {
+		render(SettingsEditSheet);
+		await fireEvent.change(screen.getByLabelText(en.hearth_edit_lock), {
+			target: { value: 'pin' }
+		});
+		expect(get(hearthConfig).edit_lock).toBe('pin');
+		expect(screen.getByText(en.hearth_edit_pin_invalid)).toBeTruthy();
+		const pin = screen.getByLabelText(en.hearth_edit_pin);
+		await fireEvent.change(pin, { target: { value: '12' } });
+		expect(get(hearthConfig).edit_pin).toBeUndefined();
+		await fireEvent.change(pin, { target: { value: '0042' } });
+		expect(get(hearthConfig).edit_pin).toBe('0042');
+		expect(screen.getByText(en.hearth_edit_pin_sub)).toBeTruthy();
+
+		await fireEvent.change(screen.getByLabelText(en.hearth_edit_lock), {
+			target: { value: 'off' }
+		});
+		expect(get(hearthConfig)).toMatchObject({ edit_lock: undefined, edit_pin: undefined });
 	});
 
 	it('lists the alert rules and opens one, or a new one, in the alert editor', async () => {
@@ -118,6 +241,51 @@ describe('SettingsEditSheet', () => {
 		expect(get(hearthConfig).screensaver_radar).toEqual({ latitude: 40.4 });
 	});
 
+	it('sets up the photo frame and stores only what differs from the defaults', async () => {
+		render(SettingsEditSheet);
+		expect(screen.queryByLabelText(en.hearth_sleep_photo_order)).toBeNull();
+		await fireEvent.change(screen.getByLabelText(en.hearth_sleep_background), {
+			target: { value: 'photos' }
+		});
+		expect(get(hearthConfig).screensaver_background).toBe('photos');
+		expect(screen.getByRole('group', { name: en.hearth_sleep_photos })).toBeTruthy();
+
+		const seconds = screen.getByLabelText(en.hearth_sleep_photo_seconds);
+		expect((seconds as HTMLSelectElement).value).toBe('30');
+		await fireEvent.change(seconds, { target: { value: '60' } });
+		expect(get(hearthConfig).screensaver_photo_seconds).toBe(60);
+		await fireEvent.change(seconds, { target: { value: '30' } });
+		expect(get(hearthConfig).screensaver_photo_seconds).toBeUndefined();
+
+		const order = screen.getByLabelText(en.hearth_sleep_photo_order);
+		await fireEvent.change(order, { target: { value: 'sequence' } });
+		expect(get(hearthConfig).screensaver_photo_order).toBe('sequence');
+		await fireEvent.change(order, { target: { value: 'shuffle' } });
+		expect(get(hearthConfig).screensaver_photo_order).toBeUndefined();
+	});
+
+	it('picks a media player and shows the fallback background fields under it', async () => {
+		render(SettingsEditSheet);
+		await fireEvent.change(screen.getByLabelText(en.hearth_sleep_background), {
+			target: { value: 'media' }
+		});
+		expect(screen.getByLabelText(en.hearth_sleep_media_entity)).toBeTruthy();
+		const fallback = screen.getByLabelText(en.hearth_sleep_media_fallback) as HTMLSelectElement;
+		expect([...fallback.options].map((option) => option.value)).toEqual([
+			'none',
+			'image',
+			'radar',
+			'photos',
+			'sun'
+		]);
+		await fireEvent.change(fallback, { target: { value: 'photos' } });
+		expect(get(hearthConfig).screensaver_media_fallback).toBe('photos');
+		expect(screen.getByLabelText(en.hearth_sleep_photo_order)).toBeTruthy();
+		await fireEvent.change(fallback, { target: { value: 'none' } });
+		expect(get(hearthConfig).screensaver_media_fallback).toBeUndefined();
+		expect(screen.queryByLabelText(en.hearth_sleep_photo_order)).toBeNull();
+	});
+
 	it('takes a custom basemap only as a tile template', async () => {
 		render(SettingsEditSheet);
 		await fireEvent.change(screen.getByLabelText(en.hearth_sleep_background), {
@@ -196,5 +364,66 @@ describe('SettingsEditSheet', () => {
 			screen.getByRole('button', { name: en.hearth_decrease_mobile_side_padding })
 		);
 		expect(get(hearthConfig).mobile_padding_x).toBe(0);
+	});
+
+	it('turns tile animations off, storing only the change from the default', async () => {
+		render(SettingsEditSheet);
+		const toggle = screen.getByRole('switch', { name: en.hearth_tile_animations });
+		expect(toggle.getAttribute('aria-checked')).toBe('true');
+		await fireEvent.click(toggle);
+		expect(get(hearthConfig).animations).toBe(false);
+		await fireEvent.click(toggle);
+		expect(get(hearthConfig).animations).toBeUndefined();
+	});
+
+	it('sets a chime per severity and a volume, with the first-tap hint', async () => {
+		render(SettingsEditSheet);
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_critical), {
+			target: { value: 'bell' }
+		});
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_warning), {
+			target: { value: 'chime' }
+		});
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_volume), {
+			target: { value: '80' }
+		});
+		expect(get(hearthConfig).alert_chimes).toEqual({ critical: 'bell', warning: true, volume: 80 });
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_critical), {
+			target: { value: 'none' }
+		});
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_warning), {
+			target: { value: 'none' }
+		});
+		await fireEvent.change(screen.getByLabelText(en.hearth_alert_chime_volume), {
+			target: { value: '60' }
+		});
+		expect(get(hearthConfig).alert_chimes).toBeUndefined();
+		expect(screen.getByText(en.hearth_alert_chime_first_tap)).toBeTruthy();
+	});
+
+	it('says by the test sound when this screen mutes alert sounds', () => {
+		screenOverrides.set({ mute_chimes: true });
+		render(SettingsEditSheet);
+		expect(screen.getByText(en.hearth_alert_chime_muted_here)).toBeTruthy();
+		expect(screen.queryByText(en.hearth_alert_chime_first_tap)).toBeNull();
+	});
+
+	it('greets the persons picked from Home Assistant', async () => {
+		states.set({ 'person.anna': hassEntity('person.anna', 'home', { friendly_name: 'Anna' }) });
+		render(SettingsEditSheet);
+		expect(screen.queryByLabelText(en.hearth_greeting_minutes)).toBeNull();
+		await fireEvent.click(
+			screen.getByRole('switch', { name: fill(en.hearth_greet_person, { name: 'Anna' }) })
+		);
+		expect(get(hearthConfig).greeting).toEqual({ persons: ['person.anna'] });
+		await fireEvent.change(screen.getByLabelText(en.hearth_greeting_minutes), {
+			target: { value: '30' }
+		});
+		expect(get(hearthConfig).greeting).toEqual({ persons: ['person.anna'], minutes: 30 });
+		await fireEvent.click(
+			screen.getByRole('switch', { name: fill(en.hearth_greet_person, { name: 'Anna' }) })
+		);
+		expect(get(hearthConfig).greeting).toBeUndefined();
+		states.set({});
 	});
 });

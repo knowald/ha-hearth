@@ -4,12 +4,15 @@
 	import { MAX_ALERT_SECONDS, normalizeVisibility, slugify, uniqueId } from '../config';
 	import type { AlertRule, AlertSeverity, VisibilityCondition } from '../types';
 	import { editor, hearthConfig, updateConfig } from '../store';
+	import CheckField from './CheckField.svelte';
 	import EditSheet from './EditSheet.svelte';
 	import EntityField from './EntityField.svelte';
 	import IconField from './IconField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
 	import VisibilityField from './VisibilityField.svelte';
+	import { requireFields } from './validation';
+	import { chimeOptions, chimeValue, storedChime } from './options';
 
 	let { index }: { index: number | null } = $props();
 
@@ -28,11 +31,36 @@
 	let entity = $state(initial?.entity ?? '');
 	let popup = $state(initial?.popup !== false);
 	let autoClose = $state(initial?.auto_close !== false);
+	let chime = $state(chimeValue(initial?.chime));
+
+	function staged() {
+		return {
+			title,
+			message,
+			icon,
+			severity,
+			conditions,
+			seconds,
+			entity,
+			popup,
+			autoClose,
+			chime
+		};
+	}
+
+	const untouched = JSON.stringify(staged());
+	let dirty = $derived(JSON.stringify(staged()) !== untouched);
 
 	let SEVERITY_OPTIONS = $derived([
 		{ value: 'info', label: $lang('hearth_alert_severity_info') },
 		{ value: 'warning', label: $lang('hearth_alert_severity_warning') },
 		{ value: 'critical', label: $lang('hearth_alert_severity_critical') }
+	]);
+
+	// unset follows the severity's chime from Settings > Alerts
+	let CHIME_OPTIONS = $derived([
+		{ value: '', label: $lang('hearth_alert_chime_default') },
+		...chimeOptions($lang)
 	]);
 
 	let delay = $derived(seconds.trim() === '' ? 0 : Number(seconds));
@@ -42,7 +70,18 @@
 			: $lang('hearth_alert_delay_invalid')
 	);
 	let rules = $derived(normalizeVisibility($state.snapshot(conditions)));
-	let valid = $derived(title.trim() !== '' && !!rules && !delayError);
+	// the first thing still missing, top to bottom, is what Done explains
+	let validity = $derived.by(() => {
+		const titled = requireFields($lang('hearth_field_required'), {
+			label: $lang('hearth_title'),
+			value: title
+		});
+		if (!titled.valid) return titled;
+		if (!rules) return { valid: false, reason: $lang('hearth_alert_needs_condition') };
+		// the delay explains itself under its field
+		if (delayError) return { valid: false, reason: $lang('hearth_fix_marked_fields') };
+		return { valid: true };
+	});
 
 	function close() {
 		editor.set(null);
@@ -64,7 +103,8 @@
 			for_seconds: delay > 0 ? delay : undefined,
 			entity: entity.trim() || undefined,
 			popup: popup ? undefined : false,
-			auto_close: autoClose ? undefined : false
+			auto_close: autoClose ? undefined : false,
+			chime: storedChime(chime)
 		};
 	}
 
@@ -102,11 +142,13 @@
 	onclose={close}
 	onback={back}
 	ondone={done}
-	doneDisabled={!valid}
+	{dirty}
+	doneDisabled={!validity.valid}
+	doneReason={validity.reason ?? null}
 	onremove={initial ? remove : undefined}
 >
 	<div class="editor-fields">
-		<TextField label={$lang('hearth_title')} bind:value={title} autofocus={!initial} />
+		<TextField label={$lang('hearth_title')} required bind:value={title} autofocus={!initial} />
 		<TextField label={$lang('hearth_alert_message')} bind:value={message} />
 		<SelectField
 			label={$lang('hearth_alert_severity')}
@@ -114,6 +156,12 @@
 			options={SEVERITY_OPTIONS}
 		/>
 		<IconField label={$lang('hearth_icon_optional')} bind:value={icon} />
+		<SelectField
+			label={$lang('hearth_alert_chime')}
+			bind:value={chime}
+			options={CHIME_OPTIONS}
+			hint={$lang('hearth_alert_chime_hint')}
+		/>
 
 		<div class="group-label">{$lang('hearth_alert_when')}</div>
 		<VisibilityField bind:value={conditions} media={false} />
@@ -121,6 +169,7 @@
 			label={$lang('hearth_alert_delay')}
 			bind:value={seconds}
 			placeholder="0"
+			inputmode="numeric"
 			hint={$lang('hearth_alert_delay_hint')}
 			error={delayError}
 		/>
@@ -130,13 +179,7 @@
 			bind:value={entity}
 			hint={$lang('hearth_alert_entity_hint')}
 		/>
-		<label class="check">
-			<input type="checkbox" bind:checked={popup} />
-			<span>{$lang('hearth_alert_popup')}</span>
-		</label>
-		<label class="check">
-			<input type="checkbox" bind:checked={autoClose} />
-			<span>{$lang('hearth_alert_auto_close')}</span>
-		</label>
+		<CheckField label={$lang('hearth_alert_popup')} bind:checked={popup} />
+		<CheckField label={$lang('hearth_alert_auto_close')} bind:checked={autoClose} />
 	</div>
 </EditSheet>
