@@ -51,6 +51,41 @@ describe('normalizeHearthConfig', () => {
 		).toMatchObject({ screensaver_drift: true, screensaver_brightness: 100 });
 	});
 
+	it('preserves advanced sleep settings and bounds positions and background brightness', () => {
+		const config = normalizeHearthConfig({
+			rail: [],
+			rooms: [],
+			screensaver_show_clock: false,
+			screensaver_clock_layout: 'stacked',
+			screensaver_clock_font: 'serif',
+			screensaver_hour_format: '12',
+			screensaver_show_seconds: true,
+			screensaver_position_x: -10,
+			screensaver_position_y: 110,
+			screensaver_background_brightness: 0
+		});
+		expect(config).toMatchObject({
+			screensaver_show_clock: false,
+			screensaver_clock_layout: 'stacked',
+			screensaver_clock_font: 'serif',
+			screensaver_hour_format: '12',
+			screensaver_show_seconds: true,
+			screensaver_position_x: 0,
+			screensaver_position_y: 100,
+			screensaver_background_brightness: 0
+		});
+		expect(
+			hearthConfigIssues({
+				version: 5,
+				rail: [],
+				rooms: [],
+				screensaver_position_x: 101,
+				screensaver_clock_font: 'unknown',
+				screensaver_background_brightness: -1
+			})
+		).toHaveLength(3);
+	});
+
 	it('normalizes customization flags and verdict bands', () => {
 		const config = normalizeHearthConfig({
 			rail: [],

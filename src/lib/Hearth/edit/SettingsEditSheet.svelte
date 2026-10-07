@@ -19,14 +19,7 @@
 		type ScreensaverBackground,
 		type ScreensaverRadar
 	} from '../config';
-	import {
-		editor,
-		hearthConfig,
-		screensaverPreview,
-		setupWizardOpen,
-		setupWizardSource,
-		updateConfig
-	} from '../store';
+	import { editor, hearthConfig, setupWizardOpen, setupWizardSource, updateConfig } from '../store';
 	import EditSheet from './EditSheet.svelte';
 	import EntityField from './EntityField.svelte';
 	import Icon from '../Icon.svelte';
@@ -34,6 +27,7 @@
 	import PhotoListField from './PhotoListField.svelte';
 	import SelectField from './SelectField.svelte';
 	import SettingsRow from './SettingsRow.svelte';
+	import SleepPreview from './SleepPreview.svelte';
 	import TextField from './TextField.svelte';
 	import Switch from '../Switch.svelte';
 	import { wakeLockState } from '../wakeLock';
@@ -43,10 +37,16 @@
 	import { DEFAULT_CHIME_VOLUME } from '../model/alerts';
 	import { chimeOptions, chimeValue, sleepOptions, storedChime, withCurrent } from './options';
 
+	let previewX = $state<number>();
+	let previewY = $state<number>();
 	let screensaver = $derived(String($hearthConfig.screensaver_minutes ?? 0));
 	let screensaverDrift = $derived($hearthConfig.screensaver_drift ?? false);
 	let screensaverBrightness = $derived(String($hearthConfig.screensaver_brightness ?? 32));
 	let showDate = $derived($hearthConfig.screensaver_show_date ?? true);
+	let showClock = $derived($hearthConfig.screensaver_show_clock ?? true);
+	let clockFont = $derived($hearthConfig.screensaver_clock_font ?? 'default');
+	let hourFormat = $derived($hearthConfig.screensaver_hour_format ?? 'dashboard');
+	let showSeconds = $derived($hearthConfig.screensaver_show_seconds ?? false);
 	let clockSize = $derived($hearthConfig.screensaver_clock_size ?? 'medium');
 	let weatherEntity = $derived($hearthConfig.screensaver_weather_entity ?? '');
 	let background = $derived($hearthConfig.screensaver_background ?? 'none');
@@ -142,6 +142,31 @@
 		updateConfig((config) => {
 			config.rail_position = value === 'left' ? undefined : (value as RailPosition);
 		});
+	}
+
+	let CLOCK_FONT_OPTIONS = $derived([
+		{ value: 'default', label: $lang('hearth_font_default') },
+		{ value: 'mono', label: $lang('hearth_font_mono') },
+		{ value: 'serif', label: $lang('hearth_font_serif') }
+	]);
+	let HOUR_FORMAT_OPTIONS = $derived([
+		{ value: 'dashboard', label: $lang('hearth_default') },
+		{ value: 'auto', label: $lang('hearth_locale_default') },
+		{ value: '12', label: $lang('hearth_12_hour') },
+		{ value: '24', label: $lang('hearth_24_hour') }
+	]);
+
+	function setSleepPercentage(
+		key: 'screensaver_position_x' | 'screensaver_position_y' | 'screensaver_background_brightness',
+		value: string
+	) {
+		const parsed = numberFromInput(value);
+		if (!Number.isFinite(parsed)) return;
+		updateConfig((config) => {
+			config[key] = Math.min(100, Math.max(0, Math.round(parsed)));
+		});
+		previewX = undefined;
+		previewY = undefined;
 	}
 
 	let CLOCK_SIZE_OPTIONS = $derived([
@@ -751,7 +776,7 @@
 
 		<section>
 			{@render sectionHead($lang('hearth_wall_display'), $lang('hearth_scope_dashboard'))}
-			<div class="rows">
+			<div class="rows sleep-rows">
 				<SettingsRow
 					label={$lang('hearth_keep_screen_awake')}
 					sub={sharedSub('keep_screen_on', $lang('hearth_while_the_dashboard_is_open'))}
@@ -801,213 +826,325 @@
 						/>
 					</SettingsRow>
 				{/if}
-				<div class="group-title">{$lang('hearth_sleep_screen')}</div>
-				<SettingsRow
-					label={$lang('hearth_sleep_turn_on_after')}
-					sub={sharedSub('screensaver_minutes')}
-				>
-					<SelectField
-						inline
+				<div class="sleep-editor">
+					<div class="group-title">{$lang('hearth_sleep_screen')}</div>
+					<div class="sleep-preview">
+						<SleepPreview positionX={previewX} positionY={previewY} />
+					</div>
+					<SettingsRow
 						label={$lang('hearth_sleep_turn_on_after')}
-						value={screensaver}
-						options={SCREENSAVER_OPTIONS}
-						onchange={setScreensaver}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					icon="bedtime"
-					label={$lang('hearth_preview_sleep_screen')}
-					chevron={false}
-					onclick={() => screensaverPreview.set(true)}
-				/>
-				<SettingsRow label={$lang('hearth_sleep_clock_size')}>
-					<SelectField
-						inline
-						label={$lang('hearth_sleep_clock_size')}
-						value={clockSize}
-						options={CLOCK_SIZE_OPTIONS}
-						onchange={setClockSize}
-					/>
-				</SettingsRow>
-				<SettingsRow label={$lang('hearth_sleep_show_date')}>
-					<Switch
-						checked={showDate}
-						label={$lang('hearth_sleep_show_date')}
-						onchange={setShowDate}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					label={$lang('hearth_screensaver_drift')}
-					sub={$lang('hearth_slowly_moves_the_clock_to_protect')}
-				>
-					<Switch
-						checked={screensaverDrift}
-						label={$lang('hearth_screensaver_drift')}
-						onchange={setScreensaverDrift}
-					/>
-				</SettingsRow>
-				<SettingsRow label={$lang('hearth_screensaver_brightness')}>
-					<SelectField
-						inline
-						label={$lang('hearth_screensaver_brightness')}
-						value={screensaverBrightness}
-						options={SCREENSAVER_BRIGHTNESS_OPTIONS}
-						onchange={setScreensaverBrightness}
-					/>
-				</SettingsRow>
-				<SettingsRow label={$lang('hearth_sleep_background')}>
-					<SelectField
-						inline
-						label={$lang('hearth_sleep_background')}
-						value={background}
-						options={BACKGROUND_OPTIONS}
-						onchange={setBackground}
-					/>
-				</SettingsRow>
-				{#if background === 'media'}
-					<SettingsRow
-						label={$lang('hearth_sleep_media_fallback')}
-						sub={$lang('hearth_sleep_media_fallback_sub')}
+						sub={sharedSub('screensaver_minutes')}
 					>
 						<SelectField
 							inline
-							label={$lang('hearth_sleep_media_fallback')}
-							value={mediaFallback}
-							options={MEDIA_FALLBACK_OPTIONS}
-							onchange={setMediaFallback}
+							label={$lang('hearth_sleep_turn_on_after')}
+							value={screensaver}
+							options={SCREENSAVER_OPTIONS}
+							onchange={setScreensaver}
 						/>
 					</SettingsRow>
-				{/if}
-				{#if scene === 'photos'}
-					<SettingsRow label={$lang('hearth_sleep_photo_seconds')}>
-						<SelectField
-							inline
-							label={$lang('hearth_sleep_photo_seconds')}
-							value={photoSeconds}
-							options={PHOTO_SECONDS_OPTIONS}
-							onchange={setPhotoSeconds}
+					<SettingsRow label={$lang('hearth_widget_clock_label')}>
+						<Switch
+							checked={showClock}
+							label={$lang('hearth_widget_clock_label')}
+							onchange={(value) =>
+								updateConfig((config) => {
+									config.screensaver_show_clock = value ? undefined : false;
+								})}
 						/>
 					</SettingsRow>
-					<SettingsRow label={$lang('hearth_sleep_photo_order')}>
-						<SelectField
-							inline
-							label={$lang('hearth_sleep_photo_order')}
-							value={photoOrder}
-							options={PHOTO_ORDER_OPTIONS}
-							onchange={setPhotoOrder}
-						/>
-					</SettingsRow>
-				{/if}
-				{#if scene === 'radar'}
-					<SettingsRow label={$lang('hearth_sleep_radar_map_style')}>
-						<SelectField
-							inline
-							label={$lang('hearth_sleep_radar_map_style')}
-							value={radar.basemap ?? 'dark'}
-							options={BASEMAP_OPTIONS}
-							onchange={(value) => setRadar({ basemap: value === 'light' ? 'light' : 'dark' })}
-						/>
-					</SettingsRow>
-					<SettingsRow
-						label={$lang('hearth_sleep_radar_zoom')}
-						sub={$lang('hearth_sleep_radar_zoom_sub')}
-					>
-						<SelectField
-							inline
-							label={$lang('hearth_sleep_radar_zoom')}
-							value={String(radar.zoom ?? RADAR_ZOOM.fallback)}
-							options={ZOOM_OPTIONS}
-							onchange={(value) => setRadar({ zoom: integerFromInput(value) })}
-						/>
-					</SettingsRow>
-					{#if homeKnown}
-						<SettingsRow
-							label={$lang('hearth_sleep_use_home_location')}
-							sub={$lang('hearth_sleep_use_home_location_sub')}
-						>
+					{#if showClock}
+						<SettingsRow label={$lang('hearth_layout')}>
+							<SelectField
+								inline
+								label={$lang('hearth_layout')}
+								value={$hearthConfig.screensaver_clock_layout ?? 'default'}
+								options={[
+									{ value: 'default', label: $lang('hearth_default') },
+									{ value: 'stacked', label: $lang('hearth_stack') }
+								]}
+								onchange={(value) =>
+									updateConfig((config) => {
+										config.screensaver_clock_layout = value === 'stacked' ? 'stacked' : undefined;
+									})}
+							/>
+						</SettingsRow>
+						<SettingsRow label={$lang('hearth_font')}>
+							<SelectField
+								inline
+								label={$lang('hearth_font')}
+								value={clockFont}
+								options={CLOCK_FONT_OPTIONS}
+								onchange={(value) =>
+									updateConfig((config) => {
+										config.screensaver_clock_font =
+											value === 'mono' || value === 'serif' ? value : undefined;
+									})}
+							/>
+						</SettingsRow>
+						<SettingsRow label={$lang('hearth_hour_format')}>
+							<SelectField
+								inline
+								label={$lang('hearth_hour_format')}
+								value={hourFormat}
+								options={HOUR_FORMAT_OPTIONS}
+								onchange={(value) =>
+									updateConfig((config) => {
+										config.screensaver_hour_format =
+											value === 'auto' || value === '12' || value === '24' ? value : undefined;
+									})}
+							/>
+						</SettingsRow>
+						<SettingsRow label={$lang('hearth_show_seconds')}>
 							<Switch
-								checked={useHomeLocation}
-								label={$lang('hearth_sleep_use_home_location')}
-								onchange={setUseHomeLocation}
+								checked={showSeconds}
+								label={$lang('hearth_show_seconds')}
+								onchange={(value) =>
+									updateConfig((config) => {
+										config.screensaver_show_seconds = value ? true : undefined;
+									})}
+							/>
+						</SettingsRow>
+						<SettingsRow label={$lang('hearth_sleep_clock_size')}>
+							<SelectField
+								inline
+								label={$lang('hearth_sleep_clock_size')}
+								value={clockSize}
+								options={CLOCK_SIZE_OPTIONS}
+								onchange={setClockSize}
 							/>
 						</SettingsRow>
 					{/if}
-					{#if !homeKnown || !useHomeLocation}
-						{#each COORDINATES as { axis, label, limit } (axis)}
-							<SettingsRow
-								{label}
-								sub={coordinateInvalid[axis]
-									? fill($lang('hearth_sleep_coordinate_invalid'), { limit })
-									: undefined}
-							>
-								<span class="unit-input">
-									<span class="stepper field-frame">
-										<input
-											class="coordinate"
-											type="number"
-											step="any"
-											min={-limit}
-											max={limit}
-											aria-label={label}
-											aria-invalid={coordinateInvalid[axis] || undefined}
-											value={radar[axis]}
-											onchange={(event) => setCoordinate(axis, limit, event.currentTarget.value)}
-										/>
-									</span>
-								</span>
-							</SettingsRow>
-						{/each}
-					{/if}
-				{/if}
-				<div class="row-fields">
-					{#if background === 'media'}
-						<EntityField
-							label={$lang('hearth_sleep_media_entity')}
-							hint={$lang('hearth_sleep_media_entity_hint')}
-							domains={['media_player']}
-							value={mediaEntity}
-							onchange={setMediaEntity}
+					{#each ['x', 'y'] as axis (axis)}
+						{@const key = axis === 'x' ? 'screensaver_position_x' : 'screensaver_position_y'}
+						{@const label = `${$lang('hearth_position')} ${axis.toUpperCase()}`}
+						<SettingsRow {label}>
+							<div class="sleep-range">
+								<input
+									type="range"
+									min="0"
+									max="100"
+									step="1"
+									aria-label={label}
+									value={(axis === 'x' ? previewX : previewY) ?? $hearthConfig[key] ?? 50}
+									oninput={(event) => {
+										if (axis === 'x') previewX = Number(event.currentTarget.value);
+										else previewY = Number(event.currentTarget.value);
+									}}
+									onchange={(event) => setSleepPercentage(key, event.currentTarget.value)}
+								/>
+								<span>{(axis === 'x' ? previewX : previewY) ?? $hearthConfig[key] ?? 50}%</span>
+							</div>
+						</SettingsRow>
+					{/each}
+					<SettingsRow label={$lang('hearth_sleep_show_date')}>
+						<Switch
+							checked={showDate}
+							label={$lang('hearth_sleep_show_date')}
+							onchange={setShowDate}
 						/>
+					</SettingsRow>
+					<SettingsRow
+						label={$lang('hearth_screensaver_drift')}
+						sub={$lang('hearth_slowly_moves_the_clock_to_protect')}
+					>
+						<Switch
+							checked={screensaverDrift}
+							label={$lang('hearth_screensaver_drift')}
+							onchange={setScreensaverDrift}
+						/>
+					</SettingsRow>
+					<SettingsRow label={$lang('hearth_screensaver_brightness')}>
+						<SelectField
+							inline
+							label={$lang('hearth_screensaver_brightness')}
+							value={screensaverBrightness}
+							options={SCREENSAVER_BRIGHTNESS_OPTIONS}
+							onchange={setScreensaverBrightness}
+						/>
+					</SettingsRow>
+					<SettingsRow label={$lang('hearth_sleep_background')}>
+						<SelectField
+							inline
+							label={$lang('hearth_sleep_background')}
+							value={background}
+							options={BACKGROUND_OPTIONS}
+							onchange={setBackground}
+						/>
+					</SettingsRow>
+					{#if background !== 'none'}
+						<SettingsRow
+							label={`${$lang('hearth_sleep_background')} · ${$lang('hearth_brightness')}`}
+						>
+							<SelectField
+								inline
+								label={`${$lang('hearth_sleep_background')} · ${$lang('hearth_brightness')}`}
+								value={String($hearthConfig.screensaver_background_brightness ?? 'dashboard')}
+								options={withCurrent(
+									[
+										{ value: 'dashboard', label: $lang('hearth_default') },
+										...[0, 10, 25, 50, 75, 100].map((value) => ({
+											value: String(value),
+											label: `${value}%`
+										}))
+									],
+									String($hearthConfig.screensaver_background_brightness ?? 'dashboard'),
+									$lang
+								)}
+								onchange={(value) =>
+									value === 'dashboard'
+										? updateConfig((config) => {
+												config.screensaver_background_brightness = undefined;
+											})
+										: setSleepPercentage('screensaver_background_brightness', value)}
+							/>
+						</SettingsRow>
+					{/if}
+					{#if background === 'media'}
+						<SettingsRow
+							label={$lang('hearth_sleep_media_fallback')}
+							sub={$lang('hearth_sleep_media_fallback_sub')}
+						>
+							<SelectField
+								inline
+								label={$lang('hearth_sleep_media_fallback')}
+								value={mediaFallback}
+								options={MEDIA_FALLBACK_OPTIONS}
+								onchange={setMediaFallback}
+							/>
+						</SettingsRow>
 					{/if}
 					{#if scene === 'photos'}
-						<PhotoListField
-							label={$lang('hearth_sleep_photos')}
-							hint={$lang('hearth_sleep_photos_hint')}
-							value={photos}
-							onchange={setPhotos}
-						/>
+						<SettingsRow label={$lang('hearth_sleep_photo_seconds')}>
+							<SelectField
+								inline
+								label={$lang('hearth_sleep_photo_seconds')}
+								value={photoSeconds}
+								options={PHOTO_SECONDS_OPTIONS}
+								onchange={setPhotoSeconds}
+							/>
+						</SettingsRow>
+						<SettingsRow label={$lang('hearth_sleep_photo_order')}>
+							<SelectField
+								inline
+								label={$lang('hearth_sleep_photo_order')}
+								value={photoOrder}
+								options={PHOTO_ORDER_OPTIONS}
+								onchange={setPhotoOrder}
+							/>
+						</SettingsRow>
 					{/if}
 					{#if scene === 'radar'}
-						<TextField
-							label={$lang('hearth_sleep_tile_url')}
-							value={radar.tile_url ?? ''}
-							placeholder={OSM_TILES}
-							hint={$lang('hearth_sleep_tile_url_hint')}
-							error={tileUrlInvalid ? $lang('hearth_sleep_tile_url_invalid') : undefined}
-							onchange={setTileUrl}
-						/>
-						{#if radar.tile_url}
-							<TextField
-								label={$lang('hearth_sleep_tile_attribution')}
-								value={radar.attribution ?? ''}
-								onchange={(value) => setRadar({ attribution: value.trim() || undefined })}
+						<SettingsRow label={$lang('hearth_sleep_radar_map_style')}>
+							<SelectField
+								inline
+								label={$lang('hearth_sleep_radar_map_style')}
+								value={radar.basemap ?? 'dark'}
+								options={BASEMAP_OPTIONS}
+								onchange={(value) => setRadar({ basemap: value === 'light' ? 'light' : 'dark' })}
 							/>
+						</SettingsRow>
+						<SettingsRow
+							label={$lang('hearth_sleep_radar_zoom')}
+							sub={$lang('hearth_sleep_radar_zoom_sub')}
+						>
+							<SelectField
+								inline
+								label={$lang('hearth_sleep_radar_zoom')}
+								value={String(radar.zoom ?? RADAR_ZOOM.fallback)}
+								options={ZOOM_OPTIONS}
+								onchange={(value) => setRadar({ zoom: integerFromInput(value) })}
+							/>
+						</SettingsRow>
+						{#if homeKnown}
+							<SettingsRow
+								label={$lang('hearth_sleep_use_home_location')}
+								sub={$lang('hearth_sleep_use_home_location_sub')}
+							>
+								<Switch
+									checked={useHomeLocation}
+									label={$lang('hearth_sleep_use_home_location')}
+									onchange={setUseHomeLocation}
+								/>
+							</SettingsRow>
+						{/if}
+						{#if !homeKnown || !useHomeLocation}
+							{#each COORDINATES as { axis, label, limit } (axis)}
+								<SettingsRow
+									{label}
+									sub={coordinateInvalid[axis]
+										? fill($lang('hearth_sleep_coordinate_invalid'), { limit })
+										: undefined}
+								>
+									<span class="unit-input">
+										<span class="stepper field-frame">
+											<input
+												class="coordinate"
+												type="number"
+												step="any"
+												min={-limit}
+												max={limit}
+												aria-label={label}
+												aria-invalid={coordinateInvalid[axis] || undefined}
+												value={radar[axis]}
+												onchange={(event) => setCoordinate(axis, limit, event.currentTarget.value)}
+											/>
+										</span>
+									</span>
+								</SettingsRow>
+							{/each}
 						{/if}
 					{/if}
-					{#if scene === 'image'}
-						<ImageField
-							label={$lang('hearth_background_image')}
-							value={backgroundImage}
-							onchange={setBackgroundImage}
+					<div class="row-fields">
+						{#if background === 'media'}
+							<EntityField
+								label={$lang('hearth_sleep_media_entity')}
+								hint={$lang('hearth_sleep_media_entity_hint')}
+								domains={['media_player']}
+								value={mediaEntity}
+								onchange={setMediaEntity}
+							/>
+						{/if}
+						{#if scene === 'photos'}
+							<PhotoListField
+								label={$lang('hearth_sleep_photos')}
+								hint={$lang('hearth_sleep_photos_hint')}
+								value={photos}
+								onchange={setPhotos}
+							/>
+						{/if}
+						{#if scene === 'radar'}
+							<TextField
+								label={$lang('hearth_sleep_tile_url')}
+								value={radar.tile_url ?? ''}
+								placeholder={OSM_TILES}
+								hint={$lang('hearth_sleep_tile_url_hint')}
+								error={tileUrlInvalid ? $lang('hearth_sleep_tile_url_invalid') : undefined}
+								onchange={setTileUrl}
+							/>
+							{#if radar.tile_url}
+								<TextField
+									label={$lang('hearth_sleep_tile_attribution')}
+									value={radar.attribution ?? ''}
+									onchange={(value) => setRadar({ attribution: value.trim() || undefined })}
+								/>
+							{/if}
+						{/if}
+						{#if scene === 'image'}
+							<ImageField
+								label={$lang('hearth_background_image')}
+								value={backgroundImage}
+								onchange={setBackgroundImage}
+							/>
+						{/if}
+						<EntityField
+							label={$lang('hearth_sleep_weather_entity')}
+							hint={$lang('hearth_sleep_weather_entity_hint')}
+							domains={['weather']}
+							value={weatherEntity}
+							onchange={setWeatherEntity}
 						/>
-					{/if}
-					<EntityField
-						label={$lang('hearth_sleep_weather_entity')}
-						hint={$lang('hearth_sleep_weather_entity_hint')}
-						domains={['weather']}
-						value={weatherEntity}
-						onchange={setWeatherEntity}
-					/>
+					</div>
 				</div>
 				<div class="group-title">{$lang('hearth_greeting')}</div>
 				{#each persons as person (person)}
@@ -1184,6 +1321,28 @@
 </EditSheet>
 
 <style>
+	.rows.sleep-rows {
+		overflow: clip;
+	}
+	.sleep-preview {
+		position: sticky;
+		top: 0;
+		z-index: var(--h-layer-raised);
+	}
+	.sleep-range {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.sleep-range input {
+		width: 120px;
+		accent-color: var(--h-accent-text);
+	}
+	.sleep-range span {
+		min-width: 4ch;
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
 	.settings {
 		display: flex;
 		flex-direction: column;

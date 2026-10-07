@@ -289,3 +289,54 @@ test('the now playing sleep screen shows the track while music plays', async ({
 	await expect(screensaver.getByText('Blue in Green')).toBeHidden();
 	await expect(screensaver.locator('.sky')).toHaveAttribute('data-phase', 'day');
 });
+
+test('customizes clock layout and placement, previews it and hides only the clock', async ({
+	page
+}) => {
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await page.getByRole('button', { name: 'Settings', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'Settings' });
+	const live = sheet.getByRole('img', { name: 'Live preview', exact: true });
+	await live.scrollIntoViewIfNeeded();
+	await expect(live.locator('.clock')).toBeVisible();
+	await sheet.getByLabel('Layout', { exact: true }).selectOption('stacked');
+	await expect(live.locator('.clock')).toHaveClass(/stacked/);
+	await sheet.getByLabel('Text font', { exact: true }).selectOption('mono');
+	await expect(live.locator('.screensaver-content')).toHaveClass(/font-mono/);
+	await sheet.getByLabel('Hour format', { exact: true }).selectOption('24');
+	await sheet.getByRole('switch', { name: 'Show seconds', exact: true }).click();
+	for (const axis of ['X', 'Y']) {
+		await sheet.getByLabel(`Position ${axis}`).fill('100');
+		await sheet.getByLabel(`Position ${axis}`).dispatchEvent('input');
+		await expect(live.locator('.content-position')).toHaveCSS(axis === 'X' ? 'left' : 'top', /px$/);
+		await sheet.getByLabel(`Position ${axis}`).dispatchEvent('change');
+	}
+	await sheet.getByRole('button', { name: 'Preview sleep screen' }).click();
+	const screensaver = page.getByRole('button', { name: 'Dismiss sleep screen' });
+	await expect(screensaver).toBeVisible();
+	await expect(screensaver.locator('.clock')).toHaveClass(/stacked/);
+	await expect(screensaver.locator('.clock span')).toHaveCount(3);
+	await expect(screensaver.locator('.screensaver-content')).toHaveClass(/font-mono/);
+	for (const size of [
+		{ width: 1280, height: 800 },
+		{ width: 390, height: 844 },
+		{ width: 844, height: 390 }
+	]) {
+		await page.setViewportSize(size);
+		const bounds = await screensaver.locator('.screensaver-content').boundingBox();
+		expect(bounds).not.toBeNull();
+		expect(bounds!.x).toBeGreaterThanOrEqual(0);
+		expect(bounds!.y).toBeGreaterThanOrEqual(0);
+		expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(size.width);
+		expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(size.height);
+	}
+	await page.keyboard.press('Escape');
+	await expect(sheet).toBeVisible();
+	await sheet.getByRole('switch', { name: 'Clock', exact: true }).click();
+	await expect(live.locator('.clock')).toHaveCount(0);
+	await expect(live.locator('.date')).toBeVisible();
+	await sheet.getByRole('button', { name: 'Preview sleep screen' }).click();
+	await expect(screensaver).toBeVisible();
+	await expect(screensaver.locator('.clock')).toHaveCount(0);
+	await expect(screensaver.locator('.date')).toBeVisible();
+});

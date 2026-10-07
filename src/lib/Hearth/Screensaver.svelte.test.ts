@@ -74,6 +74,51 @@ describe('Screensaver', () => {
 		states.set({});
 	});
 
+	it('hides only the clock, retaining the date and wake behavior', async () => {
+		configure({ screensaver_show_clock: false });
+		const { container, overlay } = await showScreensaver();
+		expect(container.querySelector('.clock')).toBeNull();
+		expect(container.querySelector('.date')).not.toBeNull();
+		await fireEvent.pointerDown(overlay);
+		expect(container.querySelector('.screensaver')).toBeNull();
+	});
+
+	it('uses stacked localized digits, independent hour format and font at the chosen position', async () => {
+		configure({
+			screensaver_clock_layout: 'stacked',
+			screensaver_clock_font: 'mono',
+			screensaver_hour_format: '24',
+			screensaver_show_seconds: true,
+			screensaver_position_x: 0,
+			screensaver_position_y: 100
+		});
+		const { container } = await showScreensaver();
+		const clock = container.querySelector('.clock')!;
+		expect(clock.classList.contains('stacked')).toBe(true);
+		expect(clock.querySelectorAll('span')).toHaveLength(3);
+		expect(container.querySelector('.screensaver-content')?.classList.contains('font-mono')).toBe(
+			true
+		);
+		const position = container.querySelector('.content-position') as HTMLElement;
+		expect(position.style.left).toBe('0%');
+		expect(position.style.top).toBe('100%');
+	});
+
+	it('can turn the background completely dark independently of the clock', async () => {
+		configure({ screensaver_brightness: 75, screensaver_background_brightness: 0 });
+		const { container } = await showScreensaver();
+		expect(
+			(container.querySelector('.backdrop') as HTMLElement).style.getPropertyValue(
+				'--screensaver-brightness'
+			)
+		).toBe('0');
+		expect(
+			(container.querySelector('.screensaver-content') as HTMLElement).style.getPropertyValue(
+				'--screensaver-brightness'
+			)
+		).toBe('0.75');
+	});
+
 	it('stays away while an alert card is on screen', async () => {
 		activeAlerts.set([{ key: 'event:a', title: 'A', severity: 'info', popup: true, since: 1 }]);
 		const { container } = render(Screensaver, { minutes: 1 });

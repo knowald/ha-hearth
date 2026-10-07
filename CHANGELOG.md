@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Show a live sleep-screen preview while adjusting its settings, with a full-screen view for checking the result at actual size
+- Customize the sleep clock with a stacked layout, font, position, visibility, hour format and seconds, and set background brightness independently
+
 ## [0.7.0] - 2026-10-05
 
 ### Changed

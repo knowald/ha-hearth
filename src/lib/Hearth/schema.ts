@@ -587,6 +587,14 @@ export const RootSettingsSchema = v.looseObject({
 	screensaver_clock_size: v.optional(
 		v.picklist(['small', 'medium', 'large'], 'must be small, medium or large')
 	),
+	screensaver_show_clock: OptionalFlag,
+	screensaver_position_x: optionalNumberInRange(0, 100),
+	screensaver_position_y: optionalNumberInRange(0, 100),
+	screensaver_clock_layout: v.optional(v.literal('stacked')),
+	screensaver_clock_font: v.optional(v.picklist(['default', 'mono', 'serif'])),
+	screensaver_hour_format: v.optional(v.picklist(['auto', '12', '24'])),
+	screensaver_show_seconds: OptionalFlag,
+	screensaver_background_brightness: optionalNumberInRange(0, 100),
 	screensaver_weather_entity: OptionalEntityId,
 	keep_screen_on: OptionalFlag,
 	edit_lock: v.optional(v.picklist(['hold', 'pin'], 'must be hold or pin')),
