@@ -42,3 +42,38 @@ test('two application settings saves use successive revisions', async ({ page })
 	}
 	expect(revisions[1]).toBe(revisions[0] + 1);
 });
+
+test.describe('write access', () => {
+	const FAKE_HASS = `http://127.0.0.1:${process.env.E2E_HASS_PORT ?? 8124}`;
+	test.afterEach(async ({ request }) => {
+		await request.post(`${FAKE_HASS}/_test/user`, { data: { is_admin: true } });
+	});
+
+	test('the server refuses writes without a Home Assistant token', async ({ request }) => {
+		for (const path of ['/_api/save_hearth', '/_api/save_config', '/_api/custom_css']) {
+			expect((await request.post(path, { data: { revision: 0 } })).status()).toBe(401);
+		}
+		// reads stay open for screens without a session
+		expect((await request.get('/_api/custom_css')).status()).toBe(200);
+	});
+
+	test('a regular Home Assistant user cannot save server settings', async ({ page, request }) => {
+		await request.post(`${FAKE_HASS}/_test/user`, { data: { is_admin: false } });
+		// a token of its own, since the server remembers who the fixture token belongs to
+		const regular = fixture.replace(/^token:.*$/m, 'token: e2e-regular-user-token');
+		writeFileSync(file, regular);
+		await page.goto('/');
+		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await page.getByRole('button', { name: 'Settings', exact: true }).click();
+		await page.getByRole('button', { name: /Server settings/ }).click();
+		const sheet = page.getByRole('dialog', { name: 'Server settings' });
+		const before = readFileSync(file, 'utf8');
+		const response = page.waitForResponse((response) =>
+			response.url().endsWith('/_api/save_config')
+		);
+		await sheet.getByRole('button', { name: 'Save' }).click();
+		expect((await response).status()).toBe(403);
+		await expect(sheet.getByText('[403]')).toBeVisible();
+		expect(readFileSync(file, 'utf8')).toBe(before);
+	});
+});

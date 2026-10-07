@@ -20,6 +20,9 @@ import { WebSocketServer } from 'ws';
  * every subscribe_trigger subscription listening for it,
  * POST /_test/todo_subscribe with { supported: false } answers
  * todo/item/subscribe the way a Home Assistant without it does.
+ * POST /_test/user with { is_admin: false } makes auth/current_user report a
+ * regular user, which Hearth then refuses settings and custom CSS saves.
+ * GET /api/ accepts any bearer token, the way Hearth's server checks one.
  * GET /api/media_player_proxy/<entity> answers with a 1x1 PNG as album art.
  */
 
@@ -315,6 +318,7 @@ function initialTodoItems() {
 let states = initialStates();
 let todoItems = initialTodoItems();
 let todoSubscribeSupported = true;
+let userIsAdmin = true;
 let calls = [];
 let cameraRequests = [];
 // Stream types as Home Assistant reports them through camera/capabilities; the
@@ -655,6 +659,16 @@ function handleMessage(socket, message) {
 	const event = (payload) =>
 		socket.send(JSON.stringify({ id: message.id, type: 'event', event: payload }));
 	switch (message.type) {
+		case 'auth/current_user':
+			reply({
+				id: 'e2e-user',
+				name: 'E2E',
+				is_owner: userIsAdmin,
+				is_admin: userIsAdmin,
+				credentials: [],
+				mfa_modules: []
+			});
+			return;
 		case 'subscribe_entities':
 			entitySubscribers.set(socket, message.id);
 			reply(null);
@@ -927,6 +941,18 @@ const ALBUM_ART = Buffer.from(
 );
 
 const http = createServer(async (request, response) => {
+	if (request.url === '/api/') {
+		const signed = /^Bearer \S+$/.test(request.headers.authorization ?? '');
+		response.statusCode = signed ? 200 : 401;
+		response.setHeader('Content-Type', 'application/json');
+		response.end(JSON.stringify({ message: signed ? 'API running.' : '401: Unauthorized' }));
+		return;
+	}
+	if (request.url === '/_test/user' && request.method === 'POST') {
+		userIsAdmin = JSON.parse((await readBody(request)) || '{}').is_admin !== false;
+		response.end('ok');
+		return;
+	}
 	if (request.url?.startsWith('/api/media_player_proxy/')) {
 		response.setHeader('Content-Type', 'image/png');
 		response.end(ALBUM_ART);
@@ -946,6 +972,7 @@ const http = createServer(async (request, response) => {
 		states = initialStates();
 		todoItems = initialTodoItems();
 		todoSubscribeSupported = true;
+		userIsAdmin = true;
 		calls = [];
 		cameraRequests = [];
 		for (const entityId of Object.keys(states)) pushChange(entityId);

@@ -6,12 +6,11 @@ const persistence = vi.hoisted(() => ({
 	listBackups: vi.fn(async () => [{ name: 'hearth-10-r3.yaml', at: 10, revision: 3, size: 20 }]),
 	readBackup: vi.fn(async (_file: string, name: string) =>
 		name === 'hearth-10-r3.yaml' ? 'rooms: []\n' : undefined
-	)
+	),
+	readDocument: vi.fn(async (): Promise<string | undefined> => 'revision: 4\n')
 }));
-const live = vi.hoisted(() => ({ read: vi.fn(async () => 'revision: 4\n') }));
 
 vi.mock('$lib/server/persistence', () => persistence);
-vi.mock('fs/promises', () => ({ readFile: live.read }));
 
 import { GET } from './+server';
 
@@ -24,13 +23,28 @@ function get(query = '') {
 
 describe('Hearth versions endpoint', () => {
 	beforeEach(() => {
-		live.read.mockClear();
+		persistence.readDocument.mockClear();
 	});
 
 	it('lists the backups with the revision the file is on', async () => {
 		const body = await (await get()).json();
 		expect(body.revision).toBe(4);
 		expect(body.versions).toEqual([{ name: 'hearth-10-r3.yaml', at: 10, revision: 3, size: 20 }]);
+	});
+
+	it('lists the backups only after reading the revision, which adopts an outside edit', async () => {
+		const order: string[] = [];
+		persistence.currentRevision.mockImplementationOnce(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 5));
+			order.push('revision');
+			return 4;
+		});
+		persistence.listBackups.mockImplementationOnce(async () => {
+			order.push('backups');
+			return [];
+		});
+		await get();
+		expect(order).toEqual(['revision', 'backups']);
 	});
 
 	it('returns one backup by name', async () => {
@@ -49,7 +63,7 @@ describe('Hearth versions endpoint', () => {
 	});
 
 	it('reports an empty document when the file is missing', async () => {
-		live.read.mockRejectedValueOnce(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+		persistence.readDocument.mockResolvedValueOnce(undefined);
 		const body = await (await get('?name=current')).json();
 		expect(body.content).toBe('');
 	});

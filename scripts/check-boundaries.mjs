@@ -33,12 +33,13 @@ const LAYERS = [
 		allowed: ['model', 'core', 'ui']
 	},
 	{ name: 'server', match: ['src/lib/server/'], allowed: ['core'] },
+	{ name: 'agent', match: ['src/lib/agent/'], allowed: ['model', 'server', 'core'] },
 	{ name: 'ui', match: ['src/lib/ui/'], allowed: ['core'] },
 	{ name: 'core', match: ['src/lib/core/'], allowed: [] },
 	{
 		name: 'routes',
 		match: ['src/routes/', 'src/hooks.server.ts'],
-		allowed: ['hearth', 'model', 'core', 'ui', 'server']
+		allowed: ['hearth', 'model', 'core', 'ui', 'server', 'agent']
 	}
 ];
 

@@ -1,12 +1,12 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFile } from 'fs/promises';
+import { readDocument } from '$lib/server/persistence';
 import { load } from './+page.server';
 
-vi.mock('fs/promises', () => ({ readFile: vi.fn() }));
+vi.mock('$lib/server/persistence', () => ({ readDocument: vi.fn() }));
 
 beforeEach(() => {
-	vi.mocked(readFile).mockResolvedValue('');
+	vi.mocked(readDocument).mockResolvedValue('');
 	vi.stubEnv('HASS_URL', 'http://homeassistant.local:8123');
 	vi.stubEnv('HASS_PUBLIC_URL', '');
 });
@@ -56,7 +56,7 @@ describe('configuration.yaml errors', () => {
 	afterEach(() => vi.restoreAllMocks());
 
 	async function loadWith(files: Record<string, string>) {
-		vi.mocked(readFile).mockImplementation(async (file) => files[String(file)] ?? '');
+		vi.mocked(readDocument).mockImplementation(async (file) => files[String(file)] ?? '');
 		vi.spyOn(console, 'error').mockImplementation(() => {});
 		const request = new Request('http://container:8099/');
 		return load({ request } as Parameters<typeof load>[0]);
@@ -85,7 +85,7 @@ describe('hearth.yaml errors', () => {
 	afterEach(() => vi.restoreAllMocks());
 
 	async function loadHearth(content: string) {
-		vi.mocked(readFile).mockImplementation(async (file) =>
+		vi.mocked(readDocument).mockImplementation(async (file) =>
 			String(file) === './data/hearth.yaml' ? content : ''
 		);
 		const request = new Request('http://container:8099/');

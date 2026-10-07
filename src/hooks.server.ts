@@ -1,6 +1,20 @@
 import type { Handle } from '@sveltejs/kit';
+import { requiredAccess } from '$lib/agent/access';
+import { authorize } from '$lib/agent/auth';
+import { transportIssue } from '$lib/agent/mcp';
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// the MCP transport checks come before authentication
+	if (event.route.id === '/_api/mcp') {
+		const issue = transportIssue(event.request);
+		if (issue) return issue;
+	}
+	const access = requiredAccess(event.route.id, event.request.method);
+	if (access) {
+		const authorized = await authorize(event.request, access);
+		if (authorized instanceof Response) return authorized;
+		event.locals.token = authorized.token;
+	}
 	const response = await resolve(event);
 	const link = response.headers.get('link');
 	if (!link || !response.headers.get('content-type')?.startsWith('text/html')) return response;

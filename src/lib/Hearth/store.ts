@@ -1,5 +1,6 @@
 import { derived, get, writable } from 'svelte/store';
 import { base } from '$app/paths';
+import { authorizedFetch } from '$lib/core/ha/connection';
 import { validTimeZone } from './clock';
 import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import { vibrate } from '$lib/core/app/haptics';
@@ -335,7 +336,7 @@ async function performSave(force: boolean): Promise<boolean> {
 		throw new Error(`Cannot save an unreadable Hearth configuration: ${loadError}`);
 	}
 	const config = get(hearthConfig);
-	const response = await fetch(`${base}/_api/save_hearth`, {
+	const response = await authorizedFetch(`${base}/_api/save_hearth`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ revision: get(hearthRevision), config, force })

@@ -98,6 +98,20 @@ const tokenStorage = {
 export const tokenNeeded = writable(false);
 
 /**
+ * fetch for Hearth's own writes, which the server only accepts with a Home
+ * Assistant access token: the one this screen's connection uses, renewed
+ * first when it expired. Without a connection the request goes unsigned and
+ * the server refuses it.
+ */
+export async function authorizedFetch(input: string, init: RequestInit = {}): Promise<Response> {
+	const auth = get(connection)?.options?.auth;
+	if (auth?.expired) await auth.refreshAccessToken();
+	const headers = new Headers(init.headers);
+	if (auth) headers.set('Authorization', `Bearer ${auth.accessToken}`);
+	return fetch(input, { ...init, headers });
+}
+
+/**
  * Why the latest attempt failed, cleared when a new run starts or a connection
  * succeeds. invalid_auth covers a rejected token and a failed OAuth exchange;
  * panel_auth is the HA app iframe still waiting for its parent session.

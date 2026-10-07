@@ -246,11 +246,16 @@ test.describe('saving', () => {
 		await sheet.getByLabel('Title').fill('Mine');
 		await sheet.getByRole('button', { name: 'Done' }).click();
 
-		const other = parseYaml(HEARTH_FIXTURE) as { revision: number } & Record<string, unknown>;
-		const { revision, ...config } = other;
-		await request.post('/_api/save_hearth', {
-			data: { revision, config: { ...config, padding_x: 7 } }
+		// resetting the file between tests is an outside edit that moves the
+		// revision on, so the other tab saves against the live one
+		const { revision } = await (await request.get('/_api/hearth_versions')).json();
+		const config = parseYaml(HEARTH_FIXTURE) as Record<string, unknown>;
+		delete config.revision;
+		const saved = await request.post('/_api/save_hearth', {
+			data: { revision, config: { ...config, padding_x: 7 } },
+			headers: { Authorization: 'Bearer e2e-long-lived-token' }
 		});
+		expect(saved.ok()).toBe(true);
 
 		await page.getByRole('button', { name: 'Save', exact: true }).click();
 		await expect(page.getByText('Configuration changed elsewhere')).toBeVisible();

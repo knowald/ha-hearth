@@ -1,10 +1,10 @@
-import { readFile } from 'fs/promises';
 import * as yaml from 'js-yaml';
 import { ConfigurationSchema, type Configuration } from '$lib/core/app/configuration';
 import * as v from 'valibot';
 import type { Translations } from '$lib/core/i18n';
 import { CONFIG_VERSION, configVersion } from '$lib/Hearth/format';
 import { hearthConfigIssues } from '$lib/Hearth/normalize';
+import { readDocument } from '$lib/server/persistence';
 import { loadTranslations } from '$lib/server/translations';
 import type { HearthErrorKind } from '$lib/Hearth/store';
 import dotenv from 'dotenv';
@@ -13,13 +13,8 @@ import type { PageServerLoad } from './$types';
 dotenv.config({ quiet: true });
 
 async function loadYaml(file: string) {
-	try {
-		const data = await readFile(file, 'utf8');
-		return data.trim() ? yaml.load(data) : undefined;
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return undefined;
-		throw error;
-	}
+	const data = await readDocument(file);
+	return data?.trim() ? yaml.load(data) : undefined;
 }
 
 export const load = (async ({

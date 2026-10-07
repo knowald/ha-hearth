@@ -2,8 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { listBackups, readBackup, saveYamlDocument } from './persistence';
+import { join, relative } from 'node:path';
+import {
+	currentRevision,
+	listBackups,
+	readBackup,
+	readDocument,
+	saveYamlDocument
+} from './persistence';
 
 let directory: string;
 let file: string;
@@ -59,6 +65,16 @@ describe('saveYamlDocument', () => {
 		]);
 	});
 
+	it('serializes saves that spell the same file differently', async () => {
+		await saveYamlDocument({ file, body: { name: 'base' }, revision: 0 });
+		const results = await Promise.all(
+			[file, relative(process.cwd(), file)].map((spelling) =>
+				saveYamlDocument({ file: spelling, body: { name: spelling }, revision: 1 })
+			)
+		);
+		expect(results.map(({ conflict }) => conflict).sort()).toEqual([false, true]);
+	});
+
 	it('keeps documents with the same stem apart', async () => {
 		const sibling = join(directory, 'hearth.yml');
 		await saveYamlDocument({ file, body: { name: 'yaml one' }, revision: 0 });
@@ -102,6 +118,62 @@ describe('saveYamlDocument', () => {
 		await expect(saveYamlDocument({ file, body: { name: 'two' }, revision: 0 })).rejects.toThrow();
 		expect(await readFile(file, 'utf8')).toBe('rooms: [unterminated');
 		expect(await readdir(directory)).toEqual(['hearth.yaml']);
+	});
+});
+
+describe('outside edits', () => {
+	it('takes a file Hearth never wrote as it is', async () => {
+		await writeFile(file, 'revision: 3\nrooms: []\n');
+		expect(await currentRevision(file)).toBe(3);
+		expect(await readFile(file, 'utf8')).toBe('revision: 3\nrooms: []\n');
+		expect(await backups()).toEqual([]);
+	});
+
+	it('adopts an edit made outside Hearth as the next revision and backs up what Hearth wrote', async () => {
+		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
+		await writeFile(file, '# edited by hand\nrevision: 1\nname: outside\n');
+		expect(await readDocument(file)).toBe('# edited by hand\nrevision: 2\nname: outside\n');
+		const names = await backups();
+		expect(names).toHaveLength(1);
+		expect(names[0]).toMatch(/-r1\.yaml$/);
+		expect(await readFile(join(directory, 'backups', 'hearth.yaml', names[0]), 'utf8')).toContain(
+			'name: hearth'
+		);
+		// reading again finds nothing new
+		expect(await currentRevision(file)).toBe(2);
+		expect(await backups()).toHaveLength(1);
+	});
+
+	it('makes a save from before the outside edit conflict', async () => {
+		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
+		await writeFile(file, 'revision: 1\nname: outside\n');
+		expect(await saveYamlDocument({ file, body: { name: 'stale' }, revision: 1 })).toEqual({
+			conflict: true,
+			revision: 2
+		});
+		expect(await readFile(file, 'utf8')).toContain('name: outside');
+	});
+
+	it('adds a revision to an outside edit that dropped it', async () => {
+		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
+		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 1 });
+		await writeFile(file, 'name: outside\n');
+		expect(await readDocument(file)).toBe('revision: 3\nname: outside\n');
+	});
+
+	it('rewrites a document whose header defeats the line edit', async () => {
+		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
+		await writeFile(file, '---\nname: outside\n');
+		expect(await currentRevision(file)).toBe(2);
+		expect(await readFile(file, 'utf8')).toContain('name: outside');
+	});
+
+	it('leaves an outside edit that does not parse for the load error and adopts it once fixed', async () => {
+		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
+		await writeFile(file, 'rooms: [unterminated');
+		expect(await readDocument(file)).toBe('rooms: [unterminated');
+		await writeFile(file, 'revision: 1\nrooms: []\n');
+		expect(await currentRevision(file)).toBe(2);
 	});
 });
 
