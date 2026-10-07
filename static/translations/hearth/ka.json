@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "აირჩიეთ სურათის ობიექტი ბარათის რედაქტორში",
 	"hearth_pick_several_entities": "აირჩიეთ რამდენიმე ობიექტი",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "ამომრჩევლები შესაბამის წარმოებულ ტონებს ავტომატურად აყენებენ. თემის პარამეტრების მორგება შეიძლება data/hearth.yaml-ში, theme: დღისთვის და theme_night: ღამისთვის.",
+	"hearth_pixel_shifting": "პიქსელების გადაადგილება",
 	"hearth_play_on": "დაკვრა:",
 	"hearth_playlists": "დასაკრავი სიები",
 	"hearth_position": "პოზიცია",

@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Scegli un'entità immagine nell'editor della scheda",
 	"hearth_pick_several_entities": "Scegli più entità",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "I selettori impostano automaticamente sfumature derivate adeguate. Le regolazioni del tema si possono modificare in data/hearth.yaml, sotto theme: per il giorno e theme_night: per la notte.",
+	"hearth_pixel_shifting": "Spostamento dei pixel",
 	"hearth_play_on": "Riproduci su",
 	"hearth_playlists": "Playlist",
 	"hearth_position": "Posizione",

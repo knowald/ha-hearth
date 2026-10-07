@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "在卡片編輯器中選擇影像實體",
 	"hearth_pick_several_entities": "選擇多個實體",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "選擇器會自動設定合適的衍生色調。主題參數可在 data/hearth.yaml 中調整,日間位於 theme:,夜間位於 theme_night:。",
+	"hearth_pixel_shifting": "像素位移",
 	"hearth_play_on": "播放於",
 	"hearth_playlists": "播放清單",
 	"hearth_position": "位置",

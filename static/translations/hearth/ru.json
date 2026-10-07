@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Выберите объект изображения в редакторе карточки",
 	"hearth_pick_several_entities": "Выбрать несколько объектов",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Палитры автоматически подбирают подходящие производные оттенки. Параметры темы настраиваются в data/hearth.yaml, в theme: для дня и theme_night: для ночи.",
+	"hearth_pixel_shifting": "Сдвиг пикселей",
 	"hearth_play_on": "Воспроизвести на",
 	"hearth_playlists": "Плейлисты",
 	"hearth_position": "Положение",

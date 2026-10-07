@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "کارڈ ایڈیٹر میں تصویری اینٹیٹی منتخب کریں",
 	"hearth_pick_several_entities": "کئی اینٹیٹیز منتخب کریں",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "پکرز مناسب ماخوذ شیڈز خود بخود سیٹ کرتے ہیں۔ تھیم کی ترتیبات data/hearth.yaml میں، دن کے لیے theme: اور رات کے لیے theme_night: کے تحت ایڈجسٹ ہو سکتی ہیں۔",
+	"hearth_pixel_shifting": "پکسل کی منتقلی",
 	"hearth_play_on": "پر چلائیں",
 	"hearth_playlists": "پلے لسٹس",
 	"hearth_position": "پوزیشن",

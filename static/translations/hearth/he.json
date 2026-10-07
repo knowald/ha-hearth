@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "יש לבחור ישות תמונה בעורך הכרטיס",
 	"hearth_pick_several_entities": "בחירת כמה ישויות",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "הבוחרים קובעים אוטומטית גוונים נגזרים סבירים. אפשר לכוונן את פרמטרי ערכת הנושא ב-data/hearth.yaml, תחת theme: ליום ו-theme_night: ללילה.",
+	"hearth_pixel_shifting": "הזזת פיקסלים",
 	"hearth_play_on": "ניגון ב",
 	"hearth_playlists": "רשימות השמעה",
 	"hearth_position": "מיקום",

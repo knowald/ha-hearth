@@ -7,6 +7,8 @@ import { writable } from 'svelte/store';
  */
 
 export interface ScreenOverrides {
+	/** Periodically reposition static dashboard content on this screen. */
+	pixel_shift?: boolean;
 	keep_screen_on?: boolean;
 	/** Minutes before the sleep screen; 0 turns it off on this screen. */
 	screensaver_minutes?: number;
@@ -38,6 +40,7 @@ export function parseScreenOverrides(raw: string | null): ScreenOverrides {
 		return {};
 	}
 	const overrides: ScreenOverrides = {
+		pixel_shift: flag(stored.pixel_shift),
 		keep_screen_on: flag(stored.keep_screen_on),
 		screensaver_minutes: whole(stored.screensaver_minutes, 0, 1440),
 		scale: whole(stored.scale, 50, 200),

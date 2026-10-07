@@ -66,6 +66,17 @@ describe('ScreenEditSheet', () => {
 		expect(localStorage.getItem('hearthScreen')).toBeNull();
 	});
 
+	it('enables pixel shifting for this browser and removes the override when turned off', async () => {
+		render(ScreenEditSheet);
+		const toggle = screen.getByRole('switch', { name: en.hearth_pixel_shifting });
+		await fireEvent.click(toggle);
+		expect(get(screenOverrides).pixel_shift).toBe(true);
+		expect(JSON.parse(localStorage.getItem('hearthScreen')!).pixel_shift).toBe(true);
+		await fireEvent.click(toggle);
+		expect(get(screenOverrides).pixel_shift).toBeUndefined();
+		expect(localStorage.getItem('hearthScreen')).toBeNull();
+	});
+
 	it('keeps the wake lock and scale for this screen alone', async () => {
 		render(ScreenEditSheet);
 		await fireEvent.change(select(en.hearth_keep_screen_awake), { target: { value: 'off' } });

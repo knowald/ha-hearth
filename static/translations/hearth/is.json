@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Veldu myndareiningu í spjaldritlinum",
 	"hearth_pick_several_entities": "Veldu nokkrar einingar",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Litaveljarar stilla skynsamlega afleidda litbrigði sjálfkrafa. Hægt er að fínstilla þemagildin í data/hearth.yaml, undir theme: fyrir dag og theme_night: fyrir nótt.",
+	"hearth_pixel_shifting": "Hliðrun myndpunkta",
 	"hearth_play_on": "Spila á",
 	"hearth_playlists": "Spilunarlistar",
 	"hearth_position": "Staða",

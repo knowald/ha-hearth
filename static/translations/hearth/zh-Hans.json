@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "请在卡片编辑器中选择图像实体",
 	"hearth_pick_several_entities": "选择多个实体",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "选择器会自动设置合适的派生色调。主题参数可在 data/hearth.yaml 中调整，日间位于 theme:，夜间位于 theme_night:。",
+	"hearth_pixel_shifting": "像素位移",
 	"hearth_play_on": "播放设备",
 	"hearth_playlists": "播放列表",
 	"hearth_position": "位置",

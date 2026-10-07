@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Wybierz encję obrazu w edytorze karty",
 	"hearth_pick_several_entities": "Wybierz kilka encji",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Selektory automatycznie ustawiają sensowne odcienie pochodne. Parametry motywu można dostroić w data/hearth.yaml, w sekcji theme: dla dnia i theme_night: dla nocy.",
+	"hearth_pixel_shifting": "Przesuwanie pikseli",
 	"hearth_play_on": "Odtwarzaj na",
 	"hearth_playlists": "Playlisty",
 	"hearth_position": "Pozycja",

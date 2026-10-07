@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Ընտրեք պատկերի սուբյեկտ քարտի խմբագրիչում",
 	"hearth_pick_several_entities": "Ընտրեք մի քանի սուբյեկտ",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Ընտրիչները ավտոմատ սահմանում են համապատասխան ածանցյալ երանգներ։ Թեմայի պարամետրերը կարգավորվում են data/hearth.yaml-ում՝ theme:-ի տակ ցերեկվա համար և theme_night:-ի տակ գիշերվա համար։",
+	"hearth_pixel_shifting": "Պիքսելների տեղաշարժ",
 	"hearth_play_on": "Նվագարկել՝",
 	"hearth_playlists": "Նվագացանկեր",
 	"hearth_position": "Դիրք",

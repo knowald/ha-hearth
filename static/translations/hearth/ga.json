@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Roghnaigh eintiteas íomhá in eagarthóir an chárta",
 	"hearth_pick_several_entities": "Roghnaigh roinnt eintiteas",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Socraíonn roghnóirí scáthanna díorthaithe ciallmhara go huathoibríoch. Is féidir cnaipí an téama a mhionchoigeartú i data/hearth.yaml, faoi theme: don lá agus theme_night: don oíche.",
+	"hearth_pixel_shifting": "Aistriú picteilíní",
 	"hearth_play_on": "Seinn ar",
 	"hearth_playlists": "Seinmliostaí",
 	"hearth_position": "Seasamh",

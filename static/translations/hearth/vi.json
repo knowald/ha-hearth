@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Chọn một thực thể hình ảnh trong trình chỉnh sửa thẻ",
 	"hearth_pick_several_entities": "Chọn nhiều thực thể",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Bộ chọn tự động đặt các sắc thái phù hợp. Có thể tinh chỉnh chủ đề trong data/hearth.yaml, dưới theme: cho ban ngày và theme_night: cho ban đêm.",
+	"hearth_pixel_shifting": "Dịch chuyển điểm ảnh",
 	"hearth_play_on": "Phát trên",
 	"hearth_playlists": "Danh sách phát",
 	"hearth_position": "Vị trí",

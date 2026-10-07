@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "కార్డ్ ఎడిటర్‌లో చిత్రం ఎంటిటీని ఎంచుకోండి",
 	"hearth_pick_several_entities": "అనేక ఎంటిటీలను ఎంచుకోండి",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "పికర్‌లు తగిన ఉత్పన్న ఛాయలను ఆటోమేటిక్‌గా సెట్ చేస్తాయి. థీమ్ సెట్టింగ్‌లను data/hearth.yaml లో, పగటికి theme: కింద మరియు రాత్రికి theme_night: కింద సర్దుబాటు చేయవచ్చు.",
+	"hearth_pixel_shifting": "పిక్సెల్ స్థానమార్పు",
 	"hearth_play_on": "దీనిపై ప్లే చేయండి",
 	"hearth_playlists": "ప్లేలిస్ట్‌లు",
 	"hearth_position": "స్థానం",

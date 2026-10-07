@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Elektu bildan enton en la kartredaktilo",
 	"hearth_pick_several_entities": "Elektu plurajn entojn",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "La elektiloj aŭtomate starigas saĝajn derivitajn nuancojn. Etosaj parametroj agordeblas en data/hearth.yaml, sub theme: por tago kaj theme_night: por nokto.",
+	"hearth_pixel_shifting": "Ŝovado de bilderoj",
 	"hearth_play_on": "Ludi en",
 	"hearth_playlists": "Ludlistoj",
 	"hearth_position": "Pozicio",

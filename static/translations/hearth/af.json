@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Kies 'n beeld-entiteit in die kaartredigeerder",
 	"hearth_pick_several_entities": "Kies verskeie entiteite",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Kiesers stel verstandige afgeleide skakerings outomaties. Temaknoppe kan in data/hearth.yaml verstel word, onder theme: vir dag en theme_night: vir nag.",
+	"hearth_pixel_shifting": "Piekselverskuiwing",
 	"hearth_play_on": "Speel op",
 	"hearth_playlists": "Snitlyste",
 	"hearth_position": "Posisie",

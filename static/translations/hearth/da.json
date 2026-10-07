@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Vælg en billedentitet i korteditoren",
 	"hearth_pick_several_entities": "Vælg flere entiteter",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Farvevælgerne sætter fornuftige afledte nuancer automatisk. Temaets indstillinger kan finjusteres i data/hearth.yaml under theme: for dag og theme_night: for nat.",
+	"hearth_pixel_shifting": "Pixelforskydning",
 	"hearth_play_on": "Afspil på",
 	"hearth_playlists": "Playlister",
 	"hearth_position": "Position",

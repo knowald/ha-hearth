@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Izaberite entitet slike u uređivaču kartice",
 	"hearth_pick_several_entities": "Izaberite više entiteta",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Birači automatski podešavaju odgovarajuće izvedene nijanse. Parametri teme se mogu podesiti u data/hearth.yaml, pod theme: za dan i theme_night: za noć.",
+	"hearth_pixel_shifting": "Pomeranje piksela",
 	"hearth_play_on": "Pusti na",
 	"hearth_playlists": "Plejliste",
 	"hearth_position": "Položaj",

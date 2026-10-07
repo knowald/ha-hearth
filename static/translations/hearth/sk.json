@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Entitu obrázka vyberte v editore karty",
 	"hearth_pick_several_entities": "Vybrať viac entít",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Výbery farieb automaticky nastavia vhodné odvodené odtiene. Parametre témy sa dajú doladiť v data/hearth.yaml, pod theme: pre deň a theme_night: pre noc.",
+	"hearth_pixel_shifting": "Posun pixelov",
 	"hearth_play_on": "Prehrať na",
 	"hearth_playlists": "Playlisty",
 	"hearth_position": "Poloha",

@@ -105,6 +105,7 @@ The This screen sheet keeps these per browser, in local storage:
 
 - Device name, which [alerts](alerts.md#home-assistant-events) use to target a screen.
 - Keep screen awake.
+- Pixel shifting, off by default. Every minute of quiet use, the dashboard, sidebar, navigation buttons and sleep-screen content move by up to 4 CSS pixels in each direction (independent of interface scale). The dashboard reserves space at its edges so nothing is cropped. Positions change without animation, including with reduced motion. Shifting pauses while editing, a dialog is open or the screen is hidden, and during pointer presses and recent interaction. Dialogs stay in place. This supplements dimming and sleep; large solid areas still overlap between positions.
 - Sleep screen turns on, including Off.
 - Interface scale, and the scale at 900 px and narrower.
 - Language, reduce motion and touch feedback.
@@ -112,7 +113,7 @@ The This screen sheet keeps these per browser, in local storage:
 - Show favorites page, see [favorites](#favorites).
 - Log out, which clears the Home Assistant session in this browser.
 
-Each row except Device name and Show favorites page starts at Same as dashboard and follows the shared value from `hearth.yaml` or `configuration.yaml` until you pick another one. A shared row that this screen overrides says so in the Settings sheet. A scale picked here also applies at 900 px and narrower unless that row has a value of its own. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
+Each row except Device name, Pixel shifting and Show favorites page starts at Same as dashboard and follows the shared value from `hearth.yaml` or `configuration.yaml` until you pick another one. A shared row that this screen overrides says so in the Settings sheet. A scale picked here also applies at 900 px and narrower unless that row has a value of its own. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
 
 Open the sheet with the button next to Edit Hearth configuration. It does not need edit mode. With `?menu=false` both buttons are hidden; press and hold the bottom-left corner of the screen for 2 seconds instead. The corner works only with `?menu=false`, since the buttons sit there otherwise.
 

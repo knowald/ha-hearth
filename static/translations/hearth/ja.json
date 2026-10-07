@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "カードエディターで画像エンティティを選択してください",
 	"hearth_pick_several_entities": "複数のエンティティを選択",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "ピッカーは適切な派生色を自動で設定します。テーマの細かな値は data/hearth.yaml の theme: (昼) と theme_night: (夜) で調整できます。",
+	"hearth_pixel_shifting": "ピクセルシフト",
 	"hearth_play_on": "再生先",
 	"hearth_playlists": "プレイリスト",
 	"hearth_position": "位置",

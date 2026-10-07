@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "เลือกเอนทิตีรูปภาพในตัวแก้ไขการ์ด",
 	"hearth_pick_several_entities": "เลือกหลายเอนทิตี",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "ตัวเลือกสีจะตั้งเฉดสีที่เหมาะสมให้อัตโนมัติ ปรับค่าธีมได้ใน data/hearth.yaml ภายใต้ theme: สำหรับกลางวัน และ theme_night: สำหรับกลางคืน",
+	"hearth_pixel_shifting": "การเลื่อนพิกเซล",
 	"hearth_play_on": "เล่นบน",
 	"hearth_playlists": "เพลย์ลิสต์",
 	"hearth_position": "ตำแหน่ง",

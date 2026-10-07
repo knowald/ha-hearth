@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Изберете обект изображение в редактора на картата",
 	"hearth_pick_several_entities": "Изберете няколко обекта",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Изборите на цвят автоматично задават подходящи производни нюанси. Параметрите на темата се настройват в data/hearth.yaml, под theme: за деня и theme_night: за нощта.",
+	"hearth_pixel_shifting": "Изместване на пикселите",
 	"hearth_play_on": "Възпроизвеждане на",
 	"hearth_playlists": "Плейлисти",
 	"hearth_position": "Позиция",
