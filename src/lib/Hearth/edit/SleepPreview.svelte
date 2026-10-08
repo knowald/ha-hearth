@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
-	import { screensaverPreview } from '../store';
+	import { sleepNow } from '../store';
 	import Scene from '../screensaver/Scene.svelte';
 	import Icon from '../Icon.svelte';
 	import { ICON } from '../iconSizes';
@@ -58,7 +58,7 @@
 			type="button"
 			aria-label={$lang('hearth_preview_sleep_screen')}
 			title={$lang('hearth_preview_sleep_screen')}
-			onclick={() => screensaverPreview.set(true)}
+			onclick={() => sleepNow.set('preview')}
 		>
 			<Icon name="fullscreen" size={ICON.control} />
 		</button>
@@ -79,12 +79,7 @@
 			style:--h-vw={`${width / 100}px`}
 			style:--h-vh={`${height / 100}px`}
 		>
-			<Scene
-				active={visible && previewWidth > 0 && !$screensaverPreview}
-				preview
-				{positionX}
-				{positionY}
-			/>
+			<Scene active={visible && previewWidth > 0 && !$sleepNow} preview {positionX} {positionY} />
 		</div>
 	</div>
 </div>

@@ -38,8 +38,12 @@ export const setupWizardOpen = writable(false);
 /** What the setup wizard opens on: the area import or the starter layouts. */
 export const setupWizardSource = writable<'areas' | 'starter'>('areas');
 
-// shows the sleep screen at once, even with the idle timeout off
-export const screensaverPreview = writable(false);
+/**
+ * Shows the sleep screen at once, even with the idle timeout off: as a preview
+ * from the settings, which leaves the photo sequence where it was, or for a
+ * sleep action.
+ */
+export const sleepNow = writable<false | 'preview' | 'action'>(false);
 
 // true while the sleep screen covers the dashboard, previews included
 export const screensaverActive = writable(false);

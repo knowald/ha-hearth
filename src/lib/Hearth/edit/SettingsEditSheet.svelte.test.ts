@@ -7,7 +7,7 @@ import { config as haConfig } from '$lib/core/ha/connection';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
-import { editor, hearthConfig, screensaverPreview, setupWizardOpen } from '../store';
+import { editor, hearthConfig, sleepNow, setupWizardOpen } from '../store';
 import { screenOverrides } from '$lib/core/app/screen';
 import { fill } from '$lib/core/i18n';
 import { screenSheetOpen } from '../screen';
@@ -21,7 +21,7 @@ describe('SettingsEditSheet', () => {
 		editor.set(null);
 		setupWizardOpen.set(false);
 		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
-		screensaverPreview.set(false);
+		sleepNow.set(false);
 		screenSheetOpen.set(false);
 		screenOverrides.set({});
 		zoom.zoomSupported = false;
@@ -238,7 +238,7 @@ describe('SettingsEditSheet', () => {
 	it('previews the sleep screen', async () => {
 		render(SettingsEditSheet);
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_preview_sleep_screen }));
-		expect(get(screensaverPreview)).toBe(true);
+		expect(get(sleepNow)).toBe('preview');
 	});
 
 	it('starts a custom radar location from the home coordinates', async () => {

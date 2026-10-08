@@ -7,13 +7,7 @@ import { motion } from '$lib/core/app/motion';
 import { config as haConfig } from '$lib/core/ha/connection';
 import { states } from '$lib/core/ha/entities';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from './config';
-import {
-	activeAlerts,
-	hearthConfig,
-	hearthEditMode,
-	requestWake,
-	screensaverPreview
-} from './store';
+import { activeAlerts, hearthConfig, hearthEditMode, requestWake, sleepNow } from './store';
 import Screensaver from './Screensaver.svelte';
 import Scene from './screensaver/Scene.svelte';
 import { sequenceResume } from './screensaver/photos';
@@ -67,7 +61,7 @@ describe('Screensaver', () => {
 		vi.useRealTimers();
 		motion.set(190);
 		document.body.innerHTML = '';
-		screensaverPreview.set(false);
+		sleepNow.set(false);
 		hearthEditMode.set(false);
 		radarStub.frames = true;
 		configure({});
@@ -171,7 +165,7 @@ describe('Screensaver', () => {
 	it('still previews during an edit session', async () => {
 		hearthEditMode.set(true);
 		const { container } = render(Screensaver, { minutes: 1 });
-		screensaverPreview.set(true);
+		sleepNow.set('preview');
 		await tick();
 		expect(container.querySelector('.screensaver')).not.toBeNull();
 	});
@@ -244,7 +238,7 @@ describe('Screensaver', () => {
 	it('shows at once on preview, with no idle timeout, and ends the preview on wake', async () => {
 		const { container } = render(Screensaver);
 		expect(container.querySelector('.screensaver')).toBeNull();
-		screensaverPreview.set(true);
+		sleepNow.set('preview');
 		await tick();
 		const overlay = container.querySelector('.screensaver') as HTMLElement;
 		expect(overlay).not.toBeNull();
@@ -252,7 +246,7 @@ describe('Screensaver', () => {
 		await fireEvent.keyDown(overlay, { key: 'a' });
 		await tick();
 		expect(container.querySelector('.screensaver')).toBeNull();
-		expect(get(screensaverPreview)).toBe(false);
+		expect(get(sleepNow)).toBe(false);
 	});
 
 	it('draws the radar map at the Home Assistant home behind a scrim', async () => {
@@ -273,7 +267,7 @@ describe('Screensaver', () => {
 	it('wakes from the radar sleep screen when an alert asks for the screen', async () => {
 		haConfig.set({ latitude: 51.1, longitude: 17 } as HassConfig);
 		configure({ screensaver_background: 'radar' });
-		screensaverPreview.set(true);
+		sleepNow.set('preview');
 		const { container } = render(Screensaver);
 		await tick();
 		expect(container.querySelector('.screensaver')).not.toBeNull();
@@ -281,7 +275,7 @@ describe('Screensaver', () => {
 		requestWake();
 		await tick();
 		expect(container.querySelector('.screensaver')).toBeNull();
-		expect(get(screensaverPreview)).toBe(false);
+		expect(get(sleepNow)).toBe(false);
 	});
 
 	it('keeps the plain background and dim text while the radar has no frames', async () => {
@@ -442,12 +436,27 @@ describe('Screensaver', () => {
 				screensaver_photo_seconds: 10
 			});
 			const { container } = render(Screensaver);
-			screensaverPreview.set(true);
+			sleepNow.set('preview');
 			await tick();
 			vi.advanceTimersByTime(10_000);
 			await tick();
 			expect(slides(container)).toEqual([`${'b'.repeat(32)}.jpg`]);
 			expect(sequenceResume.size).toBe(0);
+		});
+
+		it('carries the sequence on when a sleep action shows the sleep screen', async () => {
+			configure({
+				screensaver_background: 'photos',
+				screensaver_photos: [FIRST, SECOND],
+				screensaver_photo_order: 'sequence',
+				screensaver_photo_seconds: 10
+			});
+			render(Screensaver);
+			sleepNow.set('action');
+			await tick();
+			vi.advanceTimersByTime(10_000);
+			await tick();
+			expect(sequenceResume.size).toBe(1);
 		});
 
 		it('fades the next photo in over the last one, which stays until the fade ends', async () => {

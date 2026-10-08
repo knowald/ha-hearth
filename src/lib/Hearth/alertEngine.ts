@@ -11,7 +11,7 @@ import {
 	hearthEditMode,
 	popup,
 	requestWake,
-	screensaverPreview,
+	sleepNow,
 	type HearthAlert,
 	type Popup
 } from './store';
@@ -438,7 +438,7 @@ export function handleHearthAction(action: HearthAction) {
 				!get(activeAlerts).some((alert) => alert.popup) &&
 				!host?.sleepBlocked()
 			)
-				screensaverPreview.set(true);
+				sleepNow.set('action');
 	}
 }
 

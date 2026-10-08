@@ -14,7 +14,7 @@
 		hearthLoadError,
 		hearthNeedsSetup,
 		screensaverActive,
-		screensaverPreview,
+		sleepNow,
 		setupWizardOpen,
 		setupWizardSource
 	} from './store';
@@ -71,7 +71,7 @@
 	function loadScreensaver() {
 		return import('./Screensaver.svelte').catch((error) => {
 			console.warn('screensaver unavailable', error);
-			screensaverPreview.set(false);
+			sleepNow.set(false);
 			throw error;
 		});
 	}
@@ -487,7 +487,7 @@
 	{#if showSearch}
 		<SearchOverlay onclose={() => (showSearch = false)} />
 	{/if}
-	{#if $screenSettings.sleepMinutes > 0 || $screensaverPreview}
+	{#if $screenSettings.sleepMinutes > 0 || $sleepNow}
 		<!-- loads once armed; the dashboard never waits on it -->
 		{#await loadScreensaver() then Screensaver}
 			<Screensaver.default minutes={$screenSettings.sleepMinutes || undefined} />

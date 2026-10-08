@@ -5,13 +5,7 @@
 	import { MOTION } from '$lib/core/theme';
 	import { lang } from '$lib/core/i18n';
 	import { derived } from 'svelte/store';
-	import {
-		activeAlerts,
-		hearthEditMode,
-		screensaverActive,
-		screensaverPreview,
-		wakeScreen
-	} from './store';
+	import { activeAlerts, hearthEditMode, screensaverActive, sleepNow, wakeScreen } from './store';
 	import { layer } from '$lib/ui/layers';
 	import { swallowNextClick } from '$lib/ui/gestures';
 	import Scene from './screensaver/Scene.svelte';
@@ -22,7 +16,7 @@
 	let active = $state(false);
 
 	$effect(() => {
-		if ($screensaverPreview) active = true;
+		if ($sleepNow) active = true;
 	});
 
 	$effect(() => {
@@ -76,7 +70,7 @@
 	function hide() {
 		lastActivity = Date.now();
 		active = false;
-		screensaverPreview.set(false);
+		sleepNow.set(false);
 		scheduleIdle();
 	}
 
@@ -145,7 +139,7 @@
 		onkeydown={dismiss}
 		use:layer={{ close: hide, initialFocus: true }}
 	>
-		<Scene {active} preview={$screensaverPreview} />
+		<Scene {active} preview={$sleepNow === 'preview'} />
 	</div>
 {/if}
 
