@@ -1,3 +1,4 @@
+import { checkToken } from './auth';
 import { refreshScreens, type SaveOutcome } from './documents';
 
 export function isMapping(value: unknown): value is Record<string, unknown> {
@@ -10,7 +11,9 @@ export function failure(status: number, message: string, extra: Record<string, u
 
 /**
  * Runs `handle` with the request's JSON body for a caller hooks.server.ts
- * authorized, and turns thrown errors into JSON responses.
+ * authorized, and turns thrown errors into JSON responses. A request that asks
+ * for refresh: true needs an administrator, and is refused before anything is
+ * saved rather than saved without the refresh.
  */
 export function agentHandler(
 	handle: (context: {
@@ -29,6 +32,10 @@ export function agentHandler(
 			const parsed = await request.json().catch(() => undefined);
 			if (!isMapping(parsed)) return failure(400, 'The body must be a JSON object');
 			body = parsed;
+		}
+		if (body.refresh === true) {
+			const refused = await checkToken(token, 'admin');
+			if (refused) return failure(refused.status, `refresh: ${refused.message}`);
 		}
 		try {
 			return await handle({ request, url, token, body });

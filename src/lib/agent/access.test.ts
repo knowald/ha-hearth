@@ -16,11 +16,12 @@ describe('requiredAccess', () => {
 		expect(requiredAccess('/_api/something_new', 'PUT')).toBe('user');
 	});
 
-	it('needs an administrator for settings and custom CSS', () => {
+	it('needs an administrator for settings, custom CSS and reloading the screens', () => {
 		expect(requiredAccess('/_api/save_config', 'POST')).toBe('admin');
 		expect(requiredAccess('/_api/custom_css', 'POST')).toBe('admin');
 		expect(requiredAccess('/_api/agent/settings', 'PATCH')).toBe('admin');
 		expect(requiredAccess('/_api/agent/css', 'PUT')).toBe('admin');
+		expect(requiredAccess('/_api/agent/refresh', 'POST')).toBe('admin');
 	});
 
 	it('needs a token for agent reads too', () => {

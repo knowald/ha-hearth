@@ -23,6 +23,8 @@ import { outlineJsonSchema, typeJsonSchema } from './schema';
  */
 
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
+// every message in a batch may run a tool, so one request cannot ask for many
+const MAX_BATCH = 20;
 
 const INSTRUCTIONS = `Hearth is a Home Assistant dashboard. Its layout lives in hearth.yaml: pages (rooms) hold columns of cards, the sidebar (rail) holds widgets.
 To change it: get_dashboard, edit the YAML, validate_dashboard, then save_dashboard with the revision you read. A conflict means someone saved in between; read again and reapply your change.
@@ -35,7 +37,10 @@ interface Tool {
 	description: string;
 	inputSchema: Record<string, unknown>;
 	annotations?: Record<string, unknown>;
-	/** Tools that change settings or custom CSS need an administrator token. */
+	/**
+	 * Tools that change settings or custom CSS, or reload the screens, need an
+	 * administrator token. So does any call with refresh: true.
+	 */
 	admin?: true;
 	run: (args: Record<string, unknown>, token: string) => Promise<unknown>;
 }
@@ -249,6 +254,7 @@ const TOOLS: Tool[] = [
 		description:
 			'Reload every open Hearth screen so it shows the saved files. Needs an administrator token.',
 		inputSchema: { type: 'object', properties: {} },
+		admin: true,
 		run: async (_args, token) => {
 			await refreshScreens(token);
 			return { refreshed: true };
@@ -279,7 +285,8 @@ function isId(value: unknown): value is JsonRpcId {
 
 async function callTool(tool: Tool, args: Record<string, unknown>, token: string) {
 	try {
-		if (tool.admin) {
+		// checked before the tool runs, so a save that cannot refresh is not made
+		if (tool.admin || args.refresh === true) {
 			const refused = await checkToken(token, 'admin');
 			if (refused) throw new ToolFailure(refused.message);
 		}
@@ -391,6 +398,11 @@ export async function handleMcp(request: Request, token: string): Promise<Respon
 	const batch = Array.isArray(payload);
 	const messages = (batch ? payload : [payload]) as JsonRpcMessage[];
 	if (!messages.length) return Response.json(rpcError(null, -32600, 'Invalid Request'));
+	if (messages.length > MAX_BATCH) {
+		return Response.json(rpcError(null, -32600, `A batch may hold at most ${MAX_BATCH} messages`), {
+			status: 400
+		});
+	}
 	const answers = (
 		await Promise.all(
 			messages.map((message) =>

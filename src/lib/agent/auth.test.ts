@@ -5,7 +5,7 @@ import { authorize, checkToken } from './auth';
 const fetchMock = vi.fn();
 
 /** Answers the websocket handshake and auth/current_user the way Home Assistant does. */
-let currentUser: { is_admin: boolean } | 'refuse' | 'unreachable';
+let currentUser: { is_admin: boolean } | 'refuse' | 'unreachable' | 'garbled';
 const sockets: string[] = [];
 class FakeSocket extends EventTarget {
 	constructor(url: string) {
@@ -13,6 +13,8 @@ class FakeSocket extends EventTarget {
 		sockets.push(url);
 		queueMicrotask(() => {
 			if (currentUser === 'unreachable') this.dispatchEvent(new Event('error'));
+			else if (currentUser === 'garbled')
+				this.dispatchEvent(new MessageEvent('message', { data: '<html>' }));
 			else this.receive({ type: 'auth_required' });
 		});
 	}
@@ -82,6 +84,34 @@ describe('authorize', () => {
 		fetchMock.mockRejectedValue(new Error('ECONNREFUSED'));
 		expect(((await authorize(request('unknown'))) as Response).status).toBe(503);
 	});
+
+	it('takes only 401 and 403 as a refused token', async () => {
+		fetchMock.mockResolvedValue(new Response('', { status: 403 }));
+		expect(((await authorize(request('banned'))) as Response).status).toBe(401);
+		fetchMock.mockResolvedValue(new Response('Bad Gateway', { status: 502 }));
+		const result = (await authorize(request('proxied'))) as Response;
+		expect(result.status).toBe(503);
+		expect(await result.json()).toEqual({
+			error: 'Home Assistant could not be reached to check the token'
+		});
+		// a 502 is not remembered, so the next call asks again
+		fetchMock.mockResolvedValue(new Response('{"message":"API running."}'));
+		expect(await authorize(request('proxied'))).toEqual({ token: 'proxied' });
+	});
+
+	it('appends paths to HASS_URL without a doubled slash', async () => {
+		vi.stubEnv('HASS_URL', 'http://homeassistant:8123//');
+		expect(await checkToken('slashed', 'admin')).toBeUndefined();
+		expect(fetchMock).toHaveBeenCalledWith('http://homeassistant:8123/api/', expect.anything());
+		expect(sockets).toEqual(['ws://homeassistant:8123/api/websocket']);
+	});
+
+	it('checks a token once for calls that arrive together', async () => {
+		const results = await Promise.all([1, 2, 3].map(() => checkToken('burst', 'admin')));
+		expect(results).toEqual([undefined, undefined, undefined]);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(sockets).toHaveLength(1);
+	});
 });
 
 describe('checkToken for administrators', () => {
@@ -103,6 +133,8 @@ describe('checkToken for administrators', () => {
 		expect(await checkToken('odd-token', 'admin')).toMatchObject({ status: 503 });
 		currentUser = 'unreachable';
 		expect(await checkToken('lost-token', 'admin')).toMatchObject({ status: 503 });
+		currentUser = 'garbled';
+		expect(await checkToken('garbled-token', 'admin')).toMatchObject({ status: 503 });
 	});
 
 	it('does not ask who a token Home Assistant refuses belongs to', async () => {

@@ -202,8 +202,31 @@ describe('handleMcp', () => {
 		expect(body.result.isError).toBeUndefined();
 	});
 
+	it('needs an administrator to reload the screens, and refuses before saving', async () => {
+		auth.checkToken.mockResolvedValue({
+			status: 403,
+			message: 'This needs a Home Assistant administrator'
+		});
+		const refresh = await call('refresh_screens');
+		expect(refresh.body.result.isError).toBe(true);
+		expect(documents.refreshScreens).not.toHaveBeenCalled();
+
+		const save = await call('save_dashboard', { revision: 3, yaml: 'x: 1', refresh: true });
+		expect(save.body.result.isError).toBe(true);
+		expect(save.body.result.content[0].text).toContain('administrator');
+		expect(documents.saveDashboard).not.toHaveBeenCalled();
+	});
+
 	it('refuses an empty batch', async () => {
 		expect((await rpc([])).body.error.code).toBe(-32600);
+	});
+
+	it('refuses a batch of more than 20 messages', async () => {
+		const ping = (id: number) => ({ jsonrpc: '2.0', id, method: 'ping' });
+		expect((await rpc(Array.from({ length: 20 }, (_, id) => ping(id)))).body).toHaveLength(20);
+		const { status, body } = await rpc(Array.from({ length: 21 }, (_, id) => ping(id)));
+		expect(status).toBe(400);
+		expect(body.error.code).toBe(-32600);
 	});
 });
 

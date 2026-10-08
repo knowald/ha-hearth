@@ -4,6 +4,7 @@ import * as v from 'valibot';
 import { ConfigurationSchema } from '$lib/core/app/configuration';
 import { CONFIG_VERSION, currentHearthConfig } from '$lib/Hearth/format';
 import { hearthConfigIssues, newThemeIssues, normalizeTheme } from '$lib/Hearth/normalize';
+import { hassUrl } from './auth';
 import {
 	currentRevision,
 	listBackups,
@@ -189,7 +190,9 @@ export function readVersion(name: string): Promise<string | undefined> {
  * open screen. Home Assistant only lets administrators fire events.
  */
 export async function refreshScreens(token: string): Promise<void> {
-	const response = await fetch(`${process.env.HASS_URL}/api/events/HEARTH`, {
+	const base = hassUrl();
+	if (!base) throw new Error('HASS_URL is not set, so the screens cannot be refreshed');
+	const response = await fetch(`${base}/api/events/HEARTH`, {
 		method: 'POST',
 		headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
 		body: JSON.stringify({ event: 'refresh' }),

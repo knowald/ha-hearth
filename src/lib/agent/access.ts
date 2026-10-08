@@ -11,7 +11,9 @@ const ADMIN: Record<string, string[]> = {
 	'/_api/save_config': ['POST'],
 	'/_api/custom_css': ['POST'],
 	'/_api/agent/css': ['PUT'],
-	'/_api/agent/settings': ['PATCH']
+	'/_api/agent/settings': ['PATCH'],
+	// firing the HEARTH event that reloads every screen
+	'/_api/agent/refresh': ['POST']
 };
 
 // requests that use POST to read
