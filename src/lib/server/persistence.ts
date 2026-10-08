@@ -16,7 +16,7 @@ import * as yaml from 'js-yaml';
  * Files may also change outside Hearth, over SSH, Samba or an agent editing
  * them in place. Hearth keeps a copy of what it last wrote next to the
  * backups; a document that no longer matches it is adopted as a new revision
- * before anything reads or replaces it. See adoptOutsideEdit.
+ * before anything reads or replaces it. See outsideEdit.
  */
 
 const BACKUP_KEEP = 10;
@@ -69,21 +69,29 @@ function textRevision(text: string | undefined): number {
 
 /** The document's revision, 0 for a missing file. Malformed YAML and I/O failures throw. */
 export async function currentRevision(file: string): Promise<number> {
-	return withFileLock(file, async () => {
-		await adoptOutsideEdit(file);
-		return textRevision(await readText(file));
-	});
+	return textRevision(await readDocument(file));
 }
 
 /**
- * The document's text after adopting any outside edit, or undefined for a
+ * The document's text with any outside edit adopted, or undefined for a
  * missing file. Readers that show the document use this, so the revision they
- * hand out already counts the outside edit.
+ * hand out already counts the outside edit. A read never fails over the
+ * adoption: when the file cannot be rewritten, or was changed too recently to
+ * be sure the editor is done with it, the read shows the document as the
+ * adoption will leave it and the file is rewritten by a later read or save.
  */
 export async function readDocument(file: string): Promise<string | undefined> {
 	return withFileLock(file, async () => {
-		await adoptOutsideEdit(file);
-		return readText(file);
+		const { text, edit } = await outsideEdit(file);
+		if (!edit) return text;
+		if (await settled(file)) {
+			try {
+				await adopt(file, edit);
+			} catch (error) {
+				console.error(`Could not adopt the outside edit of ${file}:`, error);
+			}
+		}
+		return edit.next;
 	});
 }
 
@@ -92,16 +100,23 @@ function writtenCopy(file: string) {
 	return join(dirname(file), 'backups', `.${basename(file)}.written`);
 }
 
+// What this process last wrote to each file, so a copy that could not be
+// written to disk does not make Hearth's own write look like an outside edit.
+const lastWritten = new Map<string, string>();
+
 /**
- * Best-effort: without the copy, the next read takes the file as it is
- * instead of adopting it as an outside edit.
+ * Best-effort: without the copy, the next read after a restart takes the file
+ * as it is instead of adopting it as an outside edit. A stale copy would make
+ * Hearth's own write look like one, so it goes.
  */
 async function recordWritten(file: string, text: string) {
+	lastWritten.set(resolve(file), text);
 	try {
 		await mkdir(dirname(writtenCopy(file)), { recursive: true });
 		await atomicWriteFile(writtenCopy(file), text);
 	} catch (error) {
 		console.warn(`Could not record the written copy of ${file}:`, error);
+		await unlink(writtenCopy(file)).catch(() => {});
 	}
 }
 
@@ -122,6 +137,14 @@ function withRevision(text: string, revision: number): string {
 	return yaml.dump({ revision, ...rest });
 }
 
+interface OutsideEdit {
+	/** What Hearth last wrote, which goes to the backups. */
+	written: string;
+	writtenRevision: number;
+	/** The edited text with the next revision, as the file is rewritten. */
+	next: string;
+}
+
 /**
  * A document that differs from the copy Hearth last wrote was changed outside
  * Hearth. That copy goes to the backups, so the outside edit can be undone,
@@ -130,22 +153,23 @@ function withRevision(text: string, revision: number): string {
  * Hearth has never written is taken as it is. One that does not parse to a
  * mapping is left for the load error to report and adopted once it is fixed.
  */
-async function adoptOutsideEdit(file: string) {
+async function outsideEdit(file: string): Promise<{ text?: string; edit?: OutsideEdit }> {
 	const text = await readText(file);
-	if (text === undefined) return;
-	const written = await readText(writtenCopy(file)).catch(() => null);
+	if (text === undefined) return {};
+	const written =
+		lastWritten.get(resolve(file)) ?? (await readText(writtenCopy(file)).catch(() => null));
 	// an unreadable copy cannot tell an outside edit apart
-	if (written === text || written === null) return;
+	if (written === text || written === null) return { text };
 	let parsed: unknown;
 	try {
 		parsed = yaml.load(text);
 	} catch {
-		return;
+		return { text };
 	}
-	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { text };
 	if (written === undefined) {
 		await recordWritten(file, text);
-		return;
+		return { text };
 	}
 	let writtenRevision = 0;
 	try {
@@ -154,10 +178,29 @@ async function adoptOutsideEdit(file: string) {
 		// the copy only ever holds what Hearth wrote; a damaged one still gets backed up
 	}
 	const next = withRevision(text, Math.max(revisionOf(parsed), writtenRevision) + 1);
-	await backupText(file, written, writtenRevision);
-	await atomicWriteFile(file, next);
-	await recordWritten(file, next);
+	return { text, edit: { written, writtenRevision, next } };
+}
+
+async function adopt(file: string, edit: OutsideEdit) {
+	await backupText(file, edit.written, edit.writtenRevision);
+	await atomicWriteFile(file, edit.next);
+	await recordWritten(file, edit.next);
 	await pruneBackups(file);
+}
+
+/**
+ * An editor that writes the file in place may not be done with it yet, and
+ * replacing the file under it would lose the rest of its write. Reads leave a
+ * file alone until it has not changed for this long.
+ */
+const SETTLE_MS = 2000;
+
+async function settled(file: string): Promise<boolean> {
+	try {
+		return (await stat(file)).mtimeMs <= Date.now() - SETTLE_MS;
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -247,7 +290,9 @@ export type SaveResult =
  */
 export async function saveYamlDocument(request: SaveRequest): Promise<SaveResult> {
 	return withFileLock(request.file, async () => {
-		await adoptOutsideEdit(request.file);
+		// a save replaces the file anyway, so it adopts without waiting for it to settle
+		const { edit } = await outsideEdit(request.file);
+		if (edit) await adopt(request.file, edit);
 		const current = await readText(request.file);
 		const revision = textRevision(current);
 		if (request.force !== true && request.revision !== revision) {

@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { chmod, mkdtemp, readdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import {
@@ -22,6 +22,17 @@ beforeEach(async () => {
 afterEach(async () => {
 	await rm(directory, { recursive: true, force: true });
 });
+
+// outside edits older than the settle window, which reads adopt
+async function age() {
+	const past = new Date(Date.now() - 10_000);
+	await utimes(file, past, past);
+}
+
+async function editOutside(text: string) {
+	await writeFile(file, text);
+	await age();
+}
 
 const backups = async (name = 'hearth.yaml') =>
 	(await readdir(join(directory, 'backups', name)).catch(() => [])).sort();
@@ -131,7 +142,7 @@ describe('outside edits', () => {
 
 	it('adopts an edit made outside Hearth as the next revision and backs up what Hearth wrote', async () => {
 		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
-		await writeFile(file, '# edited by hand\nrevision: 1\nname: outside\n');
+		await editOutside('# edited by hand\nrevision: 1\nname: outside\n');
 		expect(await readDocument(file)).toBe('# edited by hand\nrevision: 2\nname: outside\n');
 		const names = await backups();
 		expect(names).toHaveLength(1);
@@ -146,7 +157,7 @@ describe('outside edits', () => {
 
 	it('makes a save from before the outside edit conflict', async () => {
 		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
-		await writeFile(file, 'revision: 1\nname: outside\n');
+		await editOutside('revision: 1\nname: outside\n');
 		expect(await saveYamlDocument({ file, body: { name: 'stale' }, revision: 1 })).toEqual({
 			conflict: true,
 			revision: 2
@@ -157,24 +168,75 @@ describe('outside edits', () => {
 	it('adds a revision to an outside edit that dropped it', async () => {
 		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
 		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 1 });
-		await writeFile(file, 'name: outside\n');
+		await editOutside('name: outside\n');
 		expect(await readDocument(file)).toBe('revision: 3\nname: outside\n');
 	});
 
 	it('rewrites a document whose header defeats the line edit', async () => {
 		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
-		await writeFile(file, '---\nname: outside\n');
+		await editOutside('---\nname: outside\n');
 		expect(await currentRevision(file)).toBe(2);
 		expect(await readFile(file, 'utf8')).toContain('name: outside');
 	});
 
 	it('leaves an outside edit that does not parse for the load error and adopts it once fixed', async () => {
 		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
-		await writeFile(file, 'rooms: [unterminated');
+		await editOutside('rooms: [unterminated');
 		expect(await readDocument(file)).toBe('rooms: [unterminated');
-		await writeFile(file, 'revision: 1\nrooms: []\n');
+		await editOutside('revision: 1\nrooms: []\n');
 		expect(await currentRevision(file)).toBe(2);
 	});
+
+	it('shows a file changed moments ago with the next revision but leaves it alone', async () => {
+		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
+		await writeFile(file, 'revision: 1\nname: outside\n');
+		expect(await readDocument(file)).toBe('revision: 2\nname: outside\n');
+		expect(await readFile(file, 'utf8')).toBe('revision: 1\nname: outside\n');
+		expect(await backups()).toEqual([]);
+		// a browser that loaded it saves against the revision it was shown
+		expect(await saveYamlDocument({ file, body: { name: 'browser' }, revision: 2 })).toEqual({
+			conflict: false,
+			revision: 3
+		});
+		expect(await backups()).toHaveLength(2);
+	});
+
+	it('serves the edit when the backup for it cannot be written', async () => {
+		await saveYamlDocument({ file, body: { name: 'hearth' }, revision: 0 });
+		// a file where the backup directory should be makes mkdir fail
+		await writeFile(join(directory, 'backups', 'hearth.yaml'), 'not a directory');
+		await editOutside('revision: 1\nname: outside\n');
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			expect(await readDocument(file)).toBe('revision: 2\nname: outside\n');
+			expect(await currentRevision(file)).toBe(2);
+			expect(error).toHaveBeenCalled();
+		} finally {
+			error.mockRestore();
+		}
+		expect(await readFile(file, 'utf8')).toBe('revision: 1\nname: outside\n');
+	});
+
+	// root ignores the permission that makes the copy fail
+	it.skipIf(process.getuid?.() === 0)(
+		'does not take its own write for an outside edit when the written copy fails',
+		async () => {
+			await saveYamlDocument({ file, body: { name: 'one' }, revision: 0 });
+			await saveYamlDocument({ file, body: { name: 'two' }, revision: 1 });
+			// the copy of revision 2 stays readable but can no longer be replaced
+			await chmod(join(directory, 'backups'), 0o500);
+			const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+			try {
+				await saveYamlDocument({ file, body: { name: 'three' }, revision: 2 });
+			} finally {
+				warn.mockRestore();
+				await chmod(join(directory, 'backups'), 0o700);
+			}
+			await age();
+			expect(await currentRevision(file)).toBe(3);
+			expect(await backups()).toHaveLength(2);
+		}
+	);
 });
 
 describe('listBackups', () => {
