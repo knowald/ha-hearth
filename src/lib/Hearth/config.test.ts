@@ -86,6 +86,37 @@ describe('normalizeHearthConfig', () => {
 		).toHaveLength(3);
 	});
 
+	it('reads an unquoted hour format and a default clock layout', () => {
+		const settings = {
+			rail: [],
+			rooms: [],
+			screensaver_hour_format: 12,
+			screensaver_clock_layout: 'default'
+		};
+		expect(normalizeHearthConfig(settings)).toMatchObject({
+			screensaver_hour_format: '12',
+			screensaver_clock_layout: 'default'
+		});
+		expect(normalizeHearthConfig({ ...settings, screensaver_hour_format: 13 })).toMatchObject({
+			screensaver_hour_format: undefined
+		});
+		expect(hearthConfigIssues({ version: 5, ...settings })).toEqual([]);
+		expect(
+			hearthConfigIssues({
+				version: 5,
+				rail: [],
+				rooms: [],
+				screensaver_hour_format: 13,
+				screensaver_clock_layout: 'wide',
+				screensaver_clock_font: 'comic'
+			})
+		).toEqual([
+			'screensaver_clock_layout must be default or stacked',
+			'screensaver_clock_font must be default, mono or serif',
+			'screensaver_hour_format must be auto, 12 or 24'
+		]);
+	});
+
 	it('normalizes customization flags and verdict bands', () => {
 		const config = normalizeHearthConfig({
 			rail: [],

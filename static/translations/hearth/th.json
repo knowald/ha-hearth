@@ -846,6 +846,7 @@
 	"hearth_skip_for_now": "ข้ามไปก่อน",
 	"hearth_skip_version": "ข้ามเวอร์ชันนี้",
 	"hearth_sleep_background": "พื้นหลัง",
+	"hearth_sleep_background_brightness": "ความสว่างพื้นหลัง",
 	"hearth_sleep_background_image": "รูปภาพ",
 	"hearth_sleep_background_media": "กำลังเล่น",
 	"hearth_sleep_background_none": "สีดำ",

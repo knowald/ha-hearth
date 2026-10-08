@@ -6,6 +6,8 @@
 	import { ICON } from '../iconSizes';
 
 	let { positionX, positionY }: { positionX?: number; positionY?: number } = $props();
+	// a quarter of a short landscape phone still leaves the settings room to scroll
+	const MAX_HEIGHT = 'min(180px, 25 * var(--h-vh))';
 	let screenWidth = $state(1280);
 	let screenHeight = $state(800);
 	let previewWidth = $state(0);
@@ -26,13 +28,24 @@
 		return { destroy: () => observer.disconnect() };
 	}
 
+	// scrolling past the preview and back should not rebuild a radar map each time
+	const HIDE_DELAY = 2000;
+
 	function watchVisibility(node: HTMLElement) {
 		if (typeof IntersectionObserver === 'undefined') return;
+		let hideTimer: ReturnType<typeof setTimeout> | undefined;
 		const observer = new IntersectionObserver(([entry]) => {
-			visible = entry.isIntersecting;
+			clearTimeout(hideTimer);
+			if (entry.isIntersecting) visible = true;
+			else hideTimer = setTimeout(() => (visible = false), HIDE_DELAY);
 		});
 		observer.observe(node);
-		return { destroy: () => observer.disconnect() };
+		return {
+			destroy: () => {
+				clearTimeout(hideTimer);
+				observer.disconnect();
+			}
+		};
 	}
 </script>
 
@@ -53,7 +66,7 @@
 	<div
 		class="frame"
 		style:aspect-ratio={`${width} / ${height}`}
-		style:width={`min(100%, ${(180 * width) / height}px)`}
+		style:width={`min(100%, calc(${MAX_HEIGHT} * ${width / height}))`}
 		use:measure
 		role="img"
 		aria-label={$lang('hearth_live_preview')}
@@ -66,7 +79,12 @@
 			style:--h-vw={`${width / 100}px`}
 			style:--h-vh={`${height / 100}px`}
 		>
-			<Scene active={visible && previewWidth > 0 && !$screensaverPreview} {positionX} {positionY} />
+			<Scene
+				active={visible && previewWidth > 0 && !$screensaverPreview}
+				preview
+				{positionX}
+				{positionY}
+			/>
 		</div>
 	</div>
 </div>

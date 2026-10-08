@@ -140,6 +140,9 @@ function normalizePercentage(value: unknown): number | undefined {
 }
 
 const SCREENSAVER_CLOCK_SIZES = new Set<unknown>(['small', 'medium', 'large']);
+const SCREENSAVER_CLOCK_LAYOUTS = new Set<unknown>(['default', 'stacked']);
+const SCREENSAVER_CLOCK_FONTS = new Set<unknown>(['default', 'mono', 'serif']);
+const HOUR_FORMATS = new Set<unknown>(['auto', '12', '24']);
 // 'none' is the default and is stored as unset
 const SCREENSAVER_BACKGROUNDS = new Set<unknown>(['image', 'radar', 'photos', 'sun', 'media']);
 
@@ -601,14 +604,15 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 				: undefined,
 		screensaver_position_x: normalizePercentage(config.screensaver_position_x),
 		screensaver_position_y: normalizePercentage(config.screensaver_position_y),
-		screensaver_clock_layout: config.screensaver_clock_layout === 'stacked' ? 'stacked' : undefined,
-		screensaver_clock_font: ['default', 'mono', 'serif'].includes(
-			config.screensaver_clock_font ?? ''
-		)
+		screensaver_clock_layout: SCREENSAVER_CLOCK_LAYOUTS.has(config.screensaver_clock_layout)
+			? config.screensaver_clock_layout
+			: undefined,
+		screensaver_clock_font: SCREENSAVER_CLOCK_FONTS.has(config.screensaver_clock_font)
 			? config.screensaver_clock_font
 			: undefined,
-		screensaver_hour_format: ['auto', '12', '24'].includes(config.screensaver_hour_format ?? '')
-			? config.screensaver_hour_format
+		// YAML reads an unquoted 12 or 24 as a number
+		screensaver_hour_format: HOUR_FORMATS.has(String(config.screensaver_hour_format))
+			? (String(config.screensaver_hour_format) as HearthConfig['screensaver_hour_format'])
 			: undefined,
 		screensaver_show_seconds: config.screensaver_show_seconds === true ? true : undefined,
 		screensaver_background_brightness: normalizePercentage(

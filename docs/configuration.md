@@ -171,7 +171,7 @@ Settings > Wall display > Sleep screen turns it on after a set number of minutes
 
 The photo frame only shows images uploaded to Hearth, stored in `hearth-images/`. Add them under Photos in the sleep screen settings, several at once if you like. Each photo shows for `screensaver_photo_seconds` (30 when unset, 5 to 86400), in a shuffled order or, with `screensaver_photo_order: sequence`, in the order listed, carrying on where the last sleep stopped. Photos crossfade and slowly zoom; with motion turned off under This screen they change without either.
 
-The sky changes once a minute. The now playing screen follows `screensaver_media_entity`, or any player that is playing when it is unset. A buffering player counts as playing, and the track stays up for 5 seconds after it stops, so skipping to the next song does not flash the fallback. Brightness applies to every background unless Background · Brightness is set independently.
+The sky changes once a minute. The now playing screen follows `screensaver_media_entity`, or any player that is playing when it is unset. A buffering player counts as playing, and the track stays up for 5 seconds after it stops, so skipping to the next song does not flash the fallback. Brightness applies to every background unless Background brightness is set on its own.
 
 ```yaml
 screensaver_minutes: 10
@@ -199,7 +199,7 @@ screensaver_show_seconds: true
 screensaver_position_x: 15
 screensaver_position_y: 85
 screensaver_brightness: 75
-screensaver_background_brightness: 25 # 0–100; omit for the original brightness behavior
+screensaver_background_brightness: 25 # 0-100, 0 turns the background off; omit to follow screensaver_brightness
 ```
 
 ## Arrival greeting

@@ -4,8 +4,10 @@
 
 ### Added
 
-- Show a live sleep-screen preview while adjusting its settings, with a full-screen view for checking the result at actual size
-- Customize the sleep clock with a stacked layout, font, position, visibility, hour format and seconds, and set background brightness independently
+- Show a live preview of the sleep screen in Settings, with a button to see it full screen ([#33](https://github.com/knowald/ha-hearth/pull/33))
+- Stack the sleep clock digits, pick a clock font and move the clock anywhere on the screen ([#33](https://github.com/knowald/ha-hearth/pull/33))
+- Hide the sleep clock, show seconds or use a different hour format than the sidebar clock ([#33](https://github.com/knowald/ha-hearth/pull/33))
+- Set the sleep screen background brightness on its own, or turn the background off ([#33](https://github.com/knowald/ha-hearth/pull/33))
 
 ## [0.7.0] - 2026-10-05
 

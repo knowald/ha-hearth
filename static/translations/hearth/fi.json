@@ -846,6 +846,7 @@
 	"hearth_skip_for_now": "Ohita toistaiseksi",
 	"hearth_skip_version": "Ohita tämä versio",
 	"hearth_sleep_background": "Tausta",
+	"hearth_sleep_background_brightness": "Taustan kirkkaus",
 	"hearth_sleep_background_image": "Kuva",
 	"hearth_sleep_background_media": "Nyt soi",
 	"hearth_sleep_background_none": "Musta",

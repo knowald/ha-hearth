@@ -15,6 +15,7 @@ import {
 	screensaverPreview
 } from './store';
 import Screensaver from './Screensaver.svelte';
+import Scene from './screensaver/Scene.svelte';
 import { sequenceResume } from './screensaver/photos';
 
 // the real map pulls in Leaflet and the network; this stands in with its props
@@ -104,19 +105,40 @@ describe('Screensaver', () => {
 		expect(position.style.top).toBe('100%');
 	});
 
-	it('can turn the background completely dark independently of the clock', async () => {
-		configure({ screensaver_brightness: 75, screensaver_background_brightness: 0 });
+	it('dims the background independently of the clock', async () => {
+		configure({
+			screensaver_background: 'image',
+			screensaver_image: '/local/wall.jpg',
+			screensaver_brightness: 75,
+			screensaver_background_brightness: 25
+		});
 		const { container } = await showScreensaver();
 		expect(
 			(container.querySelector('.backdrop') as HTMLElement).style.getPropertyValue(
 				'--screensaver-brightness'
 			)
-		).toBe('0');
+		).toBe('0.25');
+		expect(container.querySelector('.scrim')).not.toBeNull();
+	});
+
+	it('loads no background at zero background brightness, and keeps the clock as set', async () => {
+		haConfig.set({ latitude: 51.1, longitude: 17 } as HassConfig);
+		configure({
+			screensaver_background: 'radar',
+			screensaver_brightness: 20,
+			screensaver_background_brightness: 0
+		});
+		const { container } = await showScreensaver();
+		vi.useRealTimers();
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		expect(container.querySelector('.backdrop')).toBeNull();
+		expect(container.querySelector('.radar-map-stub')).toBeNull();
+		expect(container.querySelector('.scrim')).toBeNull();
 		expect(
 			(container.querySelector('.screensaver-content') as HTMLElement).style.getPropertyValue(
 				'--screensaver-brightness'
 			)
-		).toBe('0.75');
+		).toBe('0.2');
 	});
 
 	it('stays away while an alert card is on screen', async () => {
@@ -394,6 +416,22 @@ describe('Screensaver', () => {
 			vi.advanceTimersByTime(60_000);
 			await tick();
 			expect(slides(container)).toEqual([`${'b'.repeat(32)}.jpg`]);
+		});
+
+		it('leaves the sequence where it was when only the settings preview plays it', async () => {
+			configure({
+				screensaver_background: 'photos',
+				screensaver_photos: [FIRST, SECOND],
+				screensaver_photo_order: 'sequence',
+				screensaver_photo_seconds: 10
+			});
+			const { container } = render(Scene, { preview: true });
+			await tick();
+			expect(slides(container)).toEqual([`${'a'.repeat(32)}.webp`]);
+			vi.advanceTimersByTime(10_000);
+			await tick();
+			expect(slides(container)).toEqual([`${'b'.repeat(32)}.jpg`]);
+			expect(sequenceResume.size).toBe(0);
 		});
 
 		it('fades the next photo in over the last one, which stays until the fade ends', async () => {

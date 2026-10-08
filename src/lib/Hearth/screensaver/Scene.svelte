@@ -20,9 +20,16 @@
 	// Shared rendering only: the caller owns idle detection, focus and dismissal.
 	let {
 		active = true,
+		preview = false,
 		positionX,
 		positionY
-	}: { active?: boolean; positionX?: number; positionY?: number } = $props();
+	}: {
+		active?: boolean;
+		/** The settings preview, which must not move the photo sequence on. */
+		preview?: boolean;
+		positionX?: number;
+		positionY?: number;
+	} = $props();
 	let activeTimezone = $derived($displayTimeZone);
 	let now = $derived($timer);
 	let drift = $derived($hearthConfig.screensaver_drift ?? false);
@@ -33,6 +40,8 @@
 	let backgroundBrightness = $derived($hearthConfig.screensaver_background_brightness);
 	let clockSize = $derived($hearthConfig.screensaver_clock_size ?? 'medium');
 	let background = $derived($hearthConfig.screensaver_background ?? 'none');
+	// a background turned all the way down is not loaded or drawn at all
+	let backgroundOff = $derived(backgroundBrightness === 0);
 	let media = $state<NowPlaying>();
 	const mediaHold = holdNowPlaying((next) => (media = next));
 	$effect(() => mediaHold.stop);
@@ -53,9 +62,11 @@
 	});
 	// while nothing plays, the media background hands over to its fallback
 	let scene = $derived(
-		background === 'media' && !media
-			? ($hearthConfig.screensaver_media_fallback ?? 'none')
-			: background
+		backgroundOff
+			? 'none'
+			: background === 'media' && !media
+				? ($hearthConfig.screensaver_media_fallback ?? 'none')
+				: background
 	);
 	let image = $derived(
 		scene === 'image' ? imageSource($hearthConfig.screensaver_image) : undefined
@@ -86,6 +97,7 @@
 		if (!active) failedArt = undefined;
 	});
 	let art = $derived(picture && picture !== failedArt ? picture : undefined);
+	let artBackdrop = $derived(backgroundOff ? undefined : art);
 	let imageFailed = $state(false);
 	$effect(() => {
 		// a new image, and every new sleep, gets another chance to load
@@ -122,7 +134,7 @@
 			(image && !imageFailed) ||
 			(photos.length && photosReady) ||
 			sky ||
-			art
+			artBackdrop
 		)
 	);
 	// over a map or photo the dimmest settings would vanish, so text keeps a floor
@@ -160,47 +172,50 @@
 
 {#if active}
 	<div class="scene">
-		<div
-			class="backdrop"
-			style:--screensaver-brightness={String(
-				backgroundBrightness === undefined
-					? 0.15 + (0.85 * brightness) / 100
-					: backgroundBrightness / 100
-			)}
-		>
-			{#if radar}
-				{#await import('./RadarMap.svelte') then RadarMap}
-					<RadarMap.default view={radar} onready={(ready) => (radarReady = ready)} />
-				{:catch}
-					<!-- offline or a failed chunk: the plain background stays -->
-				{/await}
-			{:else if photos.length}
-				<PhotoFrame
-					{photos}
-					seconds={$hearthConfig.screensaver_photo_seconds ?? PHOTO_SECONDS.fallback}
-					order={$hearthConfig.screensaver_photo_order ?? 'shuffle'}
-					onready={(ready) => (photosReady = ready)}
-				/>
-			{:else if sky}
-				<div
-					class="sky"
-					data-phase={sky.phase}
-					style:--sky-top={sky.top}
-					style:--sky-middle={sky.middle}
-					style:--sky-bottom={sky.bottom}
-				></div>
-			{:else if image && !imageFailed}
-				<img
-					class="photo"
-					src={image}
-					alt=""
-					decoding="async"
-					onerror={() => (imageFailed = true)}
-				/>
-			{:else if art}
-				<img class="art-backdrop" src={art} alt="" decoding="async" />
-			{/if}
-		</div>
+		{#if !backgroundOff}
+			<div
+				class="backdrop"
+				style:--screensaver-brightness={String(
+					backgroundBrightness === undefined
+						? 0.15 + (0.85 * brightness) / 100
+						: backgroundBrightness / 100
+				)}
+			>
+				{#if radar}
+					{#await import('./RadarMap.svelte') then RadarMap}
+						<RadarMap.default view={radar} onready={(ready) => (radarReady = ready)} />
+					{:catch}
+						<!-- offline or a failed chunk: the plain background stays -->
+					{/await}
+				{:else if photos.length}
+					<PhotoFrame
+						{photos}
+						seconds={$hearthConfig.screensaver_photo_seconds ?? PHOTO_SECONDS.fallback}
+						order={$hearthConfig.screensaver_photo_order ?? 'shuffle'}
+						recordResume={!preview}
+						onready={(ready) => (photosReady = ready)}
+					/>
+				{:else if sky}
+					<div
+						class="sky"
+						data-phase={sky.phase}
+						style:--sky-top={sky.top}
+						style:--sky-middle={sky.middle}
+						style:--sky-bottom={sky.bottom}
+					></div>
+				{:else if image && !imageFailed}
+					<img
+						class="photo"
+						src={image}
+						alt=""
+						decoding="async"
+						onerror={() => (imageFailed = true)}
+					/>
+				{:else if artBackdrop}
+					<img class="art-backdrop" src={artBackdrop} alt="" decoding="async" />
+				{/if}
+			</div>
+		{/if}
 		{#if hasBackground}<div class="scrim"></div>{/if}
 		<div class="position-frame">
 			<div
@@ -492,10 +507,22 @@
 			calc(22 * var(--h-vh))
 		); /* literal ok: scales with the screen */
 	}
-	.seconds .clock.stacked {
+	.seconds.clock-medium .clock.stacked {
 		font-size: min(
 			calc(12 * var(--h-vw)),
 			calc(14 * var(--h-vh))
+		); /* literal ok: scales with the screen */
+	}
+	.seconds.clock-small .clock.stacked {
+		font-size: min(
+			calc(8 * var(--h-vw)),
+			calc(10 * var(--h-vh))
+		); /* literal ok: scales with the screen */
+	}
+	.seconds.clock-large .clock.stacked {
+		font-size: min(
+			calc(18 * var(--h-vw)),
+			calc(18 * var(--h-vh))
 		); /* literal ok: scales with the screen */
 	}
 

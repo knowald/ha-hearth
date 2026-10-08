@@ -846,6 +846,7 @@
 	"hearth_skip_for_now": "Skip for now",
 	"hearth_skip_version": "Skip this version",
 	"hearth_sleep_background": "Background",
+	"hearth_sleep_background_brightness": "Background brightness",
 	"hearth_sleep_background_image": "Image",
 	"hearth_sleep_background_media": "Now playing",
 	"hearth_sleep_background_none": "Black",

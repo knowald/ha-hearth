@@ -340,3 +340,39 @@ test('customizes clock layout and placement, previews it and hides only the cloc
 	await expect(screensaver.locator('.clock')).toHaveCount(0);
 	await expect(screensaver.locator('.date')).toBeVisible();
 });
+
+test('the clock size still applies to a stacked clock with seconds', async ({ page }) => {
+	writeFileSync(
+		HEARTH_FILE,
+		`${HEARTH_FIXTURE}screensaver_clock_layout: stacked\nscreensaver_show_seconds: true\n`
+	);
+	await page.reload();
+	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await page.getByRole('button', { name: 'Settings', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'Settings' });
+	const clock = sheet.getByRole('img', { name: 'Live preview', exact: true }).locator('.clock');
+	await clock.scrollIntoViewIfNeeded();
+	const fontSize = async () =>
+		Number.parseFloat(await clock.evaluate((element) => getComputedStyle(element).fontSize));
+	const sizes: number[] = [];
+	for (const size of ['small', 'medium', 'large']) {
+		await sheet.getByLabel('Clock size', { exact: true }).selectOption(size);
+		await expect(clock).toHaveClass(/stacked/);
+		sizes.push(await fontSize());
+	}
+	expect(sizes[0]).toBeLessThan(sizes[1]);
+	expect(sizes[1]).toBeLessThan(sizes[2]);
+});
+
+test('the preview leaves room for the settings on a landscape phone', async ({ page }) => {
+	await page.setViewportSize({ width: 844, height: 390 });
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await page.getByRole('button', { name: 'Settings', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'Settings' });
+	const live = sheet.getByRole('img', { name: 'Live preview', exact: true });
+	await live.scrollIntoViewIfNeeded();
+	const frame = await live.boundingBox();
+	expect(frame!.height).toBeLessThanOrEqual(390 * 0.25 + 1);
+	await expect(sheet.locator('.sleep-preview')).toHaveCSS('position', 'static');
+});

@@ -846,6 +846,7 @@
 	"hearth_skip_for_now": "Jäta praegu vahele",
 	"hearth_skip_version": "Jäta see versioon vahele",
 	"hearth_sleep_background": "Taust",
+	"hearth_sleep_background_brightness": "Tausta heledus",
 	"hearth_sleep_background_image": "Pilt",
 	"hearth_sleep_background_media": "Praegu mängib",
 	"hearth_sleep_background_none": "Must",

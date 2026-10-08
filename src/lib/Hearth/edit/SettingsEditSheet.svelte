@@ -973,12 +973,10 @@
 						/>
 					</SettingsRow>
 					{#if background !== 'none'}
-						<SettingsRow
-							label={`${$lang('hearth_sleep_background')} · ${$lang('hearth_brightness')}`}
-						>
+						<SettingsRow label={$lang('hearth_sleep_background_brightness')}>
 							<SelectField
 								inline
-								label={`${$lang('hearth_sleep_background')} · ${$lang('hearth_brightness')}`}
+								label={$lang('hearth_sleep_background_brightness')}
 								value={String($hearthConfig.screensaver_background_brightness ?? 'dashboard')}
 								options={withCurrent(
 									[
@@ -1328,6 +1326,12 @@
 		position: sticky;
 		top: 0;
 		z-index: var(--h-layer-raised);
+	}
+	/* a pinned preview would cover most of a landscape phone's sheet */
+	@media (max-height: 500px) {
+		.sleep-preview {
+			position: static;
+		}
 	}
 	.sleep-range {
 		display: flex;

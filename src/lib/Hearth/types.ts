@@ -444,10 +444,10 @@ export interface HearthConfig {
 	screensaver_clock_size?: ScreensaverClockSize;
 	/** Hide the clock without hiding the date, weather or media. */
 	screensaver_show_clock?: boolean;
-	/** Position within the safe display area, 0–100 percent; centered when unset. */
+	/** Position within the safe display area, 0-100 percent; centered when unset. */
 	screensaver_position_x?: number;
 	screensaver_position_y?: number;
-	screensaver_clock_layout?: 'stacked';
+	screensaver_clock_layout?: 'default' | 'stacked';
 	screensaver_clock_font?: 'default' | 'mono' | 'serif';
 	screensaver_hour_format?: 'auto' | '12' | '24';
 	screensaver_show_seconds?: boolean;
