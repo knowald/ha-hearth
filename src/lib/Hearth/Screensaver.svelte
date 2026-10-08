@@ -145,7 +145,7 @@
 		onkeydown={dismiss}
 		use:layer={{ close: hide, initialFocus: true }}
 	>
-		<Scene {active} />
+		<Scene {active} preview={$screensaverPreview} />
 	</div>
 {/if}
 

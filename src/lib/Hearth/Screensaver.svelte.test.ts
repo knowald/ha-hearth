@@ -434,6 +434,22 @@ describe('Screensaver', () => {
 			expect(sequenceResume.size).toBe(0);
 		});
 
+		it('leaves the sequence where it was when the full screen preview plays it', async () => {
+			configure({
+				screensaver_background: 'photos',
+				screensaver_photos: [FIRST, SECOND],
+				screensaver_photo_order: 'sequence',
+				screensaver_photo_seconds: 10
+			});
+			const { container } = render(Screensaver);
+			screensaverPreview.set(true);
+			await tick();
+			vi.advanceTimersByTime(10_000);
+			await tick();
+			expect(slides(container)).toEqual([`${'b'.repeat(32)}.jpg`]);
+			expect(sequenceResume.size).toBe(0);
+		});
+
 		it('fades the next photo in over the last one, which stays until the fade ends', async () => {
 			motion.set(190);
 			configure({
