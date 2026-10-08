@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Lukk dette arket for å kopiere endringane dine, skrive over eller laste på nytt.",
 	"hearth_save_current_theme_as": "Lagre gjeldande som...",
 	"hearth_save_failed": "Lagring mislukkast",
+	"hearth_save_needs_admin": "Berre ein Home Assistant-administrator kan lagre dette",
 	"hearth_saved_file": "Lagra fil",
 	"hearth_saved_themes": "Lagra tema",
 	"hearth_saving_or_deleting_a_theme_writes": "Å lagre eller slette eit tema blir skrive til disken med ein gong, uavhengig av lagre-/angre-syklusen for dashbordet. Å bruke eit lagra tema endrar berre temaet som blir redigert - lagre dashbordet for å behalde det.",

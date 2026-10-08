@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Zatvorite ovaj prozor da biste kopirali izmjene, prepisali ili ponovo učitali.",
 	"hearth_save_current_theme_as": "Sačuvaj trenutnu kao...",
 	"hearth_save_failed": "Čuvanje nije uspjelo",
+	"hearth_save_needs_admin": "Ovo može sačuvati samo administrator Home Assistanta",
 	"hearth_saved_file": "Sačuvana datoteka",
 	"hearth_saved_themes": "Sačuvane teme",
 	"hearth_saving_or_deleting_a_theme_writes": "Čuvanje ili brisanje teme odmah se upisuje na disk, nezavisno od čuvanja/poništavanja kontrolne ploče. Primjena sačuvane teme mijenja samo uređivanu temu - sačuvajte kontrolnu ploču da biste je zadržali.",

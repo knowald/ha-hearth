@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Zavřete tento panel, abyste mohli zkopírovat úpravy, přepsat nebo načíst znovu.",
 	"hearth_save_current_theme_as": "Uložit aktuální jako...",
 	"hearth_save_failed": "Uložení selhalo",
+	"hearth_save_needs_admin": "Uložit to může jen správce Home Assistant",
 	"hearth_saved_file": "Uložený soubor",
 	"hearth_saved_themes": "Uložené motivy",
 	"hearth_saving_or_deleting_a_theme_writes": "Uložení nebo smazání motivu se okamžitě zapíše na disk, nezávisle na ukládání a vracení změn ovládacího panelu. Použití uloženého motivu změní jen upravovaný motiv - pro jeho zachování uložte ovládací panel.",

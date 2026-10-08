@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "關閉此面板即可複製你的編輯內容、覆寫或重新載入。",
 	"hearth_save_current_theme_as": "將目前主題另存為...",
 	"hearth_save_failed": "儲存失敗",
+	"hearth_save_needs_admin": "只有 Home Assistant 管理員才能儲存此項目",
 	"hearth_saved_file": "已儲存的檔案",
 	"hearth_saved_themes": "已儲存的主題",
 	"hearth_saving_or_deleting_a_theme_writes": "儲存或刪除主題會立即寫入磁碟,與儀表板的儲存/復原流程無關。套用已儲存的主題只會變更正在編輯的主題,請儲存儀表板以保留。",

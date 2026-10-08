@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "اپنی ترامیم کاپی کرنے، اوور رائٹ کرنے یا دوبارہ لوڈ کرنے کے لیے اس شیٹ کو بند کریں۔",
 	"hearth_save_current_theme_as": "موجودہ کو اس نام سے محفوظ کریں...",
 	"hearth_save_failed": "محفوظ کرنا ناکام ہوا",
+	"hearth_save_needs_admin": "اسے صرف Home Assistant کا منتظم محفوظ کر سکتا ہے",
 	"hearth_saved_file": "محفوظ فائل",
 	"hearth_saved_themes": "محفوظ تھیمز",
 	"hearth_saving_or_deleting_a_theme_writes": "تھیم محفوظ یا حذف کرنا فوراً ڈسک پر لکھا جاتا ہے، ڈیش بورڈ کے محفوظ/کالعدم چکر سے آزاد۔ محفوظ تھیم لاگو کرنے سے صرف زیر ترمیم تھیم بدلتی ہے - اسے رکھنے کے لیے ڈیش بورڈ محفوظ کریں۔",

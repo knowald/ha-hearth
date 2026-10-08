@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Zatvorite ovaj prozor da biste kopirali izmjene, prepisali ili ponovno učitali.",
 	"hearth_save_current_theme_as": "Spremi trenutnu kao...",
 	"hearth_save_failed": "Spremanje nije uspjelo",
+	"hearth_save_needs_admin": "Ovo može spremiti samo administrator Home Assistanta",
 	"hearth_saved_file": "Spremljena datoteka",
 	"hearth_saved_themes": "Spremljene teme",
 	"hearth_saving_or_deleting_a_theme_writes": "Spremanje ili brisanje teme odmah se zapisuje na disk, neovisno o spremanju/poništavanju nadzorne ploče. Primjena spremljene teme mijenja samo uređivanu temu - spremite nadzornu ploču da biste je zadržali.",

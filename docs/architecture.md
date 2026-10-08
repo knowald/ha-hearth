@@ -32,7 +32,7 @@ The model layer also includes these files in `src/lib/Hearth/`: `config.ts`, `ty
 ## Limits
 
 - Persistence locking is process-local. Run one server per data directory. Running several processes against one directory needs storage with transactional writes or a cross-process lock.
-- The configuration API the browser uses has no authorization. See [Security](../README.md#security). The agent API and the MCP server check a Home Assistant token.
+- Every write under `/_api` needs a Home Assistant token, which `hooks.server.ts` checks by the rules in `agent/access.ts`. Reads are open, and the page hands every browser the long-lived token stored in `configuration.yaml`, so anyone who can load Hearth can save with it. See [Security](../README.md#security).
 - Some registry and normalization code in `src/lib/Hearth/` still uses `any`. ESLint warns there and caps warnings with `--max-warnings` in `package.json`; lower the cap when you remove one. Core and shared UI treat `any` as an error.
 - Automated tests cover camera cancellation and cleanup. Real HLS and WebRTC cameras, browser permissions and tablet sleep and reconnect need testing on a real device.
 - New features such as calendar or todo editing need their own typed model and must send device calls through `core/ha/commands.ts`.

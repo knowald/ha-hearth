@@ -8,11 +8,11 @@ import {
 	ERR_INVALID_AUTH,
 	ERR_INVALID_AUTH_CALLBACK,
 	ERR_INVALID_HTTPS_TO_HTTP,
+	Auth,
 	getAuth,
 	subscribeConfig,
 	subscribeEntities,
 	subscribeServices,
-	type Auth,
 	type AuthData,
 	type Connection,
 	type HassConfig,
@@ -98,16 +98,41 @@ const tokenStorage = {
 export const tokenNeeded = writable(false);
 
 /**
+ * The signed-in user's own session while a stored token runs the connection:
+ * the Home Assistant panel this page is embedded in, or an earlier OAuth
+ * sign-in in this browser. Writes are signed with it, so a stored token for a
+ * regular user does not keep an administrator from changing server settings.
+ */
+let session: Auth | undefined;
+
+async function freshToken(auth: Auth): Promise<string> {
+	if (auth.expired) await auth.refreshAccessToken();
+	return auth.accessToken;
+}
+
+/**
  * fetch for Hearth's own writes, which the server only accepts with a Home
- * Assistant access token: the one this screen's connection uses, renewed
- * first when it expired. Without a connection the request goes unsigned and
- * the server refuses it.
+ * Assistant access token: the user's own session when there is one, otherwise
+ * the token this screen's connection uses, renewed first when it expired.
+ * Without a connection the request goes unsigned and the server refuses it.
  */
 export async function authorizedFetch(input: string, init: RequestInit = {}): Promise<Response> {
+	let token: string | undefined;
+	if (session) {
+		try {
+			token = await freshToken(session);
+		} catch (error) {
+			console.warn(
+				'The signed-in session could not be renewed, signing with the stored token',
+				error
+			);
+			session = undefined;
+		}
+	}
 	const auth = get(connection)?.options?.auth;
-	if (auth?.expired) await auth.refreshAccessToken();
+	if (token === undefined && auth) token = await freshToken(auth);
 	const headers = new Headers(init.headers);
-	if (auth) headers.set('Authorization', `Bearer ${auth.accessToken}`);
+	if (token !== undefined) headers.set('Authorization', `Bearer ${token}`);
 	return fetch(input, { ...init, headers });
 }
 
@@ -125,20 +150,23 @@ export const failedAttempts = writable(0);
 
 const PANEL_AUTH_PENDING = 'Waiting for Home Assistant panel authentication';
 
+interface ParentAuth {
+	data?: { access_token?: string };
+	expired?: boolean;
+	refreshAccessToken?: () => Promise<void>;
+}
+
 /**
  * HA's /app/<slug> panel embeds this page in a same-origin iframe and exposes
  * the already-authenticated frontend session as window.parent.hassConnection.
- * Reusing that access token skips OAuth, which cannot complete inside the iframe
+ * Reusing that session skips OAuth, which cannot complete inside the iframe
  * (HA's authorize page reports Invalid redirect URI).
  */
-async function accessTokenFromParentHass(): Promise<string | undefined> {
+async function parentHassAuth(): Promise<ParentAuth | undefined> {
 	if (typeof window === 'undefined' || window.parent === window) return;
 	try {
-		const pending = (
-			window.parent as Window & {
-				hassConnection?: Promise<{ auth?: { data?: { access_token?: string } } }>;
-			}
-		).hassConnection;
+		const pending = (window.parent as Window & { hassConnection?: Promise<{ auth?: ParentAuth }> })
+			.hassConnection;
 		if (!pending) return;
 		const session = await Promise.race([
 			pending,
@@ -147,10 +175,34 @@ async function accessTokenFromParentHass(): Promise<string | undefined> {
 			})
 		]);
 		const token = session?.auth?.data?.access_token;
-		return typeof token === 'string' && token.length > 0 ? token : undefined;
+		return typeof token === 'string' && token.length > 0 ? session!.auth : undefined;
 	} catch {
 		return;
 	}
+}
+
+/**
+ * An Auth for `hassUrl` that follows the panel's session. Its access token
+ * expires after about 30 minutes; the panel renews it, and so does this when
+ * it finds it expired first, so reconnects and saves never send a stale one.
+ */
+function followParentAuth(hassUrl: string, parent: ParentAuth): Auth {
+	const auth = createLongLivedTokenAuth(hassUrl, parent.data?.access_token ?? '');
+	Object.defineProperties(auth, {
+		accessToken: { get: () => parent.data?.access_token ?? '' },
+		expired: { get: () => parent.expired === true }
+	});
+	auth.refreshAccessToken = async () => {
+		await parent.refreshAccessToken?.();
+	};
+	return auth;
+}
+
+/** The OAuth sign-in this browser kept for `hassUrl`, if any. */
+async function storedSignIn(hassUrl: string): Promise<Auth | undefined> {
+	const tokens = await tokenStorage.loadTokens();
+	if (!tokens?.refresh_token || !tokens.clientId || tokens.hassUrl !== hassUrl) return;
+	return new Auth(tokens, tokenStorage.saveTokens);
 }
 
 function trackSubscription(subscription: Promise<unknown>, channel: string) {
@@ -171,43 +223,43 @@ export async function authentication(
 	}
 
 	let auth: Auth | undefined;
+	let own: Auth | undefined;
 
 	try {
 		const hassUrl = new URL(configuration.hassUrl, location.origin).href.replace(/\/$/, '');
+		const parent = await parentHassAuth();
 		if (configuration?.token) {
 			auth = createLongLivedTokenAuth(hassUrl, configuration.token);
+			own = parent ? followParentAuth(hassUrl, parent) : await storedSignIn(hassUrl);
+		} else if (parent) {
+			auth = followParentAuth(hassUrl, parent);
+		} else if (navigator.userAgent.includes('Home Assistant')) {
+			tokenNeeded.set(true);
+			health.set('lost');
+			// not a successful authentication: callers must keep retrying until
+			// the configuration supplies a long-lived token
+			throw new Error('A long-lived access token is required in the companion app');
+		} else if (window.parent !== window) {
+			// HA app iframe without a parent session yet. Retry until the
+			// panel session is ready. OAuth in this frame is rejected with
+			// Invalid redirect URI.
+			health.set('lost');
+			throw new Error(PANEL_AUTH_PENDING);
 		} else {
-			const parentToken = await accessTokenFromParentHass();
-			if (parentToken) {
-				auth = createLongLivedTokenAuth(hassUrl, parentToken);
-			} else if (navigator.userAgent.includes('Home Assistant')) {
-				tokenNeeded.set(true);
-				health.set('lost');
-				// not a successful authentication: callers must keep retrying until
-				// the configuration supplies a long-lived token
-				throw new Error('A long-lived access token is required in the companion app');
-			} else if (window.parent !== window) {
-				// HA app iframe without a parent session yet. Retry until the
-				// panel session is ready. OAuth in this frame is rejected with
-				// Invalid redirect URI.
-				health.set('lost');
-				throw new Error(PANEL_AUTH_PENDING);
-			} else {
-				// Ingress serves this app under /api/hassio_ingress/<token>/.
-				// Pass that path as redirect_uri so the callback returns to this
-				// app. Strip the query string; the library appends auth_callback
-				// itself, and Ingress does not reliably round-trip extra search params.
-				const isIngress = location.pathname.includes('/api/hassio_ingress/');
-				const redirectUrl = isIngress ? `${location.origin}${location.pathname}` : undefined;
-				auth = await getAuth({
-					...tokenStorage,
-					hassUrl,
-					limitHassInstance: true,
-					...(redirectUrl && { redirectUrl })
-				});
-				clearAuthCallback();
-				if (auth.expired) await auth.refreshAccessToken();
-			}
+			// Ingress serves this app under /api/hassio_ingress/<token>/.
+			// Pass that path as redirect_uri so the callback returns to this
+			// app. Strip the query string; the library appends auth_callback
+			// itself, and Ingress does not reliably round-trip extra search params.
+			const isIngress = location.pathname.includes('/api/hassio_ingress/');
+			const redirectUrl = isIngress ? `${location.origin}${location.pathname}` : undefined;
+			auth = await getAuth({
+				...tokenStorage,
+				hassUrl,
+				limitHassInstance: true,
+				...(redirectUrl && { redirectUrl })
+			});
+			clearAuthCallback();
+			if (auth.expired) await auth.refreshAccessToken();
 		}
 
 		const conn = await createConnection({ auth });
@@ -219,6 +271,7 @@ export async function authentication(
 		tokenNeeded.set(false);
 		connectionError.set(undefined);
 		failedAttempts.set(0);
+		session = own;
 		connection.set(conn);
 
 		// the lib fires "ready" inside the Connection constructor, before any
@@ -405,6 +458,7 @@ export function stopConnection() {
 	// an attempt still awaiting createConnection sees a stale run and discards its socket
 	currentRun += 1;
 	const previous = get(connection);
+	session = undefined;
 	connection.set(undefined);
 	previous?.close();
 	health.set('booting');

@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Schliess die Ahsicht, für d Änderige z kopiere, z überschrybe oder nöi z lade.",
 	"hearth_save_current_theme_as": "Aktuells spychere als...",
 	"hearth_save_failed": "Spychere fählgschlage",
+	"hearth_save_needs_admin": "Nur en Home Assistant-Administrator cha das speichere",
 	"hearth_saved_file": "Gspeicherti Datei",
 	"hearth_saved_themes": "Gspeicherti Themes",
 	"hearth_saving_or_deleting_a_theme_writes": "S Spychere oder Lösche vomene Theme schrybt sofort uf d Disk, unabhängig vom Spychere/Rückgängig-Zyklus vom Dashboard. S Aawände vomene gspeicherete Theme ändret nume s bearbeitete Theme - spychere s Dashboard, für es z bhalte.",

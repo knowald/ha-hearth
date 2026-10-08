@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Schließe dieses Fenster, um deine Änderungen zu kopieren, zu überschreiben oder neu zu laden.",
 	"hearth_save_current_theme_as": "Aktuelles speichern als...",
 	"hearth_save_failed": "Speichern fehlgeschlagen",
+	"hearth_save_needs_admin": "Nur ein Home Assistant-Administrator kann das speichern",
 	"hearth_saved_file": "Gespeicherte Datei",
 	"hearth_saved_themes": "Gespeicherte Themes",
 	"hearth_saving_or_deleting_a_theme_writes": "Speichern oder Löschen eines Themes schreibt sofort auf die Festplatte, unabhängig vom Speichern/Rückgängig des Dashboards. Ein gespeichertes Theme anzuwenden ändert nur das bearbeitete Theme - speichere das Dashboard, um es zu behalten.",

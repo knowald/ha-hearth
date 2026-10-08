@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "יש לסגור את הגיליון הזה כדי להעתיק את העריכות, לכתוב מחדש או לטעון מחדש.",
 	"hearth_save_current_theme_as": "שמירת הנוכחית בשם...",
 	"hearth_save_failed": "השמירה נכשלה",
+	"hearth_save_needs_admin": "רק מנהל מערכת של Home Assistant יכול לשמור את זה",
 	"hearth_saved_file": "קובץ שמור",
 	"hearth_saved_themes": "ערכות נושא שמורות",
 	"hearth_saving_or_deleting_a_theme_writes": "שמירה או מחיקה של ערכת נושא נכתבות לדיסק מיד, בנפרד ממחזור השמירה/ביטול של הלוח. החלת ערכת נושא שמורה משנה רק את ערכת הנושא הנערכת - יש לשמור את הלוח כדי לשמר אותה.",

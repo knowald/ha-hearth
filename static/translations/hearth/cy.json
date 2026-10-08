@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Caewch y ddalen hon i gopïo eich golygiadau, trosysgrifo neu ail-lwytho.",
 	"hearth_save_current_theme_as": "Cadw'r gyfredol fel...",
 	"hearth_save_failed": "Methodd y cadw",
+	"hearth_save_needs_admin": "Dim ond gweinyddwr Home Assistant all gadw hyn",
 	"hearth_saved_file": "Ffeil wedi'i chadw",
 	"hearth_saved_themes": "Themâu wedi'u cadw",
 	"hearth_saving_or_deleting_a_theme_writes": "Mae cadw neu ddileu thema yn ysgrifennu i'r ddisg ar unwaith, ar wahân i gylch cadw/dadwneud y dangosfwrdd. Dim ond y thema sy'n cael ei golygu y mae gweithredu thema wedi'i chadw yn ei newid - cadwch y dangosfwrdd i'w chadw.",

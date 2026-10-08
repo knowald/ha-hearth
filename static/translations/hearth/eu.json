@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Itxi orri hau zure aldaketak kopiatzeko, gainidazteko edo birkargatzeko.",
 	"hearth_save_current_theme_as": "Gorde unekoa honela...",
 	"hearth_save_failed": "Gordetzeak huts egin du",
+	"hearth_save_needs_admin": "Home Assistant-eko administratzaile batek bakarrik gorde dezake hau",
 	"hearth_saved_file": "Gordetako fitxategia",
 	"hearth_saved_themes": "Gordetako gaiak",
 	"hearth_saving_or_deleting_a_theme_writes": "Gai bat gordetzeak edo ezabatzeak diskoan idazten du berehala, aginte-panelaren gorde/desegin zikloarekiko independente. Gordetako gai bat aplikatzeak editatutako gaia soilik aldatzen du - gorde aginte-panela mantentzeko.",

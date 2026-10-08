@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "أغلق هذه اللوحة لنسخ تعديلاتك أو الاستبدال أو إعادة التحميل.",
 	"hearth_save_current_theme_as": "حفظ الحالي باسم...",
 	"hearth_save_failed": "فشل الحفظ",
+	"hearth_save_needs_admin": "لا يمكن حفظ هذا إلا بواسطة مسؤول Home Assistant",
 	"hearth_saved_file": "الملف المحفوظ",
 	"hearth_saved_themes": "التصاميم المحفوظة",
 	"hearth_saving_or_deleting_a_theme_writes": "حفظ تصميم أو حذفه يكتب على القرص فورًا، بشكل مستقل عن دورة الحفظ/التراجع في لوحة المعلومات. تطبيق تصميم محفوظ يغيّر التصميم الجاري تحريره فقط - احفظ لوحة المعلومات للاحتفاظ به.",

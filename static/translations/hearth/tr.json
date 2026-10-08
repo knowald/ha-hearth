@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Düzenlemelerinizi kopyalamak, üzerine yazmak veya yeniden yüklemek için bu sayfayı kapatın.",
 	"hearth_save_current_theme_as": "Mevcut temayı farklı kaydet...",
 	"hearth_save_failed": "Kaydetme başarısız oldu",
+	"hearth_save_needs_admin": "Bunu yalnızca bir Home Assistant yöneticisi kaydedebilir",
 	"hearth_saved_file": "Kayıtlı dosya",
 	"hearth_saved_themes": "Kayıtlı temalar",
 	"hearth_saving_or_deleting_a_theme_writes": "Bir temayı kaydetmek veya silmek, panonun kaydet/geri al döngüsünden bağımsız olarak hemen diske yazar. Kayıtlı bir temayı uygulamak yalnızca düzenlenen temayı değiştirir - korumak için panoyu kaydedin.",

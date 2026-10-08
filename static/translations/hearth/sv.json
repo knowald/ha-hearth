@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Stäng det här bladet för att kopiera dina ändringar, skriva över eller läsa in igen.",
 	"hearth_save_current_theme_as": "Spara aktuellt som...",
 	"hearth_save_failed": "Sparningen misslyckades",
+	"hearth_save_needs_admin": "Bara en Home Assistant-administratör kan spara detta",
 	"hearth_saved_file": "Sparad fil",
 	"hearth_saved_themes": "Sparade teman",
 	"hearth_saving_or_deleting_a_theme_writes": "Att spara eller radera ett tema skrivs till disken direkt, oberoende av instrumentpanelens spar-/ångra-cykel. Att tillämpa ett sparat tema ändrar bara det tema som redigeras - spara instrumentpanelen för att behålla det.",

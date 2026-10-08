@@ -73,7 +73,43 @@ test.describe('write access', () => {
 		);
 		await sheet.getByRole('button', { name: 'Save' }).click();
 		expect((await response).status()).toBe(403);
-		await expect(sheet.getByText('[403]')).toBeVisible();
+		await expect(
+			sheet.getByText('Only a Home Assistant administrator can save this')
+		).toBeVisible();
 		expect(readFileSync(file, 'utf8')).toBe(before);
+	});
+
+	test('an administrator signed in on this browser saves over a regular stored token', async ({
+		page,
+		request
+	}) => {
+		await request.post(`${FAKE_HASS}/_test/user`, {
+			data: { is_admin: false, admins: ['e2e-administrator-session'] }
+		});
+		writeFileSync(file, fixture.replace(/^token:.*$/m, 'token: e2e-regular-user-token'));
+		// an OAuth sign-in from before the token was stored
+		await page.addInitScript((hassUrl) => {
+			localStorage.hearthTokens = JSON.stringify({
+				hassUrl,
+				clientId: `${location.origin}/`,
+				access_token: 'e2e-administrator-session',
+				refresh_token: 'e2e-refresh',
+				expires: Date.now() + 3_600_000,
+				expires_in: 3600
+			});
+		}, FAKE_HASS);
+		await page.goto('/');
+		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await page.getByRole('button', { name: 'Settings', exact: true }).click();
+		await page.getByRole('button', { name: /Server settings/ }).click();
+		const sheet = page.getByRole('dialog', { name: 'Server settings' });
+		const response = page.waitForResponse((response) =>
+			response.url().endsWith('/_api/save_config')
+		);
+		await sheet.getByRole('button', { name: 'Save' }).click();
+		const saved = await response;
+		expect(saved.status()).toBe(200);
+		expect(saved.request().headers().authorization).toBe('Bearer e2e-administrator-session');
+		await expect(sheet).toBeHidden();
 	});
 });

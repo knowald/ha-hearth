@@ -22,11 +22,19 @@ Keep this directory private. `configuration.yaml` may hold a Home Assistant acce
 
 ## Access
 
-Every save needs a Home Assistant access token. The editor sends the token of the browser's own Home Assistant connection, so nothing changes for you in the browser. Scripts that posted to `/_api/save_hearth` or `/_api/save_config` without a token now get 401; use the [agent API](agents.md#agent-api) instead.
+Every save needs a Home Assistant access token. The editor signs its saves with the browser's own Home Assistant session: the Home Assistant sidebar panel Hearth is opened in, or the browser's own sign-in to Home Assistant. A browser that connects only with the stored long-lived token signs with that token. Scripts that posted to `/_api/save_hearth` or `/_api/save_config` without a token now get 401; use the [agent API](agents.md#agent-api) instead.
 
-Any Home Assistant user can edit the dashboard, themes and images. Server settings and custom CSS need an administrator, because they can change what every screen runs. A screen signed in as a regular user can still store its own token from the sign-in prompt.
+Any Home Assistant user can edit the dashboard, themes and images. Server settings and custom CSS need an administrator, because they can change what every screen runs, and so does reloading every open screen. A regular user who tries sees "Only a Home Assistant administrator can save this".
 
-Reading is open: a wall screen loads the dashboard without signing in, and gets the long-lived token stored in `configuration.yaml` with the page. Anyone who can open Hearth can read that token. Create it for a Home Assistant user made for the wall screens, not an administrator, and give that user no more than the screens need. The token check protects saves; it does not keep the stored token secret.
+Any Home Assistant user can also store a token from the sign-in prompt. The prompt stores the token it signed in with, which replaces the token every screen connects with.
+
+Reading is open: a wall screen loads the dashboard without signing in, and gets the long-lived token stored in `configuration.yaml` with the page. Anyone who can load Hearth can read that token and save with it. Create it for a Home Assistant user made for the wall screens, not an administrator, and give that user no more than the screens need.
+
+With a regular user's token stored, a browser that has no Home Assistant session of its own cannot change server settings, including removing that token. To change them anyway, do one of these:
+
+- Open Hearth from the Home Assistant sidebar as an administrator.
+- Send `PATCH /_api/agent/settings` with an administrator's token and `{ "revision": <revision>, "token": null }`. See [agents](agents.md#agent-api).
+- Delete the `token:` line from `configuration.yaml`.
 
 ### Document version
 

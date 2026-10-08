@@ -10,6 +10,7 @@ import {
 } from 'home-assistant-js-websocket';
 import {
 	authentication,
+	authorizedFetch,
 	connected,
 	connection,
 	connectionError,
@@ -389,4 +390,95 @@ describe('Ingress authentication', () => {
 			expect(vi.mocked(createConnection).mock.calls[0][0]?.auth?.wsUrl).toBe(wsUrl);
 		}
 	);
+});
+
+describe('authorizedFetch', () => {
+	beforeEach(() => {
+		vi.mocked(createConnection).mockImplementation(
+			async (options) =>
+				({
+					close: vi.fn(),
+					addEventListener: vi.fn(),
+					subscribeMessage: vi.fn(async () => async () => {}),
+					options
+				}) as unknown as Connection
+		);
+	});
+
+	/** The bearer token one write would be signed with. */
+	async function signature() {
+		const fetch = vi.fn(async () => new Response('{}'));
+		vi.stubGlobal('fetch', fetch);
+		await authorizedFetch('/_api/save_config', { method: 'POST' });
+		const init = (fetch.mock.calls[0] as unknown[])[1] as RequestInit;
+		return new Headers(init.headers).get('Authorization');
+	}
+
+	function panel(session: object) {
+		Object.defineProperty(window, 'parent', {
+			configurable: true,
+			value: { hassConnection: Promise.resolve({ auth: session }) }
+		});
+	}
+
+	it('follows the panel session after its first access token expired', async () => {
+		const parent = {
+			data: { access_token: 'first' },
+			expired: false,
+			refreshAccessToken: vi.fn(async () => {
+				parent.data.access_token = 'renewed';
+				parent.expired = false;
+			})
+		};
+		panel(parent);
+		await authentication({ hassUrl: '/' });
+		expect(await signature()).toBe('Bearer first');
+		// the panel renewed it on its own
+		parent.data.access_token = 'second';
+		expect(await signature()).toBe('Bearer second');
+		// expired, and the panel has not renewed it yet
+		parent.expired = true;
+		expect(await signature()).toBe('Bearer renewed');
+		expect(parent.refreshAccessToken).toHaveBeenCalledOnce();
+		const auth = vi.mocked(createConnection).mock.calls[0][0]!.auth!;
+		expect(auth.accessToken).toBe('renewed');
+	});
+
+	it('signs with the stored token when the browser has no session of its own', async () => {
+		await authentication({ hassUrl: 'http://localhost:8123', token: 'screen' });
+		expect(await signature()).toBe('Bearer screen');
+	});
+
+	it('signs with the panel session rather than a stored token', async () => {
+		panel({ data: { access_token: 'administrator' } });
+		await authentication({ hassUrl: 'http://localhost:8123', token: 'screen' });
+		expect(vi.mocked(createConnection).mock.calls[0][0]?.auth?.accessToken).toBe('screen');
+		expect(await signature()).toBe('Bearer administrator');
+	});
+
+	it('signs with an earlier OAuth sign-in rather than a stored token', async () => {
+		localStorage.hearthTokens = JSON.stringify({
+			hassUrl: 'http://localhost:8123',
+			clientId: 'http://localhost:5173/',
+			access_token: 'signed-in',
+			refresh_token: 'refresh',
+			expires: Date.now() + 60_000,
+			expires_in: 1800
+		});
+		await authentication({ hassUrl: 'http://localhost:8123', token: 'screen' });
+		expect(await signature()).toBe('Bearer signed-in');
+	});
+
+	it('falls back to the stored token when the session cannot be renewed', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		panel({
+			data: { access_token: 'stale' },
+			expired: true,
+			refreshAccessToken: async () => {
+				throw ERR_INVALID_AUTH;
+			}
+		});
+		await authentication({ hassUrl: 'http://localhost:8123', token: 'screen' });
+		expect(await signature()).toBe('Bearer screen');
+	});
 });

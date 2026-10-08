@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Slút dit blêd om jo wizigingen te kopiearjen, oer te skriuwen of opnij te laden.",
 	"hearth_save_current_theme_as": "Aktueel opslaan as...",
 	"hearth_save_failed": "Opslaan mislearre",
+	"hearth_save_needs_admin": "Allinnich in Home Assistant-behearder kin dit bewarje",
 	"hearth_saved_file": "Bewarre bestân",
 	"hearth_saved_themes": "Bewarre tema's",
 	"hearth_saving_or_deleting_a_theme_writes": "In tema opslaan of wiskje skriuwt fuortendaliks nei skiif, los fan de opslaan-/weromdraai-syklus fan it dashboard. In bewarre tema tapasse feroaret allinnich it bewurke tema - bewarje it dashboard om it te hâlden.",

@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Luk dette panel for at kopiere dine ændringer, overskrive eller genindlæse.",
 	"hearth_save_current_theme_as": "Gem aktuelt som...",
 	"hearth_save_failed": "Gemning mislykkedes",
+	"hearth_save_needs_admin": "Kun en Home Assistant-administrator kan gemme dette",
 	"hearth_saved_file": "Gemt fil",
 	"hearth_saved_themes": "Gemte temaer",
 	"hearth_saving_or_deleting_a_theme_writes": "Når et tema gemmes eller slettes, skrives det straks til disken, uafhængigt af dashboardets gem/fortryd-cyklus. Anvendelse af et gemt tema ændrer kun det redigerede tema - gem dashboardet for at beholde det.",

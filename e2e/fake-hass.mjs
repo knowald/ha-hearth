@@ -21,7 +21,8 @@ import { WebSocketServer } from 'ws';
  * POST /_test/todo_subscribe with { supported: false } answers
  * todo/item/subscribe the way a Home Assistant without it does.
  * POST /_test/user with { is_admin: false } makes auth/current_user report a
- * regular user, which Hearth then refuses settings and custom CSS saves.
+ * regular user, which Hearth then refuses settings and custom CSS saves;
+ * tokens listed in its admins still belong to an administrator.
  * GET /api/ accepts any bearer token, the way Hearth's server checks one.
  * GET /api/media_player_proxy/<entity> answers with a 1x1 PNG as album art.
  */
@@ -319,6 +320,9 @@ let states = initialStates();
 let todoItems = initialTodoItems();
 let todoSubscribeSupported = true;
 let userIsAdmin = true;
+let adminTokens = [];
+// the access token each socket authenticated with
+const socketTokens = new WeakMap();
 let calls = [];
 let cameraRequests = [];
 // Stream types as Home Assistant reports them through camera/capabilities; the
@@ -663,8 +667,8 @@ function handleMessage(socket, message) {
 			reply({
 				id: 'e2e-user',
 				name: 'E2E',
-				is_owner: userIsAdmin,
-				is_admin: userIsAdmin,
+				is_owner: userIsAdmin || adminTokens.includes(socketTokens.get(socket)),
+				is_admin: userIsAdmin || adminTokens.includes(socketTokens.get(socket)),
 				credentials: [],
 				mfa_modules: []
 			});
@@ -949,7 +953,9 @@ const http = createServer(async (request, response) => {
 		return;
 	}
 	if (request.url === '/_test/user' && request.method === 'POST') {
-		userIsAdmin = JSON.parse((await readBody(request)) || '{}').is_admin !== false;
+		const user = JSON.parse((await readBody(request)) || '{}');
+		userIsAdmin = user.is_admin !== false;
+		adminTokens = Array.isArray(user.admins) ? user.admins : [];
 		response.end('ok');
 		return;
 	}
@@ -973,6 +979,7 @@ const http = createServer(async (request, response) => {
 		todoItems = initialTodoItems();
 		todoSubscribeSupported = true;
 		userIsAdmin = true;
+		adminTokens = [];
 		calls = [];
 		cameraRequests = [];
 		for (const entityId of Object.keys(states)) pushChange(entityId);
@@ -1057,6 +1064,7 @@ wss.on('connection', (socket) => {
 	socket.on('message', (raw) => {
 		const message = JSON.parse(String(raw));
 		if (message.type === 'auth') {
+			socketTokens.set(socket, message.access_token);
 			socket.send(JSON.stringify({ type: 'auth_ok', ha_version: HA_VERSION }));
 			return;
 		}

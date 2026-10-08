@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Uždarykite šį langą, kad nukopijuotumėte pakeitimus, perrašytumėte arba įkeltumėte iš naujo.",
 	"hearth_save_current_theme_as": "Išsaugoti dabartinę kaip...",
 	"hearth_save_failed": "Išsaugoti nepavyko",
+	"hearth_save_needs_admin": "Tai išsaugoti gali tik Home Assistant administratorius",
 	"hearth_saved_file": "Išsaugotas failas",
 	"hearth_saved_themes": "Išsaugotos temos",
 	"hearth_saving_or_deleting_a_theme_writes": "Temos išsaugojimas arba ištrynimas iškart įrašomas į diską, nepriklausomai nuo prietaisų skydelio išsaugojimo ir atšaukimo. Pritaikius išsaugotą temą keičiama tik redaguojama tema - išsaugokite prietaisų skydelį, kad ji išliktų.",

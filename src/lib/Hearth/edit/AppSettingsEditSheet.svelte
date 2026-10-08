@@ -96,7 +96,10 @@
 				return;
 			}
 			if (!response.ok) {
-				saveError = `${$lang('hearth_save_failed')} [${response.status}]`;
+				saveError =
+					response.status === 403
+						? $lang('hearth_save_needs_admin')
+						: `${$lang('hearth_save_failed')} [${response.status}]`;
 				vibrate('error');
 				return;
 			}

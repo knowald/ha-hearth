@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "अपने संपादन कॉपी करने, ओवरराइट करने या रीलोड करने के लिए इस शीट को बंद करें।",
 	"hearth_save_current_theme_as": "वर्तमान को इस नाम से सहेजें...",
 	"hearth_save_failed": "सहेजना विफल रहा",
+	"hearth_save_needs_admin": "इसे केवल Home Assistant व्यवस्थापक ही सहेज सकता है",
 	"hearth_saved_file": "सहेजी गई फ़ाइल",
 	"hearth_saved_themes": "सहेजी गई थीम",
 	"hearth_saving_or_deleting_a_theme_writes": "थीम सहेजना या हटाना तुरंत डिस्क पर लिखा जाता है, डैशबोर्ड के सहेजें/पूर्ववत चक्र से स्वतंत्र। सहेजी गई थीम लागू करने से केवल संपादित थीम बदलती है - उसे रखने के लिए डैशबोर्ड सहेजें।",

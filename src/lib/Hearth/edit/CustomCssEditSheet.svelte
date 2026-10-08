@@ -46,7 +46,10 @@
 				body: JSON.stringify({ content: value })
 			});
 			if (!response.ok) {
-				error = `${$lang('hearth_save_failed')} [${response.status}]`;
+				error =
+					response.status === 403
+						? $lang('hearth_save_needs_admin')
+						: `${$lang('hearth_save_failed')} [${response.status}]`;
 				return;
 			}
 			// a reload would discard the dashboard draft the edit bar has not saved

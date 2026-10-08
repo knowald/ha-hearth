@@ -4,9 +4,9 @@ AI agents and scripts can read and change Hearth's configuration in three ways: 
 
 ## Access token
 
-The agent API and the MCP server take a Home Assistant access token as a bearer token. Create a long-lived access token in your Home Assistant profile under Security. Hearth accepts any token Home Assistant accepts for the dashboard, versions and validation. Changing settings or custom CSS needs a token of a Home Assistant administrator, and so does reloading the open screens, which fires a Home Assistant event. Hearth asks Home Assistant who a token belongs to and remembers the answer for a minute.
+The agent API and the MCP server take a Home Assistant access token as a bearer token. Create a long-lived access token in your Home Assistant profile under Security. Hearth accepts any token Home Assistant accepts for the dashboard, versions and validation. Changing settings or custom CSS needs a token of a Home Assistant administrator, and so does reloading the open screens, which fires a Home Assistant event. A save with `refresh: true` from a regular user is refused before anything is saved. Hearth asks Home Assistant who a token belongs to and remembers the answer for a minute.
 
-The editor in the browser follows the same rules with the token of its own Home Assistant connection. See [access](configuration.md#access).
+The editor in the browser follows the same rules with the browser's own Home Assistant session, or the stored long-lived token when it has none. See [access](configuration.md#access).
 
 These endpoints are not available through Ingress. With the Home Assistant app, set a port in the app configuration and use that port. With Docker or Node, use the port Hearth listens on.
 
@@ -19,7 +19,7 @@ claude mcp add --transport http hearth http://homeassistant.local:8099/_api/mcp 
   --header "Authorization: Bearer <token>"
 ```
 
-Other clients take the same URL and header.
+Other clients take the same URL and header. A batch holds at most 20 messages.
 
 | Tool                 | Does                                                                                     |
 | -------------------- | ---------------------------------------------------------------------------------------- |
@@ -33,7 +33,7 @@ Other clients take the same URL and header.
 | `save_custom_css`    | Replaces the custom CSS. No earlier version is kept. Admin only.                         |
 | `list_versions`      | Lists earlier versions of `hearth.yaml`.                                                 |
 | `get_version`        | Returns one earlier version. Save its content to restore it.                             |
-| `refresh_screens`    | Reloads every open screen.                                                               |
+| `refresh_screens`    | Reloads every open screen. Admin only.                                                   |
 
 ## Agent API
 
@@ -77,7 +77,7 @@ The schema does not cover every rule. Unique ids, theme values and some rules th
 
 The files are described under [data directory](configuration.md#data-directory). With the Home Assistant app they are in the app's config folder, which the SSH and Samba apps show as `/addon_configs/<id>_ha_hearth`. The `<id>` part depends on the app repository. The files belong to root; when the SSH app logs you in as another user, such as `hassio`, edit them with `sudo`.
 
-Hearth notices a file that changed outside Hearth the next time it reads it. It keeps the version it last wrote under Settings > Versions and moves the file to the next revision. A browser that loaded the earlier revision gets a conflict when it saves, so it cannot overwrite your edit without asking.
+Hearth notices a file that changed outside Hearth the next time it reads it. It keeps the version it last wrote under Settings > Versions and moves the file to the next revision. A browser that loaded the earlier revision gets a conflict when it saves, so it cannot overwrite your edit without asking. A file that changed in the last two seconds is shown with the next revision but rewritten only on a later read or save, so an editor that is still writing it does not lose the rest of its write.
 
 When editing `hearth.yaml` by hand:
 

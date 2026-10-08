@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Zárja be ezt a lapot a módosítások másolásához, felülíráshoz vagy újratöltéshez.",
 	"hearth_save_current_theme_as": "Jelenlegi mentése másként...",
 	"hearth_save_failed": "A mentés nem sikerült",
+	"hearth_save_needs_admin": "Ezt csak Home Assistant rendszergazda mentheti",
 	"hearth_saved_file": "Mentett fájl",
 	"hearth_saved_themes": "Mentett témák",
 	"hearth_saving_or_deleting_a_theme_writes": "Egy téma mentése vagy törlése azonnal lemezre íródik, függetlenül az irányítópult mentés/visszavonás ciklusától. Mentett téma alkalmazása csak a szerkesztett témát módosítja - mentse az irányítópultot a megtartáshoz.",

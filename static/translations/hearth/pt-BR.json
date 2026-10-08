@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Feche esta folha para copiar suas alterações, substituir ou recarregar.",
 	"hearth_save_current_theme_as": "Salvar o atual como...",
 	"hearth_save_failed": "Falha ao salvar",
+	"hearth_save_needs_admin": "Somente um administrador do Home Assistant pode salvar isto",
 	"hearth_saved_file": "Arquivo salvo",
 	"hearth_saved_themes": "Temas salvos",
 	"hearth_saving_or_deleting_a_theme_writes": "Salvar ou excluir um tema grava no disco imediatamente, independentemente do ciclo de salvar/desfazer do painel. Aplicar um tema salvo só altera o tema em edição - salve o painel para mantê-lo.",

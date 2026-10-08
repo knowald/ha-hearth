@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Fermu ĉi tiun folion por kopii viajn redaktojn, anstataŭi aŭ reŝargi.",
 	"hearth_save_current_theme_as": "Konservi nunan kiel...",
 	"hearth_save_failed": "Konservo malsukcesis",
+	"hearth_save_needs_admin": "Nur administranto de Home Assistant povas konservi tion",
 	"hearth_saved_file": "Konservita dosiero",
 	"hearth_saved_themes": "Konservitaj etosoj",
 	"hearth_saving_or_deleting_a_theme_writes": "Konservi aŭ forigi etoson skribas tuj al la disko, sendepende de la konserva/malfara ciklo de la panelo. Apliki konservitan etoson ŝanĝas nur la redaktatan etoson - konservu la panelon por teni ĝin.",
