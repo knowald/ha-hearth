@@ -7,7 +7,7 @@ import { config as haConfig } from '$lib/core/ha/connection';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import { DEFAULT_HEARTH_CONFIG } from '../config';
-import { editor, hearthConfig, screensaverPreview, setupWizardOpen } from '../store';
+import { editor, hearthConfig, sleepNow, setupWizardOpen } from '../store';
 import { screenOverrides } from '$lib/core/app/screen';
 import { fill } from '$lib/core/i18n';
 import { screenSheetOpen } from '../screen';
@@ -21,10 +21,47 @@ describe('SettingsEditSheet', () => {
 		editor.set(null);
 		setupWizardOpen.set(false);
 		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
-		screensaverPreview.set(false);
+		sleepNow.set(false);
 		screenSheetOpen.set(false);
 		screenOverrides.set({});
 		zoom.zoomSupported = false;
+	});
+
+	it('edits sleep clock layout, placement and visibility without dropping appearance settings', async () => {
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+		render(SettingsEditSheet);
+		await fireEvent.change(screen.getByLabelText(en.hearth_layout, { selector: 'select' }), {
+			target: { value: 'stacked' }
+		});
+		await fireEvent.change(screen.getByLabelText(en.hearth_font, { selector: 'select' }), {
+			target: { value: 'mono' }
+		});
+		await fireEvent.change(screen.getByLabelText(`${en.hearth_position} X`), {
+			target: { value: '15' }
+		});
+		await fireEvent.click(screen.getByRole('switch', { name: en.hearth_widget_clock_label }));
+		expect(get(hearthConfig)).toMatchObject({
+			screensaver_clock_layout: 'stacked',
+			screensaver_clock_font: 'mono',
+			screensaver_position_x: 15,
+			screensaver_show_clock: false
+		});
+		expect(screen.queryByLabelText(en.hearth_font, { selector: 'select' })).toBeNull();
+		await fireEvent.click(screen.getByRole('switch', { name: en.hearth_widget_clock_label }));
+		expect(
+			(screen.getByLabelText(en.hearth_font, { selector: 'select' }) as HTMLSelectElement).value
+		).toBe('mono');
+	});
+
+	it('previews slider movement without saving each intermediate value', async () => {
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+		render(SettingsEditSheet);
+		const slider = screen.getByLabelText(`${en.hearth_position} X`);
+		await fireEvent.input(slider, { target: { value: '20' } });
+		expect(get(hearthConfig).screensaver_position_x).toBeUndefined();
+		expect(screen.getByText('20%', { selector: 'span' })).toBeTruthy();
+		await fireEvent.change(slider, { target: { value: '20' } });
+		expect(get(hearthConfig).screensaver_position_x).toBe(20);
 	});
 
 	it('lists the pages to reorder, open and add, whatever the rail shows', async () => {
@@ -201,7 +238,7 @@ describe('SettingsEditSheet', () => {
 	it('previews the sleep screen', async () => {
 		render(SettingsEditSheet);
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_preview_sleep_screen }));
-		expect(get(screensaverPreview)).toBe(true);
+		expect(get(sleepNow)).toBe('preview');
 	});
 
 	it('starts a custom radar location from the home coordinates', async () => {

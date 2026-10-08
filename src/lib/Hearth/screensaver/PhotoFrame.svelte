@@ -17,12 +17,15 @@
 		photos,
 		seconds,
 		order,
+		recordResume = true,
 		onready
 	}: {
 		/** Addresses to load, in configured order. */
 		photos: string[];
 		seconds: number;
 		order: ScreensaverPhotoOrder;
+		/** Whether a sequence notes where it got to, for the next sleep to carry on from. */
+		recordResume?: boolean;
 		/** Whether a photo is on screen; false once every photo has failed to load. */
 		onready?: (ready: boolean) => void;
 	} = $props();
@@ -78,7 +81,8 @@
 			list,
 			{ seconds, order, start: order === 'sequence' ? sequenceResume.get(key) : undefined },
 			(source, next, position) => {
-				if (order === 'sequence') sequenceResume.set(key, (position + 1) % list.length);
+				if (order === 'sequence' && recordResume)
+					sequenceResume.set(key, (position + 1) % list.length);
 				// the photo was loaded ahead; it goes up once decoded, so the fade never stalls
 				const pending = ahead?.source === source ? ahead : undefined;
 				ahead = next && next !== source ? preload(next) : undefined;

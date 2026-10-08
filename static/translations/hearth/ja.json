@@ -846,6 +846,7 @@
 	"hearth_skip_for_now": "今はスキップ",
 	"hearth_skip_version": "このバージョンをスキップ",
 	"hearth_sleep_background": "背景",
+	"hearth_sleep_background_brightness": "背景の明るさ",
 	"hearth_sleep_background_image": "画像",
 	"hearth_sleep_background_media": "再生中",
 	"hearth_sleep_background_none": "黒",

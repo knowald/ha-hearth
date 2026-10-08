@@ -37,7 +37,7 @@ import {
 	hearthConfig,
 	hearthEditMode,
 	popup,
-	screensaverPreview,
+	sleepNow,
 	wakeScreen
 } from './store';
 import { deviceName } from '$lib/core/app/device';
@@ -464,7 +464,7 @@ describe('HEARTH events', () => {
 	afterEach(() => {
 		resetAlerts();
 		popup.set(null);
-		screensaverPreview.set(false);
+		sleepNow.set(false);
 		if (get(hearthEditMode)) cancelEdit();
 	});
 
@@ -519,11 +519,11 @@ describe('HEARTH events', () => {
 		handleHearthAction({ action: 'wake' });
 		expect(get(wakeScreen)).toBe(before + 1);
 		handleHearthAction({ action: 'sleep' });
-		expect(get(screensaverPreview)).toBe(true);
-		screensaverPreview.set(false);
+		expect(get(sleepNow)).toBe('action');
+		sleepNow.set(false);
 		enterEditMode();
 		handleHearthAction({ action: 'sleep' });
-		expect(get(screensaverPreview)).toBe(false);
+		expect(get(sleepNow)).toBe(false);
 	});
 
 	it('leaves an alert popup, This screen and setup uncovered by sleep', () => {
@@ -535,7 +535,7 @@ describe('HEARTH events', () => {
 			popup: true
 		});
 		handleHearthAction({ action: 'sleep' });
-		expect(get(screensaverPreview)).toBe(false);
+		expect(get(sleepNow)).toBe(false);
 		// one only listed in the notifications widget covers nothing
 		handleHearthAction({ action: 'dismiss_alert', tag: 'w' });
 		handleHearthAction({
@@ -547,10 +547,10 @@ describe('HEARTH events', () => {
 		});
 		sleepBlocked = true;
 		handleHearthAction({ action: 'sleep' });
-		expect(get(screensaverPreview)).toBe(false);
+		expect(get(sleepNow)).toBe(false);
 		sleepBlocked = false;
 		handleHearthAction({ action: 'sleep' });
-		expect(get(screensaverPreview)).toBe(true);
+		expect(get(sleepNow)).toBe('action');
 	});
 
 	it('does not navigate to a page its visibility conditions hide', () => {

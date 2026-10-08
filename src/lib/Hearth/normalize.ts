@@ -133,7 +133,16 @@ export function pageBackgroundIssue(value: string): string | null {
 const SCRIM_LEVELS = new Set<unknown>(['light', 'medium', 'strong']);
 const CARD_SPANS = new Set<unknown>([2, 3, 'full']);
 
+function normalizePercentage(value: unknown): number | undefined {
+	return typeof value === 'number' && Number.isFinite(value)
+		? Math.min(100, Math.max(0, Math.round(value)))
+		: undefined;
+}
+
 const SCREENSAVER_CLOCK_SIZES = new Set<unknown>(['small', 'medium', 'large']);
+const SCREENSAVER_CLOCK_LAYOUTS = new Set<unknown>(['default', 'stacked']);
+const SCREENSAVER_CLOCK_FONTS = new Set<unknown>(['default', 'mono', 'serif']);
+const HOUR_FORMATS = new Set<unknown>(['auto', '12', '24']);
 // 'none' is the default and is stored as unset
 const SCREENSAVER_BACKGROUNDS = new Set<unknown>(['image', 'radar', 'photos', 'sun', 'media']);
 
@@ -524,6 +533,14 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		'screensaver_media_fallback',
 		'screensaver_show_date',
 		'screensaver_clock_size',
+		'screensaver_show_clock',
+		'screensaver_position_x',
+		'screensaver_position_y',
+		'screensaver_clock_layout',
+		'screensaver_clock_font',
+		'screensaver_hour_format',
+		'screensaver_show_seconds',
+		'screensaver_background_brightness',
 		'screensaver_weather_entity',
 		'keep_screen_on',
 		'edit_lock',
@@ -581,6 +598,26 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		screensaver_clock_size: SCREENSAVER_CLOCK_SIZES.has(config.screensaver_clock_size)
 			? config.screensaver_clock_size
 			: undefined,
+		screensaver_show_clock:
+			typeof config.screensaver_show_clock === 'boolean'
+				? config.screensaver_show_clock
+				: undefined,
+		screensaver_position_x: normalizePercentage(config.screensaver_position_x),
+		screensaver_position_y: normalizePercentage(config.screensaver_position_y),
+		screensaver_clock_layout: SCREENSAVER_CLOCK_LAYOUTS.has(config.screensaver_clock_layout)
+			? config.screensaver_clock_layout
+			: undefined,
+		screensaver_clock_font: SCREENSAVER_CLOCK_FONTS.has(config.screensaver_clock_font)
+			? config.screensaver_clock_font
+			: undefined,
+		// YAML reads an unquoted 12 or 24 as a number
+		screensaver_hour_format: HOUR_FORMATS.has(String(config.screensaver_hour_format))
+			? (String(config.screensaver_hour_format) as HearthConfig['screensaver_hour_format'])
+			: undefined,
+		screensaver_show_seconds: config.screensaver_show_seconds === true ? true : undefined,
+		screensaver_background_brightness: normalizePercentage(
+			config.screensaver_background_brightness
+		),
 		screensaver_weather_entity: trimmedOrUndefined(config.screensaver_weather_entity),
 		keep_screen_on: typeof config.keep_screen_on === 'boolean' ? config.keep_screen_on : undefined,
 		edit_lock:

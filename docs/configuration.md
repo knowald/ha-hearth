@@ -171,7 +171,7 @@ Settings > Wall display > Sleep screen turns it on after a set number of minutes
 
 The photo frame only shows images uploaded to Hearth, stored in `hearth-images/`. Add them under Photos in the sleep screen settings, several at once if you like. Each photo shows for `screensaver_photo_seconds` (30 when unset, 5 to 86400), in a shuffled order or, with `screensaver_photo_order: sequence`, in the order listed, carrying on where the last sleep stopped. Photos crossfade and slowly zoom; with motion turned off under This screen they change without either.
 
-The sky changes once a minute. The now playing screen follows `screensaver_media_entity`, or any player that is playing when it is unset. A buffering player counts as playing, and the track stays up for 5 seconds after it stops, so skipping to the next song does not flash the fallback. Brightness applies to every background.
+The sky changes once a minute. The now playing screen follows `screensaver_media_entity`, or any player that is playing when it is unset. A buffering player counts as playing, and the track stays up for 5 seconds after it stops, so skipping to the next song does not flash the fallback. Brightness applies to every background unless Background brightness is set on its own.
 
 ```yaml
 screensaver_minutes: 10
@@ -183,6 +183,23 @@ screensaver_photos:
   - hearth-images/a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5.webp
 screensaver_photo_seconds: 60
 screensaver_photo_order: sequence
+```
+
+The sleep clock can be hidden independently of the date and weather. Choose the default horizontal layout or Stack for digits on separate lines, and Default, Monospace or Serif for the clock font. Hour format defaults to the sidebar clock; an explicit Locale default, 12 hour or 24 hour setting overrides it. Show seconds applies only to this sleep clock.
+
+Position X and Position Y move the whole content group within an inset area that leaves room for drift. 0% is the left/top edge, 50% is the center, and 100% is the right/bottom edge. The live preview stays visible while you adjust these controls and uses the same rendering as the real sleep screen. Position sliders update it as you drag; a release records the change as one undo step. Use the full-screen button to check the result at actual size, then tap or press a key to return to settings.
+
+```yaml
+screensaver_show_clock: true
+screensaver_clock_layout: stacked # omit for the horizontal clock
+screensaver_clock_font: mono # default, mono or serif
+screensaver_clock_size: medium # small, medium or large
+screensaver_hour_format: '24' # auto, '12' or '24'; omit to follow the sidebar
+screensaver_show_seconds: true
+screensaver_position_x: 15
+screensaver_position_y: 85
+screensaver_brightness: 75
+screensaver_background_brightness: 25 # 0-100, 0 turns the background off; omit to follow screensaver_brightness
 ```
 
 ## Arrival greeting

@@ -442,6 +442,17 @@ export interface HearthConfig {
 	screensaver_media_fallback?: ScreensaverMediaFallback;
 	screensaver_show_date?: boolean;
 	screensaver_clock_size?: ScreensaverClockSize;
+	/** Hide the clock without hiding the date, weather or media. */
+	screensaver_show_clock?: boolean;
+	/** Position within the safe display area, 0-100 percent; centered when unset. */
+	screensaver_position_x?: number;
+	screensaver_position_y?: number;
+	screensaver_clock_layout?: 'default' | 'stacked';
+	screensaver_clock_font?: 'default' | 'mono' | 'serif';
+	screensaver_hour_format?: 'auto' | '12' | '24';
+	screensaver_show_seconds?: boolean;
+	/** Independent background brightness; follows clock brightness when unset. */
+	screensaver_background_brightness?: number;
 	/** Weather entity whose condition and temperature show under the clock. */
 	screensaver_weather_entity?: string;
 	keep_screen_on?: boolean;

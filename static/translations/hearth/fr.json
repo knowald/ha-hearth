@@ -846,6 +846,7 @@
 	"hearth_skip_for_now": "Passer pour l'instant",
 	"hearth_skip_version": "Ignorer cette version",
 	"hearth_sleep_background": "Arrière-plan",
+	"hearth_sleep_background_brightness": "Luminosité de l'arrière-plan",
 	"hearth_sleep_background_image": "Image",
 	"hearth_sleep_background_media": "En cours de lecture",
 	"hearth_sleep_background_none": "Noir",
