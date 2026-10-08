@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "கார்டு எடிட்டரில் ஒரு பட என்டிட்டியைத் தேர்ந்தெடுக்கவும்",
 	"hearth_pick_several_entities": "பல என்டிட்டிகளைத் தேர்ந்தெடு",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "தேர்விகள் பொருத்தமான பெறப்பட்ட நிழல்களைத் தானாக அமைக்கும். தீம் நுண் அமைப்புகளை data/hearth.yaml இல், பகலுக்கு theme: மற்றும் இரவுக்கு theme_night: கீழ் மாற்றலாம்.",
+	"hearth_pixel_shifting": "பிக்சல் நகர்த்தல்",
 	"hearth_play_on": "இதில் இயக்கு",
 	"hearth_playlists": "பிளேலிஸ்ட்கள்",
 	"hearth_position": "நிலை",

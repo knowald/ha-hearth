@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Valitse kuvaentiteetti korttieditorissa",
 	"hearth_pick_several_entities": "Valitse useita entiteettejä",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Valitsimet asettavat järkevät johdetut sävyt automaattisesti. Teeman säätimiä voi hienosäätää tiedostossa data/hearth.yaml, kohdassa theme: päivälle ja theme_night: yölle.",
+	"hearth_pixel_shifting": "Pikselien siirto",
 	"hearth_play_on": "Toista laitteella",
 	"hearth_playlists": "Soittolistat",
 	"hearth_position": "Sijainti",

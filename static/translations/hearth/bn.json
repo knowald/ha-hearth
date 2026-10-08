@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "কার্ড এডিটরে একটি ছবির এন্টিটি বাছুন",
 	"hearth_pick_several_entities": "একাধিক এন্টিটি বাছুন",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "পিকার উপযুক্ত উদ্ভূত শেড নিজে থেকে ঠিক করে। থিমের সূক্ষ্ম সেটিংস data/hearth.yaml-এ, দিনের জন্য theme: ও রাতের জন্য theme_night: এর অধীনে বদলানো যায়।",
+	"hearth_pixel_shifting": "পিক্সেল স্থানান্তর",
 	"hearth_play_on": "এতে চালান",
 	"hearth_playlists": "প্লেলিস্ট",
 	"hearth_position": "অবস্থান",

@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Vali kaardiredaktoris pildiolem",
 	"hearth_pick_several_entities": "Vali mitu olemit",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Valijad määravad mõistlikud tuletatud toonid automaatselt. Teema seadeid saab täpsustada failis data/hearth.yaml, päeva jaoks jaotises theme: ja öö jaoks theme_night:.",
+	"hearth_pixel_shifting": "Pikslite nihutamine",
 	"hearth_play_on": "Esita seadmes",
 	"hearth_playlists": "Esitusloendid",
 	"hearth_position": "Asend",

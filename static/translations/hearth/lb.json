@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Wiel am Kaarteditor eng Bild-Entitéit",
 	"hearth_pick_several_entities": "Méi Entitéiten auswielen",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "D'Auswielen setzen automatesch sënnvoll ofgeleet Téin. D'Thema-Reegler si bei data/hearth.yaml astellbar, ënner theme: fir den Dag an theme_night: fir d'Nuecht.",
+	"hearth_pixel_shifting": "Pixelverrécklung",
 	"hearth_play_on": "Ofspillen op",
 	"hearth_playlists": "Playlisten",
 	"hearth_position": "Positioun",

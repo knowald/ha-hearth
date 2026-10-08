@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "कार्ड संपादक में छवि एंटिटी चुनें",
 	"hearth_pick_several_entities": "कई एंटिटी चुनें",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "पिकर उचित व्युत्पन्न शेड अपने आप सेट करते हैं। थीम की बारीक सेटिंग data/hearth.yaml में, दिन के लिए theme: और रात के लिए theme_night: के अंतर्गत बदली जा सकती हैं।",
+	"hearth_pixel_shifting": "पिक्सेल स्थानांतरण",
 	"hearth_play_on": "इस पर चलाएं",
 	"hearth_playlists": "प्लेलिस्ट",
 	"hearth_position": "स्थिति",

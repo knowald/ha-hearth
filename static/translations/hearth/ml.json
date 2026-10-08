@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "കാർഡ് എഡിറ്ററിൽ ഒരു ഇമേജ് എന്റിറ്റി തിരഞ്ഞെടുക്കുക",
 	"hearth_pick_several_entities": "ഒന്നിലധികം എന്റിറ്റികൾ തിരഞ്ഞെടുക്കുക",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "പിക്കറുകൾ ഉചിതമായ ഷേഡുകൾ സ്വയമേവ സജ്ജമാക്കുന്നു. തീം ക്രമീകരണങ്ങൾ data/hearth.yaml-ൽ, പകലിന് theme: എന്നതിന് കീഴിലും രാത്രിക്ക് theme_night: എന്നതിന് കീഴിലും മാറ്റാം.",
+	"hearth_pixel_shifting": "പിക്സൽ സ്ഥാനമാറ്റം",
 	"hearth_play_on": "ഇതിൽ പ്ലേ ചെയ്യുക",
 	"hearth_playlists": "പ്ലേലിസ്റ്റുകൾ",
 	"hearth_position": "സ്ഥാനം",

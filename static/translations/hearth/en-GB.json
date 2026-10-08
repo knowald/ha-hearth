@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Pick an image entity in the card editor",
 	"hearth_pick_several_entities": "Pick several entities",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Pickers set sensible derived shades automatically. Theme knobs are tunable in data/hearth.yaml, under theme: for day and theme_night: for night.",
+	"hearth_pixel_shifting": "Pixel shifting",
 	"hearth_play_on": "Play on",
 	"hearth_playlists": "Playlists",
 	"hearth_position": "Position",

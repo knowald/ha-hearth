@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Kart düzenleyicisinde bir resim varlığı seçin",
 	"hearth_pick_several_entities": "Birkaç varlık seçin",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Seçiciler türetilmiş tonları otomatik olarak makul değerlere ayarlar. Tema ayarları data/hearth.yaml içinde gündüz için theme: ve gece için theme_night: altında değiştirilebilir.",
+	"hearth_pixel_shifting": "Piksel kaydırma",
 	"hearth_play_on": "Şurada çal",
 	"hearth_playlists": "Çalma listeleri",
 	"hearth_position": "Konum",

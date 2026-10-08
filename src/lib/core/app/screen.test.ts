@@ -13,6 +13,7 @@ describe('parseScreenOverrides', () => {
 			parseScreenOverrides(
 				JSON.stringify({
 					keep_screen_on: false,
+					pixel_shift: true,
 					screensaver_minutes: 0,
 					scale: 120,
 					mobile_scale: 30,
@@ -25,6 +26,7 @@ describe('parseScreenOverrides', () => {
 			)
 		).toEqual({
 			keep_screen_on: false,
+			pixel_shift: true,
 			screensaver_minutes: 0,
 			scale: 120,
 			locale: 'de-CH',
@@ -38,6 +40,7 @@ describe('parseScreenOverrides', () => {
 		expect(parseScreenOverrides('{oops')).toEqual({});
 		expect(parseScreenOverrides('null')).toEqual({});
 		expect(parseScreenOverrides(JSON.stringify({ locale: '../etc' }))).toEqual({});
+		expect(parseScreenOverrides(JSON.stringify({ pixel_shift: 'true' }))).toEqual({});
 	});
 });
 

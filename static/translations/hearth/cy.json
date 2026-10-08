@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Dewiswch endid delwedd yn y golygydd cerdyn",
 	"hearth_pick_several_entities": "Dewis sawl endid",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Mae'r dewiswyr yn gosod arlliwiau deilliedig synhwyrol yn awtomatig. Gellir addasu gosodiadau'r thema yn data/hearth.yaml, o dan theme: ar gyfer dydd a theme_night: ar gyfer nos.",
+	"hearth_pixel_shifting": "Symud picseli",
 	"hearth_play_on": "Chwarae ar",
 	"hearth_playlists": "Rhestrau chwarae",
 	"hearth_position": "Safle",

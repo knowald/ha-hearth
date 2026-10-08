@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { screenOverrides } from '$lib/core/app/screen';
+	import { pixelShift } from './pixelShift';
 	import { lang } from '$lib/core/i18n';
 	import { states } from '$lib/core/ha/entities';
 	import { THEME_PRESETS, type HearthTheme } from '$lib/core/theme';
@@ -11,6 +13,7 @@
 		hearthEditMode,
 		hearthLoadError,
 		hearthNeedsSetup,
+		screensaverActive,
 		screensaverPreview,
 		setupWizardOpen,
 		setupWizardSource
@@ -420,6 +423,15 @@
      browser tests' "stays awake" checks -->
 <section
 	class="frame"
+	class:pixel-shifting={$screenOverrides.pixel_shift === true}
+	use:pixelShift={{
+		enabled: $screenOverrides.pixel_shift === true,
+		paused:
+			$hearthEditMode ||
+			$setupWizardOpen ||
+			$screenSheetOpen ||
+			($layerDepth > 0 && !$screensaverActive)
+	}}
 	data-sleep={$screenSettings.sleepMinutes > 0 ? 'on' : 'off'}
 	use:wakeLock={$screenSettings.keepScreenOn}
 >
@@ -617,6 +629,21 @@
 			calc(40px + var(--h-pad-y) + var(--h-safe-bottom))
 			calc(40px + var(--h-pad-x) + var(--h-safe-left));
 		height: 100%;
+	}
+
+	/* Reserve the whole shift range. Relative positioning keeps fixed popovers
+	   in viewport coordinates; transforming the layout would rebase them. */
+	.pixel-shifting .layout {
+		position: relative;
+		margin: calc(4px / var(--h-zoom)); /* literal ok: pixel shift safety margin */
+		width: calc(100% - 8px / var(--h-zoom)); /* literal ok: twice the shift range */
+		height: calc(100% - 8px / var(--h-zoom)); /* literal ok: twice the shift range */
+		left: var(--h-shift-x, 0px);
+		top: var(--h-shift-y, 0px);
+	}
+
+	.pixel-shifting :global(.edit-entry) {
+		translate: var(--h-shift-x, 0px) var(--h-shift-y, 0px);
 	}
 
 	.layout[data-rail='right'] {

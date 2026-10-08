@@ -413,6 +413,8 @@
 	}
 
 	.screensaver-content {
+		/* Independent of transform, so the optional larger clock drift still works. */
+		translate: var(--h-shift-x, 0px) var(--h-shift-y, 0px);
 		position: relative;
 		display: flex;
 		flex-direction: column;

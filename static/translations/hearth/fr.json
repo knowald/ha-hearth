@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Choisissez une entité image dans l'éditeur de carte",
 	"hearth_pick_several_entities": "Choisir plusieurs entités",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Les sélecteurs définissent automatiquement des nuances dérivées adaptées. Les réglages du thème se modifient dans data/hearth.yaml, sous theme: pour le jour et theme_night: pour la nuit.",
+	"hearth_pixel_shifting": "Décalage des pixels",
 	"hearth_play_on": "Lire sur",
 	"hearth_playlists": "Listes de lecture",
 	"hearth_position": "Position",

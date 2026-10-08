@@ -189,6 +189,13 @@
 					onchange={(value) => setNumber('screensaver_minutes', value)}
 				/>
 			</SettingsRow>
+			<SettingsRow label={$lang('hearth_pixel_shifting')}>
+				<Switch
+					checked={$screenOverrides.pixel_shift === true}
+					label={$lang('hearth_pixel_shifting')}
+					onchange={(enabled) => setScreenOverride('pixel_shift', enabled || undefined)}
+				/>
+			</SettingsRow>
 			<SettingsRow
 				label={$lang('hearth_interface_scale')}
 				sub={zoomSupported ? undefined : $lang('hearth_scale_unsupported')}

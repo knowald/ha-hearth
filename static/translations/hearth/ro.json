@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Alege o entitate imagine în editorul de card",
 	"hearth_pick_several_entities": "Alege mai multe entități",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Selectoarele setează automat nuanțe derivate potrivite. Parametrii temei se pot ajusta în data/hearth.yaml, sub theme: pentru zi și theme_night: pentru noapte.",
+	"hearth_pixel_shifting": "Deplasarea pixelilor",
 	"hearth_play_on": "Redă pe",
 	"hearth_playlists": "Liste de redare",
 	"hearth_position": "Poziție",

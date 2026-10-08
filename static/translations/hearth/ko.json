@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "카드 편집기에서 이미지 구성요소를 선택하세요",
 	"hearth_pick_several_entities": "여러 구성요소 선택",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "선택기가 적절한 파생 색조를 자동으로 설정합니다. 테마 세부 값은 data/hearth.yaml의 theme: (낮)과 theme_night: (밤)에서 조정할 수 있습니다.",
+	"hearth_pixel_shifting": "픽셀 이동",
 	"hearth_play_on": "재생 기기",
 	"hearth_playlists": "재생 목록",
 	"hearth_position": "위치",

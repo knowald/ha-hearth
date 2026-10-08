@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Válasszon képentitást a kártyaszerkesztőben",
 	"hearth_pick_several_entities": "Több entitás kiválasztása",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "A választók automatikusan ésszerű származtatott árnyalatokat állítanak be. A téma finomhangolása a data/hearth.yaml fájlban lehetséges, a theme: alatt nappalra és a theme_night: alatt éjszakára.",
+	"hearth_pixel_shifting": "Pixeleltolás",
 	"hearth_play_on": "Lejátszás ezen:",
 	"hearth_playlists": "Lejátszási listák",
 	"hearth_position": "Pozíció",

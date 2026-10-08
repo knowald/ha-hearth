@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Επιλέξτε μια οντότητα εικόνας στον επεξεργαστή κάρτας",
 	"hearth_pick_several_entities": "Επιλέξτε περισσότερες οντότητες",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Οι επιλογείς ορίζουν αυτόματα λογικές παράγωγες αποχρώσεις. Οι παράμετροι του θέματος ρυθμίζονται στο data/hearth.yaml, κάτω από theme: για την ημέρα και theme_night: για τη νύχτα.",
+	"hearth_pixel_shifting": "Μετατόπιση εικονοστοιχείων",
 	"hearth_play_on": "Αναπαραγωγή σε",
 	"hearth_playlists": "Λίστες αναπαραγωγής",
 	"hearth_position": "Θέση",

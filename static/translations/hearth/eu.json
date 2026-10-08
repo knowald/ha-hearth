@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Aukeratu irudi entitate bat txartelaren editorean",
 	"hearth_pick_several_entities": "Aukeratu hainbat entitate",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Hautatzaileek ondorioztatutako ñabardura egokiak automatikoki ezartzen dituzte. Gaiaren doikuntzak data/hearth.yaml-en egokitzen dira, theme: egunerako eta theme_night: gauerako.",
+	"hearth_pixel_shifting": "Pixelen desplazamendua",
 	"hearth_play_on": "Erreproduzitu hemen",
 	"hearth_playlists": "Erreprodukzio zerrendak",
 	"hearth_position": "Posizioa",

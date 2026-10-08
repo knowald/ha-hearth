@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Escolha uma entidade de imagem no editor do cartão",
 	"hearth_pick_several_entities": "Escolher várias entidades",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Os seletores definem automaticamente tons derivados adequados. Os parâmetros do tema podem ser ajustados em data/hearth.yaml, em theme: para o dia e theme_night: para a noite.",
+	"hearth_pixel_shifting": "Deslocamento de pixels",
 	"hearth_play_on": "Reproduzir em",
 	"hearth_playlists": "Listas de reprodução",
 	"hearth_position": "Posição",

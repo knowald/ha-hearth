@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Kies een afbeeldingsentiteit in de kaarteditor",
 	"hearth_pick_several_entities": "Kies meerdere entiteiten",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "De kleurkiezers stellen passende afgeleide tinten automatisch in. Themaknoppen zijn aan te passen in data/hearth.yaml, onder theme: voor dag en theme_night: voor nacht.",
+	"hearth_pixel_shifting": "Pixelverschuiving",
 	"hearth_play_on": "Afspelen op",
 	"hearth_playlists": "Afspeellijsten",
 	"hearth_position": "Positie",

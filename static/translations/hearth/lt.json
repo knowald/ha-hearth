@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Kortelės redaktoriuje pasirinkite paveikslėlio subjektą",
 	"hearth_pick_several_entities": "Pasirinkti kelis subjektus",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Parinkikliai automatiškai nustato tinkamus išvestinius atspalvius. Temos parametrus galima derinti data/hearth.yaml faile: theme: dienai ir theme_night: nakčiai.",
+	"hearth_pixel_shifting": "Pikselių poslinkis",
 	"hearth_play_on": "Groti per",
 	"hearth_playlists": "Grojaraščiai",
 	"hearth_position": "Padėtis",

@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Kartītes redaktorā izvēlieties attēla vienību",
 	"hearth_pick_several_entities": "Izvēlieties vairākas vienības",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Atlasītāji automātiski iestata saprātīgus atvasinātus toņus. Motīva parametrus var pielāgot failā data/hearth.yaml, sadaļā theme: dienai un theme_night: naktij.",
+	"hearth_pixel_shifting": "Pikseļu nobīde",
 	"hearth_play_on": "Atskaņot uz",
 	"hearth_playlists": "Atskaņošanas saraksti",
 	"hearth_position": "Pozīcija",

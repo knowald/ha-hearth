@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Pilih entitas gambar di editor kartu",
 	"hearth_pick_several_entities": "Pilih beberapa entitas",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Pemilih mengatur warna turunan yang sesuai secara otomatis. Parameter tema dapat disetel di data/hearth.yaml, di bawah theme: untuk siang dan theme_night: untuk malam.",
+	"hearth_pixel_shifting": "Pergeseran piksel",
 	"hearth_play_on": "Putar di",
 	"hearth_playlists": "Playlist",
 	"hearth_position": "Posisi",

@@ -699,6 +699,7 @@
 	"hearth_pick_an_image_entity_in_the": "Tria una entitat d'imatge a l'editor de targetes",
 	"hearth_pick_several_entities": "Tria diverses entitats",
 	"hearth_pickers_set_sensible_derived_shades_automatically": "Els selectors defineixen automàticament tons derivats adequats. Els ajustos del tema es poden modificar a data/hearth.yaml, sota theme: per al dia i theme_night: per a la nit.",
+	"hearth_pixel_shifting": "Desplaçament de píxels",
 	"hearth_play_on": "Reprodueix a",
 	"hearth_playlists": "Llistes de reproducció",
 	"hearth_position": "Posició",
