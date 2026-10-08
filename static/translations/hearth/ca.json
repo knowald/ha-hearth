@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Tanca aquest full per copiar els canvis, sobreescriure o tornar a carregar.",
 	"hearth_save_current_theme_as": "Desa l'actual com a...",
 	"hearth_save_failed": "No s'ha pogut desar",
+	"hearth_save_needs_admin": "Només un administrador de Home Assistant pot desar això",
 	"hearth_saved_file": "Fitxer desat",
 	"hearth_saved_themes": "Temes desats",
 	"hearth_saving_or_deleting_a_theme_writes": "Desar o eliminar un tema escriu al disc immediatament, independentment del cicle de desar/desfer del panell. Aplicar un tema desat només canvia el tema en edició - desa el panell per conservar-lo.",

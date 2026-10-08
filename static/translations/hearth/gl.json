@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Pecha esta folla para copiar as túas edicións, sobrescribir ou recargar.",
 	"hearth_save_current_theme_as": "Gardar o actual como...",
 	"hearth_save_failed": "Fallou o gardado",
+	"hearth_save_needs_admin": "Só un administrador de Home Assistant pode gardar isto",
 	"hearth_saved_file": "Ficheiro gardado",
 	"hearth_saved_themes": "Temas gardados",
 	"hearth_saving_or_deleting_a_theme_writes": "Gardar ou eliminar un tema escribe no disco de inmediato, independentemente do ciclo de gardar/desfacer do panel. Aplicar un tema gardado só cambia o tema que se está editando: garda o panel para conservalo.",

@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Lokaðu þessu blaði til að afrita breytingarnar, skrifa yfir eða endurhlaða.",
 	"hearth_save_current_theme_as": "Vista núverandi sem...",
 	"hearth_save_failed": "Vistun mistókst",
+	"hearth_save_needs_admin": "Aðeins stjórnandi Home Assistant getur vistað þetta",
 	"hearth_saved_file": "Vistuð skrá",
 	"hearth_saved_themes": "Vistuð þemu",
 	"hearth_saving_or_deleting_a_theme_writes": "Vistun eða eyðing þema er skrifuð á disk strax, óháð vista/afturkalla-ferli mælaborðsins. Að beita vistuðu þema breytir aðeins þemanu sem er í breytingu. Vistaðu mælaborðið til að halda því.",

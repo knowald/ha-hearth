@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Zamknij ten panel, aby skopiować zmiany, nadpisać lub przeładować.",
 	"hearth_save_current_theme_as": "Zapisz bieżący jako...",
 	"hearth_save_failed": "Zapis nie powiódł się",
+	"hearth_save_needs_admin": "Tylko administrator Home Assistant może to zapisać",
 	"hearth_saved_file": "Zapisany plik",
 	"hearth_saved_themes": "Zapisane motywy",
 	"hearth_saving_or_deleting_a_theme_writes": "Zapisanie lub usunięcie motywu od razu zapisuje na dysk, niezależnie od cyklu zapisu/cofania dashboardu. Zastosowanie zapisanego motywu zmienia tylko edytowany motyw - zapisz dashboard, aby go zachować.",

@@ -15,6 +15,7 @@ export default defineConfig({
 	testMatch: '**/*.spec.ts',
 	// the screenshot matrix and the README image have their own configs and fixtures
 	testIgnore: ['**/matrix/**', '**/readme/**'],
+	globalSetup: './e2e/global-setup.ts',
 	fullyParallel: false,
 	workers: 1,
 	retries: process.env.CI ? 1 : 0,

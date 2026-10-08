@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
+import { prepareDashboard } from '$lib/agent/documents';
 import { saveYamlDocument } from '$lib/server/persistence';
-import { CONFIG_VERSION, currentHearthConfig } from '$lib/Hearth/format';
-import { hearthConfigIssues, newThemeIssues, normalizeTheme } from '$lib/Hearth/normalize';
+import { CONFIG_VERSION } from '$lib/Hearth/format';
 import type { RequestHandler } from './$types';
 
 const CONFIG_PATH = './data/hearth.yaml';
@@ -14,24 +14,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => null);
 	if (!isMapping(body)) error(400, 'invalid body');
 
-	const config = body.config;
-	if (!isMapping(config)) error(400, 'invalid config');
-	try {
-		currentHearthConfig(config);
-	} catch (err) {
-		error(400, err instanceof Error ? err.message : 'unsupported config');
-	}
-	const issues = [...hearthConfigIssues(config), ...newThemeIssues(config)];
-	if (issues.length) error(400, issues.join('; '));
-	// a short #f80 is stored as #ff8800, as loading the file would read it
-	for (const slot of ['theme', 'theme_night']) {
-		if (isMapping(config[slot])) config[slot] = normalizeTheme(config[slot]);
-	}
-	for (const entry of Array.isArray(config.theme_schedule) ? config.theme_schedule : []) {
-		for (const slot of ['theme', 'night']) {
-			if (isMapping(entry) && isMapping(entry[slot])) entry[slot] = normalizeTheme(entry[slot]);
-		}
-	}
+	if (!isMapping(body.config)) error(400, 'invalid config');
+	const prepared = prepareDashboard({ config: body.config });
+	if ('issues' in prepared) error(400, prepared.issues.join('; '));
 	const revision = body.revision;
 	if (!(Number.isInteger(revision) && (revision as number) >= 0)) {
 		error(400, 'invalid revision');
@@ -41,7 +26,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		result = await saveYamlDocument({
 			file: CONFIG_PATH,
-			body: config,
+			body: prepared.config,
 			revision: revision as number,
 			force: body.force === true,
 			head: { version: CONFIG_VERSION }

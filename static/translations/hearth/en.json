@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Close this sheet to copy your edits, overwrite or reload.",
 	"hearth_save_current_theme_as": "Save current as...",
 	"hearth_save_failed": "Save failed",
+	"hearth_save_needs_admin": "Only a Home Assistant administrator can save this",
 	"hearth_saved_file": "Saved file",
 	"hearth_saved_themes": "Saved themes",
 	"hearth_saving_or_deleting_a_theme_writes": "Saving or deleting a theme writes to disk immediately, independent of the dashboard save/undo cycle. Applying a saved theme only changes the edited theme - save the dashboard to keep it.",

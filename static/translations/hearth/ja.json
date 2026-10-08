@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "編集内容のコピー、上書き、再読み込みを行うには、このシートを閉じてください。",
 	"hearth_save_current_theme_as": "現在のテーマを名前を付けて保存...",
 	"hearth_save_failed": "保存に失敗しました",
+	"hearth_save_needs_admin": "これを保存できるのは Home Assistant の管理者だけです",
 	"hearth_saved_file": "保存されたファイル",
 	"hearth_saved_themes": "保存済みテーマ",
 	"hearth_saving_or_deleting_a_theme_writes": "テーマの保存や削除は、ダッシュボードの保存/元に戻すとは関係なく、すぐにディスクに書き込まれます。保存済みテーマを適用しても編集中のテーマが変わるだけなので、残すにはダッシュボードを保存してください。",

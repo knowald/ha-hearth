@@ -39,13 +39,20 @@
 				token: token.trim(),
 				revision: $configuration.revision ?? 0
 			};
-			const document: Record<string, unknown> = { ...next };
-			delete document.hassUrl;
-			const response = await fetch(`${base}/_api/save_config`, {
+			// the server stores a token only for a caller signed in with it
+			const response = await fetch(`${base}/_api/save_token`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(document)
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${next.token}`
+				},
+				body: JSON.stringify({ token: next.token, revision: next.revision })
 			});
+			// the server asks Home Assistant before it stores the token
+			if (response.status === 401) {
+				rejected = true;
+				return;
+			}
 			if (!response.ok) throw new Error('Token save failed');
 			$configuration = { ...next, revision: (await response.json()).revision };
 			// the page restarts the connection in its effect for the new token, which

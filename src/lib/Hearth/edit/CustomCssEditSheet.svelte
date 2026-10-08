@@ -2,6 +2,7 @@
 	import LoadingState from '../LoadingState.svelte';
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
+	import { authorizedFetch } from '$lib/core/ha/connection';
 	import { lang } from '$lib/core/i18n';
 	import { customCss } from '$lib/ui/CustomCss.svelte';
 	import { editor } from '../store';
@@ -39,13 +40,16 @@
 		saving = true;
 		error = null;
 		try {
-			const response = await fetch(`${base}/_api/custom_css`, {
+			const response = await authorizedFetch(`${base}/_api/custom_css`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ content: value })
 			});
 			if (!response.ok) {
-				error = `${$lang('hearth_save_failed')} [${response.status}]`;
+				error =
+					response.status === 403
+						? $lang('hearth_save_needs_admin')
+						: `${$lang('hearth_save_failed')} [${response.status}]`;
 				return;
 			}
 			// a reload would discard the dashboard draft the edit bar has not saved

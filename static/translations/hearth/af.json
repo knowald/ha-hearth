@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Sluit hierdie blad om jou wysigings te kopieer, oor te skryf of weer te laai.",
 	"hearth_save_current_theme_as": "Stoor huidige as...",
 	"hearth_save_failed": "Stoor het misluk",
+	"hearth_save_needs_admin": "Slegs 'n Home Assistant-administrateur kan dit stoor",
 	"hearth_saved_file": "Gestoorde lêer",
 	"hearth_saved_themes": "Gestoorde temas",
 	"hearth_saving_or_deleting_a_theme_writes": "Stoor of uitvee van 'n tema skryf dadelik na skyf, onafhanklik van die paneelbord se stoor/ontdoen-siklus. Die toepas van 'n gestoorde tema verander slegs die gewysigde tema - stoor die paneelbord om dit te behou.",

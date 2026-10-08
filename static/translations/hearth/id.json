@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Tutup lembar ini untuk menyalin hasil edit, menimpa, atau memuat ulang.",
 	"hearth_save_current_theme_as": "Simpan saat ini sebagai...",
 	"hearth_save_failed": "Gagal menyimpan",
+	"hearth_save_needs_admin": "Hanya administrator Home Assistant yang dapat menyimpan ini",
 	"hearth_saved_file": "File tersimpan",
 	"hearth_saved_themes": "Tema tersimpan",
 	"hearth_saving_or_deleting_a_theme_writes": "Menyimpan atau menghapus tema langsung menulis ke disk, terlepas dari siklus simpan/urungkan dasbor. Menerapkan tema tersimpan hanya mengubah tema yang diedit - simpan dasbor untuk mempertahankannya.",

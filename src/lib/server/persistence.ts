@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
-import { basename, dirname, join } from 'path';
-import { copyFile, mkdir, open, readdir, readFile, rename, stat, unlink } from 'fs/promises';
+import { basename, dirname, join, resolve } from 'path';
+import { mkdir, open, readdir, readFile, rename, stat, unlink } from 'fs/promises';
 import * as yaml from 'js-yaml';
 
 /*
@@ -12,6 +12,11 @@ import * as yaml from 'js-yaml';
  * Adapter-node serves concurrent requests in one process, which the lock
  * covers. Deployments with several server processes need a cross-process lock
  * in front of these endpoints.
+ *
+ * Files may also change outside Hearth, over SSH, Samba or an agent editing
+ * them in place. Hearth keeps a copy of what it last wrote next to the
+ * backups; a document that no longer matches it is adopted as a new revision
+ * before anything reads or replaces it. See outsideEdit.
  */
 
 const BACKUP_KEEP = 10;
@@ -28,46 +33,191 @@ function backupStem(file: string) {
 const locks = new Map<string, Promise<void>>();
 
 async function withFileLock<T>(file: string, operation: () => Promise<T>): Promise<T> {
-	const previous = locks.get(file) ?? Promise.resolve();
+	// callers spell the same file differently (./data/x.yaml, data/x.yaml)
+	const key = resolve(file);
+	const previous = locks.get(key) ?? Promise.resolve();
 	let release!: () => void;
-	const current = new Promise<void>((resolve) => (release = resolve));
-	locks.set(file, current);
+	const current = new Promise<void>((done) => (release = done));
+	locks.set(key, current);
 	await previous;
 	try {
 		return await operation();
 	} finally {
 		release();
-		if (locks.get(file) === current) locks.delete(file);
+		if (locks.get(key) === current) locks.delete(key);
 	}
 }
 
-/** The document's revision, 0 for a missing file. Malformed YAML and I/O failures throw. */
-export async function currentRevision(file: string): Promise<number> {
+async function readText(file: string): Promise<string | undefined> {
 	try {
-		const data = await readFile(file, 'utf8');
-		const parsed = data.trim() ? (yaml.load(data) as Record<string, unknown>) : undefined;
-		const revision = parsed?.revision;
-		return typeof revision === 'number' && Number.isInteger(revision) ? revision : 0;
+		return await readFile(file, 'utf8');
 	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return 0;
+		if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return undefined;
 		throw error;
 	}
 }
 
+function revisionOf(parsed: unknown): number {
+	const revision = (parsed as Record<string, unknown> | undefined)?.revision;
+	return typeof revision === 'number' && Number.isInteger(revision) ? revision : 0;
+}
+
+/** The revision a document's text holds, 0 for none. Malformed YAML throws. */
+function textRevision(text: string | undefined): number {
+	return text?.trim() ? revisionOf(yaml.load(text)) : 0;
+}
+
+/** The document's revision, 0 for a missing file. Malformed YAML and I/O failures throw. */
+export async function currentRevision(file: string): Promise<number> {
+	return textRevision(await readDocument(file));
+}
+
 /**
- * Copies the current document aside before it is replaced. The name carries
- * the revision being replaced, which is unique per document, so two saves in
- * the same millisecond cannot share a backup. A missing source (first save)
- * needs no backup; any other failure aborts the save, since a save that
- * cannot be undone is worse than one that has to be retried.
+ * The document's text with any outside edit adopted, or undefined for a
+ * missing file. Readers that show the document use this, so the revision they
+ * hand out already counts the outside edit. A read never fails over the
+ * adoption: when the file cannot be rewritten, or was changed too recently to
+ * be sure the editor is done with it, the read shows the document as the
+ * adoption will leave it and the file is rewritten by a later read or save.
  */
-async function backupCurrentFile(file: string, revision: number) {
+export async function readDocument(file: string): Promise<string | undefined> {
+	return withFileLock(file, async () => {
+		const { text, edit } = await outsideEdit(file);
+		if (!edit) return text;
+		if (await settled(file)) {
+			try {
+				await adopt(file, edit);
+			} catch (error) {
+				console.error(`Could not adopt the outside edit of ${file}:`, error);
+			}
+		}
+		return edit.next;
+	});
+}
+
+/** Where Hearth keeps a copy of what it last wrote to `file`. */
+function writtenCopy(file: string) {
+	return join(dirname(file), 'backups', `.${basename(file)}.written`);
+}
+
+// What this process last wrote to each file, so a copy that could not be
+// written to disk does not make Hearth's own write look like an outside edit.
+const lastWritten = new Map<string, string>();
+
+/**
+ * Best-effort: without the copy, the next read after a restart takes the file
+ * as it is instead of adopting it as an outside edit. A stale copy would make
+ * Hearth's own write look like one, so it goes.
+ */
+async function recordWritten(file: string, text: string) {
+	lastWritten.set(resolve(file), text);
+	try {
+		await mkdir(dirname(writtenCopy(file)), { recursive: true });
+		await atomicWriteFile(writtenCopy(file), text);
+	} catch (error) {
+		console.warn(`Could not record the written copy of ${file}:`, error);
+		await unlink(writtenCopy(file)).catch(() => {});
+	}
+}
+
+/** `text` with its top-level revision set, keeping the rest of the file as it was written. */
+function withRevision(text: string, revision: number): string {
+	const line = `revision: ${revision}`;
+	const pattern = /^revision:.*$/m;
+	const edited = pattern.test(text) ? text.replace(pattern, line) : `${line}\n${text}`;
+	// a document marker, directive or flow mapping at the top defeats the line
+	// edit; a plain dump of the parsed document is correct, if less faithful
+	try {
+		if (revisionOf(yaml.load(edited)) === revision) return edited;
+	} catch {
+		// fall through
+	}
+	const rest = yaml.load(text) as Record<string, unknown>;
+	delete rest.revision;
+	return yaml.dump({ revision, ...rest });
+}
+
+interface OutsideEdit {
+	/** What Hearth last wrote, which goes to the backups. */
+	written: string;
+	writtenRevision: number;
+	/** The edited text with the next revision, as the file is rewritten. */
+	next: string;
+}
+
+/**
+ * A document that differs from the copy Hearth last wrote was changed outside
+ * Hearth. That copy goes to the backups, so the outside edit can be undone,
+ * and the file gets the next revision in place, so a browser that loaded the
+ * earlier one conflicts on save instead of replacing the outside edit. A file
+ * Hearth has never written is taken as it is. One that does not parse to a
+ * mapping is left for the load error to report and adopted once it is fixed.
+ */
+async function outsideEdit(file: string): Promise<{ text?: string; edit?: OutsideEdit }> {
+	const text = await readText(file);
+	if (text === undefined) return {};
+	const written =
+		lastWritten.get(resolve(file)) ?? (await readText(writtenCopy(file)).catch(() => null));
+	// an unreadable copy cannot tell an outside edit apart
+	if (written === text || written === null) return { text };
+	let parsed: unknown;
+	try {
+		parsed = yaml.load(text);
+	} catch {
+		return { text };
+	}
+	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { text };
+	if (written === undefined) {
+		await recordWritten(file, text);
+		return { text };
+	}
+	let writtenRevision = 0;
+	try {
+		writtenRevision = textRevision(written);
+	} catch {
+		// the copy only ever holds what Hearth wrote; a damaged one still gets backed up
+	}
+	const next = withRevision(text, Math.max(revisionOf(parsed), writtenRevision) + 1);
+	return { text, edit: { written, writtenRevision, next } };
+}
+
+async function adopt(file: string, edit: OutsideEdit) {
+	await backupText(file, edit.written, edit.writtenRevision);
+	await atomicWriteFile(file, edit.next);
+	await recordWritten(file, edit.next);
+	await pruneBackups(file);
+}
+
+/**
+ * An editor that writes the file in place may not be done with it yet, and
+ * replacing the file under it would lose the rest of its write. Reads leave a
+ * file alone until it has not changed for this long.
+ */
+const SETTLE_MS = 2000;
+
+async function settled(file: string): Promise<boolean> {
+	try {
+		return (await stat(file)).mtimeMs <= Date.now() - SETTLE_MS;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Keeps `text`, the revision `revision` of `file`, among its backups. The name
+ * carries the revision, which is unique per document, so two saves in the
+ * same millisecond cannot share a backup. A failure aborts the save, since a
+ * save that cannot be undone is worse than one that has to be retried.
+ */
+async function backupText(file: string, text: string, revision: number) {
 	const directory = backupDirectory(file);
 	try {
 		await mkdir(directory, { recursive: true });
-		await copyFile(file, join(directory, `${backupStem(file)}-${Date.now()}-r${revision}.yaml`));
+		await atomicWriteFile(
+			join(directory, `${backupStem(file)}-${Date.now()}-r${revision}.yaml`),
+			text
+		);
 	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return;
 		const detail = error instanceof Error ? error.message : String(error);
 		throw new Error(`Could not back up ${file} before saving: ${detail}`, { cause: error });
 	}
@@ -140,7 +290,11 @@ export type SaveResult =
  */
 export async function saveYamlDocument(request: SaveRequest): Promise<SaveResult> {
 	return withFileLock(request.file, async () => {
-		const revision = await currentRevision(request.file);
+		// a save replaces the file anyway, so it adopts without waiting for it to settle
+		const { edit } = await outsideEdit(request.file);
+		if (edit) await adopt(request.file, edit);
+		const current = await readText(request.file);
+		const revision = textRevision(current);
 		if (request.force !== true && request.revision !== revision) {
 			return { conflict: true as const, revision };
 		}
@@ -149,8 +303,9 @@ export async function saveYamlDocument(request: SaveRequest): Promise<SaveResult
 		const body = { ...request.body };
 		for (const key of Object.keys(head)) delete body[key];
 		const data = yaml.dump({ ...head, ...body });
-		await backupCurrentFile(request.file, revision);
+		if (current !== undefined) await backupText(request.file, current, revision);
 		await atomicWriteFile(request.file, data);
+		await recordWritten(request.file, data);
 		await pruneBackups(request.file);
 		return { conflict: false as const, revision: revision + 1 };
 	});

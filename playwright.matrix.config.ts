@@ -11,6 +11,7 @@ const APP_PORT = 5098;
  */
 export default defineConfig({
 	testDir: './e2e/matrix',
+	globalSetup: './e2e/matrix/global-setup.ts',
 	testMatch: '**/*.spec.ts',
 	fullyParallel: false,
 	workers: 1,

@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Dún an bileog seo chun d'athruithe a chóipeáil, a fhorscríobh nó a athlódáil.",
 	"hearth_save_current_theme_as": "Sábháil an ceann reatha mar...",
 	"hearth_save_failed": "Theip ar an sábháil",
+	"hearth_save_needs_admin": "Ní féidir ach le riarthóir Home Assistant é seo a shábháil",
 	"hearth_saved_file": "Comhad sábháilte",
 	"hearth_saved_themes": "Téamaí sábháilte",
 	"hearth_saving_or_deleting_a_theme_writes": "Scríobhtar téama a shábháil nó a scriosadh ar an diosca láithreach, neamhspleách ar chiorcal sábháil/cealaigh an phainéil. Ní athraíonn téama sábháilte a chur i bhfeidhm ach an téama atá á chur in eagar - sábháil an painéal chun é a choinneáil.",

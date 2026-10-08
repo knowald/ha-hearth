@@ -3,7 +3,10 @@
 declare global {
 	namespace App {
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			/** The bearer token of a request the access policy required one for. */
+			token?: string;
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}

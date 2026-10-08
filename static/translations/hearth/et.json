@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Sulge see leht, et muudatusi kopeerida, üle kirjutada või uuesti laadida.",
 	"hearth_save_current_theme_as": "Salvesta praegune nimega...",
 	"hearth_save_failed": "Salvestamine ebaõnnestus",
+	"hearth_save_needs_admin": "Seda saab salvestada ainult Home Assistanti administraator",
 	"hearth_saved_file": "Salvestatud fail",
 	"hearth_saved_themes": "Salvestatud teemad",
 	"hearth_saving_or_deleting_a_theme_writes": "Teema salvestamine või kustutamine kirjutatakse kohe kettale, sõltumata töölaua salvesta/ennista tsüklist. Salvestatud teema rakendamine muudab ainult muudetavat teemat. Salvesta töölaud, et see alles jääks.",

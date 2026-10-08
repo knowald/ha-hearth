@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Închide această foaie pentru a copia modificările, a suprascrie sau a reîncărca.",
 	"hearth_save_current_theme_as": "Salvează curenta ca...",
 	"hearth_save_failed": "Salvarea a eșuat",
+	"hearth_save_needs_admin": "Doar un administrator Home Assistant poate salva asta",
 	"hearth_saved_file": "Fișier salvat",
 	"hearth_saved_themes": "Teme salvate",
 	"hearth_saving_or_deleting_a_theme_writes": "Salvarea sau ștergerea unei teme scrie imediat pe disc, independent de ciclul de salvare/anulare al dashboardului. Aplicarea unei teme salvate schimbă doar tema editată - salvează dashboardul pentru a o păstra.",

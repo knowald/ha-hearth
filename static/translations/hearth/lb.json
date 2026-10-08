@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Maach dëst Blat zou, fir Är Ännerungen ze kopéieren, ze iwwerschreiwen oder nei ze lueden.",
 	"hearth_save_current_theme_as": "Aktuellt späichere als ...",
 	"hearth_save_failed": "Späichere feelgeschloen",
+	"hearth_save_needs_admin": "Nëmmen en Home Assistant-Administrateur kann dat späicheren",
 	"hearth_saved_file": "Gespäichert Datei",
 	"hearth_saved_themes": "Gespäichert Themen",
 	"hearth_saving_or_deleting_a_theme_writes": "Eng Thema späichere oder läschen schreift direkt op d'Disk, onofhängeg vum Späicher-/Undo-Zyklus vum Dashboard. Een gespäichert Thema uwenden ännert nëmmen dat beaarbecht Thema - späichert d'Dashboard, fir et ze behalen.",

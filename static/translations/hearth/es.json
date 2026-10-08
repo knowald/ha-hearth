@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Cierra esta hoja para copiar tus cambios, sobrescribir o recargar.",
 	"hearth_save_current_theme_as": "Guardar el actual como...",
 	"hearth_save_failed": "Error al guardar",
+	"hearth_save_needs_admin": "Solo un administrador de Home Assistant puede guardar esto",
 	"hearth_saved_file": "Archivo guardado",
 	"hearth_saved_themes": "Temas guardados",
 	"hearth_saving_or_deleting_a_theme_writes": "Guardar o eliminar un tema escribe en el disco de inmediato, independientemente del ciclo de guardar/deshacer del panel. Aplicar un tema guardado solo cambia el tema que se edita - guarda el panel para conservarlo.",

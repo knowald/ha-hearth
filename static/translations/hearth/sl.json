@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Zaprite ta list, da kopirate spremembe, prepišete ali znova naložite.",
 	"hearth_save_current_theme_as": "Shrani trenutno kot...",
 	"hearth_save_failed": "Shranjevanje ni uspelo",
+	"hearth_save_needs_admin": "To lahko shrani samo skrbnik Home Assistanta",
 	"hearth_saved_file": "Shranjena datoteka",
 	"hearth_saved_themes": "Shranjene teme",
 	"hearth_saving_or_deleting_a_theme_writes": "Shranjevanje ali brisanje teme takoj zapiše na disk, neodvisno od shranjevanja/razveljavitve nadzorne plošče. Uporaba shranjene teme spremeni le urejano temo - shranite nadzorno ploščo, da jo ohranite.",

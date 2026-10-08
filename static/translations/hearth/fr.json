@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Fermez ce panneau pour copier vos modifications, écraser ou recharger.",
 	"hearth_save_current_theme_as": "Enregistrer l'actuel sous...",
 	"hearth_save_failed": "Échec de l'enregistrement",
+	"hearth_save_needs_admin": "Seul un administrateur de Home Assistant peut enregistrer ceci",
 	"hearth_saved_file": "Fichier enregistré",
 	"hearth_saved_themes": "Thèmes enregistrés",
 	"hearth_saving_or_deleting_a_theme_writes": "Enregistrer ou supprimer un thème écrit immédiatement sur le disque, indépendamment du cycle enregistrement/annulation du tableau de bord. Appliquer un thème enregistré ne modifie que le thème en cours d'édition - enregistrez le tableau de bord pour le garder.",

@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Aizveriet šo lapu, lai nokopētu izmaiņas, pārrakstītu vai pārlādētu.",
 	"hearth_save_current_theme_as": "Saglabāt pašreizējo kā...",
 	"hearth_save_failed": "Saglabāšana neizdevās",
+	"hearth_save_needs_admin": "To var saglabāt tikai Home Assistant administrators",
 	"hearth_saved_file": "Saglabātais fails",
 	"hearth_saved_themes": "Saglabātie motīvi",
 	"hearth_saving_or_deleting_a_theme_writes": "Motīva saglabāšana vai dzēšana tiek ierakstīta diskā uzreiz, neatkarīgi no paneļa saglabāšanas/atsaukšanas cikla. Saglabāta motīva lietošana maina tikai rediģējamo motīvu - saglabājiet paneli, lai to paturētu.",

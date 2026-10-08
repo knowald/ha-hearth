@@ -1,6 +1,5 @@
-import { readFile } from 'fs/promises';
 import { json, error } from '@sveltejs/kit';
-import { currentRevision, listBackups, readBackup } from '$lib/server/persistence';
+import { currentRevision, listBackups, readBackup, readDocument } from '$lib/server/persistence';
 import type { RequestHandler } from './$types';
 
 const CONFIG_PATH = './data/hearth.yaml';
@@ -17,18 +16,14 @@ export const GET: RequestHandler = async ({ url, setHeaders }) => {
 	const name = url.searchParams.get('name');
 	try {
 		if (name === null) {
-			const [revision, versions] = await Promise.all([
-				currentRevision(CONFIG_PATH),
-				listBackups(CONFIG_PATH)
-			]);
-			return json({ revision, versions });
+			// reading the revision first adopts an outside edit, whose backup the
+			// listing then includes
+			const revision = await currentRevision(CONFIG_PATH);
+			return json({ revision, versions: await listBackups(CONFIG_PATH) });
 		}
 		const content =
 			name === CURRENT
-				? await readFile(CONFIG_PATH, 'utf8').catch((failure) => {
-						if ((failure as NodeJS.ErrnoException)?.code === 'ENOENT') return '';
-						throw failure;
-					})
+				? ((await readDocument(CONFIG_PATH)) ?? '')
 				: await readBackup(CONFIG_PATH, name);
 		if (content === undefined) error(404, 'no such version');
 		return json({ name, content });

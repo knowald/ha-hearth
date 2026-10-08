@@ -68,11 +68,27 @@ describe('TokenPrompt', () => {
 		health.set('connected');
 		await waitFor(() => expect(onclose).toHaveBeenCalledTimes(1));
 		expect(fetchMock).toHaveBeenCalledOnce();
-		expect(fetchMock.mock.calls[0][0]).toBe('/_api/save_config');
+		expect(fetchMock.mock.calls[0][0]).toBe('/_api/save_token');
+		expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer secret-token');
 		expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
 			token: 'secret-token',
 			revision: 3
 		});
+	});
+
+	it('says the token was rejected when the server finds Home Assistant refuses it', async () => {
+		const onclose = vi.fn();
+		configuration.set({ hassUrl: 'http://ha.local', revision: 3 });
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+		render(TokenPrompt, { onclose });
+		await fireEvent.input(screen.getByLabelText('Long-lived access token'), {
+			target: { value: 'revoked-token' }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+		expect((await screen.findByRole('alert')).textContent).toContain(
+			'Home Assistant rejected this token'
+		);
+		expect(onclose).not.toHaveBeenCalled();
 	});
 
 	it('stays open and says so when Home Assistant rejects the token', async () => {

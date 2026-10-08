@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Zatvorte tento panel, ak chcete skopírovať úpravy, prepísať alebo znova načítať.",
 	"hearth_save_current_theme_as": "Uložiť aktuálnu ako...",
 	"hearth_save_failed": "Uloženie zlyhalo",
+	"hearth_save_needs_admin": "Uložiť to môže len správca Home Assistant",
 	"hearth_saved_file": "Uložený súbor",
 	"hearth_saved_themes": "Uložené témy",
 	"hearth_saving_or_deleting_a_theme_writes": "Uloženie alebo odstránenie témy sa zapíše na disk okamžite, nezávisle od ukladania a vracania dashboardu. Použitie uloženej témy zmení len upravovanú tému - ak ju chcete zachovať, uložte dashboard.",

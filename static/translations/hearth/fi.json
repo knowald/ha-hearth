@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Sulje tämä taulukko kopioidaksesi muutokset, korvataksesi tai ladataksesi uudelleen.",
 	"hearth_save_current_theme_as": "Tallenna nykyinen nimellä...",
 	"hearth_save_failed": "Tallennus epäonnistui",
+	"hearth_save_needs_admin": "Vain Home Assistantin ylläpitäjä voi tallentaa tämän",
 	"hearth_saved_file": "Tallennettu tiedosto",
 	"hearth_saved_themes": "Tallennetut teemat",
 	"hearth_saving_or_deleting_a_theme_writes": "Teeman tallennus tai poisto kirjoitetaan levylle heti, riippumatta kojelaudan tallenna/kumoa-kierrosta. Tallennetun teeman käyttö muuttaa vain muokattavaa teemaa. Tallenna kojelauta säilyttääksesi sen.",

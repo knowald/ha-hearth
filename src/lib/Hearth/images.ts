@@ -1,4 +1,5 @@
 import { base } from '$app/paths';
+import { authorizedFetch } from '$lib/core/ha/connection';
 import { imageFileOf, imageRef } from '$lib/core/images';
 
 export interface LibraryImage {
@@ -74,7 +75,7 @@ async function failure(response: Response, fallback: string): Promise<Error> {
 /** Uploads a picked file and returns the reference to store in the config. */
 export async function uploadImage(file: Blob): Promise<string> {
 	const body = await prepareImage(file);
-	const response = await fetch(`${base}/_api/hearth_images`, {
+	const response = await authorizedFetch(`${base}/_api/hearth_images`, {
 		method: 'POST',
 		headers: { 'Content-Type': body.type || 'application/octet-stream' },
 		body
@@ -91,7 +92,7 @@ export async function listLibraryImages(): Promise<LibraryImage[]> {
 }
 
 export async function deleteLibraryImage(file: string): Promise<void> {
-	const response = await fetch(`${base}/_api/hearth_images`, {
+	const response = await authorizedFetch(`${base}/_api/hearth_images`, {
 		method: 'DELETE',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ file })

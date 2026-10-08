@@ -4,7 +4,9 @@ Most configuration happens in the editor. This page covers the files behind it, 
 
 ## Data directory
 
-Hearth stores everything in one data directory. The Node server uses `./data` under the directory it starts from. The container uses `/app/data`, which Docker Compose mounts from `DATA_PATH` (default `./data`). The Home Assistant app uses its own volume.
+Hearth stores everything in one data directory. The Node server uses `./data` under the directory it starts from. The container uses `/app/data`, which Docker Compose mounts from `DATA_PATH` (default `./data`). The Home Assistant app uses its config folder, which the SSH and Samba apps show under `/addon_configs` and Home Assistant backups include.
+
+The files can be edited outside Hearth. See [agents](agents.md#editing-the-files) for what Hearth does when one changes.
 
 | Path                   | Contents                                                                                                                    |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -14,9 +16,25 @@ Hearth stores everything in one data directory. The Node server uses `./data` un
 | `custom_javascript.js` | Custom JavaScript. Edit the file directly; it runs on every page load when Custom JavaScript is on in Server settings.      |
 | `hearth-themes/`       | Saved theme presets.                                                                                                        |
 | `hearth-images/`       | Images uploaded for header cards, theme backgrounds and the sleep screen.                                                   |
-| `backups/`             | Earlier versions of `hearth.yaml` and `configuration.yaml`, the ten most recent of each.                                    |
+| `backups/`             | Earlier versions of `hearth.yaml` and `configuration.yaml`, the ten most recent of each, and the copy Hearth last wrote.    |
 
 Keep this directory private. `configuration.yaml` may hold a Home Assistant access token.
+
+## Access
+
+Every save needs a Home Assistant access token. The editor signs its saves with the browser's own Home Assistant session: the Home Assistant sidebar panel Hearth is opened in, or the browser's own sign-in to Home Assistant. A browser that connects only with the stored long-lived token signs with that token. Scripts that posted to `/_api/save_hearth` or `/_api/save_config` without a token now get 401; use the [agent API](agents.md#agent-api) instead.
+
+Any Home Assistant user can edit the dashboard, themes and images. Server settings and custom CSS need an administrator, because they can change what every screen runs, and so does reloading every open screen. A regular user who tries sees "Only a Home Assistant administrator can save this".
+
+Any Home Assistant user can also store a token from the sign-in prompt. The prompt stores the token it signed in with, which replaces the token every screen connects with.
+
+Reading is open: a wall screen loads the dashboard without signing in, and gets the long-lived token stored in `configuration.yaml` with the page. Anyone who can load Hearth can read that token and save with it. Create it for a Home Assistant user made for the wall screens, not an administrator, and give that user no more than the screens need.
+
+With a regular user's token stored, a browser that has no Home Assistant session of its own cannot change server settings, including removing that token. To change them anyway, do one of these:
+
+- Open Hearth from the Home Assistant sidebar as an administrator.
+- Send `PATCH /_api/agent/settings` with an administrator's token and `{ "revision": <revision>, "token": null }`. See [agents](agents.md#agent-api).
+- Delete the `token:` line from `configuration.yaml`.
 
 ### Document version
 

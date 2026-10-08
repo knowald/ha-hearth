@@ -1,6 +1,9 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page, type Route } from '@playwright/test';
 
+// the fixture's long-lived token, which the fake Home Assistant accepts
+const SIGNED = { Authorization: 'Bearer e2e-long-lived-token' };
+
 const FAKE_HASS = `http://127.0.0.1:${process.env.E2E_HASS_PORT ?? 8124}`;
 const SETTINGS_FILE = new URL('./fixture/data/configuration.yaml', import.meta.url);
 const SETTINGS_FIXTURE = readFileSync(SETTINGS_FILE, 'utf8');
@@ -180,7 +183,7 @@ test('the photo frame steps through uploaded photos', async ({ page, request }) 
 	for (const photo of PHOTOS) {
 		const response = await request.post('/_api/hearth_images', {
 			data: photo,
-			headers: { 'Content-Type': 'image/png' }
+			headers: { 'Content-Type': 'image/png', ...SIGNED }
 		});
 		expect(response.ok()).toBe(true);
 		files.push((await response.json()).file);
@@ -210,7 +213,8 @@ test('the photo frame steps through uploaded photos', async ({ page, request }) 
 		await page.clock.fastForward('00:10');
 		await expect(slide).toHaveAttribute('src', new RegExp(`/_api/hearth_images/${files[0]}$`));
 	} finally {
-		for (const file of files) await request.delete('/_api/hearth_images', { data: { file } });
+		for (const file of files)
+			await request.delete('/_api/hearth_images', { data: { file }, headers: SIGNED });
 	}
 });
 
@@ -245,7 +249,7 @@ test('photos added in the settings play in the preview', async ({ page, request 
 	} finally {
 		const after = (await (await request.get('/_api/hearth_images')).json()) as { file: string }[];
 		for (const { file } of after.filter((image) => !before.has(image.file)))
-			await request.delete('/_api/hearth_images', { data: { file } });
+			await request.delete('/_api/hearth_images', { data: { file }, headers: SIGNED });
 	}
 });
 

@@ -94,12 +94,13 @@ In the Home Assistant companion app, sign in with a long-lived access token inst
 
 ## Security
 
-Hearth has no user accounts of its own. Anyone who can reach it can change the dashboard and its settings. If you enter a long-lived access token in Server settings, Hearth stores it in `configuration.yaml` and sends it to every browser that opens Hearth. Run Hearth on a trusted network or behind an authenticated reverse proxy, and keep the data directory private.
+Hearth has no user accounts of its own. Every save needs a Home Assistant access token: the editor signs with the browser's own Home Assistant session, and [agents](docs/agents.md) send a long-lived token. Reading needs no token. If you enter a long-lived access token in Server settings, Hearth stores it in `configuration.yaml` and sends it with the page to every browser that opens Hearth, so anyone who can load Hearth can save with that token. Store a token of a regular Home Assistant user, not an administrator. See [access](docs/configuration.md#access). Run Hearth on a trusted network or behind an authenticated reverse proxy, and keep the data directory private.
 
 ## Documentation
 
 - [Configuration](docs/configuration.md): data files, environment variables, URL options, sleep screen, custom CSS and JavaScript, touch feedback.
 - [Alerts](docs/alerts.md): alert rules and the `HEARTH` event for automations.
+- [Agents](docs/agents.md): the MCP server, the agent API, the JSON Schema and editing the files directly.
 - [Changelog](CHANGELOG.md).
 
 For contributors: [development](docs/development.md), [architecture](docs/architecture.md), [component conventions](src/lib/Hearth/README.md) and [releasing](docs/release.md).

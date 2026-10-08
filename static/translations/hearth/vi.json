@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Đóng bảng này để sao chép các chỉnh sửa, ghi đè hoặc tải lại.",
 	"hearth_save_current_theme_as": "Lưu hiện tại thành...",
 	"hearth_save_failed": "Lưu thất bại",
+	"hearth_save_needs_admin": "Chỉ quản trị viên Home Assistant mới có thể lưu mục này",
 	"hearth_saved_file": "Tệp đã lưu",
 	"hearth_saved_themes": "Chủ đề đã lưu",
 	"hearth_saving_or_deleting_a_theme_writes": "Lưu hoặc xóa chủ đề ghi vào đĩa ngay lập tức, độc lập với chu trình lưu/hoàn tác của bảng điều khiển. Áp dụng chủ đề đã lưu chỉ thay đổi chủ đề đang chỉnh sửa - hãy lưu bảng điều khiển để giữ lại.",

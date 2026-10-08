@@ -765,6 +765,7 @@
 	"hearth_save_close_sheet_hint": "Sluit dit venster om je wijzigingen te kopiëren, te overschrijven of opnieuw te laden.",
 	"hearth_save_current_theme_as": "Huidige opslaan als...",
 	"hearth_save_failed": "Opslaan mislukt",
+	"hearth_save_needs_admin": "Alleen een Home Assistant-beheerder kan dit opslaan",
 	"hearth_saved_file": "Opgeslagen bestand",
 	"hearth_saved_themes": "Opgeslagen thema's",
 	"hearth_saving_or_deleting_a_theme_writes": "Een thema opslaan of verwijderen schrijft direct naar schijf, los van opslaan/ongedaan maken van het dashboard. Een opgeslagen thema toepassen wijzigt alleen het bewerkte thema - sla het dashboard op om het te behouden.",

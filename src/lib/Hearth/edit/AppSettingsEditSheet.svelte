@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
+	import { authorizedFetch } from '$lib/core/ha/connection';
 	import { configuration } from '$lib/core/app/configuration';
 	import { hapticsSupported, sampleVibration, vibrate } from '$lib/core/app/haptics';
 	import { lang } from '$lib/core/i18n';
@@ -82,7 +83,7 @@
 		try {
 			const json: Record<string, unknown> = { ...next };
 			delete json.hassUrl;
-			const response = await fetch(`${base}/_api/save_config`, {
+			const response = await authorizedFetch(`${base}/_api/save_config`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(json)
@@ -95,7 +96,10 @@
 				return;
 			}
 			if (!response.ok) {
-				saveError = `${$lang('hearth_save_failed')} [${response.status}]`;
+				saveError =
+					response.status === 403
+						? $lang('hearth_save_needs_admin')
+						: `${$lang('hearth_save_failed')} [${response.status}]`;
 				vibrate('error');
 				return;
 			}

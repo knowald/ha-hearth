@@ -4,6 +4,7 @@
 	import { lang, fill } from '$lib/core/i18n';
 	import { activateOnKeyboard } from '../interaction';
 	import { base } from '$app/paths';
+	import { authorizedFetch } from '$lib/core/ha/connection';
 	import { onDestroy } from 'svelte';
 	import { get } from 'svelte/store';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -317,7 +318,7 @@
 		saving = true;
 		themesError = '';
 		try {
-			const response = await fetch(`${base}/_api/hearth_themes`, {
+			const response = await authorizedFetch(`${base}/_api/hearth_themes`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ name, theme })
@@ -398,7 +399,7 @@
 	async function deleteSavedTheme(saved: SavedTheme) {
 		themesError = '';
 		try {
-			const response = await fetch(`${base}/_api/hearth_themes`, {
+			const response = await authorizedFetch(`${base}/_api/hearth_themes`, {
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ id: saved.id })
