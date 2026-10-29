@@ -88,7 +88,7 @@
 	}
 
 	function back() {
-		editor.set({ kind: 'settings' });
+		editor.set({ kind: 'settings', section: 'alerts' });
 	}
 
 	function build(id: string): AlertRule {

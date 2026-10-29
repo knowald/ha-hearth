@@ -61,8 +61,11 @@
 	import { sleepOptions, withCurrent } from '../options';
 	import GroupTitle from './GroupTitle.svelte';
 	import NumberStepper from './NumberStepper.svelte';
+	import Searchable from './Searchable.svelte';
+	import { settingsSearch } from './search.svelte';
 	import SettingsSection from './SettingsSection.svelte';
 
+	const search = settingsSearch();
 	let previewX = $state<number>();
 	let previewY = $state<number>();
 	let screensaver = $derived(String($hearthConfig.screensaver_minutes ?? 0));
@@ -386,7 +389,7 @@
 	}
 </script>
 
-<SettingsSection title={$lang('hearth_wall_display')} scope={$lang('hearth_scope_dashboard')} clip>
+<SettingsSection id="wall" title={$lang('hearth_wall_display')} scope="dashboard" clip>
 	<SettingsRow
 		label={$lang('hearth_keep_screen_awake')}
 		sub={sharedSub('keep_screen_on', $lang('hearth_while_the_dashboard_is_open'))}
@@ -397,7 +400,7 @@
 			onchange={setKeepScreenOn}
 		/>
 	</SettingsRow>
-	{#if keepScreenOn && ($wakeLockState === 'unsupported' || $wakeLockState === 'denied')}
+	{#if !search?.active && keepScreenOn && ($wakeLockState === 'unsupported' || $wakeLockState === 'denied')}
 		<div class="setting-warning" role="alert">
 			<Icon name="warning" size={ICON.control} />
 			<span>
@@ -438,9 +441,11 @@
 	{/if}
 	<div class="sleep-editor">
 		<GroupTitle title={$lang('hearth_sleep_screen')} />
-		<div class="sleep-preview">
-			<SleepPreview positionX={previewX} positionY={previewY} />
-		</div>
+		{#if !search?.active}
+			<div class="sleep-preview">
+				<SleepPreview positionX={previewX} positionY={previewY} />
+			</div>
+		{/if}
 		<SettingsRow label={$lang('hearth_sleep_turn_on_after')} sub={sharedSub('screensaver_minutes')}>
 			<SelectField
 				inline
@@ -693,53 +698,69 @@
 		{/if}
 		<div class="row-fields">
 			{#if background === 'media'}
-				<EntityField
-					label={$lang('hearth_sleep_media_entity')}
-					hint={$lang('hearth_sleep_media_entity_hint')}
-					domains={['media_player']}
-					value={mediaEntity}
-					onchange={setMediaEntity}
-				/>
+				<Searchable
+					text={[$lang('hearth_sleep_media_entity'), $lang('hearth_sleep_media_entity_hint')]}
+				>
+					<EntityField
+						label={$lang('hearth_sleep_media_entity')}
+						hint={$lang('hearth_sleep_media_entity_hint')}
+						domains={['media_player']}
+						value={mediaEntity}
+						onchange={setMediaEntity}
+					/>
+				</Searchable>
 			{/if}
 			{#if scene === 'photos'}
-				<PhotoListField
-					label={$lang('hearth_sleep_photos')}
-					hint={$lang('hearth_sleep_photos_hint')}
-					value={photos}
-					onchange={setPhotos}
-				/>
+				<Searchable text={[$lang('hearth_sleep_photos'), $lang('hearth_sleep_photos_hint')]}>
+					<PhotoListField
+						label={$lang('hearth_sleep_photos')}
+						hint={$lang('hearth_sleep_photos_hint')}
+						value={photos}
+						onchange={setPhotos}
+					/>
+				</Searchable>
 			{/if}
 			{#if scene === 'radar'}
-				<TextField
-					label={$lang('hearth_sleep_tile_url')}
-					value={radar.tile_url ?? ''}
-					placeholder={OSM_TILES}
-					hint={$lang('hearth_sleep_tile_url_hint')}
-					error={tileUrlInvalid ? $lang('hearth_sleep_tile_url_invalid') : undefined}
-					onchange={setTileUrl}
-				/>
-				{#if radar.tile_url}
+				<Searchable text={[$lang('hearth_sleep_tile_url'), $lang('hearth_sleep_tile_url_hint')]}>
 					<TextField
-						label={$lang('hearth_sleep_tile_attribution')}
-						value={radar.attribution ?? ''}
-						onchange={(value) => setRadar({ attribution: value.trim() || undefined })}
+						label={$lang('hearth_sleep_tile_url')}
+						value={radar.tile_url ?? ''}
+						placeholder={OSM_TILES}
+						hint={$lang('hearth_sleep_tile_url_hint')}
+						error={tileUrlInvalid ? $lang('hearth_sleep_tile_url_invalid') : undefined}
+						onchange={setTileUrl}
 					/>
+				</Searchable>
+				{#if radar.tile_url}
+					<Searchable text={[$lang('hearth_sleep_tile_attribution')]}>
+						<TextField
+							label={$lang('hearth_sleep_tile_attribution')}
+							value={radar.attribution ?? ''}
+							onchange={(value) => setRadar({ attribution: value.trim() || undefined })}
+						/>
+					</Searchable>
 				{/if}
 			{/if}
 			{#if scene === 'image'}
-				<ImageField
-					label={$lang('hearth_background_image')}
-					value={backgroundImage}
-					onchange={setBackgroundImage}
-				/>
+				<Searchable text={[$lang('hearth_background_image')]}>
+					<ImageField
+						label={$lang('hearth_background_image')}
+						value={backgroundImage}
+						onchange={setBackgroundImage}
+					/>
+				</Searchable>
 			{/if}
-			<EntityField
-				label={$lang('hearth_sleep_weather_entity')}
-				hint={$lang('hearth_sleep_weather_entity_hint')}
-				domains={['weather']}
-				value={weatherEntity}
-				onchange={setWeatherEntity}
-			/>
+			<Searchable
+				text={[$lang('hearth_sleep_weather_entity'), $lang('hearth_sleep_weather_entity_hint')]}
+			>
+				<EntityField
+					label={$lang('hearth_sleep_weather_entity')}
+					hint={$lang('hearth_sleep_weather_entity_hint')}
+					domains={['weather']}
+					value={weatherEntity}
+					onchange={setWeatherEntity}
+				/>
+			</Searchable>
 		</div>
 	</div>
 	<GroupTitle title={$lang('hearth_greeting')} />
@@ -753,7 +774,9 @@
 			/>
 		</SettingsRow>
 	{:else}
-		<div class="row-note">{$lang('hearth_greeting_no_persons')}</div>
+		{#if !search?.active}
+			<div class="row-note">{$lang('hearth_greeting_no_persons')}</div>
+		{/if}
 	{/each}
 	{#if greeting}
 		<SettingsRow
@@ -820,6 +843,11 @@
 	.row-fields {
 		padding: 14px 16px 2px;
 		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
+	}
+
+	/* the search can filter out every field */
+	.row-fields:not(:has(*)) {
+		display: none;
 	}
 
 	.setting-warning {

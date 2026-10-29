@@ -109,17 +109,21 @@ An empty page named after an area (or one of its aliases) suggests the cards the
 
 ## Settings
 
-The Settings sheet in edit mode groups its rows by where they are kept. Each section says so under its title:
+Settings in the edit bar opens one sheet with every setting. A list of its sections sits on the left, or runs as a row of buttons along the top on narrow screens; pick one to jump to it. The search field filters the rows of every section by their label and description.
 
-- Every screen, saved with the dashboard: Appearance, Layout and navigation, Size and spacing, Wall display, Alerts and Pages. These go to `hearth.yaml` when you choose Save in the edit bar. Cancel drops them.
-- Every screen, saved now: Server settings, which writes `configuration.yaml` with its own Save button.
-- This browser only: This screen, below.
+Each section has a label next to its title that says where its values are kept:
+
+- This browser only: This screen, below. Changes apply right away.
+- Every screen, saved with the dashboard: Appearance, Layout and navigation, Size and spacing, Wall display, Alerts, Pages and Maintenance. Changes apply as you make them and go to `hearth.yaml` when you choose Save in the edit bar. Cancel drops them.
+- Every screen, saved to configuration.yaml: Server settings. Changes wait until you choose Save server settings at the bottom of the sheet, or Discard. Closing the sheet with unsaved server settings asks first.
+
+The bottom of the sheet counts the dashboard changes made since it opened and the server settings not yet saved. The section list shows the same count next to each section.
 
 ## This screen
 
 Some settings belong to one screen rather than to every screen that opens the dashboard. A phone should not hold a wake lock or show the wall tablet's sleep screen, and a tablet across the room may want a larger scale.
 
-The This screen sheet keeps these per browser, in local storage:
+The This screen section of Settings keeps these per browser, in local storage:
 
 - Device name, which [alerts](alerts.md#home-assistant-events) use to target a screen.
 - Keep screen awake.
@@ -134,7 +138,7 @@ The This screen sheet keeps these per browser, in local storage:
 
 Each row except Device name, Presence sensor, Pixel shifting and Show favorites page starts at Same as dashboard and follows the shared value from `hearth.yaml` or `configuration.yaml` until you pick another one. A shared row that this screen overrides says so in the Settings sheet. A scale picked here also applies at 900 px and narrower unless that row has a value of its own. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
 
-Open the sheet with the button next to Edit Hearth configuration. It does not need edit mode. With `?menu=false` both buttons are hidden; press and hold the bottom-left corner of the screen for 2 seconds instead. The corner works only with `?menu=false`, since the buttons sit there otherwise.
+Outside edit mode, the button next to Edit Hearth configuration opens Settings with only this section. With `?menu=false` both buttons are hidden; press and hold the bottom-left corner of the screen for 2 seconds instead. The corner works only with `?menu=false`, since the buttons sit there otherwise. In edit mode it is the first section of Settings.
 
 ## Edit lock
 

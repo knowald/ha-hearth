@@ -1,10 +1,31 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const file = new URL('./fixture/data/configuration.yaml', import.meta.url);
 const fixture = readFileSync(file, 'utf8');
 
 test.afterEach(() => writeFileSync(file, fixture));
+
+/** Opens Settings at Server settings, in edit mode. */
+async function openServerSettings(page: Page) {
+	await page.getByRole('button', { name: 'Settings', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'Settings' });
+	await sheet
+		.getByRole('navigation', { name: 'Settings sections' })
+		.getByRole('button', { name: 'Server settings' })
+		.click();
+	return sheet;
+}
+
+/** Stages a server change, since Save shows only while one is staged. */
+function toggleCustomJs(sheet: Locator) {
+	return sheet
+		.locator('[data-section="server"]')
+		.getByRole('switch', { name: 'Custom JavaScript' })
+		.click();
+}
+
+const saveButton = (sheet: Locator) => sheet.getByRole('button', { name: 'Save server settings' });
 
 test.describe('companion app authentication', () => {
 	test.use({ userAgent: 'Home Assistant' });
@@ -26,19 +47,18 @@ test('two application settings saves use successive revisions', async ({ page })
 	await page.goto('/');
 	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
 	const revisions: number[] = [];
+	const sheet = await openServerSettings(page);
 	for (let i = 0; i < 2; i++) {
-		await page.getByRole('button', { name: 'Settings', exact: true }).click();
-		await page.getByRole('button', { name: /Server settings/ }).click();
-		const sheet = page.getByRole('dialog', { name: 'Server settings' });
+		await toggleCustomJs(sheet);
 		const response = page.waitForResponse(
 			(response) =>
 				response.url().endsWith('/_api/save_config') && response.request().method() === 'POST'
 		);
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await saveButton(sheet).click();
 		const saved = await response;
 		expect(saved.status()).toBe(200);
 		revisions.push((await saved.json()).revision);
-		await expect(sheet).toBeHidden();
+		await expect(saveButton(sheet)).toHaveCount(0);
 	}
 	expect(revisions[1]).toBe(revisions[0] + 1);
 });
@@ -64,14 +84,13 @@ test.describe('write access', () => {
 		writeFileSync(file, regular);
 		await page.goto('/');
 		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
-		await page.getByRole('button', { name: 'Settings', exact: true }).click();
-		await page.getByRole('button', { name: /Server settings/ }).click();
-		const sheet = page.getByRole('dialog', { name: 'Server settings' });
+		const sheet = await openServerSettings(page);
+		await toggleCustomJs(sheet);
 		const before = readFileSync(file, 'utf8');
 		const response = page.waitForResponse((response) =>
 			response.url().endsWith('/_api/save_config')
 		);
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await saveButton(sheet).click();
 		expect((await response).status()).toBe(403);
 		await expect(
 			sheet.getByText('Only a Home Assistant administrator can save this')
@@ -100,16 +119,15 @@ test.describe('write access', () => {
 		}, FAKE_HASS);
 		await page.goto('/');
 		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
-		await page.getByRole('button', { name: 'Settings', exact: true }).click();
-		await page.getByRole('button', { name: /Server settings/ }).click();
-		const sheet = page.getByRole('dialog', { name: 'Server settings' });
+		const sheet = await openServerSettings(page);
+		await toggleCustomJs(sheet);
 		const response = page.waitForResponse((response) =>
 			response.url().endsWith('/_api/save_config')
 		);
-		await sheet.getByRole('button', { name: 'Save' }).click();
+		await saveButton(sheet).click();
 		const saved = await response;
 		expect(saved.status()).toBe(200);
 		expect(saved.request().headers().authorization).toBe('Bearer e2e-administrator-session');
-		await expect(sheet).toBeHidden();
+		await expect(sheet.getByText('Server settings saved to configuration.yaml')).toBeVisible();
 	});
 });

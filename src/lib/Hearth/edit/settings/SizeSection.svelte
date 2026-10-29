@@ -195,7 +195,7 @@
 	</SettingsRow>
 {/snippet}
 
-<SettingsSection title={$lang('hearth_size_and_spacing')} scope={$lang('hearth_scope_dashboard')}>
+<SettingsSection id="size" title={$lang('hearth_size_and_spacing')} scope="dashboard">
 	{#each wideRows as row (row.label)}
 		{@render stepperRow(row)}
 	{/each}

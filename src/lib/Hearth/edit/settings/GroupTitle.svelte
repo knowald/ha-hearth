@@ -1,9 +1,14 @@
 <script lang="ts">
+	import { settingsSearch } from './search.svelte';
+
 	let { title }: { title: string } = $props();
+
+	const search = settingsSearch();
 </script>
 
-<!-- a run of rows inside a section, set off by its own small heading -->
-<div class="group-title">{title}</div>
+<!-- a run of rows inside a section, set off by its own small heading; search
+     results drop it, since the matching rows no longer run together -->
+{#if !search?.active}<div class="group-title">{title}</div>{/if}
 
 <style>
 	.group-title {

@@ -29,6 +29,15 @@ describe('ServerSection', () => {
 		configuration.set(undefined as never);
 	});
 
+	it('discards back to the values last saved', async () => {
+		const { component } = render(ServerSection);
+		await fireEvent.click(reduceMotion());
+		await component.save();
+		await fireEvent.click(reduceMotion());
+		component.discard();
+		await waitFor(() => expect(reduceMotion().getAttribute('aria-checked')).toBe('true'));
+	});
+
 	it('lets the parent discard staged values', async () => {
 		const { component } = render(ServerSection);
 		await fireEvent.click(reduceMotion());
@@ -41,7 +50,7 @@ describe('ServerSection', () => {
 		const onsaved = vi.fn();
 		const { component } = render(ServerSection, { props: { onsaved } });
 		await fireEvent.click(reduceMotion());
-		await component.save();
+		expect(await component.save()).toBe(true);
 		expect(saves).toEqual([{ locale: 'en', revision: 2, motion: false }]);
 		expect(get(configuration)?.revision).toBe(3);
 		expect(onsaved).toHaveBeenCalledOnce();
@@ -54,7 +63,7 @@ describe('ServerSection', () => {
 		);
 		const onsaved = vi.fn();
 		const { component } = render(ServerSection, { props: { onsaved } });
-		await component.save();
+		expect(await component.save()).toBe(false);
 		expect((await screen.findByRole('alert')).textContent).toContain(en.hearth_save_needs_admin);
 		expect(onsaved).not.toHaveBeenCalled();
 	});

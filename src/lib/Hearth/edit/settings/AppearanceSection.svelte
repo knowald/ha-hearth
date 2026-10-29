@@ -10,10 +10,13 @@
 
 <script lang="ts">
 	import { lang } from '$lib/core/i18n';
-	import { editor, hearthConfig, updateConfig } from '../../store';
+	import { hearthConfig, updateConfig } from '../../store';
 	import SettingsRow from '../SettingsRow.svelte';
 	import Switch from '../../Switch.svelte';
+	import { editorOpener } from './opener';
 	import SettingsSection from './SettingsSection.svelte';
+
+	const openEditor = editorOpener();
 
 	let scrollEdgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
 	let animations = $derived($hearthConfig.animations ?? true);
@@ -31,18 +34,18 @@
 	}
 </script>
 
-<SettingsSection title={$lang('hearth_appearance')} scope={$lang('hearth_scope_dashboard')}>
+<SettingsSection id="appearance" title={$lang('hearth_appearance')} scope="dashboard">
 	<SettingsRow
 		icon="palette"
 		label={$lang('theme')}
 		sub={$lang('hearth_theme_row_sub')}
-		onclick={() => editor.set({ kind: 'theme' })}
+		onclick={() => openEditor({ kind: 'theme' })}
 	/>
 	<SettingsRow
 		icon="css"
 		label={$lang('hearth_custom_css')}
 		sub={$lang('hearth_custom_css_sub')}
-		onclick={() => editor.set({ kind: 'customCss' })}
+		onclick={() => openEditor({ kind: 'customCss' })}
 	/>
 	<SettingsRow
 		label={$lang('hearth_scroll_edge_blur')}

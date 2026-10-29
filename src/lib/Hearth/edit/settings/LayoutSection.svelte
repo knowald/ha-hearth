@@ -50,10 +50,7 @@
 	}
 </script>
 
-<SettingsSection
-	title={$lang('hearth_layout_and_navigation')}
-	scope={$lang('hearth_scope_dashboard')}
->
+<SettingsSection id="layout" title={$lang('hearth_layout_and_navigation')} scope="dashboard">
 	<SettingsRow
 		label={$lang('hearth_sidebar')}
 		sub={$lang(

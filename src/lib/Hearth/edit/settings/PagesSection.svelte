@@ -9,58 +9,58 @@
 	import { ICON } from '../../iconSizes';
 	import { fill, lang } from '$lib/core/i18n';
 	import { moveItem } from '../../config';
-	import {
-		editor,
-		hearthConfig,
-		setupWizardOpen,
-		setupWizardSource,
-		updateConfig
-	} from '../../store';
+	import { hearthConfig, setupWizardOpen, setupWizardSource, updateConfig } from '../../store';
 	import Icon from '../../Icon.svelte';
 	import SettingsRow from '../SettingsRow.svelte';
+	import Searchable from './Searchable.svelte';
+	import { editorOpener } from './opener';
 	import SettingsSection from './SettingsSection.svelte';
+
+	const openEditor = editorOpener();
 
 	function movePage(index: number, delta: number) {
 		updateConfig((config) => moveItem(config.rooms, index, delta));
 	}
 </script>
 
-<SettingsSection title={$lang('hearth_pages')} scope={$lang('hearth_scope_dashboard')}>
+<SettingsSection id="pages" title={$lang('hearth_pages')} scope="dashboard">
 	<!-- every page in rail order, reachable whatever the rail shows -->
 	{#each $hearthConfig.rooms as room, index (room.id)}
-		<div class="page-row">
-			<button
-				type="button"
-				class="page-open"
-				onclick={() => editor.set({ kind: 'room', id: room.id })}
-			>
-				<Icon name={room.icon} size={ICON.control} />
-				<span class="page-name">{room.name || room.id}</span>
-			</button>
-			<button
-				type="button"
-				class="step"
-				aria-label={fill($lang('hearth_move_named_up'), { name: room.name || room.id })}
-				disabled={index === 0}
-				onclick={() => movePage(index, -1)}
-			>
-				<Icon name="arrow_upward" size={ICON.control} />
-			</button>
-			<button
-				type="button"
-				class="step"
-				aria-label={fill($lang('hearth_move_named_down'), { name: room.name || room.id })}
-				disabled={index === $hearthConfig.rooms.length - 1}
-				onclick={() => movePage(index, 1)}
-			>
-				<Icon name="arrow_downward" size={ICON.control} />
-			</button>
-		</div>
+		<Searchable text={[room.name || room.id]}>
+			<div class="page-row">
+				<button
+					type="button"
+					class="page-open"
+					onclick={() => openEditor({ kind: 'room', id: room.id })}
+				>
+					<Icon name={room.icon} size={ICON.control} />
+					<span class="page-name">{room.name || room.id}</span>
+				</button>
+				<button
+					type="button"
+					class="step"
+					aria-label={fill($lang('hearth_move_named_up'), { name: room.name || room.id })}
+					disabled={index === 0}
+					onclick={() => movePage(index, -1)}
+				>
+					<Icon name="arrow_upward" size={ICON.control} />
+				</button>
+				<button
+					type="button"
+					class="step"
+					aria-label={fill($lang('hearth_move_named_down'), { name: room.name || room.id })}
+					disabled={index === $hearthConfig.rooms.length - 1}
+					onclick={() => movePage(index, 1)}
+				>
+					<Icon name="arrow_downward" size={ICON.control} />
+				</button>
+			</div>
+		</Searchable>
 	{/each}
 	<SettingsRow
 		icon="add"
 		label={$lang('hearth_add_page')}
-		onclick={() => editor.set({ kind: 'room', id: null })}
+		onclick={() => openEditor({ kind: 'room', id: null })}
 	/>
 	<SettingsRow
 		icon="auto_awesome"

@@ -51,7 +51,7 @@ describe('AlertEditSheet', () => {
 				auto_close: undefined
 			}
 		]);
-		expect(get(editor)).toEqual({ kind: 'settings' });
+		expect(get(editor)).toEqual({ kind: 'settings', section: 'alerts' });
 	});
 
 	it('picks a chime for the rule, or leaves it to the severity', async () => {

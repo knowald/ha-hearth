@@ -13,14 +13,17 @@
 	import { lang } from '$lib/core/i18n';
 	import { screenOverrides } from '$lib/core/app/screen';
 	import type { AlertChimes, AlertSeverity } from '../../config';
-	import { editor, hearthConfig, updateConfig } from '../../store';
+	import { hearthConfig, updateConfig } from '../../store';
 	import SelectField from '../SelectField.svelte';
 	import SettingsRow from '../SettingsRow.svelte';
 	import type { ChimeTone } from '../../chime';
 	import { DEFAULT_CHIME_VOLUME } from '../../model/alerts';
 	import { chimeOptions, chimeValue, storedChime, withCurrent } from '../options';
 	import GroupTitle from './GroupTitle.svelte';
+	import { editorOpener } from './opener';
 	import SettingsSection from './SettingsSection.svelte';
+
+	const openEditor = editorOpener();
 
 	let chimes = $derived($hearthConfig.alert_chimes ?? {});
 	let chimeVolume = $derived(String(chimes.volume ?? DEFAULT_CHIME_VOLUME));
@@ -69,20 +72,20 @@
 	}
 </script>
 
-<SettingsSection title={$lang('hearth_alerts')} scope={$lang('hearth_scope_dashboard')}>
+<SettingsSection id="alerts" title={$lang('hearth_alerts')} scope="dashboard">
 	{#each $hearthConfig.alerts ?? [] as rule, index (rule.id)}
 		<SettingsRow
 			icon={rule.icon || 'notifications_active'}
 			label={rule.title}
 			sub={rule.message}
-			onclick={() => editor.set({ kind: 'alert', index })}
+			onclick={() => openEditor({ kind: 'alert', index })}
 		/>
 	{/each}
 	<SettingsRow
 		icon="add"
 		label={$lang('hearth_add_alert')}
 		sub={$lang('hearth_alerts_sub')}
-		onclick={() => editor.set({ kind: 'alert', index: null })}
+		onclick={() => openEditor({ kind: 'alert', index: null })}
 	/>
 	<GroupTitle title={$lang('hearth_alert_chimes')} />
 	{#each CHIME_SEVERITIES as { severity, label } (severity)}

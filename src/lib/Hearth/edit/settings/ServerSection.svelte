@@ -24,19 +24,20 @@
 	import SelectField from '../SelectField.svelte';
 	import SettingsRow from '../SettingsRow.svelte';
 	import Switch from '../../Switch.svelte';
+	import SettingsSection from './SettingsSection.svelte';
 
 	/*
 	 * Server settings are staged here and written to configuration.yaml only on
-	 * save. The parent owns the save and discard controls: it binds `dirty` and
-	 * `saving`, and calls `save()` and `discard()` through bind:this.
+	 * save. The parent owns the save and discard controls: it binds `changes`
+	 * and `saving`, and calls `save()` and `discard()` through bind:this.
 	 */
 	let {
-		dirty = $bindable(false),
+		changes = $bindable(0),
 		saving = $bindable(false),
 		onsaved
 	}: {
-		/** Read only: the staged values differ from the ones loaded with the sheet. */
-		dirty?: boolean;
+		/** Read only: how many staged values differ from the saved ones. */
+		changes?: number;
 		/** Read only: a save is in flight. */
 		saving?: boolean;
 		onsaved?: () => void;
@@ -64,11 +65,14 @@
 		$lang(feedbackSupported ? 'hearth_touch_feedback_sub' : 'hearth_touch_feedback_unsupported')
 	);
 
-	const loaded = staged();
-	const initial = JSON.stringify(loaded);
+	// what configuration.yaml holds: loaded with the section, then each save
+	let saved = $state(staged());
 
 	$effect.pre(() => {
-		dirty = JSON.stringify(staged()) !== initial;
+		const current = staged();
+		changes = (Object.keys(current) as (keyof typeof current)[]).filter(
+			(key) => current[key] !== saved[key]
+		).length;
 	});
 
 	onMount(async () => {
@@ -91,16 +95,19 @@
 		}
 	});
 
-	/** Puts every row back to the value loaded with the sheet. */
+	/** Puts every row back to the saved value. */
 	export function discard() {
-		({ locale, reduceMotion, touchFeedback, token, customJs } = loaded);
+		({ locale, reduceMotion, touchFeedback, token, customJs } = saved);
 		saveError = null;
 		conflictRevision = null;
 	}
 
-	/** `revision` overrides the one loaded with the page, for an explicit overwrite. */
+	/**
+	 * `revision` overrides the one loaded with the page, for an explicit
+	 * overwrite. Resolves to whether the values were saved.
+	 */
 	export async function save(revision?: number) {
-		if (saving) return;
+		if (saving) return false;
 		saving = true;
 		saveError = null;
 		conflictRevision = null;
@@ -132,7 +139,7 @@
 				conflictRevision = Number.isInteger(body?.revision) ? body.revision : null;
 				saveError = $lang('hearth_app_settings_changed');
 				vibrate('error');
-				return;
+				return false;
 			}
 			if (!response.ok) {
 				saveError =
@@ -140,17 +147,20 @@
 						? $lang('hearth_save_needs_admin')
 						: `${$lang('hearth_save_failed')} [${response.status}]`;
 				vibrate('error');
-				return;
+				return false;
 			}
 
 			// language, motion and feedback follow through screen.ts
 			$configuration = { ...next, revision: (await response.json()).revision };
+			saved = staged();
 			vibrate('success');
 			onsaved?.();
+			return true;
 		} catch (error) {
 			console.error(error);
 			saveError = $lang('hearth_save_failed');
 			vibrate('error');
+			return false;
 		} finally {
 			saving = false;
 		}
@@ -171,8 +181,29 @@
 	}
 </script>
 
-<div class="section-note">{$lang('hearth_server_settings_note')}</div>
-<div class="rows">
+{#snippet failure()}
+	{#if saveError}
+		<div class="error" role="alert">
+			<span>{saveError}</span>
+			{#if conflictRevision !== null}
+				<span class="error-actions">
+					<button
+						type="button"
+						class="hearth-button danger"
+						onclick={() => conflictRevision !== null && confirmOverwrite(conflictRevision)}
+					>
+						{$lang('hearth_overwrite')}
+					</button>
+					<button type="button" class="hearth-button secondary" onclick={reloadPage}>
+						{$lang('hearth_reload')}
+					</button>
+				</span>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
+
+<SettingsSection id="server" title={$lang('hearth_server_settings')} scope="server" after={failure}>
 	{#if languages.length}
 		<SettingsRow label={$lang('hearth_default_language')}>
 			<SelectField
@@ -205,6 +236,7 @@
 		<input
 			class="inline-text"
 			type="password"
+			aria-label={$lang('hearth_long_lived_token')}
 			bind:value={token}
 			placeholder="eyJ..."
 			autocomplete="new-password"
@@ -223,39 +255,15 @@
 	<SettingsRow label={$lang('version')}>
 		<span class="row-value">{installedVersion ?? $lang('hearth_loading')}</span>
 	</SettingsRow>
-</div>
-{#if saveError}
-	<div class="error" role="alert">
-		<span>{saveError}</span>
-		{#if conflictRevision !== null}
-			<span class="error-actions">
-				<button
-					type="button"
-					class="hearth-button danger"
-					onclick={() => conflictRevision !== null && confirmOverwrite(conflictRevision)}
-				>
-					{$lang('hearth_overwrite')}
-				</button>
-				<button type="button" class="hearth-button secondary" onclick={reloadPage}>
-					{$lang('hearth_reload')}
-				</button>
-			</span>
-		{/if}
-	</div>
-{/if}
+</SettingsSection>
 
 <style>
-	.section-note,
-	.error {
-		font-size: var(--h-type-small);
-		color: var(--h-bad-text);
-	}
-
 	.error {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 10px;
+		font-size: var(--h-type-small);
 		color: var(--h-bad-text);
 	}
 
@@ -263,13 +271,6 @@
 		display: flex;
 		gap: 8px;
 		margin-left: auto;
-	}
-
-	.rows {
-		border-radius: var(--h-radius-sm);
-		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
-		background: var(--h-track);
-		overflow: hidden;
 	}
 
 	.row-value {
