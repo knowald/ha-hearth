@@ -1,8 +1,9 @@
 default:
     @just --list
 
+# fresh anonymous volumes, so node_modules always matches the image's lockfile
 up *args:
-    docker compose --env-file .env.docker -f docker-compose.dev.yml up {{args}}
+    docker compose --env-file .env.docker -f docker-compose.dev.yml up --build --renew-anon-volumes {{args}}
 
 backup-hearth:
     @mkdir -p data/backups
