@@ -703,6 +703,8 @@
 	"hearth_play_on": "Грати на",
 	"hearth_playlists": "Плейлисти",
 	"hearth_position": "Положення",
+	"hearth_presence_sensor": "Датчик присутності",
+	"hearth_presence_sensor_hint": "Тримає екран чорним, поки нікого немає, і вмикає його, коли хтось приходить",
 	"hearth_preset": "Пресет",
 	"hearth_preset_mode": "Режим пресета",
 	"hearth_presets": "Пресети",

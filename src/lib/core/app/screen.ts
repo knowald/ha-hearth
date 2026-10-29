@@ -20,10 +20,13 @@ export interface ScreenOverrides {
 	haptics?: boolean;
 	/** Silences alert chimes on this screen. */
 	mute_chimes?: boolean;
+	/** Keeps this screen black while the sensor reports nobody around. */
+	presence_entity?: string;
 }
 
 const STORAGE_KEY = 'hearthScreen';
 const LOCALE = /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i;
+const ENTITY_ID = /^[a-z0-9_]+\.[a-z0-9_]+$/;
 
 const flag = (value: unknown) => (typeof value === 'boolean' ? value : undefined);
 const whole = (value: unknown, min: number, max: number) =>
@@ -49,7 +52,11 @@ export function parseScreenOverrides(raw: string | null): ScreenOverrides {
 			typeof stored.locale === 'string' && LOCALE.test(stored.locale) ? stored.locale : undefined,
 		reduce_motion: flag(stored.reduce_motion),
 		haptics: flag(stored.haptics),
-		mute_chimes: flag(stored.mute_chimes)
+		mute_chimes: flag(stored.mute_chimes),
+		presence_entity:
+			typeof stored.presence_entity === 'string' && ENTITY_ID.test(stored.presence_entity)
+				? stored.presence_entity
+				: undefined
 	};
 	return Object.fromEntries(Object.entries(overrides).filter(([, value]) => value !== undefined));
 }

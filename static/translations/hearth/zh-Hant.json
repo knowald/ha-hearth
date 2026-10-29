@@ -703,6 +703,8 @@
 	"hearth_play_on": "播放於",
 	"hearth_playlists": "播放清單",
 	"hearth_position": "位置",
+	"hearth_presence_sensor": "存在感測器",
+	"hearth_presence_sensor_hint": "無人時保持螢幕全黑，有人到來時喚醒螢幕",
 	"hearth_preset": "預設組合",
 	"hearth_preset_mode": "預設模式",
 	"hearth_presets": "預設組合",

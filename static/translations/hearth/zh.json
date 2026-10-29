@@ -703,6 +703,8 @@
 	"hearth_play_on": "播放设备",
 	"hearth_playlists": "播放列表",
 	"hearth_position": "位置",
+	"hearth_presence_sensor": "存在传感器",
+	"hearth_presence_sensor_hint": "无人时保持屏幕黑屏，有人到来时唤醒屏幕",
 	"hearth_preset": "预设",
 	"hearth_preset_mode": "预设模式",
 	"hearth_presets": "预设",

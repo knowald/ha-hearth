@@ -703,6 +703,8 @@
 	"hearth_play_on": "এতে চালান",
 	"hearth_playlists": "প্লেলিস্ট",
 	"hearth_position": "অবস্থান",
+	"hearth_presence_sensor": "উপস্থিতি সেন্সর",
+	"hearth_presence_sensor_hint": "কেউ না থাকলে স্ক্রিন কালো রাখে, এবং কেউ এলে এটি জাগিয়ে তোলে",
 	"hearth_preset": "প্রিসেট",
 	"hearth_preset_mode": "প্রিসেট মোড",
 	"hearth_presets": "প্রিসেট",

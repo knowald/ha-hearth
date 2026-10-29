@@ -703,6 +703,8 @@
 	"hearth_play_on": "Riproduci su",
 	"hearth_playlists": "Playlist",
 	"hearth_position": "Posizione",
+	"hearth_presence_sensor": "Sensore di presenza",
+	"hearth_presence_sensor_hint": "Tiene lo schermo nero quando non c'è nessuno e lo riattiva quando arriva qualcuno",
 	"hearth_preset": "Preimpostazione",
 	"hearth_preset_mode": "Modalità preimpostata",
 	"hearth_presets": "Preimpostazioni",

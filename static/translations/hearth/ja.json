@@ -703,6 +703,8 @@
 	"hearth_play_on": "再生先",
 	"hearth_playlists": "プレイリスト",
 	"hearth_position": "位置",
+	"hearth_presence_sensor": "在室センサー",
+	"hearth_presence_sensor_hint": "誰もいない間は画面を黒のままにし、人が来ると画面を復帰します",
 	"hearth_preset": "プリセット",
 	"hearth_preset_mode": "プリセットモード",
 	"hearth_presets": "プリセット",

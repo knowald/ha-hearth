@@ -107,6 +107,8 @@ export default defineConfig({
 	server: {
 		// required for webrtc
 		host: true,
+		// agent worktrees hold full checkouts; watching them slows startup, worst over a Docker bind mount
+		watch: { ignored: ['**/.claude/**', '**/matrix-output/**'] },
 		// development proxy endpoints
 		proxy: {
 			'/local/': {

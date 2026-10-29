@@ -703,6 +703,8 @@
 	"hearth_play_on": "Afspil på",
 	"hearth_playlists": "Playlister",
 	"hearth_position": "Position",
+	"hearth_presence_sensor": "Tilstedeværelsessensor",
+	"hearth_presence_sensor_hint": "Holder skærmen sort, mens ingen er til stede, og vækker den, når nogen kommer",
 	"hearth_preset": "Forudindstilling",
 	"hearth_preset_mode": "Forudindstillet tilstand",
 	"hearth_presets": "Forudindstillinger",

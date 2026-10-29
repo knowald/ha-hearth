@@ -703,6 +703,8 @@
 	"hearth_play_on": "దీనిపై ప్లే చేయండి",
 	"hearth_playlists": "ప్లేలిస్ట్‌లు",
 	"hearth_position": "స్థానం",
+	"hearth_presence_sensor": "ఉనికి సెన్సార్",
+	"hearth_presence_sensor_hint": "ఎవరూ లేనప్పుడు స్క్రీన్‌ను నల్లగా ఉంచుతుంది, ఎవరైనా వచ్చినప్పుడు దాన్ని మేల్కొలుపుతుంది",
 	"hearth_preset": "ప్రీసెట్",
 	"hearth_preset_mode": "ప్రీసెట్ మోడ్",
 	"hearth_presets": "ప్రీసెట్‌లు",

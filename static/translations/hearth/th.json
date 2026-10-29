@@ -703,6 +703,8 @@
 	"hearth_play_on": "เล่นบน",
 	"hearth_playlists": "เพลย์ลิสต์",
 	"hearth_position": "ตำแหน่ง",
+	"hearth_presence_sensor": "เซนเซอร์ตรวจจับการมีอยู่",
+	"hearth_presence_sensor_hint": "ให้หน้าจอเป็นสีดำขณะไม่มีใครอยู่ และปลุกหน้าจอเมื่อมีคนมาถึง",
 	"hearth_preset": "ค่าที่ตั้งไว้",
 	"hearth_preset_mode": "โหมดที่ตั้งไว้",
 	"hearth_presets": "ค่าที่ตั้งไว้",

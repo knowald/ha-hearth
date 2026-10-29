@@ -703,6 +703,8 @@
 	"hearth_play_on": "დაკვრა:",
 	"hearth_playlists": "დასაკრავი სიები",
 	"hearth_position": "პოზიცია",
+	"hearth_presence_sensor": "ყოფნის სენსორი",
+	"hearth_presence_sensor_hint": "ეკრანს შავს ტოვებს, სანამ არავინაა, და აღვიძებს, როცა ვინმე მოდის",
 	"hearth_preset": "წინასწარ დაყენებული",
 	"hearth_preset_mode": "წინასწარ დაყენებული რეჟიმი",
 	"hearth_presets": "წინასწარ დაყენებულები",

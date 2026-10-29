@@ -703,6 +703,8 @@
 	"hearth_play_on": "Esita seadmes",
 	"hearth_playlists": "Esitusloendid",
 	"hearth_position": "Asend",
+	"hearth_presence_sensor": "Kohaloleku andur",
+	"hearth_presence_sensor_hint": "Hoiab ekraani mustana, kui kedagi pole läheduses, ja äratab selle, kui keegi saabub",
 	"hearth_preset": "Eelseadistus",
 	"hearth_preset_mode": "Eelseadistuse režiim",
 	"hearth_presets": "Eelseadistused",

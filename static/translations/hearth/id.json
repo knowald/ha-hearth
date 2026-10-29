@@ -703,6 +703,8 @@
 	"hearth_play_on": "Putar di",
 	"hearth_playlists": "Playlist",
 	"hearth_position": "Posisi",
+	"hearth_presence_sensor": "Sensor kehadiran",
+	"hearth_presence_sensor_hint": "Menjaga layar tetap hitam saat tidak ada orang, dan menyalakannya saat seseorang datang",
 	"hearth_preset": "Preset",
 	"hearth_preset_mode": "Mode preset",
 	"hearth_presets": "Preset",

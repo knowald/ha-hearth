@@ -14,6 +14,7 @@
 	} from '../store';
 	import { prefersReducedMotion, resolveScreenSettings, screenSheetOpen } from '../screen';
 	import EditSheet from './EditSheet.svelte';
+	import EntityField from './EntityField.svelte';
 	import SelectField from './SelectField.svelte';
 	import SettingsRow from './SettingsRow.svelte';
 	import { sleepOptions, withCurrent, type Option } from './options';
@@ -189,6 +190,14 @@
 					onchange={(value) => setNumber('screensaver_minutes', value)}
 				/>
 			</SettingsRow>
+			<EntityField
+				label={$lang('hearth_presence_sensor')}
+				hint={$lang('hearth_presence_sensor_hint')}
+				domains={['binary_sensor']}
+				deviceClass="occupancy"
+				value={$screenOverrides.presence_entity ?? ''}
+				onchange={(value) => setScreenOverride('presence_entity', value.trim() || undefined)}
+			/>
 			<SettingsRow label={$lang('hearth_pixel_shifting')}>
 				<Switch
 					checked={$screenOverrides.pixel_shift === true}

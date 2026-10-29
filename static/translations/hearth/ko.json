@@ -703,6 +703,8 @@
 	"hearth_play_on": "재생 기기",
 	"hearth_playlists": "재생 목록",
 	"hearth_position": "위치",
+	"hearth_presence_sensor": "재실 센서",
+	"hearth_presence_sensor_hint": "아무도 없을 때는 화면을 검게 유지하고, 누군가 오면 화면을 켭니다",
 	"hearth_preset": "프리셋",
 	"hearth_preset_mode": "프리셋 모드",
 	"hearth_presets": "프리셋",

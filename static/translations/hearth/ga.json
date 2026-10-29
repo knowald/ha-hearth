@@ -703,6 +703,8 @@
 	"hearth_play_on": "Seinn ar",
 	"hearth_playlists": "Seinmliostaí",
 	"hearth_position": "Seasamh",
+	"hearth_presence_sensor": "Braiteoir láithreachta",
+	"hearth_presence_sensor_hint": "Coinníonn sé an scáileán dubh nuair nach bhfuil aon duine thart, agus dúisíonn sé é nuair a thagann duine",
 	"hearth_preset": "Réamhshocrú",
 	"hearth_preset_mode": "Mód réamhshocraithe",
 	"hearth_presets": "Réamhshocruithe",

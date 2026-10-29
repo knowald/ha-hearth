@@ -703,6 +703,8 @@
 	"hearth_play_on": "इस पर चलाएं",
 	"hearth_playlists": "प्लेलिस्ट",
 	"hearth_position": "स्थिति",
+	"hearth_presence_sensor": "उपस्थिति सेंसर",
+	"hearth_presence_sensor_hint": "जब कोई आसपास न हो तो स्क्रीन को काला रखता है, और किसी के आने पर उसे जगा देता है",
 	"hearth_preset": "प्रीसेट",
 	"hearth_preset_mode": "प्रीसेट मोड",
 	"hearth_presets": "प्रीसेट",

@@ -703,6 +703,8 @@
 	"hearth_play_on": "Phát trên",
 	"hearth_playlists": "Danh sách phát",
 	"hearth_position": "Vị trí",
+	"hearth_presence_sensor": "Cảm biến hiện diện",
+	"hearth_presence_sensor_hint": "Giữ màn hình tối khi không có ai, và đánh thức màn hình khi có người đến",
 	"hearth_preset": "Cài sẵn",
 	"hearth_preset_mode": "Chế độ cài sẵn",
 	"hearth_presets": "Cài sẵn",

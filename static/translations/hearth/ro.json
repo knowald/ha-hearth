@@ -703,6 +703,8 @@
 	"hearth_play_on": "Redă pe",
 	"hearth_playlists": "Liste de redare",
 	"hearth_position": "Poziție",
+	"hearth_presence_sensor": "Senzor de prezență",
+	"hearth_presence_sensor_hint": "Păstrează ecranul negru cât timp nu e nimeni prin preajmă și îl trezește când sosește cineva",
 	"hearth_preset": "Presetare",
 	"hearth_preset_mode": "Mod presetat",
 	"hearth_presets": "Presetări",

@@ -703,6 +703,8 @@
 	"hearth_play_on": "Odtwarzaj na",
 	"hearth_playlists": "Playlisty",
 	"hearth_position": "Pozycja",
+	"hearth_presence_sensor": "Czujnik obecności",
+	"hearth_presence_sensor_hint": "Utrzymuje czarny ekran, gdy nikogo nie ma, i wybudza go, gdy ktoś się pojawi",
 	"hearth_preset": "Ustawienie wstępne",
 	"hearth_preset_mode": "Tryb ustawienia wstępnego",
 	"hearth_presets": "Ustawienia wstępne",

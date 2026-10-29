@@ -703,6 +703,8 @@
 	"hearth_play_on": "Spela på",
 	"hearth_playlists": "Spellistor",
 	"hearth_position": "Position",
+	"hearth_presence_sensor": "Närvarosensor",
+	"hearth_presence_sensor_hint": "Håller skärmen svart medan ingen är i närheten, och väcker den när någon kommer",
 	"hearth_preset": "Förval",
 	"hearth_preset_mode": "Förvalsläge",
 	"hearth_presets": "Förval",

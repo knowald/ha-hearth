@@ -8,6 +8,7 @@
 - Stack the sleep clock digits, pick a clock font and move the clock anywhere on the screen ([#33](https://github.com/knowald/ha-hearth/pull/33))
 - Hide the sleep clock, show seconds or use a different hour format than the sidebar clock ([#33](https://github.com/knowald/ha-hearth/pull/33))
 - Set the sleep screen background brightness on its own, or turn the background off ([#33](https://github.com/knowald/ha-hearth/pull/33))
+- Keep a screen black while a presence sensor reports nobody around, and show the sleep screen again when someone arrives
 
 ## [0.7.0] - 2026-10-05
 

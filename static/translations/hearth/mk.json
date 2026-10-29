@@ -703,6 +703,8 @@
 	"hearth_play_on": "Пушти на",
 	"hearth_playlists": "Плејлисти",
 	"hearth_position": "Положба",
+	"hearth_presence_sensor": "Сензор за присуство",
+	"hearth_presence_sensor_hint": "Го држи екранот црн додека нема никој, и го буди кога некој ќе дојде",
 	"hearth_preset": "Претходно поставување",
 	"hearth_preset_mode": "Режим на претходно поставување",
 	"hearth_presets": "Претходни поставувања",

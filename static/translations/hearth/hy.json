@@ -703,6 +703,8 @@
 	"hearth_play_on": "Նվագարկել՝",
 	"hearth_playlists": "Նվագացանկեր",
 	"hearth_position": "Դիրք",
+	"hearth_presence_sensor": "Ներկայության սենսոր",
+	"hearth_presence_sensor_hint": "Էկրանը սև է պահում, երբ ոչ ոք չկա, և արթնացնում է այն, երբ ինչ-որ մեկը գալիս է",
 	"hearth_preset": "Նախադրված",
 	"hearth_preset_mode": "Նախադրված ռեժիմ",
 	"hearth_presets": "Նախադրվածներ",

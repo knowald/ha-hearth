@@ -703,6 +703,8 @@
 	"hearth_play_on": "ഇതിൽ പ്ലേ ചെയ്യുക",
 	"hearth_playlists": "പ്ലേലിസ്റ്റുകൾ",
 	"hearth_position": "സ്ഥാനം",
+	"hearth_presence_sensor": "സാന്നിധ്യ സെൻസർ",
+	"hearth_presence_sensor_hint": "ആരും ഇല്ലാത്തപ്പോൾ സ്ക്രീൻ കറുപ്പായി നിലനിർത്തുന്നു, ആരെങ്കിലും വരുമ്പോൾ അത് ഉണർത്തുന്നു",
 	"hearth_preset": "പ്രീസെറ്റ്",
 	"hearth_preset_mode": "പ്രീസെറ്റ് മോഡ്",
 	"hearth_presets": "പ്രീസെറ്റുകൾ",

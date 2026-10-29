@@ -1,22 +1,40 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import { motion } from '$lib/core/app/motion';
 	import { MOTION } from '$lib/core/theme';
 	import { lang } from '$lib/core/i18n';
 	import { derived } from 'svelte/store';
+	import { states } from '$lib/core/ha/entities';
 	import { activeAlerts, hearthEditMode, screensaverActive, sleepNow, wakeScreen } from './store';
 	import { layer } from '$lib/ui/layers';
 	import { swallowNextClick } from '$lib/ui/gestures';
 	import Scene from './screensaver/Scene.svelte';
 
-	// without minutes the screensaver never arms itself and shows only on preview
-	let { minutes }: { minutes?: number } = $props();
+	/*
+	 * Without minutes the screensaver never arms itself and shows only on
+	 * preview. With a presence sensor the screen goes black while the sensor
+	 * is off, and comes back to the sleep screen (or, without minutes, the
+	 * dashboard) once it turns on.
+	 */
+	let { minutes, presence }: { minutes?: number; presence?: string } = $props();
+
+	// an awake screen nobody touches goes black this long after the sensor turns off
+	const ABSENT_IDLE_MS = 60_000;
 
 	let active = $state(false);
+	// showing plain black instead of the sleep screen
+	let blank = $state(false);
+
+	// only a sensor that says off counts; unavailable or unknown keeps the screen as it is
+	let absent = $derived(!!presence && $states?.[presence]?.state === 'off');
 
 	$effect(() => {
-		if ($sleepNow) active = true;
+		if ($sleepNow) {
+			active = true;
+			blank = false;
+		}
 	});
 
 	$effect(() => {
@@ -34,26 +52,60 @@
 	// whether the idle timer is running; awake only, `active` covers asleep
 	let idleState = $state<'armed' | 'held' | 'off'>('off');
 
+	function idleWait() {
+		const sleepWait = minutes ? minutes * 60_000 : Infinity;
+		return absent ? Math.min(sleepWait, ABSENT_IDLE_MS) : sleepWait;
+	}
+
 	function scheduleIdle() {
 		clearTimeout(idleTimer);
-		if (active || alertShowing || editing || !minutes) {
-			if (!active) idleState = minutes ? 'held' : 'off';
+		const wait = idleWait();
+		if (active || alertShowing || editing || wait === Infinity) {
+			if (!active) idleState = wait === Infinity ? 'off' : 'held';
 			return;
 		}
 		idleState = 'armed';
-		const remaining = Math.max(0, minutes * 60_000 - (Date.now() - lastActivity));
-		idleTimer = setTimeout(() => (active = true), remaining);
+		const remaining = Math.max(0, wait - (Date.now() - lastActivity));
+		idleTimer = setTimeout(() => {
+			active = true;
+			blank = absent;
+		}, remaining);
 	}
+
+	/*
+	 * The sensor turning off blacks the screen out at once, over the sleep
+	 * screen too, unless an alert or an edit session holds it. Turning on
+	 * brings back what was asleep, and the dashboard when the sleep screen is
+	 * off. A preview shows the sleep screen whatever the sensor says.
+	 */
+	function presenceChanged(nowAbsent: boolean) {
+		if (nowAbsent) {
+			if (alertShowing || editing || $sleepNow === 'preview') scheduleIdle();
+			else {
+				clearTimeout(idleTimer);
+				active = true;
+				blank = true;
+			}
+		} else if (blank) {
+			if (minutes) blank = false;
+			else hide();
+		} else scheduleIdle();
+	}
+
+	$effect(() => {
+		const nowAbsent = absent;
+		untrack(() => presenceChanged(nowAbsent));
+	});
 
 	/*
 	 * Published on <html> for custom CSS and for the browser tests, which can
 	 * only tell "stays awake" from "has not loaded yet" by it: armed (the idle
 	 * timer runs), held (an alert or an edit session pauses it), off (no
-	 * timeout, preview only) or asleep.
+	 * timeout, preview only), asleep or blank (black while nobody is around).
 	 */
 	$effect(() => {
 		const root = document.documentElement;
-		root.dataset.sleepTimer = active ? 'asleep' : idleState;
+		root.dataset.sleepTimer = active ? (blank ? 'blank' : 'asleep') : idleState;
 		return () => delete root.dataset.sleepTimer;
 	});
 
@@ -70,6 +122,7 @@
 	function hide() {
 		lastActivity = Date.now();
 		active = false;
+		blank = false;
 		sleepNow.set(false);
 		scheduleIdle();
 	}
@@ -139,7 +192,9 @@
 		onkeydown={dismiss}
 		use:layer={{ close: hide, initialFocus: true }}
 	>
-		<Scene {active} preview={$sleepNow === 'preview'} />
+		{#if !blank}
+			<Scene {active} preview={$sleepNow === 'preview'} />
+		{/if}
 	</div>
 {/if}
 
@@ -149,5 +204,6 @@
 		inset: 0;
 		z-index: var(--h-layer-screensaver);
 		outline: none;
+		background: #000 /* literal ok: pure black for OLED, every pixel off */;
 	}
 </style>

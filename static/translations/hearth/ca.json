@@ -703,6 +703,8 @@
 	"hearth_play_on": "Reprodueix a",
 	"hearth_playlists": "Llistes de reproducció",
 	"hearth_position": "Posició",
+	"hearth_presence_sensor": "Sensor de presència",
+	"hearth_presence_sensor_hint": "Manté la pantalla negra mentre no hi ha ningú i la desperta quan arriba algú",
 	"hearth_preset": "Predefinit",
 	"hearth_preset_mode": "Mode predefinit",
 	"hearth_presets": "Predefinits",

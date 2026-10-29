@@ -703,6 +703,8 @@
 	"hearth_play_on": "Toista laitteella",
 	"hearth_playlists": "Soittolistat",
 	"hearth_position": "Sijainti",
+	"hearth_presence_sensor": "Läsnäolotunnistin",
+	"hearth_presence_sensor_hint": "Pitää näytön mustana, kun ketään ei ole paikalla, ja herättää sen, kun joku saapuu",
 	"hearth_preset": "Esiasetus",
 	"hearth_preset_mode": "Esiasetustila",
 	"hearth_presets": "Esiasetukset",
