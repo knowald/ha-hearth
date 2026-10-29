@@ -9,7 +9,13 @@
 	import { ICON } from '../iconSizes';
 	import Icon from '../Icon.svelte';
 	import { screenSheetOpen } from '../screen';
-	import { editor, hearthConfig, type Editor, type SettingsSectionId } from '../store';
+	import {
+		editBaseline,
+		editor,
+		hearthConfig,
+		type Editor,
+		type SettingsSectionId
+	} from '../store';
 	import { confirmDiscard } from './discard';
 	import EditSheet from './EditSheet.svelte';
 	import SettingsRow from './SettingsRow.svelte';
@@ -76,7 +82,9 @@
 	const search = new SettingsSearch();
 	provideSettingsSearch(search);
 
-	// the change counts measure from what the sheet opened with
+	// Dashboard changes count from what Save in the edit bar keeps them against,
+	// so a trip to another editor and back keeps them; outside edit mode, and
+	// for this screen's own choices, from what the sheet opened with.
 	const openedConfig = get(hearthConfig);
 	const openedOverrides = get(screenOverrides);
 
@@ -86,6 +94,7 @@
 	let serverSaved = $state(false);
 
 	let counts = $derived.by(() => {
+		const baseline = editBaseline() ?? openedConfig;
 		const result: Record<SettingsSectionId, number> = {
 			screen: countChanged(SCREEN_KEYS, openedOverrides, $screenOverrides),
 			appearance: 0,
@@ -98,7 +107,7 @@
 			server: serverChanges
 		};
 		for (const [id, keys] of Object.entries(DASHBOARD_KEYS)) {
-			result[id as keyof typeof DASHBOARD_KEYS] = countChanged(keys, openedConfig, $hearthConfig);
+			result[id as keyof typeof DASHBOARD_KEYS] = countChanged(keys, baseline, $hearthConfig);
 		}
 		return result;
 	});
@@ -185,6 +194,13 @@
 		<input
 			type="search"
 			bind:value={search.query}
+			onkeydown={(event) => {
+				// the layer leaves Escape to a search field with text (see layers.ts)
+				if (event.key === 'Escape' && search.query) {
+					event.preventDefault();
+					search.query = '';
+				}
+			}}
 			placeholder={$lang('hearth_search_settings')}
 			aria-label={$lang('hearth_search_settings')}
 			autocomplete="off"

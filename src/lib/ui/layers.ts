@@ -65,6 +65,9 @@ function handleKeydown(event: KeyboardEvent) {
 	if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return;
 	// an open completion list inside a code editor closes first
 	if (get(autocompleteOpen)) return;
+	// a search field with text clears it first, as browsers do natively
+	const target = event.target;
+	if (target instanceof HTMLInputElement && target.type === 'search' && target.value) return;
 	const top = stack[stack.length - 1];
 	if (!top) return;
 	event.preventDefault();

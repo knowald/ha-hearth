@@ -28,6 +28,11 @@ test('searches, jumps between sections and counts dashboard changes', async ({ p
 	await expect(sheet.getByRole('heading', { name: 'Wall display' })).toBeHidden();
 	await expect(sheet.getByRole('switch', { name: 'Scroll edge blur' })).toHaveCount(0);
 
+	// Escape clears a search before it closes anything
+	await search.press('Escape');
+	await expect(search).toHaveValue('');
+	await expect(sheet).toBeVisible();
+
 	await search.fill('nothing like this');
 	await expect(sheet.getByRole('status').filter({ hasText: 'No matches' })).toBeVisible();
 

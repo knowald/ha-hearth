@@ -121,6 +121,20 @@ describe('settings search', () => {
 		expect(status.textContent?.trim()).toBe(en.hearth_no_matches);
 	});
 
+	it('clears a search on Escape and only then lets Escape close the sheet', async () => {
+		editor.set({ kind: 'settings' });
+		render(SettingsEditSheet);
+		const box = searchBox() as HTMLInputElement;
+		await fireEvent.input(box, { target: { value: 'pixel shifting' } });
+		await fireEvent.keyDown(box, { key: 'Escape' });
+		expect(box.value).toBe('');
+		expect(section('appearance').hidden).toBe(false);
+		expect(get(editor)).toEqual({ kind: 'settings' });
+
+		await fireEvent.keyDown(box, { key: 'Escape' });
+		expect(get(editor)).toBeNull();
+	});
+
 	it('clears the search when a section is picked from the list', async () => {
 		render(SettingsEditSheet);
 		await fireEvent.input(searchBox(), { target: { value: 'pixel shifting' } });
@@ -200,6 +214,27 @@ describe('settings change counts', () => {
 		// a setting put back is no longer a change
 		await fireEvent.click(screen.getByRole('switch', { name: en.hearth_tile_animations }));
 		expect(appearance.textContent).toContain(fill(en.hearth_settings_changed_count, { count: 1 }));
+	});
+
+	it('counts from the start of edit mode, so a trip to another editor keeps the count', async () => {
+		enterEditMode();
+		try {
+			editor.set({ kind: 'settings' });
+			const first = render(SettingsEditSheet);
+			await fireEvent.click(screen.getByRole('switch', { name: en.hearth_tile_animations }));
+			await fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${en.theme}`) }));
+			expect(get(editor)).toEqual({ kind: 'theme' });
+			first.unmount();
+
+			editor.set({ kind: 'settings', section: 'appearance' });
+			render(SettingsEditSheet, { props: { section: 'appearance' } });
+			expect(screen.getByText(en.hearth_dashboard_changes_one)).toBeTruthy();
+			expect(
+				nav().getByRole('button', { name: new RegExp(en.hearth_appearance) }).textContent
+			).toContain(fill(en.hearth_settings_changed_count, { count: 1 }));
+		} finally {
+			cancelEdit();
+		}
 	});
 
 	it("counts this screen's own choices beside the section, not in the footer", async () => {

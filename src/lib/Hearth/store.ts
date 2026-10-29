@@ -262,6 +262,11 @@ export async function fetchServerRevision(): Promise<number | undefined> {
 	}
 }
 
+/** What edit mode started with or last saved, which Cancel returns to; null outside edit mode. */
+export function editBaseline(): HearthConfig | null {
+	return editSnapshot;
+}
+
 /** True when the draft differs from what edit mode started with or last saved. */
 export function hasUnsavedEdits(): boolean {
 	return (
