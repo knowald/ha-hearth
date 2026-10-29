@@ -703,6 +703,8 @@
 	"hearth_play_on": "இதில் இயக்கு",
 	"hearth_playlists": "பிளேலிஸ்ட்கள்",
 	"hearth_position": "நிலை",
+	"hearth_presence_sensor": "இருப்பு சென்சார்",
+	"hearth_presence_sensor_hint": "யாரும் இல்லாதபோது திரையை கருப்பாக வைத்திருக்கும், யாராவது வந்ததும் அதை எழுப்பும்",
 	"hearth_preset": "முன்னமைவு",
 	"hearth_preset_mode": "முன்னமைவுப் பயன்முறை",
 	"hearth_presets": "முன்னமைவுகள்",

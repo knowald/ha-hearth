@@ -703,6 +703,8 @@
 	"hearth_play_on": "Abspielen auf",
 	"hearth_playlists": "Playlists",
 	"hearth_position": "Position",
+	"hearth_presence_sensor": "Anwesenheitssensor",
+	"hearth_presence_sensor_hint": "Hält den Bildschirm schwarz, solange niemand da ist, und weckt ihn, sobald jemand kommt",
 	"hearth_preset": "Voreinstellung",
 	"hearth_preset_mode": "Voreinstellungsmodus",
 	"hearth_presets": "Voreinstellungen",

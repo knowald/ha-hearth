@@ -703,6 +703,8 @@
 	"hearth_play_on": "Lejátszás ezen:",
 	"hearth_playlists": "Lejátszási listák",
 	"hearth_position": "Pozíció",
+	"hearth_presence_sensor": "Jelenlét-érzékelő",
+	"hearth_presence_sensor_hint": "Feketén tartja a képernyőt, amíg senki sincs a közelben, és felébreszti, amikor valaki megérkezik",
 	"hearth_preset": "Előbeállítás",
 	"hearth_preset_mode": "Előbeállítás módja",
 	"hearth_presets": "Előbeállítások",

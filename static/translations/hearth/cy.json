@@ -703,6 +703,8 @@
 	"hearth_play_on": "Chwarae ar",
 	"hearth_playlists": "Rhestrau chwarae",
 	"hearth_position": "Safle",
+	"hearth_presence_sensor": "Synhwyrydd presenoldeb",
+	"hearth_presence_sensor_hint": "Yn cadw'r sgrin yn ddu tra nad oes neb o gwmpas, ac yn ei deffro pan fydd rhywun yn cyrraedd",
 	"hearth_preset": "Rhagosodiad parod",
 	"hearth_preset_mode": "Modd rhagosodedig",
 	"hearth_presets": "Rhagosodiadau parod",

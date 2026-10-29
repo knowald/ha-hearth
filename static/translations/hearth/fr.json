@@ -703,6 +703,8 @@
 	"hearth_play_on": "Lire sur",
 	"hearth_playlists": "Listes de lecture",
 	"hearth_position": "Position",
+	"hearth_presence_sensor": "Capteur de présence",
+	"hearth_presence_sensor_hint": "Garde l'écran noir tant que personne n'est là, et le réveille quand quelqu'un arrive",
 	"hearth_preset": "Préréglage",
 	"hearth_preset_mode": "Mode prédéfini",
 	"hearth_presets": "Préréglages",

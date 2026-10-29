@@ -703,6 +703,8 @@
 	"hearth_play_on": "ניגון ב",
 	"hearth_playlists": "רשימות השמעה",
 	"hearth_position": "מיקום",
+	"hearth_presence_sensor": "חיישן נוכחות",
+	"hearth_presence_sensor_hint": "משאיר את המסך שחור כשאין אף אחד בסביבה, ומעיר אותו כשמישהו מגיע",
 	"hearth_preset": "הגדרה קבועה",
 	"hearth_preset_mode": "מצב קבוע מראש",
 	"hearth_presets": "הגדרות קבועות",

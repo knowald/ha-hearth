@@ -703,6 +703,8 @@
 	"hearth_play_on": "Prehrať na",
 	"hearth_playlists": "Playlisty",
 	"hearth_position": "Poloha",
+	"hearth_presence_sensor": "Senzor prítomnosti",
+	"hearth_presence_sensor_hint": "Drží obrazovku čiernu, kým nikto nie je nablízku, a prebudí ju, keď niekto príde",
 	"hearth_preset": "Predvoľba",
 	"hearth_preset_mode": "Prednastavený režim",
 	"hearth_presets": "Predvoľby",

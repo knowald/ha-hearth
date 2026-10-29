@@ -703,6 +703,8 @@
 	"hearth_play_on": "Reproduzir em",
 	"hearth_playlists": "Listas de reprodução",
 	"hearth_position": "Posição",
+	"hearth_presence_sensor": "Sensor de presença",
+	"hearth_presence_sensor_hint": "Mantém a tela preta enquanto não há ninguém por perto e a ativa quando alguém chega",
 	"hearth_preset": "Predefinição",
 	"hearth_preset_mode": "Modo predefinido",
 	"hearth_presets": "Predefinições",

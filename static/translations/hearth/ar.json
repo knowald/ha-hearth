@@ -703,6 +703,8 @@
 	"hearth_play_on": "التشغيل على",
 	"hearth_playlists": "قوائم التشغيل",
 	"hearth_position": "الموضع",
+	"hearth_presence_sensor": "مستشعر الحضور",
+	"hearth_presence_sensor_hint": "يبقي الشاشة سوداء عندما لا يوجد أحد، ويوقظها عند وصول شخص ما",
 	"hearth_preset": "إعداد مسبق",
 	"hearth_preset_mode": "وضع الإعداد المسبق",
 	"hearth_presets": "الإعدادات المسبقة",

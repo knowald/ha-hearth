@@ -703,6 +703,8 @@
 	"hearth_play_on": "Afspelen op",
 	"hearth_playlists": "Afspeellijsten",
 	"hearth_position": "Positie",
+	"hearth_presence_sensor": "Aanwezigheidssensor",
+	"hearth_presence_sensor_hint": "Houdt het scherm zwart zolang er niemand is, en wekt het als er iemand aankomt",
 	"hearth_preset": "Voorinstelling",
 	"hearth_preset_mode": "Vooraf ingestelde modus",
 	"hearth_presets": "Voorinstellingen",

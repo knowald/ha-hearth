@@ -703,6 +703,8 @@
 	"hearth_play_on": "Ludi en",
 	"hearth_playlists": "Ludlistoj",
 	"hearth_position": "Pozicio",
+	"hearth_presence_sensor": "Ĉeesta sensilo",
+	"hearth_presence_sensor_hint": "Tenas la ekranon nigra dum neniu ĉeestas, kaj vekas ĝin kiam iu alvenas",
 	"hearth_preset": "Antaŭagordo",
 	"hearth_preset_mode": "Antaŭagordita reĝimo",
 	"hearth_presets": "Antaŭagordoj",

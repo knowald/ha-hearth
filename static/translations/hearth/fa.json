@@ -703,6 +703,8 @@
 	"hearth_play_on": "پخش در",
 	"hearth_playlists": "فهرست‌های پخش",
 	"hearth_position": "موقعیت",
+	"hearth_presence_sensor": "حسگر حضور",
+	"hearth_presence_sensor_hint": "وقتی کسی نیست صفحه را سیاه نگه می‌دارد و با آمدن کسی آن را بیدار می‌کند",
 	"hearth_preset": "پیش‌تنظیم",
 	"hearth_preset_mode": "حالت پیش‌تنظیم",
 	"hearth_presets": "پیش‌تنظیم‌ها",

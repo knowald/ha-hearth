@@ -703,6 +703,8 @@
 	"hearth_play_on": "Воспроизвести на",
 	"hearth_playlists": "Плейлисты",
 	"hearth_position": "Положение",
+	"hearth_presence_sensor": "Датчик присутствия",
+	"hearth_presence_sensor_hint": "Держит экран чёрным, пока никого нет, и включает его, когда кто-то приходит",
 	"hearth_preset": "Предустановка",
 	"hearth_preset_mode": "Предустановленный режим",
 	"hearth_presets": "Предустановки",

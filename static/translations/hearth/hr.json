@@ -703,6 +703,8 @@
 	"hearth_play_on": "Reproduciraj na",
 	"hearth_playlists": "Popisi za reprodukciju",
 	"hearth_position": "Položaj",
+	"hearth_presence_sensor": "Senzor prisutnosti",
+	"hearth_presence_sensor_hint": "Drži zaslon crnim dok nikoga nema, i budi ga kada netko dođe",
 	"hearth_preset": "Predložak",
 	"hearth_preset_mode": "Unaprijed postavljeni način",
 	"hearth_presets": "Predlošci",

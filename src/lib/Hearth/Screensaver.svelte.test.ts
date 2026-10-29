@@ -363,6 +363,117 @@ describe('Screensaver', () => {
 		expect(container.querySelector('.screensaver-content.clock-large')).not.toBeNull();
 		expect(container.querySelector('.weather')?.textContent).toContain('18°');
 	});
+	describe('presence sensor', () => {
+		const SENSOR = 'binary_sensor.hallway';
+
+		function sense(state: string) {
+			states.set({
+				[SENSOR]: { entity_id: SENSOR, state, attributes: {} }
+			} as unknown as HassEntities);
+		}
+
+		const overlay = (container: HTMLElement) => container.querySelector('.screensaver');
+		const sleepTimer = () => document.documentElement.dataset.sleepTimer;
+
+		it('goes black at once while nobody is around and back to the sleep screen on arrival', async () => {
+			sense('on');
+			const { container } = render(Screensaver, { minutes: 5, presence: SENSOR });
+			await tick();
+			expect(overlay(container)).toBeNull();
+			sense('off');
+			await tick();
+			expect(overlay(container)).not.toBeNull();
+			expect(container.querySelector('.clock')).toBeNull();
+			expect(sleepTimer()).toBe('blank');
+			sense('on');
+			await tick();
+			expect(container.querySelector('.clock')).not.toBeNull();
+			expect(sleepTimer()).toBe('asleep');
+			await fireEvent.pointerDown(overlay(container)!);
+			expect(overlay(container)).toBeNull();
+		});
+
+		it('shows the dashboard on arrival when the sleep screen is off', async () => {
+			sense('off');
+			const { container } = render(Screensaver, { presence: SENSOR });
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+			sense('on');
+			await tick();
+			expect(overlay(container)).toBeNull();
+			expect(sleepTimer()).toBe('off');
+		});
+
+		it('blacks out a sleep screen that is already showing', async () => {
+			sense('on');
+			const { container } = render(Screensaver, { minutes: 1, presence: SENSOR });
+			vi.advanceTimersByTime(60_000);
+			await tick();
+			expect(container.querySelector('.clock')).not.toBeNull();
+			sense('off');
+			await tick();
+			expect(container.querySelector('.clock')).toBeNull();
+			expect(sleepTimer()).toBe('blank');
+		});
+
+		it('goes black again a minute after a tap while the sensor still reads off', async () => {
+			sense('off');
+			const { container } = render(Screensaver, { presence: SENSOR });
+			await tick();
+			await fireEvent.pointerDown(overlay(container)!);
+			expect(overlay(container)).toBeNull();
+			expect(sleepTimer()).toBe('armed');
+			vi.advanceTimersByTime(59_000);
+			await tick();
+			expect(overlay(container)).toBeNull();
+			vi.advanceTimersByTime(1_000);
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+		});
+
+		it('waits for an alert card and an edit session', async () => {
+			activeAlerts.set([{ key: 'event:a', title: 'A', severity: 'info', popup: true, since: 1 }]);
+			sense('on');
+			const { container } = render(Screensaver, { presence: SENSOR });
+			sense('off');
+			await tick();
+			expect(overlay(container)).toBeNull();
+			expect(sleepTimer()).toBe('held');
+			activeAlerts.set([]);
+			await tick();
+			vi.advanceTimersByTime(60_000);
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+
+			hearthEditMode.set(true);
+			await fireEvent.pointerDown(overlay(container)!);
+			sense('on');
+			await tick();
+			sense('off');
+			await tick();
+			expect(overlay(container)).toBeNull();
+		});
+
+		it('leaves the screen as it is while the sensor is unavailable', async () => {
+			sense('unavailable');
+			const { container } = render(Screensaver, { presence: SENSOR });
+			await tick();
+			vi.advanceTimersByTime(10 * 60_000);
+			await tick();
+			expect(overlay(container)).toBeNull();
+			expect(sleepTimer()).toBe('off');
+		});
+
+		it('still previews the sleep screen while nobody is around', async () => {
+			sense('off');
+			const { container } = render(Screensaver, { minutes: 5, presence: SENSOR });
+			await tick();
+			sleepNow.set('preview');
+			await tick();
+			expect(container.querySelector('.clock')).not.toBeNull();
+		});
+	});
+
 	describe('photo frame', () => {
 		const FIRST = `hearth-images/${'a'.repeat(32)}.webp`;
 		const SECOND = `hearth-images/${'b'.repeat(32)}.jpg`;

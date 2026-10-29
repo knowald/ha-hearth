@@ -703,6 +703,8 @@
 	"hearth_play_on": "Predvajaj na",
 	"hearth_playlists": "Seznami predvajanja",
 	"hearth_position": "Položaj",
+	"hearth_presence_sensor": "Senzor prisotnosti",
+	"hearth_presence_sensor_hint": "Ohranja zaslon črn, dokler ni nikogar, in ga zbudi, ko nekdo pride",
 	"hearth_preset": "Prednastavitev",
 	"hearth_preset_mode": "Prednastavljeni način",
 	"hearth_presets": "Prednastavitve",

@@ -16,6 +16,8 @@ export interface ScreenSettings {
 	keepScreenOn: boolean;
 	/** 0 when the sleep screen is off. */
 	sleepMinutes: number;
+	/** Keeps the screen black while this sensor is off; per screen only. */
+	presenceEntity?: string;
 	scale: number;
 	/** Unset follows `scale`. */
 	mobileScale?: number;
@@ -39,6 +41,7 @@ export function resolveScreenSettings(
 	return {
 		keepScreenOn: overrides.keep_screen_on ?? hearth.keep_screen_on ?? true,
 		sleepMinutes: overrides.screensaver_minutes ?? hearth.screensaver_minutes ?? 0,
+		presenceEntity: overrides.presence_entity,
 		scale: overrides.scale ?? hearth.scale ?? 100,
 		// a scale picked for this screen is meant for it at any width
 		mobileScale: overrides.mobile_scale ?? overrides.scale ?? hearth.mobile_scale,

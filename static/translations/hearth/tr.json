@@ -703,6 +703,8 @@
 	"hearth_play_on": "Şurada çal",
 	"hearth_playlists": "Çalma listeleri",
 	"hearth_position": "Konum",
+	"hearth_presence_sensor": "Varlık sensörü",
+	"hearth_presence_sensor_hint": "Kimse yokken ekranı siyah tutar, biri geldiğinde ekranı uyandırır",
 	"hearth_preset": "Ön ayar",
 	"hearth_preset_mode": "Ön ayar modu",
 	"hearth_presets": "Ön ayarlar",

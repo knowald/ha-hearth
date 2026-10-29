@@ -703,6 +703,8 @@
 	"hearth_play_on": "Spila á",
 	"hearth_playlists": "Spilunarlistar",
 	"hearth_position": "Staða",
+	"hearth_presence_sensor": "Viðveruskynjari",
+	"hearth_presence_sensor_hint": "Heldur skjánum svörtum á meðan enginn er nálægt og vekur hann þegar einhver kemur",
 	"hearth_preset": "Forstilling",
 	"hearth_preset_mode": "Forstillingarhamur",
 	"hearth_presets": "Forstillingar",

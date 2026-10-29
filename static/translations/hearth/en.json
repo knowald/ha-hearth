@@ -703,6 +703,8 @@
 	"hearth_play_on": "Play on",
 	"hearth_playlists": "Playlists",
 	"hearth_position": "Position",
+	"hearth_presence_sensor": "Presence sensor",
+	"hearth_presence_sensor_hint": "Keeps the screen black while nobody is around, and wakes it when someone arrives",
 	"hearth_preset": "Preset",
 	"hearth_preset_mode": "Preset mode",
 	"hearth_presets": "Presets",

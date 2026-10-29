@@ -703,6 +703,8 @@
 	"hearth_play_on": "Αναπαραγωγή σε",
 	"hearth_playlists": "Λίστες αναπαραγωγής",
 	"hearth_position": "Θέση",
+	"hearth_presence_sensor": "Αισθητήρας παρουσίας",
+	"hearth_presence_sensor_hint": "Κρατά την οθόνη μαύρη όσο δεν υπάρχει κανείς και την ξυπνά όταν έρθει κάποιος",
 	"hearth_preset": "Προεπιλογή",
 	"hearth_preset_mode": "Προρυθμισμένη λειτουργία",
 	"hearth_presets": "Προεπιλογές",

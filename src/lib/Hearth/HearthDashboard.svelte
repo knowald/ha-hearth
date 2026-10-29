@@ -432,7 +432,7 @@
 			$screenSheetOpen ||
 			($layerDepth > 0 && !$screensaverActive)
 	}}
-	data-sleep={$screenSettings.sleepMinutes > 0 ? 'on' : 'off'}
+	data-sleep={$screenSettings.sleepMinutes > 0 || $screenSettings.presenceEntity ? 'on' : 'off'}
 	use:wakeLock={$screenSettings.keepScreenOn}
 >
 	<div
@@ -487,10 +487,13 @@
 	{#if showSearch}
 		<SearchOverlay onclose={() => (showSearch = false)} />
 	{/if}
-	{#if $screenSettings.sleepMinutes > 0 || $sleepNow}
+	{#if $screenSettings.sleepMinutes > 0 || $screenSettings.presenceEntity || $sleepNow}
 		<!-- loads once armed; the dashboard never waits on it -->
 		{#await loadScreensaver() then Screensaver}
-			<Screensaver.default minutes={$screenSettings.sleepMinutes || undefined} />
+			<Screensaver.default
+				minutes={$screenSettings.sleepMinutes || undefined}
+				presence={$screenSettings.presenceEntity}
+			/>
 		{:catch}
 			<!-- offline or a stale deploy: no screensaver, tried again on the next mount -->
 		{/await}

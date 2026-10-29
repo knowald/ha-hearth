@@ -703,6 +703,8 @@
 	"hearth_play_on": "Atskaņot uz",
 	"hearth_playlists": "Atskaņošanas saraksti",
 	"hearth_position": "Pozīcija",
+	"hearth_presence_sensor": "Klātbūtnes sensors",
+	"hearth_presence_sensor_hint": "Tur ekrānu melnu, kamēr neviena nav, un pamodina to, kad kāds ierodas",
 	"hearth_preset": "Sagatave",
 	"hearth_preset_mode": "Sagataves režīms",
 	"hearth_presets": "Sagataves",

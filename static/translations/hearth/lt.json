@@ -703,6 +703,8 @@
 	"hearth_play_on": "Groti per",
 	"hearth_playlists": "Grojaraščiai",
 	"hearth_position": "Padėtis",
+	"hearth_presence_sensor": "Buvimo jutiklis",
+	"hearth_presence_sensor_hint": "Laiko ekraną juodą, kol nieko nėra, ir pažadina jį, kai kas nors ateina",
 	"hearth_preset": "Išankstinis nustatymas",
 	"hearth_preset_mode": "Išankstinis režimas",
 	"hearth_presets": "Išankstiniai nustatymai",

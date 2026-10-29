@@ -703,6 +703,8 @@
 	"hearth_play_on": "پر چلائیں",
 	"hearth_playlists": "پلے لسٹس",
 	"hearth_position": "پوزیشن",
+	"hearth_presence_sensor": "موجودگی سینسر",
+	"hearth_presence_sensor_hint": "جب کوئی آس پاس نہ ہو تو اسکرین کو سیاہ رکھتا ہے، اور کسی کے آنے پر اسے جگا دیتا ہے",
 	"hearth_preset": "پری سیٹ",
 	"hearth_preset_mode": "پری سیٹ موڈ",
 	"hearth_presets": "پری سیٹس",

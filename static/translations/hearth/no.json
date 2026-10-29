@@ -703,6 +703,8 @@
 	"hearth_play_on": "Spill av på",
 	"hearth_playlists": "Spillelister",
 	"hearth_position": "Posisjon",
+	"hearth_presence_sensor": "Tilstedeværelsessensor",
+	"hearth_presence_sensor_hint": "Holder skjermen svart mens ingen er til stede, og vekker den når noen kommer",
 	"hearth_preset": "Forhåndsvalg",
 	"hearth_preset_mode": "Forhåndsvalgmodus",
 	"hearth_presets": "Forhåndsvalg",

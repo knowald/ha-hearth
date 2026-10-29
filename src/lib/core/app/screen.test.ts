@@ -21,6 +21,7 @@ describe('parseScreenOverrides', () => {
 					reduce_motion: 'yes',
 					haptics: true,
 					mute_chimes: true,
+					presence_entity: 'binary_sensor.hallway',
 					unknown: 1
 				})
 			)
@@ -31,7 +32,8 @@ describe('parseScreenOverrides', () => {
 			scale: 120,
 			locale: 'de-CH',
 			haptics: true,
-			mute_chimes: true
+			mute_chimes: true,
+			presence_entity: 'binary_sensor.hallway'
 		});
 	});
 
@@ -41,6 +43,7 @@ describe('parseScreenOverrides', () => {
 		expect(parseScreenOverrides('null')).toEqual({});
 		expect(parseScreenOverrides(JSON.stringify({ locale: '../etc' }))).toEqual({});
 		expect(parseScreenOverrides(JSON.stringify({ pixel_shift: 'true' }))).toEqual({});
+		expect(parseScreenOverrides(JSON.stringify({ presence_entity: 'hallway' }))).toEqual({});
 	});
 });
 
