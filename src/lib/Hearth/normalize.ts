@@ -146,6 +146,12 @@ const HOUR_FORMATS = new Set<unknown>(['auto', '12', '24']);
 // 'none' is the default and is stored as unset
 const SCREENSAVER_BACKGROUNDS = new Set<unknown>(['image', 'radar', 'photos', 'sun', 'media']);
 
+// quarter minutes, so 0.25 and 0.5 give a 15 or 30 second sleep
+function normalizeSleepMinutes(raw: unknown): number | undefined {
+	if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0.25) return undefined;
+	return Math.round(raw * 4) / 4;
+}
+
 function normalizePhotoSeconds(raw: unknown): number | undefined {
 	const seconds = normalizeWholeNumber(raw, PHOTO_SECONDS.min);
 	return seconds === undefined ? undefined : Math.min(PHOTO_SECONDS.max, seconds);
@@ -572,7 +578,7 @@ export function normalizeHearthConfig(raw: unknown): HearthConfig {
 		rail_position: RAIL_POSITIONS.has(config.rail_position) ? config.rail_position : undefined,
 		rail,
 		rooms,
-		screensaver_minutes: normalizeWholeNumber(config.screensaver_minutes, 1),
+		screensaver_minutes: normalizeSleepMinutes(config.screensaver_minutes),
 		screensaver_drift: config.screensaver_drift === true ? true : undefined,
 		screensaver_brightness:
 			typeof config.screensaver_brightness === 'number' &&

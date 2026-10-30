@@ -12,7 +12,10 @@
 		'reduce_motion',
 		'haptics',
 		'mute_chimes',
-		'presence_entity'
+		'presence_entity',
+		'presence_fade_seconds',
+		'presence_delay_minutes',
+		'presence_view'
 	] as const satisfies readonly (keyof ScreenOverrides)[];
 </script>
 
@@ -30,7 +33,7 @@
 		reloadDiscardingEdits,
 		requestConfirmation
 	} from '../../store';
-	import { prefersReducedMotion, resolveScreenSettings } from '../../screen';
+	import { PRESENCE_FADE_SECONDS, prefersReducedMotion, resolveScreenSettings } from '../../screen';
 	import EntityField from '../EntityField.svelte';
 	import SelectField from '../SelectField.svelte';
 	import SettingsRow from '../SettingsRow.svelte';
@@ -39,6 +42,7 @@
 	import Switch from '../../Switch.svelte';
 	import { favorites, showFavoritesPage } from '../../favorites';
 	import { settingsGuard } from './guard';
+	import PresenceStatus from './PresenceStatus.svelte';
 	import Searchable from './Searchable.svelte';
 	import SettingsSection from './SettingsSection.svelte';
 
@@ -133,6 +137,39 @@
 		)
 	);
 
+	let fadeSeconds = $derived(
+		String($screenOverrides.presence_fade_seconds ?? PRESENCE_FADE_SECONDS)
+	);
+	let fadeOptions = $derived(
+		withCurrent(
+			[
+				{ value: '0', label: $lang('hearth_presence_fade_instant') },
+				{ value: '1', label: $lang('hearth_one_second') },
+				...[2, 5, 10, 30].map((count) => ({
+					value: String(count),
+					label: fill($lang('hearth_seconds_count'), { count })
+				}))
+			],
+			fadeSeconds,
+			$lang
+		)
+	);
+
+	let delayMinutes = $derived(String($screenOverrides.presence_delay_minutes ?? 0));
+	let delayOptions = $derived(
+		withCurrent(
+			[
+				{ value: '0', label: $lang('hearth_presence_delay_none') },
+				{ value: '1', label: $lang('hearth_after_1_minute') },
+				{ value: '5', label: $lang('hearth_after_5_minutes') },
+				{ value: '10', label: $lang('hearth_after_10_minutes') },
+				{ value: '15', label: $lang('hearth_after_15_minutes') }
+			],
+			delayMinutes,
+			$lang
+		)
+	);
+
 	let mobileFollowed = $derived(followed('mobile_scale'));
 	let mobileShown = $derived(mobileFollowed.mobileScale ?? mobileFollowed.scale);
 
@@ -217,8 +254,44 @@
 					value={$screenOverrides.presence_entity ?? ''}
 					onchange={(value) => setScreenOverride('presence_entity', value.trim() || undefined)}
 				/>
+				{#if $screenOverrides.presence_entity}
+					<PresenceStatus entity={$screenOverrides.presence_entity} />
+				{/if}
 			</div>
 		</Searchable>
+		{#if $screenOverrides.presence_entity}
+			<SettingsRow label={$lang('hearth_presence_delay')} sub={$lang('hearth_presence_delay_sub')}>
+				<SelectField
+					inline
+					label={$lang('hearth_presence_delay')}
+					value={delayMinutes}
+					options={delayOptions}
+					onchange={(value) => setScreenOverride('presence_delay_minutes', Number(value))}
+				/>
+			</SettingsRow>
+			<SettingsRow label={$lang('hearth_presence_view')} sub={$lang('hearth_presence_view_sub')}>
+				<SelectField
+					inline
+					label={$lang('hearth_presence_view')}
+					value={$screenOverrides.presence_view ?? 'black'}
+					options={[
+						{ value: 'black', label: $lang('hearth_presence_view_black') },
+						{ value: 'dim', label: $lang('hearth_presence_view_dim') }
+					]}
+					onchange={(value) =>
+						setScreenOverride('presence_view', value === 'dim' ? 'dim' : 'black')}
+				/>
+			</SettingsRow>
+			<SettingsRow label={$lang('hearth_presence_fade')} sub={$lang('hearth_presence_fade_sub')}>
+				<SelectField
+					inline
+					label={$lang('hearth_presence_fade')}
+					value={fadeSeconds}
+					options={fadeOptions}
+					onchange={(value) => setScreenOverride('presence_fade_seconds', Number(value))}
+				/>
+			</SettingsRow>
+		{/if}
 		<SettingsRow label={$lang('hearth_pixel_shifting')}>
 			<Switch
 				checked={$screenOverrides.pixel_shift === true}

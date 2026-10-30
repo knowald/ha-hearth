@@ -535,7 +535,7 @@ export const RootSettingsSchema = v.looseObject({
 	rail_position: v.optional(
 		v.picklist(['left', 'right', 'both', 'none'], 'must be left, right, both or none')
 	),
-	screensaver_minutes: optionalNumberAtLeast(1),
+	screensaver_minutes: optionalNumberAtLeast(0.25),
 	screensaver_drift: OptionalFlag,
 	screensaver_brightness: optionalNumberInRange(10, 100),
 	screensaver_background: v.optional(

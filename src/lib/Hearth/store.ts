@@ -48,6 +48,9 @@ export const sleepNow = writable<false | 'preview' | 'action'>(false);
 // true while the sleep screen covers the dashboard, previews included
 export const screensaverActive = writable(false);
 
+// when the presence sensor's wait ends and the screen changes, while it runs
+export const presenceChangesAt = writable<number | undefined>(undefined);
+
 // server-managed save counter for conflict detection between tabs
 export const hearthRevision = writable(0);
 

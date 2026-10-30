@@ -493,6 +493,9 @@
 			<Screensaver.default
 				minutes={$screenSettings.sleepMinutes || undefined}
 				presence={$screenSettings.presenceEntity}
+				fadeMs={$screenSettings.presenceFadeMs}
+				delayMs={$screenSettings.presenceDelayMs}
+				dim={$screenSettings.presenceDim}
 			/>
 		{:catch}
 			<!-- offline or a stale deploy: no screensaver, tried again on the next mount -->

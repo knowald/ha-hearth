@@ -11,6 +11,8 @@ import { swallowNextClick } from '$lib/ui/gestures';
 import type { HearthConfig } from './config';
 import { hearthConfig } from './store';
 
+export const PRESENCE_FADE_SECONDS = 2;
+
 /** What this screen runs with, once its own overrides are laid over the shared settings. */
 export interface ScreenSettings {
 	keepScreenOn: boolean;
@@ -18,6 +20,11 @@ export interface ScreenSettings {
 	sleepMinutes: number;
 	/** Keeps the screen black while this sensor is off; per screen only. */
 	presenceEntity?: string;
+	/** How long the presence sensor's blackout and wake take. */
+	presenceFadeMs: number;
+	presenceDelayMs: number;
+	/** A dimmed sleep screen instead of black while nobody is around. */
+	presenceDim: boolean;
 	scale: number;
 	/** Unset follows `scale`. */
 	mobileScale?: number;
@@ -42,6 +49,9 @@ export function resolveScreenSettings(
 		keepScreenOn: overrides.keep_screen_on ?? hearth.keep_screen_on ?? true,
 		sleepMinutes: overrides.screensaver_minutes ?? hearth.screensaver_minutes ?? 0,
 		presenceEntity: overrides.presence_entity,
+		presenceFadeMs: (overrides.presence_fade_seconds ?? PRESENCE_FADE_SECONDS) * 1000,
+		presenceDelayMs: (overrides.presence_delay_minutes ?? 0) * 60_000,
+		presenceDim: overrides.presence_view === 'dim',
 		scale: overrides.scale ?? hearth.scale ?? 100,
 		// a scale picked for this screen is meant for it at any width
 		mobileScale: overrides.mobile_scale ?? overrides.scale ?? hearth.mobile_scale,

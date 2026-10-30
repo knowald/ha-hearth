@@ -28,6 +28,9 @@ describe('resolveScreenSettings', () => {
 		expect(resolveScreenSettings(shared, { locale: 'de', haptics: true }, {})).toEqual({
 			keepScreenOn: true,
 			sleepMinutes: 5,
+			presenceFadeMs: 2000,
+			presenceDelayMs: 0,
+			presenceDim: false,
 			scale: 110,
 			mobileScale: 80,
 			locale: 'de',
@@ -47,9 +50,16 @@ describe('resolveScreenSettings', () => {
 		const settings = resolveScreenSettings(
 			shared,
 			{ locale: 'de', haptics: true },
-			{ keep_screen_on: false, screensaver_minutes: 0, locale: 'pl', haptics: false }
+			{
+				keep_screen_on: false,
+				screensaver_minutes: 0,
+				locale: 'pl',
+				haptics: false,
+				presence_fade_seconds: 0
+			}
 		);
 		expect(settings).toMatchObject({
+			presenceFadeMs: 0,
 			keepScreenOn: false,
 			sleepMinutes: 0,
 			locale: 'pl',
