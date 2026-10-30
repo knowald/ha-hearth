@@ -3,9 +3,10 @@
 Hearth uses semantic versions without a `v` prefix. `package.json` and the release tag always match. During `0.x`, a minor release may break configuration or behavior. The document format version in `hearth.yaml` is separate from the package version.
 
 1. Run every command in [development](development.md#checks). Review `matrix-output/index.html` and test the changed features on a real tablet and phone against a real Home Assistant.
-2. Bump the version in `package.json` and add a matching entry to `CHANGELOG.md` listing the user-facing changes.
-3. Commit the version bump, for example `chore(hearth): release X.Y.Z`.
-4. Push the commit and create a GitHub release with the tag `X.Y.Z` and the changelog entry as notes.
+2. Translate every locale, as described under [translations](development.md#adding-or-changing-a-string), and commit the result on its own, for example `chore(hearth): translate X.Y.Z strings`. `pnpm check:translations:release` must pass; the release image build runs it too.
+3. Bump the version in `package.json` and add a matching entry to `CHANGELOG.md` listing the user-facing changes.
+4. Commit the version bump, for example `chore(hearth): release X.Y.Z`.
+5. Push the commit and create a GitHub release with the tag `X.Y.Z` and the changelog entry as notes.
 
 ## Channels
 
