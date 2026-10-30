@@ -1,18 +1,26 @@
 # Changelog
 
-## Unreleased
+## [0.8.0] - 2026-10-30
 
 ### Changed
 
-- Put every setting in one Settings sheet, with a section list, a search field and a label on each section that says where its values are kept
+- **Breaking:** Require a Home Assistant token for every save, so scripts that save without one now get an error ([#34](https://github.com/knowald/ha-hearth/pull/34))
+- Put every setting in one Settings sheet, with a section list, a search field and a label on each section that says where its values are kept ([#36](https://github.com/knowald/ha-hearth/pull/36))
 
 ### Added
 
+- Let AI agents and scripts read and change the dashboard through an agent API or an MCP server ([#34](https://github.com/knowald/ha-hearth/pull/34))
+- Take in changes made to `hearth.yaml` outside Hearth, with a backup so they can be undone ([#34](https://github.com/knowald/ha-hearth/pull/34))
+- Move the dashboard a few pixels once a minute to protect OLED screens from burn-in ([#32](https://github.com/knowald/ha-hearth/pull/32))
 - Show a live preview of the sleep screen in Settings, with a button to see it full screen ([#33](https://github.com/knowald/ha-hearth/pull/33))
 - Stack the sleep clock digits, pick a clock font and move the clock anywhere on the screen ([#33](https://github.com/knowald/ha-hearth/pull/33))
 - Hide the sleep clock, show seconds or use a different hour format than the sidebar clock ([#33](https://github.com/knowald/ha-hearth/pull/33))
 - Set the sleep screen background brightness on its own, or turn the background off ([#33](https://github.com/knowald/ha-hearth/pull/33))
-- Keep a screen black while a presence sensor reports nobody around, and show the sleep screen again when someone arrives
+- Keep a screen black while a presence sensor reports nobody around, and show the sleep screen again when someone arrives ([#35](https://github.com/knowald/ha-hearth/pull/35))
+
+### Fixed
+
+- Stop two settings saves at the same moment from overwriting each other ([#34](https://github.com/knowald/ha-hearth/pull/34))
 
 ## [0.7.0] - 2026-10-05
 
@@ -272,6 +280,7 @@
 
 - Make blur work everywhere in the application
 
+[0.8.0]: https://github.com/knowald/ha-hearth/releases/tag/0.8.0
 [0.7.0]: https://github.com/knowald/ha-hearth/releases/tag/0.7.0
 [0.6.0]: https://github.com/knowald/ha-hearth/releases/tag/0.6.0
 [0.5.1]: https://github.com/knowald/ha-hearth/releases/tag/0.5.1
