@@ -595,7 +595,8 @@
 
 		/* stretched rather than sized from the viewport, so it follows the
 		   overlay when an on-screen keyboard shrinks the page */
-		.sheet {
+		.sheet,
+		.sheet.wide {
 			width: 100%;
 			height: auto;
 			border-radius: var(--h-radius-md);

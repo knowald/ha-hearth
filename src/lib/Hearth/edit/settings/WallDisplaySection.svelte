@@ -98,6 +98,10 @@
 	let coordinateInvalid = $state({ latitude: false, longitude: false });
 	let tileUrlInvalid = $state(false);
 	let keepScreenOn = $derived($hearthConfig.keep_screen_on ?? true);
+	// kept through a search (see SettingsSection keep), so the alert is read once
+	let wakeLockWarning = $derived(
+		keepScreenOn && ($wakeLockState === 'unsupported' || $wakeLockState === 'denied')
+	);
 
 	let SCREENSAVER_OPTIONS = $derived(withCurrent(sleepOptions($lang), screensaver, $lang));
 	let SCREENSAVER_BRIGHTNESS_OPTIONS = $derived(
@@ -389,7 +393,13 @@
 	}
 </script>
 
-<SettingsSection id="wall" title={$lang('hearth_wall_display')} scope="dashboard" clip>
+<SettingsSection
+	id="wall"
+	title={$lang('hearth_wall_display')}
+	scope="dashboard"
+	clip
+	keep={wakeLockWarning}
+>
 	<SettingsRow
 		label={$lang('hearth_keep_screen_awake')}
 		sub={sharedSub('keep_screen_on', $lang('hearth_while_the_dashboard_is_open'))}
@@ -400,7 +410,7 @@
 			onchange={setKeepScreenOn}
 		/>
 	</SettingsRow>
-	{#if !search?.active && keepScreenOn && ($wakeLockState === 'unsupported' || $wakeLockState === 'denied')}
+	{#if wakeLockWarning}
 		<div class="setting-warning" role="alert">
 			<Icon name="warning" size={ICON.control} />
 			<span>

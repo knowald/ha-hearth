@@ -210,7 +210,7 @@
 			bind:value={search.query}
 			onkeydown={(event) => {
 				// the layer leaves Escape to a search field with text (see layers.ts)
-				if (event.key === 'Escape' && search.query) {
+				if (event.key === 'Escape' && search.query && !event.isComposing) {
 					event.preventDefault();
 					search.query = '';
 				}
@@ -518,8 +518,14 @@
 		text-align: center;
 	}
 
-	.no-match:empty {
-		display: none;
+	/* live regions stay in the page while empty, or their first text goes unannounced */
+	.no-match:empty,
+	.footer-status > span:empty {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 
 	.settings-footer {
@@ -549,10 +555,6 @@
 		gap: 6px;
 	}
 
-	.footer-status > span:empty {
-		display: none;
-	}
-
 	.dashboard-status {
 		color: var(--h-accent-text);
 	}
@@ -563,7 +565,10 @@
 
 	.footer-actions {
 		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
 		gap: 8px;
+		min-width: 0;
 		margin-left: auto;
 	}
 
@@ -605,6 +610,17 @@
 
 		.settings-footer {
 			padding: 10px 18px 14px;
+		}
+
+		/* a long label in a narrow sheet wraps inside its button instead of running off */
+		.footer-actions {
+			flex: 1 1 100%;
+		}
+
+		.footer-actions button {
+			flex: 1 1 auto;
+			min-width: 0;
+			white-space: normal;
 		}
 	}
 </style>

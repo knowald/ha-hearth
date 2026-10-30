@@ -32,6 +32,7 @@
 		title,
 		scope,
 		clip = false,
+		keep = false,
 		children,
 		after
 	}: {
@@ -40,6 +41,11 @@
 		scope: SettingsScope;
 		/** Clips instead of hiding overflow, so a sticky child can still pin. */
 		clip?: boolean;
+		/**
+		 * Stays shown during a search without a matching row, for an alert it
+		 * holds: hiding and showing it again would announce the alert again.
+		 */
+		keep?: boolean;
 		children: Snippet;
 		/** Shown under the rows, such as a save error. */
 		after?: Snippet;
@@ -47,6 +53,9 @@
 
 	const search = settingsSearch();
 	const matches = provideSectionMatches();
+	$effect.pre(() => {
+		matches.title = title;
+	});
 	let kept = $derived(SCOPES[scope]);
 </script>
 
@@ -54,7 +63,7 @@
 	class="settings-section"
 	data-section={id}
 	aria-labelledby="settings-section-{id}"
-	hidden={search?.active && matches.count === 0}
+	hidden={search?.active && matches.count === 0 && !keep}
 >
 	<div class="section-head">
 		<h2 class="section-title" id="settings-section-{id}">{title}</h2>

@@ -113,6 +113,38 @@ describe('settings search', () => {
 		expect(screen.getByRole('switch', { name: en.hearth_tile_animations })).toBeTruthy();
 	});
 
+	it('shows a whole section when the query names it', async () => {
+		render(SettingsEditSheet);
+		await fireEvent.input(searchBox(), { target: { value: 'server sett' } });
+		expect(section('server').hidden).toBe(false);
+		expect(serverSwitch(en.hearth_custom_js)).toBeTruthy();
+		expect(serverSwitch(en.hearth_reduce_motion)).toBeTruthy();
+		await fireEvent.input(searchBox(), { target: { value: en.hearth_maintenance } });
+		expect(section('maintenance').hidden).toBe(false);
+		expect(screen.getByRole('button', { name: new RegExp(en.hearth_versions) })).toBeTruthy();
+		expect(section('appearance').hidden).toBe(true);
+	});
+
+	it('keeps a section with a save error through a search, so the alert is read once', async () => {
+		saveStatus = 403;
+		render(SettingsEditSheet);
+		await fireEvent.click(serverSwitch(en.hearth_reduce_motion));
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_save_server_settings }));
+		const alert = await screen.findByText(en.hearth_save_needs_admin);
+		await fireEvent.input(searchBox(), { target: { value: 'pixel shifting' } });
+		expect(section('server').hidden).toBe(false);
+		expect(alert.isConnected).toBe(true);
+	});
+
+	it('leaves Escape to an input method that is composing', async () => {
+		editor.set({ kind: 'settings' });
+		render(SettingsEditSheet);
+		const box = searchBox() as HTMLInputElement;
+		await fireEvent.input(box, { target: { value: 'scale' } });
+		await fireEvent.keyDown(box, { key: 'Escape', isComposing: true });
+		expect(box.value).toBe('scale');
+	});
+
 	it('says when nothing matches, in a live region', async () => {
 		render(SettingsEditSheet);
 		const [status] = screen

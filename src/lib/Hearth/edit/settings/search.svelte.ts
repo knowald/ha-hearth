@@ -19,9 +19,13 @@ export class SettingsSearch {
 	}
 }
 
-/** How many rows of one section match the search, so it can hide when none do. */
+/**
+ * How many rows of one section match the search, so it can hide when none
+ * do, and its title, since a query naming the section shows all of it.
+ */
 export class SectionMatches {
 	count = $state(0);
+	title = $state('');
 }
 
 export function provideSettingsSearch(search: SettingsSearch) {
@@ -47,7 +51,11 @@ export function settingsSearch() {
 export function searchMatch(texts: () => readonly (string | undefined)[]) {
 	const search = settingsSearch();
 	const section = getContext<SectionMatches | undefined>(SECTION);
-	const visible = $derived(!search || search.matches(texts()));
+	const visible = $derived(
+		!search ||
+			search.matches(texts()) ||
+			(!!section && search.active && search.matches([section.title]))
+	);
 
 	$effect(() => {
 		if (!search?.active || !visible) return;

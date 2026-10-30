@@ -25,7 +25,7 @@ test('searches, jumps between sections and counts dashboard changes', async ({ p
 	await search.fill('tile anim');
 	await expect(sheet.getByRole('switch', { name: 'Tile animations' })).toBeVisible();
 	await expect(sheet.getByRole('heading', { name: 'Appearance' })).toBeVisible();
-	await expect(sheet.getByRole('heading', { name: 'Wall display' })).toBeHidden();
+	await expect(sheet.getByRole('heading', { name: 'Size and spacing' })).toBeHidden();
 	await expect(sheet.getByRole('switch', { name: 'Scroll edge blur' })).toHaveCount(0);
 
 	// Escape clears a search before it closes anything
@@ -101,5 +101,34 @@ test.describe('phone', () => {
 		await expect(sections.getByRole('button', { name: 'Server settings' })).toBeInViewport();
 		const width = await page.evaluate(() => document.documentElement.scrollWidth);
 		expect(width).toBeLessThanOrEqual(390);
+	});
+});
+
+test.describe('the smallest phone, in a longer language', () => {
+	test.use({ viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true });
+
+	test('keeps the sheet and the server buttons on screen', async ({ page }) => {
+		await page.addInitScript(() =>
+			localStorage.setItem('hearthScreen', JSON.stringify({ locale: 'de' }))
+		);
+		await page.goto('/');
+		await page.locator('.edit-toggle').click();
+		await page.getByRole('button', { name: 'Einstellungen', exact: true }).click();
+		const sheet = page.getByRole('dialog').first();
+		await expect(sheet).toBeVisible();
+		// any server switch stages a change, which brings up Save and Discard
+		await sheet.locator('[data-section="server"] [role="switch"]').last().click();
+		const buttons = sheet.locator('.footer-actions button');
+		await expect(buttons).toHaveCount(2);
+
+		const box = (await sheet.boundingBox())!;
+		expect(box.x).toBeGreaterThanOrEqual(0);
+		expect(box.x + box.width).toBeLessThanOrEqual(320);
+		for (const button of await buttons.all()) {
+			const edges = (await button.boundingBox())!;
+			expect(edges.x).toBeGreaterThanOrEqual(box.x);
+			expect(edges.x + edges.width).toBeLessThanOrEqual(box.x + box.width);
+			expect(await button.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+		}
 	});
 });

@@ -205,7 +205,13 @@
 	{/if}
 {/snippet}
 
-<SettingsSection id="server" title={$lang('hearth_server_settings')} scope="server" after={failure}>
+<SettingsSection
+	id="server"
+	title={$lang('hearth_server_settings')}
+	scope="server"
+	keep={saveError !== null}
+	after={failure}
+>
 	{#if languages.length}
 		<SettingsRow label={$lang('hearth_default_language')}>
 			<SelectField
