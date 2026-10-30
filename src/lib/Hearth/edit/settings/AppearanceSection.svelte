@@ -1,8 +1,12 @@
 <script module lang="ts">
 	import type { HearthConfig } from '../../config';
 
-	/** The dashboard keys this section's own rows change. */
+	/** The dashboard keys this section's rows change, including the theme sheet it opens. */
 	export const SETTING_KEYS = [
+		'theme',
+		'theme_night',
+		'day_night',
+		'theme_schedule',
 		'scroll_edge_blur',
 		'animations'
 	] as const satisfies readonly (keyof HearthConfig)[];

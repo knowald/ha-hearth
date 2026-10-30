@@ -260,6 +260,22 @@ describe('settings change counts', () => {
 		}
 	});
 
+	it('counts a theme change made in the theme sheet under Appearance', async () => {
+		enterEditMode();
+		try {
+			updateConfig((config) => {
+				config.theme = { ...config.theme, accent: '#ff8800' };
+			});
+			render(SettingsEditSheet);
+			expect(screen.getByText(en.hearth_dashboard_changes_one)).toBeTruthy();
+			expect(
+				nav().getByRole('button', { name: new RegExp(en.hearth_appearance) }).textContent
+			).toContain(fill(en.hearth_settings_changed_count, { count: 1 }));
+		} finally {
+			cancelEdit();
+		}
+	});
+
 	it("counts this screen's own choices beside the section, not in the footer", async () => {
 		render(SettingsEditSheet);
 		await fireEvent.click(
