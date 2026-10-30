@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Log out and clear the Home Assistant session?",
 	"hearth_logout_confirm_edits_message": "You will need a token or a new sign-in to connect again. Your unsaved dashboard edits are dropped.",
 	"hearth_logout_confirm_message": "You will need a token or a new sign-in to connect again.",
+	"hearth_logout_confirm_unsaved_message": "You will need a token or a new sign-in to connect again. Your unsaved changes, including server settings, are dropped.",
 	"hearth_long_lived_token": "Long-lived access token",
 	"hearth_look_ahead_hours_default_24": "Look-ahead hours (default 24)",
 	"hearth_low": "Low",

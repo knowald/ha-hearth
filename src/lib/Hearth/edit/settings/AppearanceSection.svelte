@@ -13,7 +13,7 @@
 	import { hearthConfig, updateConfig } from '../../store';
 	import SettingsRow from '../SettingsRow.svelte';
 	import Switch from '../../Switch.svelte';
-	import { editorOpener } from './opener';
+	import { editorOpener } from './guard';
 	import SettingsSection from './SettingsSection.svelte';
 
 	const openEditor = editorOpener();

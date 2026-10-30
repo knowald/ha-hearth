@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "লগ আউট করে Home Assistant সেশন মুছবেন?",
 	"hearth_logout_confirm_edits_message": "আবার সংযোগ করতে আপনার একটি টোকেন বা নতুন সাইন-ইন লাগবে। আপনার অসংরক্ষিত ড্যাশবোর্ড সম্পাদনা মুছে যাবে।",
 	"hearth_logout_confirm_message": "আবার সংযোগ করতে আপনার একটি টোকেন বা নতুন সাইন-ইন লাগবে।",
+	"hearth_logout_confirm_unsaved_message": "আবার সংযোগ করতে আপনার একটি টোকেন বা নতুন সাইন-ইন লাগবে। সার্ভার সেটিংস সহ আপনার অসংরক্ষিত পরিবর্তনগুলো মুছে যাবে।",
 	"hearth_long_lived_token": "দীর্ঘমেয়াদি অ্যাক্সেস টোকেন",
 	"hearth_look_ahead_hours_default_24": "সামনে দেখার ঘণ্টা (ডিফল্ট ২৪)",
 	"hearth_low": "কম",

@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Odhlásit se a vymazat relaci Home Assistant?",
 	"hearth_logout_confirm_edits_message": "K opětovnému připojení budete potřebovat token nebo nové přihlášení. Neuložené úpravy ovládacího panelu budou zahozeny.",
 	"hearth_logout_confirm_message": "K opětovnému připojení budete potřebovat token nebo nové přihlášení.",
+	"hearth_logout_confirm_unsaved_message": "K opětovnému připojení budete potřebovat token nebo nové přihlášení. Neuložené změny, včetně nastavení serveru, budou zahozeny.",
 	"hearth_long_lived_token": "Token s dlouhou životností",
 	"hearth_look_ahead_hours_default_24": "Počet hodin dopředu (výchozí 24)",
 	"hearth_low": "Nízká",

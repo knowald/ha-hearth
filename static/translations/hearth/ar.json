@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "تسجيل الخروج ومسح جلسة Home Assistant؟",
 	"hearth_logout_confirm_edits_message": "ستحتاج إلى رمز وصول أو تسجيل دخول جديد للاتصال مرة أخرى. ستُتجاهل تعديلات لوحة المعلومات غير المحفوظة.",
 	"hearth_logout_confirm_message": "ستحتاج إلى رمز وصول أو تسجيل دخول جديد للاتصال مرة أخرى.",
+	"hearth_logout_confirm_unsaved_message": "ستحتاج إلى رمز وصول أو تسجيل دخول جديد للاتصال مرة أخرى. ستُتجاهل تغييراتك غير المحفوظة، بما في ذلك إعدادات الخادم.",
 	"hearth_long_lived_token": "رمز وصول طويل الأمد",
 	"hearth_look_ahead_hours_default_24": "ساعات العرض المسبق (الافتراضي 24)",
 	"hearth_low": "منخفض",

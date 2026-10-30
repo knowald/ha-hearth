@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Đăng xuất và xóa phiên Home Assistant?",
 	"hearth_logout_confirm_edits_message": "Bạn sẽ cần một mã thông báo hoặc đăng nhập mới để kết nối lại. Các chỉnh sửa bảng điều khiển chưa lưu sẽ bị bỏ.",
 	"hearth_logout_confirm_message": "Bạn sẽ cần một mã thông báo hoặc đăng nhập mới để kết nối lại.",
+	"hearth_logout_confirm_unsaved_message": "Bạn sẽ cần một mã thông báo hoặc đăng nhập mới để kết nối lại. Các thay đổi chưa lưu, bao gồm cả cài đặt máy chủ, sẽ bị bỏ.",
 	"hearth_long_lived_token": "Mã thông báo truy cập dài hạn",
 	"hearth_look_ahead_hours_default_24": "Số giờ xem trước (mặc định 24)",
 	"hearth_low": "Thấp",

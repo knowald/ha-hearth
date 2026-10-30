@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Odjaviti se i izbrisati Home Assistant sesiju?",
 	"hearth_logout_confirm_edits_message": "Za ponovno povezivanje trebat će vam token ili nova prijava. Vaše nesačuvane izmjene kontrolne ploče bit će odbačene.",
 	"hearth_logout_confirm_message": "Za ponovno povezivanje trebat će vam token ili nova prijava.",
+	"hearth_logout_confirm_unsaved_message": "Za ponovno povezivanje trebat će vam token ili nova prijava. Vaše nesačuvane izmjene, uključujući postavke servera, bit će odbačene.",
 	"hearth_long_lived_token": "Dugotrajni pristupni token",
 	"hearth_look_ahead_hours_default_24": "Sati unaprijed (zadano 24)",
 	"hearth_low": "Nisko",

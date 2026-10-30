@@ -25,7 +25,7 @@
 	} from './settings/AppearanceSection.svelte';
 	import { countChanged } from './settings/changes';
 	import LayoutSection, { SETTING_KEYS as LAYOUT_KEYS } from './settings/LayoutSection.svelte';
-	import { provideEditorOpener } from './settings/opener';
+	import { provideSettingsGuard } from './settings/guard';
 	import PagesSection, { SETTING_KEYS as PAGES_KEYS } from './settings/PagesSection.svelte';
 	import ScreenSection, { SETTING_KEYS as SCREEN_KEYS } from './settings/ScreenSection.svelte';
 	import { provideSettingsSearch, SettingsSearch } from './settings/search.svelte';
@@ -133,7 +133,10 @@
 	function openEditor(next: Editor) {
 		confirmDiscard(serverChanges > 0, () => editor.set(next));
 	}
-	provideEditorOpener(openEditor);
+	provideSettingsGuard({
+		leave: (leave) => confirmDiscard(serverChanges > 0, leave),
+		serverChanged: () => serverChanges > 0
+	});
 
 	async function saveServer() {
 		// the error and its actions sit in the section, which may be out of view
@@ -175,6 +178,17 @@
 		}
 		if (current) active = current as SettingsSectionId;
 	}
+
+	// a cleared search can bring the list back without a scroll event
+	let searched = false;
+	$effect(() => {
+		const searching = search.active;
+		const cleared = searched && !searching;
+		searched = searching;
+		if (!cleared) return;
+		const frame = requestAnimationFrame(spy);
+		return () => cancelAnimationFrame(frame);
+	});
 
 	// folded, the section list is a row of chips; keep the active one in view
 	$effect(() => {

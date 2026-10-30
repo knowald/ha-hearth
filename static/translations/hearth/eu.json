@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Saioa itxi eta Home Assistant saioa garbitu?",
 	"hearth_logout_confirm_edits_message": "Token bat edo saio-hasiera berri bat beharko duzu berriro konektatzeko. Gorde gabeko aginte-paneleko aldaketak baztertzen dira.",
 	"hearth_logout_confirm_message": "Token bat edo saio-hasiera berri bat beharko duzu berriro konektatzeko.",
+	"hearth_logout_confirm_unsaved_message": "Token bat edo saio-hasiera berri bat beharko duzu berriro konektatzeko. Gorde gabeko aldaketak, zerbitzariaren ezarpenak barne, baztertzen dira.",
 	"hearth_long_lived_token": "Iraupen luzeko sarbide tokena",
 	"hearth_look_ahead_hours_default_24": "Aurrerako orduak (lehenetsia 24)",
 	"hearth_low": "Baxua",

@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "ログアウトして Home Assistant のセッションをクリアしますか？",
 	"hearth_logout_confirm_edits_message": "再接続にはトークンか再ログインが必要です。保存していないダッシュボードの編集内容は破棄されます。",
 	"hearth_logout_confirm_message": "再接続にはトークンか再ログインが必要です。",
+	"hearth_logout_confirm_unsaved_message": "再接続にはトークンか再ログインが必要です。保存していない変更内容は、サーバー設定を含めて破棄されます。",
 	"hearth_long_lived_token": "長期間有効なアクセストークン",
 	"hearth_look_ahead_hours_default_24": "先読み時間 (デフォルト 24)",
 	"hearth_low": "最低",

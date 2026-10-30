@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Keluar dan hapus sesi Home Assistant?",
 	"hearth_logout_confirm_edits_message": "Anda memerlukan token atau masuk ulang untuk terhubung lagi. Suntingan dasbor yang belum disimpan akan dibuang.",
 	"hearth_logout_confirm_message": "Anda memerlukan token atau masuk ulang untuk terhubung lagi.",
+	"hearth_logout_confirm_unsaved_message": "Anda memerlukan token atau masuk ulang untuk terhubung lagi. Perubahan yang belum disimpan, termasuk pengaturan server, akan dibuang.",
 	"hearth_long_lived_token": "Token akses yang berumur panjang",
 	"hearth_look_ahead_hours_default_24": "Jam ke depan (bawaan 24)",
 	"hearth_low": "Rendah",

@@ -20,7 +20,7 @@
 	import { DEFAULT_CHIME_VOLUME } from '../../model/alerts';
 	import { chimeOptions, chimeValue, storedChime, withCurrent } from '../options';
 	import GroupTitle from './GroupTitle.svelte';
-	import { editorOpener } from './opener';
+	import { editorOpener } from './guard';
 	import SettingsSection from './SettingsSection.svelte';
 
 	const openEditor = editorOpener();

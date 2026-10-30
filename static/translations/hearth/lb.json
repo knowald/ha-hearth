@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Ofmellen an d'Home Assistant-Sessioun läschen?",
 	"hearth_logout_confirm_edits_message": "Dir braucht en Token oder eng nei Umeldung, fir Iech nei ze verbannen. Är net gespäichert Dashboard-Ännerunge ginn verworf.",
 	"hearth_logout_confirm_message": "Dir braucht en Token oder eng nei Umeldung, fir Iech nei ze verbannen.",
+	"hearth_logout_confirm_unsaved_message": "Dir braucht en Token oder eng nei Umeldung, fir Iech nei ze verbannen. Är net gespäichert Ännerungen, och d'Server-Astellungen, ginn verworf.",
 	"hearth_long_lived_token": "Laangliewege Zougangstoken",
 	"hearth_look_ahead_hours_default_24": "Stonne fir virauszekucken (Standard 24)",
 	"hearth_low": "Niddreg",

@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "¿Cerrar sesión y borrar la sesión de Home Assistant?",
 	"hearth_logout_confirm_edits_message": "Necesitará un token o volver a iniciar sesión para conectarse de nuevo. Se descartan los cambios del panel sin guardar.",
 	"hearth_logout_confirm_message": "Necesitará un token o volver a iniciar sesión para conectarse de nuevo.",
+	"hearth_logout_confirm_unsaved_message": "Necesitará un token o volver a iniciar sesión para conectarse de nuevo. Se descartan los cambios sin guardar, incluida la configuración del servidor.",
 	"hearth_long_lived_token": "Token de acceso de larga duración",
 	"hearth_look_ahead_hours_default_24": "Horas de antelación (predeterminado 24)",
 	"hearth_low": "Mín.",

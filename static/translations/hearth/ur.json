@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "لاگ آؤٹ کر کے Home Assistant سیشن ختم کریں؟",
 	"hearth_logout_confirm_edits_message": "دوبارہ منسلک ہونے کے لیے آپ کو ٹوکن یا نئے سائن ان کی ضرورت ہوگی۔ ڈیش بورڈ کی آپ کی غیر محفوظ ترامیم ختم ہو جائیں گی۔",
 	"hearth_logout_confirm_message": "دوبارہ منسلک ہونے کے لیے آپ کو ٹوکن یا نئے سائن ان کی ضرورت ہوگی۔",
+	"hearth_logout_confirm_unsaved_message": "دوبارہ منسلک ہونے کے لیے آپ کو ٹوکن یا نئے سائن ان کی ضرورت ہوگی۔ سرور سیٹنگز سمیت آپ کی غیر محفوظ تبدیلیاں ختم ہو جائیں گی۔",
 	"hearth_long_lived_token": "طویل مدتی رسائی ٹوکن",
 	"hearth_look_ahead_hours_default_24": "آگے دیکھنے کے گھنٹے (ڈیفالٹ 24)",
 	"hearth_low": "کم",

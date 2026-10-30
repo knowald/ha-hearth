@@ -16,6 +16,7 @@ import {
 	enterEditMode,
 	hearthConfig,
 	requestedConfirmation,
+	setupWizardOpen,
 	updateConfig
 } from '../store';
 import SettingsEditSheet from './SettingsEditSheet.svelte';
@@ -72,6 +73,7 @@ afterEach(() => {
 	dismissConfirmation();
 	editor.set(null);
 	screenSheetOpen.set(false);
+	setupWizardOpen.set(false);
 	screenOverrides.set({});
 	localStorage.removeItem('hearthScreen');
 	configuration.set(undefined as never);
@@ -192,6 +194,27 @@ describe('settings section list', () => {
 	});
 });
 
+describe('settings section list after a search', () => {
+	it('marks the section at the top again once the search is cleared', async () => {
+		render(SettingsEditSheet);
+		const content = document.querySelector<HTMLElement>('.settings-content')!;
+		[...content.querySelectorAll<HTMLElement>('[data-section]')].forEach((element, index) =>
+			Object.defineProperty(element, 'offsetTop', { value: index * 500 })
+		);
+		Object.defineProperty(content, 'clientHeight', { value: 400 });
+		Object.defineProperty(content, 'scrollHeight', { value: 5000 });
+		await fireEvent.input(searchBox(), { target: { value: 'pixel shifting' } });
+		// the list stays where it was, so no scroll event follows the clear
+		content.scrollTop = 1600;
+		await fireEvent.input(searchBox(), { target: { value: '' } });
+		await waitFor(() =>
+			expect(
+				nav().getByRole('button', { name: en.hearth_size_and_spacing }).getAttribute('aria-current')
+			).toBe('true')
+		);
+	});
+});
+
 describe('settings change counts', () => {
 	it('counts the settings changed since the sheet opened, per section and in the footer', async () => {
 		render(SettingsEditSheet);
@@ -282,6 +305,26 @@ describe('server settings in the footer', () => {
 		expect(screen.queryByText(en.hearth_server_settings_saved)).toBeNull();
 	});
 
+	it('keeps a change made while the save was in flight as unsaved', async () => {
+		let answer: (value: unknown) => void = () => {};
+		vi.stubGlobal(
+			'fetch',
+			vi.fn((address: string) =>
+				address.endsWith('/_api/save_config')
+					? new Promise((resolve) => (answer = resolve))
+					: Promise.resolve({ ok: false, json: async (): Promise<unknown> => null })
+			)
+		);
+		render(SettingsEditSheet);
+		await fireEvent.click(serverSwitch(en.hearth_reduce_motion));
+		await fireEvent.click(save());
+		await fireEvent.click(serverSwitch(en.hearth_custom_js));
+		answer({ ok: true, status: 200, json: async () => ({ revision: 5 }) });
+		await waitFor(() => expect(get(configuration)?.revision).toBe(5));
+		expect(screen.getByText(en.hearth_unsaved_server_settings_one)).toBeTruthy();
+		expect(save()).toBeTruthy();
+	});
+
 	it("shows the shared values, not this screen's own", () => {
 		configuration.set({ locale: 'en', motion: false } as never);
 		screenOverrides.set({ reduce_motion: false });
@@ -359,6 +402,26 @@ describe('closing with staged server values', () => {
 		expect(get(editor)).toEqual({ kind: 'settings' });
 		confirmRequestedAction();
 		expect(get(editor)).toEqual({ kind: 'theme' });
+	});
+
+	it.each([en.hearth_setup, en.hearth_starter_layouts])(
+		'asks before %s opens the setup wizard, which closes the sheet when done',
+		async (label) => {
+			render(SettingsEditSheet);
+			await stage();
+			await fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }));
+			expect(get(setupWizardOpen)).toBe(false);
+			expect(get(requestedConfirmation)?.confirmLabel).toBe(en.hearth_discard);
+			confirmRequestedAction();
+			expect(get(setupWizardOpen)).toBe(true);
+		}
+	);
+
+	it('says a log out drops them', async () => {
+		render(SettingsEditSheet);
+		await stage();
+		await fireEvent.click(screen.getByRole('button', { name: new RegExp(en.log_out) }));
+		expect(get(requestedConfirmation)?.message).toBe(en.hearth_logout_confirm_unsaved_message);
 	});
 
 	it('closes without asking once the staged value is put back', async () => {

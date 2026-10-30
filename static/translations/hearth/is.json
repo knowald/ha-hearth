@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Skrá út og hreinsa Home Assistant-lotuna?",
 	"hearth_logout_confirm_edits_message": "Þú þarft aðgangslykil eða nýja innskráningu til að tengjast aftur. Óvistuðum breytingum á mælaborðinu verður hent.",
 	"hearth_logout_confirm_message": "Þú þarft aðgangslykil eða nýja innskráningu til að tengjast aftur.",
+	"hearth_logout_confirm_unsaved_message": "Þú þarft aðgangslykil eða nýja innskráningu til að tengjast aftur. Óvistuðum breytingum, þar á meðal þjónastillingum, verður hent.",
 	"hearth_long_lived_token": "Langlífur aðgangslykill",
 	"hearth_look_ahead_hours_default_24": "Klukkustundir fram í tímann (sjálfgefið 24)",
 	"hearth_low": "Lágt",

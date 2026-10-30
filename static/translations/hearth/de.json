@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Abmelden und die Home Assistant-Sitzung beenden?",
 	"hearth_logout_confirm_edits_message": "Du brauchst einen Token oder eine neue Anmeldung, um dich wieder zu verbinden. Deine nicht gespeicherten Dashboard-Änderungen gehen verloren.",
 	"hearth_logout_confirm_message": "Du brauchst einen Token oder eine neue Anmeldung, um dich wieder zu verbinden.",
+	"hearth_logout_confirm_unsaved_message": "Du brauchst einen Token oder eine neue Anmeldung, um dich wieder zu verbinden. Deine nicht gespeicherten Änderungen, einschließlich der Servereinstellungen, gehen verloren.",
 	"hearth_long_lived_token": "Langlebiger Zugangstoken",
 	"hearth_look_ahead_hours_default_24": "Vorschau in Stunden (Standard 24)",
 	"hearth_low": "Niedrig",

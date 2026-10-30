@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Teken uit en vee die Home Assistant-sessie uit?",
 	"hearth_logout_confirm_edits_message": "Jy sal 'n token of 'n nuwe aanmelding nodig hê om weer te koppel. Jou ongestoorde paneelbordwysigings gaan verlore.",
 	"hearth_logout_confirm_message": "Jy sal 'n token of 'n nuwe aanmelding nodig hê om weer te koppel.",
+	"hearth_logout_confirm_unsaved_message": "Jy sal 'n token of 'n nuwe aanmelding nodig hê om weer te koppel. Jou ongestoorde wysigings, insluitend bedienerinstellings, gaan verlore.",
 	"hearth_long_lived_token": "Langlewende toegangstoken",
 	"hearth_look_ahead_hours_default_24": "Vooruitkyk-ure (verstek 24)",
 	"hearth_low": "Laag",

@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Afmelden en de Home Assistant-sessie wissen?",
 	"hearth_logout_confirm_edits_message": "Je hebt een token of een nieuwe aanmelding nodig om opnieuw te verbinden. Je niet-opgeslagen dashboardwijzigingen gaan verloren.",
 	"hearth_logout_confirm_message": "Je hebt een token of een nieuwe aanmelding nodig om opnieuw te verbinden.",
+	"hearth_logout_confirm_unsaved_message": "Je hebt een token of een nieuwe aanmelding nodig om opnieuw te verbinden. Je niet-opgeslagen wijzigingen, inclusief serverinstellingen, gaan verloren.",
 	"hearth_long_lived_token": "Toegangstoken met lange levensduur",
 	"hearth_look_ahead_hours_default_24": "Vooruitkijken in uren (standaard 24)",
 	"hearth_low": "Laag",

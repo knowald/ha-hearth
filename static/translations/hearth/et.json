@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Kas logida välja ja tühjendada Home Assistanti seanss?",
 	"hearth_logout_confirm_edits_message": "Uuesti ühendamiseks on vaja tunnust või uut sisselogimist. Salvestamata töölaua muudatused kaovad.",
 	"hearth_logout_confirm_message": "Uuesti ühendamiseks on vaja tunnust või uut sisselogimist.",
+	"hearth_logout_confirm_unsaved_message": "Uuesti ühendamiseks on vaja tunnust või uut sisselogimist. Salvestamata muudatused, sealhulgas serveri seaded, kaovad.",
 	"hearth_long_lived_token": "Pikaealine juurdepääsuluba",
 	"hearth_look_ahead_hours_default_24": "Ettevaatamise tunnid (vaikimisi 24)",
 	"hearth_low": "Madal",

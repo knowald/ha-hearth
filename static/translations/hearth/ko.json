@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "로그아웃하고 Home Assistant 세션을 지우시겠습니까?",
 	"hearth_logout_confirm_edits_message": "다시 연결하려면 토큰이나 새 로그인이 필요합니다. 저장하지 않은 대시보드 편집 내용은 사라집니다.",
 	"hearth_logout_confirm_message": "다시 연결하려면 토큰이나 새 로그인이 필요합니다.",
+	"hearth_logout_confirm_unsaved_message": "다시 연결하려면 토큰이나 새 로그인이 필요합니다. 서버 설정을 포함해 저장하지 않은 변경 내용은 사라집니다.",
 	"hearth_long_lived_token": "장기 액세스 토큰",
 	"hearth_look_ahead_hours_default_24": "미리 볼 시간 (기본값 24)",
 	"hearth_low": "최저",

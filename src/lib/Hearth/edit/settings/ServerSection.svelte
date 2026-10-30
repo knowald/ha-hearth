@@ -111,6 +111,8 @@
 		saving = true;
 		saveError = null;
 		conflictRevision = null;
+		// the rows stay editable during the request; later edits are not part of this save
+		const sent = staged();
 
 		const next = {
 			...($configuration ?? {}),
@@ -152,7 +154,7 @@
 
 			// language, motion and feedback follow through screen.ts
 			$configuration = { ...next, revision: (await response.json()).revision };
-			saved = staged();
+			saved = sent;
 			vibrate('success');
 			onsaved?.();
 			return true;

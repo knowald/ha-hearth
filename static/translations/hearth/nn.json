@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Logge ut og tømme Home Assistant-økta?",
 	"hearth_logout_confirm_edits_message": "Du treng eit token eller ei ny innlogging for å kople til igjen. Ulagra endringar i dashbordet går tapt.",
 	"hearth_logout_confirm_message": "Du treng eit token eller ei ny innlogging for å kople til igjen.",
+	"hearth_logout_confirm_unsaved_message": "Du treng eit token eller ei ny innlogging for å kople til igjen. Ulagra endringar, medrekna serverinnstillingar, går tapt.",
 	"hearth_long_lived_token": "Langvarig tilgangstoken",
 	"hearth_look_ahead_hours_default_24": "Timar framover (standard 24)",
 	"hearth_low": "Låg",

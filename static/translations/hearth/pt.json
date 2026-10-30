@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Terminar sessão e limpar a sessão do Home Assistant?",
 	"hearth_logout_confirm_edits_message": "Vai precisar de um token ou de iniciar sessão novamente para voltar a ligar. As alterações ao painel não guardadas são descartadas.",
 	"hearth_logout_confirm_message": "Vai precisar de um token ou de iniciar sessão novamente para voltar a ligar.",
+	"hearth_logout_confirm_unsaved_message": "Vai precisar de um token ou de iniciar sessão novamente para voltar a ligar. As alterações não guardadas, incluindo as definições do servidor, são descartadas.",
 	"hearth_long_lived_token": "Token de acesso de longa duração",
 	"hearth_look_ahead_hours_default_24": "Horas de antecedência (predefinição 24)",
 	"hearth_low": "Mín.",

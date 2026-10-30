@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Log af og ryd Home Assistant-sessionen?",
 	"hearth_logout_confirm_edits_message": "Du skal bruge et token eller logge ind igen for at oprette forbindelse. Dine ikke-gemte ændringer af dashboardet går tabt.",
 	"hearth_logout_confirm_message": "Du skal bruge et token eller logge ind igen for at oprette forbindelse.",
+	"hearth_logout_confirm_unsaved_message": "Du skal bruge et token eller logge ind igen for at oprette forbindelse. Dine ikke-gemte ændringer, herunder serverindstillinger, går tabt.",
 	"hearth_long_lived_token": "Langlivet adgangstoken",
 	"hearth_look_ahead_hours_default_24": "Timer frem (standard 24)",
 	"hearth_low": "Lav",

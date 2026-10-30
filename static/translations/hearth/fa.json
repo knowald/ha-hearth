@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "خارج شوید و نشست Home Assistant پاک شود؟",
 	"hearth_logout_confirm_edits_message": "برای اتصال دوباره به یک توکن یا ورود جدید نیاز دارید. ویرایش‌های ذخیره‌نشده داشبورد شما دور انداخته می‌شوند.",
 	"hearth_logout_confirm_message": "برای اتصال دوباره به یک توکن یا ورود جدید نیاز دارید.",
+	"hearth_logout_confirm_unsaved_message": "برای اتصال دوباره به یک توکن یا ورود جدید نیاز دارید. تغییرات ذخیره‌نشده شما، از جمله تنظیمات سرور، دور انداخته می‌شوند.",
 	"hearth_long_lived_token": "توکن دسترسی بلندمدت",
 	"hearth_look_ahead_hours_default_24": "ساعت‌های آینده (پیش‌فرض 24)",
 	"hearth_low": "کم",

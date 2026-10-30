@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Kirjaudutaanko ulos ja tyhjennetäänkö Home Assistant -istunto?",
 	"hearth_logout_confirm_edits_message": "Tarvitset tunnuksen tai uuden kirjautumisen yhdistääksesi uudelleen. Tallentamattomat kojelaudan muokkaukset hylätään.",
 	"hearth_logout_confirm_message": "Tarvitset tunnuksen tai uuden kirjautumisen yhdistääksesi uudelleen.",
+	"hearth_logout_confirm_unsaved_message": "Tarvitset tunnuksen tai uuden kirjautumisen yhdistääksesi uudelleen. Tallentamattomat muutokset, palvelimen asetukset mukaan lukien, hylätään.",
 	"hearth_long_lived_token": "Pitkäikäinen käyttötunnus",
 	"hearth_look_ahead_hours_default_24": "Tunteja eteenpäin (oletus 24)",
 	"hearth_low": "Matala",

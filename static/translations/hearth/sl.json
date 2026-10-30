@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Se odjavim in počistim sejo Home Assistant?",
 	"hearth_logout_confirm_edits_message": "Za ponovno povezavo boste potrebovali žeton ali novo prijavo. Neshranjene spremembe nadzorne plošče se zavržejo.",
 	"hearth_logout_confirm_message": "Za ponovno povezavo boste potrebovali žeton ali novo prijavo.",
+	"hearth_logout_confirm_unsaved_message": "Za ponovno povezavo boste potrebovali žeton ali novo prijavo. Neshranjene spremembe, vključno z nastavitvami strežnika, se zavržejo.",
 	"hearth_long_lived_token": "Dolgotrajni dostopni žeton",
 	"hearth_look_ahead_hours_default_24": "Ure vnaprej (privzeto 24)",
 	"hearth_low": "Najnižje",

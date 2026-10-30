@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "8201d8d22dee",
 	"hearth_logout_confirm_edits_message": "dd57c1049505",
 	"hearth_logout_confirm_message": "2d2cc7e6e098",
+	"hearth_logout_confirm_unsaved_message": "23c18192a35b",
 	"hearth_long_lived_token": "764baf10051f",
 	"hearth_look_ahead_hours_default_24": "b004e045a884",
 	"hearth_low": "f793de205ead",

@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Vols tancar la sessió i esborrar la sessió de Home Assistant?",
 	"hearth_logout_confirm_edits_message": "Necessitaràs un token o iniciar sessió de nou per tornar a connectar. Els canvis no desats del panell es perdran.",
 	"hearth_logout_confirm_message": "Necessitaràs un token o iniciar sessió de nou per tornar a connectar.",
+	"hearth_logout_confirm_unsaved_message": "Necessitaràs un token o iniciar sessió de nou per tornar a connectar. Els canvis no desats, inclosa la configuració del servidor, es perdran.",
 	"hearth_long_lived_token": "Token d'accés de llarga durada",
 	"hearth_look_ahead_hours_default_24": "Hores d'anticipació (24 per defecte)",
 	"hearth_low": "Baix",

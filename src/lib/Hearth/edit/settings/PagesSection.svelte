@@ -13,10 +13,19 @@
 	import Icon from '../../Icon.svelte';
 	import SettingsRow from '../SettingsRow.svelte';
 	import Searchable from './Searchable.svelte';
-	import { editorOpener } from './opener';
+	import { editorOpener, settingsGuard } from './guard';
 	import SettingsSection from './SettingsSection.svelte';
 
 	const openEditor = editorOpener();
+	const guard = settingsGuard();
+
+	// the wizard ends by closing the editor, so it goes through the guard too
+	function openWizard(source: 'areas' | 'starter') {
+		guard.leave(() => {
+			setupWizardSource.set(source);
+			setupWizardOpen.set(true);
+		});
+	}
 
 	function movePage(index: number, delta: number) {
 		updateConfig((config) => moveItem(config.rooms, index, delta));
@@ -66,19 +75,13 @@
 		icon="auto_awesome"
 		label={$lang('hearth_setup')}
 		sub={$lang('hearth_setup_row_sub')}
-		onclick={() => {
-			setupWizardSource.set('areas');
-			setupWizardOpen.set(true);
-		}}
+		onclick={() => openWizard('areas')}
 	/>
 	<SettingsRow
 		icon="dashboard_customize"
 		label={$lang('hearth_starter_layouts')}
 		sub={$lang('hearth_starter_layouts_sub')}
-		onclick={() => {
-			setupWizardSource.set('starter');
-			setupWizardOpen.set(true);
-		}}
+		onclick={() => openWizard('starter')}
 	/>
 </SettingsSection>
 

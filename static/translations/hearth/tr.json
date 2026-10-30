@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Çıkış yapılsın ve Home Assistant oturumu temizlensin mi?",
 	"hearth_logout_confirm_edits_message": "Yeniden bağlanmak için bir erişim anahtarına veya yeni bir oturum açmaya ihtiyacınız olacak. Kaydedilmemiş pano düzenlemeleriniz atılır.",
 	"hearth_logout_confirm_message": "Yeniden bağlanmak için bir erişim anahtarına veya yeni bir oturum açmaya ihtiyacınız olacak.",
+	"hearth_logout_confirm_unsaved_message": "Yeniden bağlanmak için bir erişim anahtarına veya yeni bir oturum açmaya ihtiyacınız olacak. Sunucu ayarları dahil kaydedilmemiş değişiklikleriniz atılır.",
 	"hearth_long_lived_token": "Uzun ömürlü erişim anahtarı",
 	"hearth_look_ahead_hours_default_24": "İleriye bakış saati (varsayılan 24)",
 	"hearth_low": "Düşük",

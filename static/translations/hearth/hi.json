@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "लॉग आउट करके Home Assistant सत्र साफ़ करें?",
 	"hearth_logout_confirm_edits_message": "फिर से कनेक्ट करने के लिए आपको टोकन या नए साइन-इन की आवश्यकता होगी। डैशबोर्ड के आपके बिना सहेजे बदलाव हट जाएंगे।",
 	"hearth_logout_confirm_message": "फिर से कनेक्ट करने के लिए आपको टोकन या नए साइन-इन की आवश्यकता होगी।",
+	"hearth_logout_confirm_unsaved_message": "फिर से कनेक्ट करने के लिए आपको टोकन या नए साइन-इन की आवश्यकता होगी। सर्वर सेटिंग सहित आपके बिना सहेजे बदलाव हट जाएंगे।",
 	"hearth_long_lived_token": "दीर्घकालिक एक्सेस टोकन",
 	"hearth_look_ahead_hours_default_24": "आगे देखने के घंटे (डिफ़ॉल्ट 24)",
 	"hearth_low": "कम",

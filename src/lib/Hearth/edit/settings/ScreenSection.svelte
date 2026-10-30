@@ -38,6 +38,7 @@
 	import { zoomSupported } from '../../zoom';
 	import Switch from '../../Switch.svelte';
 	import { favorites, showFavoritesPage } from '../../favorites';
+	import { settingsGuard } from './guard';
 	import Searchable from './Searchable.svelte';
 	import SettingsSection from './SettingsSection.svelte';
 
@@ -146,12 +147,20 @@
 		return [same(languageName(sharedLocale)), ...languages, ...unlisted];
 	});
 
+	const guard = settingsGuard();
+
+	// the reload that follows skips the unload guard, so the dialog names what it drops
+	function logoutMessage() {
+		if (guard.serverChanged()) return 'hearth_logout_confirm_unsaved_message';
+		return hasUnsavedEdits()
+			? 'hearth_logout_confirm_edits_message'
+			: 'hearth_logout_confirm_message';
+	}
+
 	function handleLogout() {
 		requestConfirmation({
 			title: $lang('hearth_logout_confirm'),
-			message: $lang(
-				hasUnsavedEdits() ? 'hearth_logout_confirm_edits_message' : 'hearth_logout_confirm_message'
-			),
+			message: $lang(logoutMessage()),
 			confirmLabel: $lang('log_out'),
 			action: () => {
 				localStorage.removeItem('hearthTokens');

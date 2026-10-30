@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Ofmelde en de Home Assistant-sesje wiskje?",
 	"hearth_logout_confirm_edits_message": "Jo hawwe in token of in nije oanmelding nedich om wer te ferbinen. Jo net bewarre dashboard-wizigingen geane ferlern.",
 	"hearth_logout_confirm_message": "Jo hawwe in token of in nije oanmelding nedich om wer te ferbinen.",
+	"hearth_logout_confirm_unsaved_message": "Jo hawwe in token of in nije oanmelding nedich om wer te ferbinen. Jo net bewarre wizigingen, ynklusyf serverynstellings, geane ferlern.",
 	"hearth_long_lived_token": "Langlibjende tagongstoken",
 	"hearth_look_ahead_hours_default_24": "Oeren fan foarút sjen (standert 24)",
 	"hearth_low": "Leech",

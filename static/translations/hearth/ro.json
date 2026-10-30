@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Te deconectezi și ștergi sesiunea Home Assistant?",
 	"hearth_logout_confirm_edits_message": "Vei avea nevoie de un token sau de o nouă autentificare pentru a te conecta din nou. Modificările nesalvate ale tabloului de bord se pierd.",
 	"hearth_logout_confirm_message": "Vei avea nevoie de un token sau de o nouă autentificare pentru a te conecta din nou.",
+	"hearth_logout_confirm_unsaved_message": "Vei avea nevoie de un token sau de o nouă autentificare pentru a te conecta din nou. Modificările nesalvate, inclusiv setările serverului, se pierd.",
 	"hearth_long_lived_token": "Token de acces de lungă durată",
 	"hearth_look_ahead_hours_default_24": "Ore înainte (implicit 24)",
 	"hearth_low": "Minim",

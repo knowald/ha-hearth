@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Abmäude und d Home-Assistant-Sitzig lösche?",
 	"hearth_logout_confirm_edits_message": "Du bruuchsch es Token oder e nöii Aamäudig, für di wieder z verbinde. Dyni nid gspycherete Dashboard-Änderige gö verlore.",
 	"hearth_logout_confirm_message": "Du bruuchsch es Token oder e nöii Aamäudig, für di wieder z verbinde.",
+	"hearth_logout_confirm_unsaved_message": "Du bruuchsch es Token oder e nöii Aamäudig, für di wieder z verbinde. Dyni nid gspycherete Änderige, inklusive Serversyschtellige, gö verlore.",
 	"hearth_long_lived_token": "Langläbige Zuegangstoken",
 	"hearth_look_ahead_hours_default_24": "Stunde voruus (Standard 24)",
 	"hearth_low": "Nider",

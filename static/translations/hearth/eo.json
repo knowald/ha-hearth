@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Ĉu elsaluti kaj forviŝi la Home Assistant-seancon?",
 	"hearth_logout_confirm_edits_message": "Vi bezonos ĵetonon aŭ novan ensaluton por rekonektiĝi. Viaj nekonservitaj panelaj redaktoj perdiĝos.",
 	"hearth_logout_confirm_message": "Vi bezonos ĵetonon aŭ novan ensaluton por rekonektiĝi.",
+	"hearth_logout_confirm_unsaved_message": "Vi bezonos ĵetonon aŭ novan ensaluton por rekonektiĝi. Viaj nekonservitaj ŝanĝoj, inkluzive de servilaj agordoj, perdiĝos.",
 	"hearth_long_lived_token": "Longdaŭra alirĵetono",
 	"hearth_look_ahead_hours_default_24": "Antaŭrigardaj horoj (defaŭlte 24)",
 	"hearth_low": "Min.",

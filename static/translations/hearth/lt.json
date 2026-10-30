@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Atsijungti ir išvalyti Home Assistant seansą?",
 	"hearth_logout_confirm_edits_message": "Norint vėl prisijungti reikės žetono arba naujo prisijungimo. Neišsaugoti prietaisų skydelio pakeitimai bus prarasti.",
 	"hearth_logout_confirm_message": "Norint vėl prisijungti reikės žetono arba naujo prisijungimo.",
+	"hearth_logout_confirm_unsaved_message": "Norint vėl prisijungti reikės žetono arba naujo prisijungimo. Neišsaugoti pakeitimai, įskaitant serverio nustatymus, bus prarasti.",
 	"hearth_long_lived_token": "Ilgalaikis prieigos žetonas",
 	"hearth_look_ahead_hours_default_24": "Kiek valandų į priekį (numatytasis 24)",
 	"hearth_low": "Žema",

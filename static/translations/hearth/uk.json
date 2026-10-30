@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Вийти і завершити сеанс Home Assistant?",
 	"hearth_logout_confirm_edits_message": "Для повторного підключення знадобиться токен або новий вхід. Незбережені зміни панелі буде втрачено.",
 	"hearth_logout_confirm_message": "Для повторного підключення знадобиться токен або новий вхід.",
+	"hearth_logout_confirm_unsaved_message": "Для повторного підключення знадобиться токен або новий вхід. Незбережені зміни, зокрема налаштування сервера, буде втрачено.",
 	"hearth_long_lived_token": "Довгостроковий токен доступу",
 	"hearth_look_ahead_hours_default_24": "Годин наперед (типово 24)",
 	"hearth_low": "Низький",

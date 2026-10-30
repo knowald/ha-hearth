@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Izrakstīties un notīrīt Home Assistant sesiju?",
 	"hearth_logout_confirm_edits_message": "Lai atkal izveidotu savienojumu, būs nepieciešama pilnvara vai jauna pieteikšanās. Nesaglabātās paneļa izmaiņas tiks atmestas.",
 	"hearth_logout_confirm_message": "Lai atkal izveidotu savienojumu, būs nepieciešama pilnvara vai jauna pieteikšanās.",
+	"hearth_logout_confirm_unsaved_message": "Lai atkal izveidotu savienojumu, būs nepieciešama pilnvara vai jauna pieteikšanās. Nesaglabātās izmaiņas, tostarp servera iestatījumi, tiks atmestas.",
 	"hearth_long_lived_token": "Ilgtermiņa piekļuves pilnvara",
 	"hearth_look_ahead_hours_default_24": "Stundas uz priekšu (noklusējums 24)",
 	"hearth_low": "Zems",

@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Logáil amach agus seisiún Home Assistant a ghlanadh?",
 	"hearth_logout_confirm_edits_message": "Beidh comhartha nó síniú isteach nua ag teastáil uait chun ceangal arís. Caillfear d'eagarthóireachtaí deais nár sábháladh.",
 	"hearth_logout_confirm_message": "Beidh comhartha nó síniú isteach nua ag teastáil uait chun ceangal arís.",
+	"hearth_logout_confirm_unsaved_message": "Beidh comhartha nó síniú isteach nua ag teastáil uait chun ceangal arís. Caillfear do chuid athruithe nár sábháladh, socruithe an fhreastalaí san áireamh.",
 	"hearth_long_lived_token": "Comhartha rochtana fadsaoil",
 	"hearth_look_ahead_hours_default_24": "Uaireanta chun tosaigh (réamhshocrú 24)",
 	"hearth_low": "Íseal",

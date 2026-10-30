@@ -574,6 +574,7 @@
 	"hearth_logout_confirm": "Se déconnecter et effacer la session Home Assistant ?",
 	"hearth_logout_confirm_edits_message": "Il vous faudra un jeton ou une nouvelle connexion pour vous reconnecter. Vos modifications non enregistrées du tableau de bord seront perdues.",
 	"hearth_logout_confirm_message": "Il vous faudra un jeton ou une nouvelle connexion pour vous reconnecter.",
+	"hearth_logout_confirm_unsaved_message": "Il vous faudra un jeton ou une nouvelle connexion pour vous reconnecter. Vos modifications non enregistrées, y compris les paramètres du serveur, seront perdues.",
 	"hearth_long_lived_token": "Jeton d'accès longue durée",
 	"hearth_look_ahead_hours_default_24": "Heures à l'avance (24 par défaut)",
 	"hearth_low": "Faible",
