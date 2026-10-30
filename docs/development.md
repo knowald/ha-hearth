@@ -51,8 +51,10 @@ The locales are the Home Assistant files present. The server merges the Home Ass
 
 ### Adding or changing a string
 
+A change only needs to add or edit English. Other locales are translated once per release, see [releasing](release.md); until then they show the English text.
+
 1. Add the key to `static/translations/hearth/en.json`, keeping keys sorted. `just translations-check --fix` sorts every file and creates missing locale files. After removing a key from English, `just translations-check --fix --prune` also drops it from every locale and prints each key it drops; without `--prune` such keys are reported as extra.
-2. For each locale, list what it still needs, translate the values and merge them back:
+2. At release time, for each locale, list what it still needs, translate the values and merge them back:
 
    ```sh
    just translations-missing de --out /tmp/de.json
@@ -70,7 +72,9 @@ The check reports missing, outdated, extra and empty keys, placeholders that dif
 
 `just hooks` points Git at `.githooks/`. Its pre-commit hook runs when a commit touches translation files or their scripts, and checks the staged versions of the translation files with the flags of `pnpm check:translations`. It needs only Node.js. Nothing installs the hook for you.
 
-CI runs `pnpm check:translations` as well, so a missing or outdated translation fails both CI and the hook. Add every new English string to all locales in the same change.
+CI runs `pnpm check:translations` as well. Both pass `--warn-only`, so missing and outdated translations only warn, while every other issue fails. `pnpm check:translations:release` runs the full check, and publishing a GitHub release runs it before building the image, so a release with an incomplete locale fails.
+
+`.gitattributes` marks every locale file except `hearth/en.json` and the hash files as generated, so GitHub collapses their diffs in pull requests.
 
 ## Conventions
 

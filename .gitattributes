@@ -1,0 +1,6 @@
+# Translated and generated copy; GitHub collapses these diffs in pull requests.
+# en.json is the source and stays reviewable.
+static/translations/*.json linguist-generated=true
+static/translations/hearth/*.json linguist-generated=true
+static/translations/hearth/en.json linguist-generated=false
+scripts/translations/hashes/*.json linguist-generated=true

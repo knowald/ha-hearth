@@ -22,6 +22,17 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v7
 
+      # pull requests only warn about missing translations; a release must ship every locale complete
+      - name: Set up Node.js
+        if: github.event_name == 'release'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Translations complete
+        if: github.event_name == 'release'
+        run: node scripts/check-translations.mjs
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
