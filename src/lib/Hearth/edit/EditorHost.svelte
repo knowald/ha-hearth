@@ -7,11 +7,9 @@
 	import SettingsEditSheet from './SettingsEditSheet.svelte';
 	import StackEditSheet from './StackEditSheet.svelte';
 	import ThemeEditSheet from './ThemeEditSheet.svelte';
-	import AppSettingsEditSheet from './AppSettingsEditSheet.svelte';
 	import CustomCssEditSheet from './CustomCssEditSheet.svelte';
 	import VersionsEditSheet from './VersionsEditSheet.svelte';
 	import AlertEditSheet from './AlertEditSheet.svelte';
-	import ScreenEditSheet from './ScreenEditSheet.svelte';
 	import { screenSheetOpen } from '../screen';
 </script>
 
@@ -32,11 +30,9 @@
 		{:else if $editor.kind === 'railWidget'}
 			<RailWidgetEditSheet index={$editor.index} side={$editor.side} />
 		{:else if $editor.kind === 'settings'}
-			<SettingsEditSheet />
+			<SettingsEditSheet section={$editor.section} />
 		{:else if $editor.kind === 'alert'}
 			<AlertEditSheet index={$editor.index} />
-		{:else if $editor.kind === 'appSettings'}
-			<AppSettingsEditSheet />
 		{:else if $editor.kind === 'customCss'}
 			<CustomCssEditSheet />
 		{:else if $editor.kind === 'code'}
@@ -49,7 +45,7 @@
 	{/key}
 {/if}
 
-<!-- after the editor, so opened from Settings it sits above that sheet -->
+<!-- This screen outside edit mode: the settings sheet with that section alone -->
 {#if $screenSheetOpen}
-	<ScreenEditSheet />
+	<SettingsEditSheet screenOnly />
 {/if}

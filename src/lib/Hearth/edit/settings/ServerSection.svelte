@@ -1,3 +1,16 @@
+<script module lang="ts">
+	import type { Configuration } from '$lib/core/app/configuration';
+
+	/** The configuration.yaml keys this section's rows change. */
+	export const SETTING_KEYS = [
+		'locale',
+		'motion',
+		'haptics',
+		'token',
+		'custom_js'
+	] as const satisfies readonly (keyof Configuration)[];
+</script>
+
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
@@ -6,12 +19,29 @@
 	import { hapticsSupported, sampleVibration, vibrate } from '$lib/core/app/haptics';
 	import { lang } from '$lib/core/i18n';
 	import { reloadPage } from '$lib/core/app/reload';
-	import { editor, requestConfirmation } from '../store';
-	import { prefersReducedMotion } from '../screen';
-	import EditSheet from './EditSheet.svelte';
-	import SelectField from './SelectField.svelte';
-	import SettingsRow from './SettingsRow.svelte';
-	import Switch from '../Switch.svelte';
+	import { requestConfirmation } from '../../store';
+	import { prefersReducedMotion } from '../../screen';
+	import SelectField from '../SelectField.svelte';
+	import SettingsRow from '../SettingsRow.svelte';
+	import Switch from '../../Switch.svelte';
+	import SettingsSection from './SettingsSection.svelte';
+
+	/*
+	 * Server settings are staged here and written to configuration.yaml only on
+	 * save. The parent owns the save and discard controls: it binds `changes`
+	 * and `saving`, and calls `save()` and `discard()` through bind:this.
+	 */
+	let {
+		changes = $bindable(0),
+		saving = $bindable(false),
+		onsaved
+	}: {
+		/** Read only: how many staged values differ from the saved ones. */
+		changes?: number;
+		/** Read only: a save is in flight. */
+		saving?: boolean;
+		onsaved?: () => void;
+	} = $props();
 
 	let languages = $state<{ value: string; label: string }[]>([]);
 	// the shared values, not what this screen runs with: a screen's own
@@ -26,7 +56,6 @@
 	let saveError = $state<string | null>(null);
 	// the revision the server holds after another session saved first
 	let conflictRevision = $state<number | null>(null);
-	let saving = $state(false);
 
 	function staged() {
 		return { locale, reduceMotion, touchFeedback, token, customJs };
@@ -36,8 +65,15 @@
 		$lang(feedbackSupported ? 'hearth_touch_feedback_sub' : 'hearth_touch_feedback_unsupported')
 	);
 
-	const initial = JSON.stringify(staged());
-	let dirty = $derived(JSON.stringify(staged()) !== initial);
+	// what configuration.yaml holds: loaded with the section, then each save
+	let saved = $state(staged());
+
+	$effect.pre(() => {
+		const current = staged();
+		changes = (Object.keys(current) as (keyof typeof current)[]).filter(
+			(key) => current[key] !== saved[key]
+		).length;
+	});
 
 	onMount(async () => {
 		feedbackSupported = hapticsSupported();
@@ -59,12 +95,24 @@
 		}
 	});
 
-	/** `revision` overrides the one loaded with the page, for an explicit overwrite. */
-	async function done(revision?: number) {
-		if (saving) return;
+	/** Puts every row back to the saved value. */
+	export function discard() {
+		({ locale, reduceMotion, touchFeedback, token, customJs } = saved);
+		saveError = null;
+		conflictRevision = null;
+	}
+
+	/**
+	 * `revision` overrides the one loaded with the page, for an explicit
+	 * overwrite. Resolves to whether the values were saved.
+	 */
+	export async function save(revision?: number) {
+		if (saving) return false;
 		saving = true;
 		saveError = null;
 		conflictRevision = null;
+		// the rows stay editable during the request; later edits are not part of this save
+		const sent = staged();
 
 		const next = {
 			...($configuration ?? {}),
@@ -93,7 +141,7 @@
 				conflictRevision = Number.isInteger(body?.revision) ? body.revision : null;
 				saveError = $lang('hearth_app_settings_changed');
 				vibrate('error');
-				return;
+				return false;
 			}
 			if (!response.ok) {
 				saveError =
@@ -101,17 +149,20 @@
 						? $lang('hearth_save_needs_admin')
 						: `${$lang('hearth_save_failed')} [${response.status}]`;
 				vibrate('error');
-				return;
+				return false;
 			}
 
 			// language, motion and feedback follow through screen.ts
 			$configuration = { ...next, revision: (await response.json()).revision };
+			saved = sent;
 			vibrate('success');
-			editor.set(null);
+			onsaved?.();
+			return true;
 		} catch (error) {
 			console.error(error);
 			saveError = $lang('hearth_save_failed');
 			vibrate('error');
+			return false;
 		} finally {
 			saving = false;
 		}
@@ -127,117 +178,100 @@
 			title: $lang('hearth_overwrite_newer_app_settings'),
 			message: $lang('hearth_overwrite_app_settings_message'),
 			confirmLabel: $lang('hearth_overwrite'),
-			action: () => void done(revision)
+			action: () => void save(revision)
 		});
 	}
 </script>
 
-<EditSheet
-	title={$lang('hearth_server_settings')}
-	onclose={() => editor.set(null)}
-	onback={() => editor.set({ kind: 'settings' })}
-	{dirty}
-	ondone={() => done()}
-	doneLabel={$lang('save')}
-	doneDisabled={saving}
->
-	<div class="settings">
-		<div class="section-note">{$lang('hearth_server_settings_note')}</div>
-		<div class="rows">
-			{#if languages.length}
-				<SettingsRow label={$lang('hearth_default_language')}>
-					<SelectField
-						inline
-						label={$lang('hearth_default_language')}
-						bind:value={locale}
-						options={languages}
-					/>
-				</SettingsRow>
+{#snippet failure()}
+	{#if saveError}
+		<div class="error" role="alert">
+			<span>{saveError}</span>
+			{#if conflictRevision !== null}
+				<span class="error-actions">
+					<button
+						type="button"
+						class="hearth-button danger"
+						onclick={() => conflictRevision !== null && confirmOverwrite(conflictRevision)}
+					>
+						{$lang('hearth_overwrite')}
+					</button>
+					<button type="button" class="hearth-button secondary" onclick={reloadPage}>
+						{$lang('hearth_reload')}
+					</button>
+				</span>
 			{/if}
-			<SettingsRow label={$lang('hearth_reduce_motion')}>
-				<Switch
-					checked={reduceMotion}
-					label={$lang('hearth_reduce_motion')}
-					onchange={(checked) => (reduceMotion = checked)}
-				/>
-			</SettingsRow>
-			<SettingsRow label={$lang('hearth_touch_feedback')} sub={touchFeedbackSub}>
-				<Switch
-					checked={touchFeedback}
-					label={$lang('hearth_touch_feedback')}
-					onchange={(checked) => {
-						touchFeedback = checked;
-						// the choice is staged, so the sample bypasses the store
-						if (touchFeedback) sampleVibration('press');
-					}}
-				/>
-			</SettingsRow>
-			<SettingsRow label={$lang('hearth_long_lived_token')} sub={$lang('hearth_token_hint')}>
-				<input
-					class="inline-text"
-					type="password"
-					bind:value={token}
-					placeholder="eyJ..."
-					autocomplete="new-password"
-					spellcheck="false"
-					onfocus={handleKeyFocus}
-					onblur={handleKeyFocus}
-				/>
-			</SettingsRow>
-			<SettingsRow label={$lang('hearth_custom_js')} sub={$lang('hearth_custom_js_sub')}>
-				<Switch
-					checked={customJs}
-					label={$lang('hearth_custom_js')}
-					onchange={(checked) => (customJs = checked)}
-				/>
-			</SettingsRow>
-			<SettingsRow label={$lang('version')}>
-				<span class="row-value">{installedVersion ?? $lang('hearth_loading')}</span>
-			</SettingsRow>
 		</div>
-		{#if saveError}
-			<div class="error" role="alert">
-				<span>{saveError}</span>
-				{#if conflictRevision !== null}
-					<span class="error-actions">
-						<button
-							type="button"
-							class="hearth-button danger"
-							onclick={() => conflictRevision !== null && confirmOverwrite(conflictRevision)}
-						>
-							{$lang('hearth_overwrite')}
-						</button>
-						<button type="button" class="hearth-button secondary" onclick={reloadPage}>
-							{$lang('hearth_reload')}
-						</button>
-					</span>
-				{/if}
-			</div>
-		{/if}
-	</div>
-</EditSheet>
+	{/if}
+{/snippet}
+
+<SettingsSection
+	id="server"
+	title={$lang('hearth_server_settings')}
+	scope="server"
+	keep={saveError !== null}
+	after={failure}
+>
+	{#if languages.length}
+		<SettingsRow label={$lang('hearth_default_language')}>
+			<SelectField
+				inline
+				label={$lang('hearth_default_language')}
+				bind:value={locale}
+				options={languages}
+			/>
+		</SettingsRow>
+	{/if}
+	<SettingsRow label={$lang('hearth_reduce_motion')}>
+		<Switch
+			checked={reduceMotion}
+			label={$lang('hearth_reduce_motion')}
+			onchange={(checked) => (reduceMotion = checked)}
+		/>
+	</SettingsRow>
+	<SettingsRow label={$lang('hearth_touch_feedback')} sub={touchFeedbackSub}>
+		<Switch
+			checked={touchFeedback}
+			label={$lang('hearth_touch_feedback')}
+			onchange={(checked) => {
+				touchFeedback = checked;
+				// the choice is staged, so the sample bypasses the store
+				if (touchFeedback) sampleVibration('press');
+			}}
+		/>
+	</SettingsRow>
+	<SettingsRow label={$lang('hearth_long_lived_token')} sub={$lang('hearth_token_hint')}>
+		<input
+			class="inline-text"
+			type="password"
+			aria-label={$lang('hearth_long_lived_token')}
+			bind:value={token}
+			placeholder="eyJ..."
+			autocomplete="new-password"
+			spellcheck="false"
+			onfocus={handleKeyFocus}
+			onblur={handleKeyFocus}
+		/>
+	</SettingsRow>
+	<SettingsRow label={$lang('hearth_custom_js')} sub={$lang('hearth_custom_js_sub')}>
+		<Switch
+			checked={customJs}
+			label={$lang('hearth_custom_js')}
+			onchange={(checked) => (customJs = checked)}
+		/>
+	</SettingsRow>
+	<SettingsRow label={$lang('version')}>
+		<span class="row-value">{installedVersion ?? $lang('hearth_loading')}</span>
+	</SettingsRow>
+</SettingsSection>
 
 <style>
-	.settings {
-		display: flex;
-		flex-direction: column;
-		gap: 18px;
-		max-width: 560px;
-		margin: 0 auto;
-		width: 100%;
-	}
-
-	.section-note,
-	.error {
-		font-size: var(--h-type-small);
-		color: var(--h-bad-text);
-	}
-
 	.error {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 10px;
+		font-size: var(--h-type-small);
 		color: var(--h-bad-text);
 	}
 
@@ -245,13 +279,6 @@
 		display: flex;
 		gap: 8px;
 		margin-left: auto;
-	}
-
-	.rows {
-		border-radius: var(--h-radius-sm);
-		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
-		background: var(--h-track);
-		overflow: hidden;
 	}
 
 	.row-value {

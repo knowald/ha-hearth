@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { get } from 'svelte/store';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { english as en } from '$lib/core/i18n/testing';
 import type { HassConfig } from 'home-assistant-js-websocket';
 import { config as haConfig } from '$lib/core/ha/connection';
@@ -15,6 +15,23 @@ import SettingsEditSheet from './SettingsEditSheet.svelte';
 
 const zoom = vi.hoisted(() => ({ zoomSupported: false }));
 vi.mock('../zoom', () => zoom);
+
+/** One section of the sheet, to tell apart rows that share a label across sections. */
+function section(id: string) {
+	return within(document.querySelector<HTMLElement>(`[data-section="${id}"]`)!);
+}
+
+beforeEach(() => {
+	// the screen and server sections ask for the language list and the version
+	vi.stubGlobal(
+		'fetch',
+		vi.fn(async () => ({ ok: false, json: async (): Promise<unknown> => null }))
+	);
+});
+
+afterEach(() => {
+	vi.unstubAllGlobals();
+});
 
 describe('SettingsEditSheet', () => {
 	afterEach(() => {
@@ -97,16 +114,16 @@ describe('SettingsEditSheet', () => {
 			en.hearth_wall_display,
 			en.hearth_alerts,
 			en.hearth_pages,
-			en.hearth_server,
-			en.hearth_maintenance
+			en.hearth_maintenance,
+			en.hearth_server_settings
 		]);
-		const scopes = [...container.querySelectorAll('.section-scope')].map(
-			(node) => node.textContent
-		);
+		const scopes = [...container.querySelectorAll('.scope-label')].map((node) => node.textContent);
 		expect(scopes[0]).toBe(en.hearth_scope_this_browser);
-		expect(scopes.filter((scope) => scope === en.hearth_scope_dashboard)).toHaveLength(6);
-		expect(scopes).toContain(en.hearth_scope_saved_now);
-		expect(screen.getByText(en.hearth_settings_note)).toBeTruthy();
+		expect(scopes.filter((scope) => scope === en.hearth_scope_dashboard)).toHaveLength(7);
+		expect(scopes.at(-1)).toBe(en.hearth_scope_server);
+		expect(screen.getAllByText(en.hearth_settings_note)).toHaveLength(7);
+		expect(screen.getByText(en.hearth_stored_in_this_browser_only)).toBeTruthy();
+		expect(screen.getByText(en.hearth_server_settings_note)).toBeTruthy();
 		const groups = [...container.querySelectorAll('.group-title')].map((node) => node.textContent);
 		expect(groups).toEqual([
 			en.hearth_screens_900_px_and_narrower,
@@ -118,20 +135,17 @@ describe('SettingsEditSheet', () => {
 
 	it.each([
 		[en.theme, { kind: 'theme' }],
-		[en.hearth_custom_css, { kind: 'customCss' }],
-		[en.hearth_server_settings, { kind: 'appSettings' }]
+		[en.hearth_custom_css, { kind: 'customCss' }]
 	])('opens %s from its section', async (label, kind) => {
 		render(SettingsEditSheet);
 		await fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${label}`) }));
 		expect(get(editor)).toEqual(kind);
 	});
 
-	it('opens This screen over the sheet', async () => {
+	it('lists This screen as its first section', () => {
 		render(SettingsEditSheet);
-		await fireEvent.click(
-			screen.getByRole('button', { name: new RegExp(en.hearth_this_screen_sub) })
-		);
-		expect(get(screenSheetOpen)).toBe(true);
+		expect(section('screen').getByLabelText(en.hearth_device_name)).toBeTruthy();
+		expect(get(screenSheetOpen)).toBe(false);
 	});
 
 	it('keeps a sleep delay and brightness from YAML that no preset matches', () => {
@@ -218,7 +232,7 @@ describe('SettingsEditSheet', () => {
 	])('opens %s with a way back to settings', async (label, kind) => {
 		render(SettingsEditSheet);
 		await fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }));
-		expect(get(editor)).toEqual({ kind, from: { kind: 'settings' } });
+		expect(get(editor)).toEqual({ kind, from: { kind: 'settings', section: 'maintenance' } });
 	});
 
 	it('explains the scale rows where the browser can scale', () => {
@@ -231,7 +245,7 @@ describe('SettingsEditSheet', () => {
 
 	it('keeps the mobile rows explained where the browser cannot scale', () => {
 		render(SettingsEditSheet);
-		expect(screen.getAllByText(en.hearth_scale_unsupported)).toHaveLength(1);
+		expect(section('size').getAllByText(en.hearth_scale_unsupported)).toHaveLength(1);
 		expect(screen.getByText(en.hearth_for_phone_width_screens)).toBeTruthy();
 	});
 

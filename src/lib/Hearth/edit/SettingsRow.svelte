@@ -4,6 +4,7 @@
 	import Ripple from '$lib/ui/actions/ripple';
 	import { PRESS_RIPPLE } from '../config';
 	import Icon from '../Icon.svelte';
+	import { searchMatch } from './settings/search.svelte';
 
 	/*
 	 * One line of a settings list. With `onclick` the whole row is a button that
@@ -27,6 +28,8 @@
 		chevron?: boolean;
 		children?: Snippet;
 	} = $props();
+
+	const shown = searchMatch(() => [label, sub]);
 </script>
 
 {#snippet main()}
@@ -36,23 +39,26 @@
 	</div>
 {/snippet}
 
-{#if onclick}
-	<button
-		type="button"
-		class="row action pressable"
-		class:danger
-		use:Ripple={PRESS_RIPPLE}
-		{onclick}
-	>
-		{#if icon}<Icon name={icon} size={ICON.control} />{/if}
-		{@render main()}
-		{#if chevron}<Icon name="chevron_right" size={ICON.control} />{/if}
-	</button>
-{:else}
-	<div class="row">
-		{@render main()}
-		{@render children?.()}
-	</div>
+<!-- the settings sheet's search drops rows that do not match -->
+{#if shown()}
+	{#if onclick}
+		<button
+			type="button"
+			class="row action pressable"
+			class:danger
+			use:Ripple={PRESS_RIPPLE}
+			{onclick}
+		>
+			{#if icon}<Icon name={icon} size={ICON.control} />{/if}
+			{@render main()}
+			{#if chevron}<Icon name="chevron_right" size={ICON.control} />{/if}
+		</button>
+	{:else}
+		<div class="row">
+			{@render main()}
+			{@render children?.()}
+		</div>
+	{/if}
 {/if}
 
 <style>

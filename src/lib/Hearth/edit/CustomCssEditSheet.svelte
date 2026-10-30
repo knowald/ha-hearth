@@ -32,7 +32,7 @@
 
 	// opened from the Appearance section of Settings, so back and Save return there
 	function back() {
-		editor.set({ kind: 'settings' });
+		editor.set({ kind: 'settings', section: 'appearance' });
 	}
 
 	async function save() {

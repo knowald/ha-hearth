@@ -149,11 +149,14 @@ test('pages, stacks and the settings sheets open and close', async ({ page }) =>
 	}
 
 	await page.getByRole('button', { name: 'Settings' }).click();
-	await page.getByRole('button', { name: /Server settings/ }).click();
-	const appSheet = page.getByRole('dialog', { name: 'Server settings' });
-	await expect(appSheet).toBeVisible();
+	const settingsSheet = page.getByRole('dialog', { name: 'Settings' });
+	await settingsSheet
+		.getByRole('navigation', { name: 'Settings sections' })
+		.getByRole('button', { name: 'Server settings' })
+		.click();
+	await expect(settingsSheet.getByRole('heading', { name: 'Server settings' })).toBeInViewport();
 	await page.keyboard.press('Escape');
-	await expect(appSheet).toBeHidden();
+	await expect(settingsSheet).toBeHidden();
 
 	await page.getByRole('button', { name: 'Settings' }).click();
 	await page.getByRole('button', { name: /Edit configuration YAML/ }).click();

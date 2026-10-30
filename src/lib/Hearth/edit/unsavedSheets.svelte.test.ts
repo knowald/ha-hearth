@@ -208,7 +208,7 @@ describe('item sheets', () => {
 		render(AlertEditSheet, { index: 0 });
 		await fireEvent.click(screen.getByRole('button', { name: en.back }));
 		expect(get(requestedConfirmation)).toBeNull();
-		expect(get(editor)).toEqual({ kind: 'settings' });
+		expect(get(editor)).toEqual({ kind: 'settings', section: 'alerts' });
 
 		editor.set({ kind: 'alert', index: 0 });
 		await fireEvent.input(screen.getByLabelText(en.hearth_title), {

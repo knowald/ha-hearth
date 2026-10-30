@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Put every setting in one Settings sheet, with a section list, a search field and a label on each section that says where its values are kept
+
 ### Added
 
 - Show a live preview of the sleep screen in Settings, with a button to see it full screen ([#33](https://github.com/knowald/ha-hearth/pull/33))

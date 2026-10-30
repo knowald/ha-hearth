@@ -1,1544 +1,626 @@
 <script lang="ts">
-	import { tick } from 'svelte';
-	import { integerFromInput, numberFromInput } from './numbers';
-	import { ICON } from '../iconSizes';
+	import { onMount, tick } from 'svelte';
+	import { get } from 'svelte/store';
+	import Ripple from '$lib/ui/actions/ripple';
 	import { fill, lang } from '$lib/core/i18n';
-	import { config as haConfig } from '$lib/core/ha/connection';
-	import { states } from '$lib/core/ha/entities';
+	import { motion } from '$lib/core/app/motion';
 	import { screenOverrides } from '$lib/core/app/screen';
-	import {
-		GREETING_MINUTES,
-		isTileUrl,
-		moveItem,
-		PHOTO_SECONDS,
-		RADAR_ZOOM,
-		railPositionOf,
-		type AlertChimes,
-		type AlertSeverity,
-		type RailPosition,
-		type ScreensaverBackground,
-		type ScreensaverRadar
-	} from '../config';
-	import { editor, hearthConfig, setupWizardOpen, setupWizardSource, updateConfig } from '../store';
-	import EditSheet from './EditSheet.svelte';
-	import EntityField from './EntityField.svelte';
+	import { PRESS_RIPPLE } from '../config';
+	import { ICON } from '../iconSizes';
 	import Icon from '../Icon.svelte';
-	import ImageField from './ImageField.svelte';
-	import PhotoListField from './PhotoListField.svelte';
-	import SelectField from './SelectField.svelte';
-	import SettingsRow from './SettingsRow.svelte';
-	import SleepPreview from './SleepPreview.svelte';
-	import TextField from './TextField.svelte';
-	import Switch from '../Switch.svelte';
-	import { wakeLockState } from '../wakeLock';
-	import { zoomSupported } from '../zoom';
 	import { screenSheetOpen } from '../screen';
-	import type { ChimeTone } from '../chime';
-	import { DEFAULT_CHIME_VOLUME } from '../model/alerts';
-	import { chimeOptions, chimeValue, sleepOptions, storedChime, withCurrent } from './options';
+	import {
+		editBaseline,
+		editor,
+		hearthConfig,
+		type Editor,
+		type SettingsSectionId
+	} from '../store';
+	import { confirmDiscard } from './discard';
+	import EditSheet from './EditSheet.svelte';
+	import SettingsRow from './SettingsRow.svelte';
+	import AlertsSection, { SETTING_KEYS as ALERTS_KEYS } from './settings/AlertsSection.svelte';
+	import AppearanceSection, {
+		SETTING_KEYS as APPEARANCE_KEYS
+	} from './settings/AppearanceSection.svelte';
+	import { countChanged } from './settings/changes';
+	import LayoutSection, { SETTING_KEYS as LAYOUT_KEYS } from './settings/LayoutSection.svelte';
+	import { provideSettingsGuard } from './settings/guard';
+	import PagesSection, { SETTING_KEYS as PAGES_KEYS } from './settings/PagesSection.svelte';
+	import ScreenSection, { SETTING_KEYS as SCREEN_KEYS } from './settings/ScreenSection.svelte';
+	import { provideSettingsSearch, SettingsSearch } from './settings/search.svelte';
+	import ServerSection from './settings/ServerSection.svelte';
+	import SettingsSection from './settings/SettingsSection.svelte';
+	import SizeSection, { SETTING_KEYS as SIZE_KEYS } from './settings/SizeSection.svelte';
+	import WallDisplaySection, {
+		SETTING_KEYS as WALL_KEYS
+	} from './settings/WallDisplaySection.svelte';
 
-	let previewX = $state<number>();
-	let previewY = $state<number>();
-	let screensaver = $derived(String($hearthConfig.screensaver_minutes ?? 0));
-	let screensaverDrift = $derived($hearthConfig.screensaver_drift ?? false);
-	let screensaverBrightness = $derived(String($hearthConfig.screensaver_brightness ?? 32));
-	let showDate = $derived($hearthConfig.screensaver_show_date ?? true);
-	let showClock = $derived($hearthConfig.screensaver_show_clock ?? true);
-	let clockFont = $derived($hearthConfig.screensaver_clock_font ?? 'default');
-	let hourFormat = $derived($hearthConfig.screensaver_hour_format ?? 'dashboard');
-	let showSeconds = $derived($hearthConfig.screensaver_show_seconds ?? false);
-	let clockSize = $derived($hearthConfig.screensaver_clock_size ?? 'medium');
-	let weatherEntity = $derived($hearthConfig.screensaver_weather_entity ?? '');
-	let background = $derived($hearthConfig.screensaver_background ?? 'none');
-	let backgroundImage = $derived($hearthConfig.screensaver_image ?? '');
-	let radar = $derived($hearthConfig.screensaver_radar ?? {});
-	let photos = $derived($hearthConfig.screensaver_photos ?? []);
-	let photoSeconds = $derived(
-		String($hearthConfig.screensaver_photo_seconds ?? PHOTO_SECONDS.fallback)
-	);
-	let photoOrder = $derived($hearthConfig.screensaver_photo_order ?? 'shuffle');
-	let mediaEntity = $derived($hearthConfig.screensaver_media_entity ?? '');
-	let mediaFallback = $derived($hearthConfig.screensaver_media_fallback ?? 'none');
-	// a media background shows its fallback's fields too, since that is what shows most of the time
-	let scene = $derived(background === 'media' ? mediaFallback : background);
-	let useHomeLocation = $derived(radar.latitude === undefined || radar.longitude === undefined);
-	// without a home location in Home Assistant, only custom coordinates can work
-	let homeKnown = $derived(
-		Number.isFinite($haConfig?.latitude) && Number.isFinite($haConfig?.longitude)
-	);
-	let coordinateInvalid = $state({ latitude: false, longitude: false });
-	let tileUrlInvalid = $state(false);
-	let keepScreenOn = $derived($hearthConfig.keep_screen_on ?? true);
-	let scrollEdgeBlur = $derived($hearthConfig.scroll_edge_blur ?? true);
-	let animations = $derived($hearthConfig.animations ?? true);
-	let railPosition = $derived(railPositionOf($hearthConfig));
-	let swipeMobile = $derived($hearthConfig.swipe_navigation_mobile ?? false);
-	let swipeDesktop = $derived($hearthConfig.swipe_navigation_desktop ?? false);
-	let phoneClock = $derived($hearthConfig.phone_clock ?? false);
-	let paddingX = $derived($hearthConfig.padding_x ?? 0);
-	let paddingY = $derived($hearthConfig.padding_y ?? 0);
-	let mobilePaddingX = $derived($hearthConfig.mobile_padding_x ?? paddingX);
-	let mobilePaddingY = $derived($hearthConfig.mobile_padding_y ?? paddingY);
-	let scale = $derived($hearthConfig.scale ?? 100);
-	let mobileScale = $derived($hearthConfig.mobile_scale ?? scale);
-
-	let SCREENSAVER_OPTIONS = $derived(withCurrent(sleepOptions($lang), screensaver, $lang));
-	let SCREENSAVER_BRIGHTNESS_OPTIONS = $derived(
-		withCurrent(
-			[
-				{ value: '18', label: $lang('hearth_very_dim') },
-				{ value: '32', label: $lang('hearth_dim') },
-				{ value: '50', label: $lang('fan_speed_medium') },
-				{ value: '75', label: $lang('hearth_bright') }
-			],
-			screensaverBrightness,
-			$lang
-		)
-	);
-
-	// a row whose value this screen overrides says so, or a change here would
-	// seem to do nothing on the screen being edited
-	function sharedSub(key: keyof typeof $screenOverrides, sub?: string) {
-		return $screenOverrides[key] === undefined ? sub : $lang('hearth_this_screen_uses_its_own');
-	}
-
-	let editLock = $derived($hearthConfig.edit_lock ?? 'off');
-	let editPin = $derived($hearthConfig.edit_pin ?? '');
-	let pinInvalid = $state(false);
-	let EDIT_LOCK_OPTIONS = $derived([
-		{ value: 'off', label: $lang('off') },
-		{ value: 'hold', label: $lang('hearth_edit_lock_hold') },
-		{ value: 'pin', label: $lang('hearth_edit_lock_pin') }
-	]);
-
-	function setEditLock(value: string) {
-		updateConfig((config) => {
-			config.edit_lock = value === 'hold' || value === 'pin' ? value : undefined;
-			if (value !== 'pin') config.edit_pin = undefined;
-		});
-	}
-
-	function setEditPin(value: string) {
-		const pin = value.trim();
-		pinInvalid = !/^\d{4,8}$/.test(pin);
-		if (pinInvalid) return;
-		updateConfig((config) => {
-			config.edit_pin = pin;
-		});
-	}
-
-	let RAIL_POSITION_OPTIONS = $derived([
-		{ value: 'left', label: $lang('hearth_sidebar_left') },
-		{ value: 'right', label: $lang('hearth_sidebar_right') },
-		{ value: 'both', label: $lang('hearth_sidebar_both') },
-		{ value: 'none', label: $lang('hearth_sidebar_none') }
-	]);
-
-	function movePage(index: number, delta: number) {
-		updateConfig((config) => moveItem(config.rooms, index, delta));
-	}
-
-	function setRailPosition(value: string) {
-		updateConfig((config) => {
-			config.rail_position = value === 'left' ? undefined : (value as RailPosition);
-		});
-	}
-
-	let CLOCK_FONT_OPTIONS = $derived([
-		{ value: 'default', label: $lang('hearth_font_default') },
-		{ value: 'mono', label: $lang('hearth_font_mono') },
-		{ value: 'serif', label: $lang('hearth_font_serif') }
-	]);
-	let HOUR_FORMAT_OPTIONS = $derived([
-		{ value: 'dashboard', label: $lang('hearth_default') },
-		{ value: 'auto', label: $lang('hearth_locale_default') },
-		{ value: '12', label: $lang('hearth_12_hour') },
-		{ value: '24', label: $lang('hearth_24_hour') }
-	]);
-
-	function setSleepPercentage(
-		key: 'screensaver_position_x' | 'screensaver_position_y' | 'screensaver_background_brightness',
-		value: string
-	) {
-		const parsed = numberFromInput(value);
-		if (!Number.isFinite(parsed)) return;
-		updateConfig((config) => {
-			config[key] = Math.min(100, Math.max(0, Math.round(parsed)));
-		});
-		previewX = undefined;
-		previewY = undefined;
-	}
-
-	let CLOCK_SIZE_OPTIONS = $derived([
-		{ value: 'small', label: $lang('hearth_small') },
-		{ value: 'medium', label: $lang('fan_speed_medium') },
-		{ value: 'large', label: $lang('hearth_large') }
-	]);
-	let BACKGROUND_OPTIONS = $derived([
-		{ value: 'none', label: $lang('hearth_sleep_background_none') },
-		{ value: 'image', label: $lang('hearth_sleep_background_image') },
-		{ value: 'radar', label: $lang('hearth_sleep_background_radar') },
-		{ value: 'photos', label: $lang('hearth_sleep_background_photos') },
-		{ value: 'sun', label: $lang('hearth_sleep_background_sun') },
-		{ value: 'media', label: $lang('hearth_sleep_background_media') }
-	]);
-	let MEDIA_FALLBACK_OPTIONS = $derived(
-		BACKGROUND_OPTIONS.filter((option) => option.value !== 'media')
-	);
-	let PHOTO_ORDER_OPTIONS = $derived([
-		{ value: 'shuffle', label: $lang('hearth_sleep_photo_order_shuffle') },
-		{ value: 'sequence', label: $lang('hearth_sleep_photo_order_sequence') }
-	]);
-	let PHOTO_SECONDS_OPTIONS = $derived(
-		withCurrent(
-			[
-				{ value: '10', label: $lang('hearth_every_10_seconds') },
-				{ value: '30', label: $lang('hearth_every_30_seconds') },
-				{ value: '60', label: $lang('hearth_every_minute') },
-				{ value: '300', label: $lang('hearth_every_5_minutes') }
-			],
-			photoSeconds,
-			$lang
-		)
-	);
-	let BASEMAP_OPTIONS = $derived([
-		{ value: 'dark', label: $lang('hearth_dark') },
-		{ value: 'light', label: $lang('hearth_light') }
-	]);
-	let COORDINATES = $derived([
-		{ axis: 'latitude', label: $lang('hearth_sleep_latitude'), limit: 90 },
-		{ axis: 'longitude', label: $lang('hearth_sleep_longitude'), limit: 180 }
-	] as const);
-	const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-	const ZOOM_OPTIONS = Array.from({ length: RADAR_ZOOM.max - RADAR_ZOOM.min + 1 }, (_, index) => {
-		const zoom = String(RADAR_ZOOM.min + index);
-		return { value: zoom, label: zoom };
-	});
-
-	function setScreensaver(value: string) {
-		const minutes = integerFromInput(value);
-		updateConfig((config) => {
-			config.screensaver_minutes = minutes > 0 ? minutes : undefined;
-		});
-	}
-
-	function setScreensaverDrift(enabled: boolean) {
-		updateConfig((config) => {
-			config.screensaver_drift = enabled ? true : undefined;
-		});
-	}
-
-	function setScreensaverBrightness(value: string) {
-		const brightness = integerFromInput(value);
-		updateConfig((config) => {
-			config.screensaver_brightness = brightness === 32 ? undefined : brightness;
-		});
-	}
-
-	function setShowDate(enabled: boolean) {
-		updateConfig((config) => {
-			config.screensaver_show_date = enabled ? undefined : false;
-		});
-	}
-
-	function setClockSize(value: string) {
-		updateConfig((config) => {
-			config.screensaver_clock_size = value === 'small' || value === 'large' ? value : undefined;
-		});
-	}
-
-	function setWeatherEntity(value: string) {
-		updateConfig((config) => {
-			config.screensaver_weather_entity = value.trim() || undefined;
-		});
-	}
-
-	const BACKGROUNDS = new Set<string>(['image', 'radar', 'photos', 'sun', 'media']);
-
-	function setBackground(value: string) {
-		updateConfig((config) => {
-			config.screensaver_background = BACKGROUNDS.has(value)
-				? (value as ScreensaverBackground)
-				: undefined;
-		});
-	}
-
-	function setPhotos(value: string[]) {
-		updateConfig((config) => {
-			config.screensaver_photos = value.length ? value : undefined;
-		});
-	}
-
-	function setPhotoSeconds(value: string) {
-		const seconds = integerFromInput(value);
-		updateConfig((config) => {
-			config.screensaver_photo_seconds =
-				seconds === PHOTO_SECONDS.fallback || seconds < PHOTO_SECONDS.min ? undefined : seconds;
-		});
-	}
-
-	function setPhotoOrder(value: string) {
-		updateConfig((config) => {
-			config.screensaver_photo_order = value === 'sequence' ? 'sequence' : undefined;
-		});
-	}
-
-	function setMediaEntity(value: string) {
-		updateConfig((config) => {
-			config.screensaver_media_entity = value.trim() || undefined;
-		});
-	}
-
-	function setMediaFallback(value: string) {
-		updateConfig((config) => {
-			config.screensaver_media_fallback =
-				value !== 'media' && BACKGROUNDS.has(value)
-					? (value as Exclude<ScreensaverBackground, 'media'>)
-					: undefined;
-		});
-	}
-
-	function setBackgroundImage(value: string) {
-		updateConfig((config) => {
-			config.screensaver_image = value.trim() || undefined;
-		});
-	}
-
-	/** Applies a change to the radar settings, dropping keys that are back at their default. */
-	function setRadar(patch: Partial<ScreensaverRadar>) {
-		updateConfig((config) => {
-			const next: ScreensaverRadar = { ...config.screensaver_radar, ...patch };
-			if (next.zoom === RADAR_ZOOM.fallback) next.zoom = undefined;
-			if (next.basemap === 'dark') next.basemap = undefined;
-			const kept = Object.entries(next).filter(([, value]) => value !== undefined);
-			config.screensaver_radar = kept.length ? Object.fromEntries(kept) : undefined;
-		});
-	}
-
-	// turning the home location off starts the fields from the home coordinates
-	function setUseHomeLocation(enabled: boolean) {
-		const round = (value: number | undefined) =>
-			value === undefined ? undefined : Math.round(value * 10_000) / 10_000;
-		setRadar(
-			enabled
-				? { latitude: undefined, longitude: undefined }
-				: { latitude: round($haConfig?.latitude), longitude: round($haConfig?.longitude) }
-		);
-	}
-
-	function setCoordinate(axis: 'latitude' | 'longitude', limit: number, value: string) {
-		const coordinate = numberFromInput(value);
-		const valid = Number.isFinite(coordinate) && Math.abs(coordinate) <= limit;
-		coordinateInvalid[axis] = !valid;
-		if (valid) setRadar({ [axis]: coordinate });
-	}
-
-	function setTileUrl(value: string) {
-		const url = value.trim();
-		tileUrlInvalid = url !== '' && !isTileUrl(url);
-		if (!tileUrlInvalid) setRadar({ tile_url: url || undefined });
-	}
-
-	function setKeepScreenOn(enabled: boolean) {
-		updateConfig((config) => {
-			config.keep_screen_on = enabled ? undefined : false;
-		});
-	}
-
-	function setScrollEdgeBlur(enabled: boolean) {
-		updateConfig((config) => {
-			config.scroll_edge_blur = enabled ? undefined : false;
-		});
-	}
-
-	function setAnimations(enabled: boolean) {
-		updateConfig((config) => {
-			config.animations = enabled ? undefined : false;
-		});
-	}
-
-	let chimes = $derived($hearthConfig.alert_chimes ?? {});
-	let chimeVolume = $derived(String(chimes.volume ?? DEFAULT_CHIME_VOLUME));
-	let CHIME_SEVERITIES = $derived([
-		{ severity: 'info', label: $lang('hearth_alert_chime_info') },
-		{ severity: 'warning', label: $lang('hearth_alert_chime_warning') },
-		{ severity: 'critical', label: $lang('hearth_alert_chime_critical') }
-	] as const);
-	let CHIME_OPTIONS = $derived(chimeOptions($lang));
-	let VOLUME_OPTIONS = $derived(
-		withCurrent(
-			['20', '40', '60', '80', '100'].map((value) => ({ value, label: `${value}%` })),
-			chimeVolume,
-			$lang
-		)
-	);
-
-	/** Applies a change to the alert chimes, dropping keys that are back at their default. */
-	function setChimes(patch: Partial<AlertChimes>) {
-		updateConfig((config) => {
-			const next: AlertChimes = { ...config.alert_chimes, ...patch };
-			if (next.volume === DEFAULT_CHIME_VOLUME) next.volume = undefined;
-			const kept = Object.entries(next).filter(([, value]) => value !== undefined);
-			config.alert_chimes = kept.length ? Object.fromEntries(kept) : undefined;
-		});
-	}
-
-	function setSeverityChime(severity: AlertSeverity, value: string) {
-		const chime = storedChime(value);
-		setChimes({ [severity]: chime === 'none' ? undefined : chime });
-	}
-
-	// the tone of the most severe alert that chimes, so the test sounds like one
-	let previewTone = $derived.by((): ChimeTone => {
-		for (const severity of ['critical', 'warning', 'info'] as const) {
-			const chime = chimes[severity];
-			if (chime === true) return 'chime';
-			if (chime === 'soft' || chime === 'bell') return chime;
-		}
-		return 'chime';
-	});
-
-	async function playTestChime() {
-		const { previewChime } = await import('../chimeGate');
-		await previewChime(previewTone, Number(chimeVolume));
-	}
-
-	let greeting = $derived($hearthConfig.greeting);
-	let greetingMinutes = $derived(String(greeting?.minutes ?? GREETING_MINUTES));
-	// every person Home Assistant knows, plus any configured one it no longer reports
-	let persons = $derived(
-		[
-			...new Set([
-				...Object.keys($states ?? {}).filter((id) => id.startsWith('person.')),
-				...(greeting?.persons ?? [])
-			])
-		].sort()
-	);
-	let GREETING_MINUTE_OPTIONS = $derived(
-		withCurrent(
-			['5', '10', '15', '30', '60'].map((value) => ({
-				value,
-				label: fill($lang('hearth_minutes_count'), { count: value })
-			})),
-			greetingMinutes,
-			$lang
-		)
-	);
-
-	function setGreetingPerson(person: string, greeted: boolean) {
-		updateConfig((config) => {
-			const current = config.greeting?.persons ?? [];
-			const next = greeted
-				? [...new Set([...current, person])]
-				: current.filter((entry) => entry !== person);
-			config.greeting = next.length ? { ...config.greeting, persons: next } : undefined;
-		});
-	}
-
-	function setGreetingMinutes(value: string) {
-		const minutes = integerFromInput(value);
-		updateConfig((config) => {
-			if (!config.greeting) return;
-			config.greeting = {
-				...config.greeting,
-				minutes: minutes === GREETING_MINUTES ? undefined : minutes
-			};
-		});
-	}
-
-	function setSwipe(key: 'swipe_navigation_mobile' | 'swipe_navigation_desktop', enabled: boolean) {
-		updateConfig((config) => {
-			config[key] = enabled ? true : undefined;
-		});
-	}
-
-	function setPhoneClock(enabled: boolean) {
-		updateConfig((config) => {
-			config.phone_clock = enabled ? true : undefined;
-		});
-	}
-
-	type PaddingKey = 'padding_x' | 'padding_y' | 'mobile_padding_x' | 'mobile_padding_y';
-
-	function setPadding(axis: PaddingKey, value: string, shown: number) {
-		const pixels = integerFromInput(value);
-		storeStepper(
-			axis,
-			Number.isFinite(pixels) ? Math.min(300, Math.max(0, pixels)) : undefined,
-			0,
-			shown
-		);
-	}
-
-	type ScaleKey = 'scale' | 'mobile_scale';
-
-	function setScale(key: ScaleKey, value: string, shown: number) {
-		const percent = integerFromInput(value);
-		storeStepper(
-			key,
-			Number.isFinite(percent) ? Math.min(200, Math.max(50, percent)) : undefined,
-			100,
-			shown
-		);
-	}
-
-	/**
-	 * Undefined clears the key. Tablet rows drop their default; mobile rows keep
-	 * any value, since even the default overrides a different tablet value. A
-	 * mobile row still following the tablet one stays unset when the press or
-	 * typed value lands on the number it already shows.
+	/*
+	 * Every setting in one sheet: a section list beside (or, folded, above) the
+	 * sections, a search across their rows, and a footer that says what will
+	 * happen to the changes. Outside edit mode only This screen is reachable,
+	 * so `screenOnly` drops everything else.
 	 */
-	function storeStepper(
-		key: PaddingKey | ScaleKey,
-		next: number | undefined,
-		fallback: number,
-		shown: number
-	) {
-		const mobile = key.startsWith('mobile_');
-		if (mobile && $hearthConfig[key] === undefined && next === shown) return;
-		updateConfig((config) => {
-			config[key] = next === undefined || (!mobile && next === fallback) ? undefined : next;
-		});
-	}
+	let { screenOnly = false, section }: { screenOnly?: boolean; section?: SettingsSectionId } =
+		$props();
 
-	interface StepperRow {
-		label: string;
-		decrease: string;
-		increase: string;
-		sub?: string;
-		value: number;
-		step: number;
-		min: number;
-		max: number;
-		unit: string;
-		set: (value: string) => void;
-	}
+	type Group = 'device' | 'dashboard' | 'server';
 
-	function paddingRow(
-		key: PaddingKey,
-		value: number,
-		labels: Pick<StepperRow, 'label' | 'decrease' | 'increase' | 'sub'>
-	): StepperRow {
-		return {
-			...labels,
-			value,
-			step: 4,
-			min: 0,
-			max: 300,
-			unit: 'px',
-			set: (input) => setPadding(key, input, value)
+	const SECTIONS: { id: SettingsSectionId; group: Group; icon: string; title: string }[] = [
+		{ id: 'screen', group: 'device', icon: 'display_settings', title: 'hearth_this_screen' },
+		{ id: 'appearance', group: 'dashboard', icon: 'palette', title: 'hearth_appearance' },
+		{
+			id: 'layout',
+			group: 'dashboard',
+			icon: 'view_sidebar',
+			title: 'hearth_layout_and_navigation'
+		},
+		{ id: 'size', group: 'dashboard', icon: 'straighten', title: 'hearth_size_and_spacing' },
+		{ id: 'wall', group: 'dashboard', icon: 'nest_display', title: 'hearth_wall_display' },
+		{ id: 'alerts', group: 'dashboard', icon: 'notifications', title: 'hearth_alerts' },
+		{ id: 'pages', group: 'dashboard', icon: 'tab', title: 'hearth_pages' },
+		{ id: 'maintenance', group: 'dashboard', icon: 'build', title: 'hearth_maintenance' },
+		{ id: 'server', group: 'server', icon: 'dns', title: 'hearth_server_settings' }
+	];
+
+	const GROUP_TITLES: Record<Group, string> = {
+		device: 'hearth_this_device',
+		dashboard: 'hearth_dashboard',
+		server: 'hearth_server'
+	};
+
+	const DASHBOARD_KEYS = {
+		appearance: APPEARANCE_KEYS,
+		layout: LAYOUT_KEYS,
+		size: SIZE_KEYS,
+		wall: WALL_KEYS,
+		alerts: ALERTS_KEYS,
+		pages: PAGES_KEYS
+	} as const;
+
+	const search = new SettingsSearch();
+	provideSettingsSearch(search);
+
+	// Dashboard changes count from what Save in the edit bar keeps them against,
+	// so a trip to another editor and back keeps them; outside edit mode, and
+	// for this screen's own choices, from what the sheet opened with.
+	const openedConfig = get(hearthConfig);
+	const openedOverrides = get(screenOverrides);
+
+	let server = $state<ServerSection>();
+	let serverChanges = $state(0);
+	let serverSaving = $state(false);
+	let serverSaved = $state(false);
+
+	let counts = $derived.by(() => {
+		const baseline = editBaseline() ?? openedConfig;
+		const result: Record<SettingsSectionId, number> = {
+			screen: countChanged(SCREEN_KEYS, openedOverrides, $screenOverrides),
+			appearance: 0,
+			layout: 0,
+			size: 0,
+			wall: 0,
+			alerts: 0,
+			pages: 0,
+			maintenance: 0,
+			server: serverChanges
 		};
-	}
+		for (const [id, keys] of Object.entries(DASHBOARD_KEYS)) {
+			result[id as keyof typeof DASHBOARD_KEYS] = countChanged(keys, baseline, $hearthConfig);
+		}
+		return result;
+	});
 
-	function scaleRow(
-		key: ScaleKey,
-		value: number,
-		labels: Pick<StepperRow, 'label' | 'decrease' | 'increase' | 'sub'>
-	): StepperRow {
-		return {
-			...labels,
-			// the mobile row's hint is the only place that explains the mobile rows,
-			// so the unsupported note goes on the main row alone
-			sub:
-				// a screen's own scale also applies at narrow widths (see screen.ts)
-				$screenOverrides[key] !== undefined ||
-				(key === 'mobile_scale' && $screenOverrides.scale !== undefined)
-					? 'hearth_this_screen_uses_its_own'
-					: zoomSupported || key === 'mobile_scale'
-						? labels.sub
-						: 'hearth_scale_unsupported',
-			value,
-			step: 5,
-			min: 50,
-			max: 200,
-			unit: '%',
-			set: (input) => setScale(key, input, value)
-		};
-	}
+	let dashboardChanges = $derived(
+		Object.keys(DASHBOARD_KEYS).reduce(
+			(sum, id) => sum + counts[id as keyof typeof DASHBOARD_KEYS],
+			0
+		)
+	);
 
-	let wideRows = $derived([
-		scaleRow('scale', scale, {
-			label: 'hearth_interface_scale',
-			decrease: 'hearth_decrease_interface_scale',
-			increase: 'hearth_increase_interface_scale',
-			sub: 'hearth_size_of_text_and_controls'
-		}),
-		paddingRow('padding_x', paddingX, {
-			label: 'hearth_side_padding',
-			decrease: 'hearth_decrease_side_padding',
-			increase: 'hearth_increase_side_padding',
-			sub: 'hearth_for_screens_whose_frame_covers_the'
-		}),
-		paddingRow('padding_y', paddingY, {
-			label: 'hearth_top_bottom_padding',
-			decrease: 'hearth_decrease_top_bottom_padding',
-			increase: 'hearth_increase_top_bottom_padding'
-		})
-	]);
-
-	// mobile rows follow the wide ones; their hint reads "instead of the values above"
-	let narrowRows = $derived([
-		scaleRow('mobile_scale', mobileScale, {
-			label: 'hearth_mobile_interface_scale',
-			decrease: 'hearth_decrease_mobile_interface_scale',
-			increase: 'hearth_increase_mobile_interface_scale',
-			sub: 'hearth_for_phone_width_screens'
-		}),
-		paddingRow('mobile_padding_x', mobilePaddingX, {
-			label: 'hearth_mobile_side_padding',
-			decrease: 'hearth_decrease_mobile_side_padding',
-			increase: 'hearth_increase_mobile_side_padding'
-		}),
-		paddingRow('mobile_padding_y', mobilePaddingY, {
-			label: 'hearth_mobile_top_bottom_padding',
-			decrease: 'hearth_decrease_mobile_top_bottom_padding',
-			increase: 'hearth_increase_mobile_top_bottom_padding'
-		})
-	]);
-
-	// A typed value that clamps to the stored one changes nothing, so the field
-	// would keep showing the typed text; write the effective value back. The
-	// row is read through a getter because the object passed in goes stale.
-	async function commitInput(input: HTMLInputElement, row: () => StepperRow) {
-		row().set(input.value);
-		await tick();
-		input.value = String(row().value);
-	}
+	// a saved note stands until the next staged change
+	$effect(() => {
+		if (serverChanges > 0) serverSaved = false;
+	});
 
 	function close() {
-		editor.set(null);
+		if (screenOnly) screenSheetOpen.set(false);
+		else editor.set(null);
 	}
+
+	// leaving for another editor unmounts the sheet and its staged server values
+	function openEditor(next: Editor) {
+		confirmDiscard(serverChanges > 0, () => editor.set(next));
+	}
+	provideSettingsGuard({
+		leave: (leave) => confirmDiscard(serverChanges > 0, leave),
+		serverChanged: () => serverChanges > 0
+	});
+
+	async function saveServer() {
+		// the error and its actions sit in the section, which may be out of view
+		if (server && !(await server.save())) void jump('server');
+	}
+
+	// the sheet remounts for another section, so the first value is the only one
+	// svelte-ignore state_referenced_locally
+	let active = $state<SettingsSectionId>(section ?? 'screen');
+	let content = $state<HTMLElement>();
+	let nav = $state<HTMLElement>();
+	// a jump's own smooth scroll passes other sections; the spy waits it out
+	let jumpUntil = 0;
+
+	async function jump(id: SettingsSectionId, smooth = true) {
+		search.query = '';
+		active = id;
+		jumpUntil = performance.now() + 800;
+		await tick();
+		const target = content?.querySelector<HTMLElement>(`[data-section="${id}"]`);
+		if (!content || !target) return;
+		content.scrollTo?.({
+			top: target.offsetTop - 12,
+			behavior: smooth && $motion ? 'smooth' : 'auto'
+		});
+	}
+
+	/** Marks the section at the top of the list, or the last one once the list ends. */
+	function spy() {
+		if (!content || search.active || performance.now() < jumpUntil) return;
+		const sections = [...content.querySelectorAll<HTMLElement>('[data-section]')];
+		const top = content.scrollTop + 40;
+		let current = sections[0]?.dataset.section;
+		for (const element of sections) {
+			if (element.offsetTop <= top) current = element.dataset.section;
+		}
+		if (content.scrollTop + content.clientHeight >= content.scrollHeight - 4) {
+			current = sections.at(-1)?.dataset.section;
+		}
+		if (current) active = current as SettingsSectionId;
+	}
+
+	// a cleared search can bring the list back without a scroll event
+	let searched = false;
+	$effect(() => {
+		const searching = search.active;
+		const cleared = searched && !searching;
+		searched = searching;
+		if (!cleared) return;
+		const frame = requestAnimationFrame(spy);
+		return () => cancelAnimationFrame(frame);
+	});
+
+	// folded, the section list is a row of chips; keep the active one in view
+	$effect(() => {
+		if (!nav || nav.scrollWidth <= nav.clientWidth) return;
+		const chip = nav.querySelector<HTMLElement>(`[data-target="${active}"]`);
+		if (chip) nav.scrollTo?.({ left: chip.offsetLeft - 16, behavior: $motion ? 'smooth' : 'auto' });
+	});
+
+	onMount(() => {
+		if (section && !screenOnly) void jump(section, false);
+	});
 </script>
 
-{#snippet stepperRow(row: StepperRow)}
-	<SettingsRow label={$lang(row.label)} sub={row.sub && $lang(row.sub)}>
-		<span class="unit-input">
-			<span class="stepper field-frame">
-				<button
-					type="button"
-					class="step"
-					aria-label={$lang(row.decrease)}
-					onclick={() => row.set(String(row.value - row.step))}
-				>
-					<Icon name="remove" size={ICON.inline} />
-				</button>
-				<input
-					type="number"
-					aria-label={$lang(row.label)}
-					min={row.min}
-					max={row.max}
-					value={row.value}
-					onchange={(event) => commitInput(event.currentTarget, () => row)}
-				/>
-				<button
-					type="button"
-					class="step"
-					aria-label={$lang(row.increase)}
-					onclick={() => row.set(String(row.value + row.step))}
-				>
-					<Icon name="add" size={ICON.inline} />
-				</button>
-			</span>
-			<span class="unit">{row.unit}</span>
-		</span>
-	</SettingsRow>
+{#snippet searchField()}
+	<label class="search field-frame">
+		<Icon name="search" size={ICON.control} />
+		<input
+			type="search"
+			bind:value={search.query}
+			onkeydown={(event) => {
+				// the layer leaves Escape to a search field with text (see layers.ts)
+				if (event.key === 'Escape' && search.query && !event.isComposing) {
+					event.preventDefault();
+					search.query = '';
+				}
+			}}
+			placeholder={$lang('hearth_search_settings')}
+			aria-label={$lang('hearth_search_settings')}
+			autocomplete="off"
+			spellcheck="false"
+		/>
+	</label>
 {/snippet}
 
-{#snippet sectionHead(title: string, scope?: string)}
-	<div class="section-title">{title}</div>
-	{#if scope}<div class="section-scope">{scope}</div>{/if}
-{/snippet}
-
-<!-- every row applies as it changes, so the header action only closes -->
+<!-- every dashboard and screen row applies as it changes, so the header action
+     only closes; server values wait for the footer's Save -->
 <EditSheet
-	title={$lang('settings')}
+	title={$lang(screenOnly ? 'hearth_this_screen' : 'settings')}
+	wide={!screenOnly}
+	split={!screenOnly}
+	dirty={serverChanges > 0}
 	onclose={close}
-	ondone={close}
+	ondone={() => confirmDiscard(serverChanges > 0, close)}
 	doneLabel={$lang('hearth_close')}
+	tools={screenOnly ? undefined : searchField}
 >
-	<div class="settings">
-		<div class="settings-note">{$lang('hearth_settings_note')}</div>
-
-		<section>
-			{@render sectionHead($lang('hearth_this_screen'), $lang('hearth_scope_this_browser'))}
-			<div class="rows">
-				<SettingsRow
-					icon="display_settings"
-					label={$lang('hearth_this_screen')}
-					sub={$lang('hearth_this_screen_sub')}
-					onclick={() => screenSheetOpen.set(true)}
-				/>
-			</div>
-		</section>
-
-		<section>
-			{@render sectionHead($lang('hearth_appearance'), $lang('hearth_scope_dashboard'))}
-			<div class="rows">
-				<SettingsRow
-					icon="palette"
-					label={$lang('theme')}
-					sub={$lang('hearth_theme_row_sub')}
-					onclick={() => editor.set({ kind: 'theme' })}
-				/>
-				<SettingsRow
-					icon="css"
-					label={$lang('hearth_custom_css')}
-					sub={$lang('hearth_custom_css_sub')}
-					onclick={() => editor.set({ kind: 'customCss' })}
-				/>
-				<SettingsRow
-					label={$lang('hearth_scroll_edge_blur')}
-					sub={$lang('hearth_blurs_content_where_a_list_runs_off')}
-				>
-					<Switch
-						checked={scrollEdgeBlur}
-						label={$lang('hearth_scroll_edge_blur')}
-						onchange={setScrollEdgeBlur}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					label={$lang('hearth_tile_animations')}
-					sub={$lang('hearth_tile_animations_sub')}
-				>
-					<Switch
-						checked={animations}
-						label={$lang('hearth_tile_animations')}
-						onchange={setAnimations}
-					/>
-				</SettingsRow>
-			</div>
-		</section>
-
-		<section>
-			{@render sectionHead($lang('hearth_layout_and_navigation'), $lang('hearth_scope_dashboard'))}
-			<div class="rows">
-				<SettingsRow
-					label={$lang('hearth_sidebar')}
-					sub={$lang(
-						railPosition === 'none'
-							? 'hearth_sidebar_widgets_hidden_but_kept'
-							: 'hearth_where_widgets_sit_on_wide_screens'
-					)}
-				>
-					<SelectField
-						inline
-						label={$lang('hearth_sidebar')}
-						value={railPosition}
-						options={RAIL_POSITION_OPTIONS}
-						onchange={setRailPosition}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					label={$lang('hearth_swipe_between_pages_on_phones')}
-					sub={$lang('hearth_swipe_sideways_over_the_page')}
-				>
-					<Switch
-						checked={swipeMobile}
-						label={$lang('hearth_swipe_between_pages_on_phones')}
-						onchange={(enabled) => setSwipe('swipe_navigation_mobile', enabled)}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					label={$lang('hearth_swipe_between_pages_on_wide_screens')}
-					sub={$lang('hearth_drag_sideways_over_the_page')}
-				>
-					<Switch
-						checked={swipeDesktop}
-						label={$lang('hearth_swipe_between_pages_on_wide_screens')}
-						onchange={(enabled) => setSwipe('swipe_navigation_desktop', enabled)}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					label={$lang('hearth_clock_in_the_phone_page_strip')}
-					sub={$lang('hearth_shows_the_time_and_date_beside')}
-				>
-					<Switch
-						checked={phoneClock}
-						label={$lang('hearth_clock_in_the_phone_page_strip')}
-						onchange={setPhoneClock}
-					/>
-				</SettingsRow>
-			</div>
-		</section>
-
-		<section>
-			{@render sectionHead($lang('hearth_size_and_spacing'), $lang('hearth_scope_dashboard'))}
-			<div class="rows">
-				{#each wideRows as row (row.label)}
-					{@render stepperRow(row)}
-				{/each}
-				<div class="group-title">{$lang('hearth_screens_900_px_and_narrower')}</div>
-				{#each narrowRows as row (row.label)}
-					{@render stepperRow(row)}
-				{/each}
-			</div>
-		</section>
-
-		<section>
-			{@render sectionHead($lang('hearth_wall_display'), $lang('hearth_scope_dashboard'))}
-			<div class="rows sleep-rows">
-				<SettingsRow
-					label={$lang('hearth_keep_screen_awake')}
-					sub={sharedSub('keep_screen_on', $lang('hearth_while_the_dashboard_is_open'))}
-				>
-					<Switch
-						checked={keepScreenOn}
-						label={$lang('hearth_keep_screen_awake')}
-						onchange={setKeepScreenOn}
-					/>
-				</SettingsRow>
-				{#if keepScreenOn && ($wakeLockState === 'unsupported' || $wakeLockState === 'denied')}
-					<div class="setting-warning" role="alert">
-						<Icon name="warning" size={ICON.control} />
-						<span>
-							{#if $wakeLockState === 'unsupported'}
-								{$lang('hearth_screen_wake_lock_is_unavailable_open')}
-							{:else}
-								{$lang('hearth_the_browser_denied_the_screen_wake')}
-							{/if}
-						</span>
-					</div>
-				{/if}
-				<SettingsRow label={$lang('hearth_edit_lock')} sub={$lang('hearth_edit_lock_sub')}>
-					<SelectField
-						inline
-						label={$lang('hearth_edit_lock')}
-						value={editLock}
-						options={EDIT_LOCK_OPTIONS}
-						onchange={setEditLock}
-					/>
-				</SettingsRow>
-				{#if editLock === 'pin'}
-					<SettingsRow
-						label={$lang('hearth_edit_pin')}
-						sub={$lang(pinInvalid || !editPin ? 'hearth_edit_pin_invalid' : 'hearth_edit_pin_sub')}
+	{#if screenOnly}
+		<div class="settings">
+			<ScreenSection />
+		</div>
+	{:else}
+		<div class="settings-layout">
+			<nav class="section-nav" aria-label={$lang('hearth_settings_sections')} bind:this={nav}>
+				{#each SECTIONS as item, index (item.id)}
+					{#if index === 0 || SECTIONS[index - 1].group !== item.group}
+						<div class="nav-group">{$lang(GROUP_TITLES[item.group])}</div>
+					{/if}
+					<button
+						type="button"
+						class="nav-item"
+						data-target={item.id}
+						aria-current={active === item.id ? 'true' : undefined}
+						onclick={() => jump(item.id)}
 					>
-						<input
-							class="inline-text"
-							type="text"
-							inputmode="numeric"
-							autocomplete="off"
-							maxlength="8"
-							aria-label={$lang('hearth_edit_pin')}
-							aria-invalid={pinInvalid || undefined}
-							value={editPin}
-							onchange={(event) => setEditPin(event.currentTarget.value)}
+						<Icon name={item.icon} size={ICON.control} />
+						<span class="nav-title">{$lang(item.title)}</span>
+						{#if counts[item.id]}
+							<span class="nav-count">
+								<span aria-hidden="true">{counts[item.id]}</span>
+								<span class="hidden-label">
+									{fill($lang('hearth_settings_changed_count'), { count: counts[item.id] })}
+								</span>
+							</span>
+						{/if}
+					</button>
+				{/each}
+			</nav>
+			<div class="settings-content" bind:this={content} onscroll={spy}>
+				<div class="settings-list">
+					<ScreenSection />
+					<AppearanceSection />
+					<LayoutSection />
+					<SizeSection />
+					<WallDisplaySection />
+					<AlertsSection />
+					<PagesSection />
+					<SettingsSection id="maintenance" title={$lang('hearth_maintenance')} scope="dashboard">
+						<SettingsRow
+							icon="code"
+							label={$lang('hearth_edit_configuration_yaml')}
+							sub={$lang('hearth_edits_the_whole_configuration_as_yaml')}
+							onclick={() =>
+								openEditor({ kind: 'code', from: { kind: 'settings', section: 'maintenance' } })}
 						/>
-					</SettingsRow>
-				{/if}
-				<div class="sleep-editor">
-					<div class="group-title">{$lang('hearth_sleep_screen')}</div>
-					<div class="sleep-preview">
-						<SleepPreview positionX={previewX} positionY={previewY} />
-					</div>
-					<SettingsRow
-						label={$lang('hearth_sleep_turn_on_after')}
-						sub={sharedSub('screensaver_minutes')}
-					>
-						<SelectField
-							inline
-							label={$lang('hearth_sleep_turn_on_after')}
-							value={screensaver}
-							options={SCREENSAVER_OPTIONS}
-							onchange={setScreensaver}
-						/>
-					</SettingsRow>
-					<SettingsRow label={$lang('hearth_widget_clock_label')}>
-						<Switch
-							checked={showClock}
-							label={$lang('hearth_widget_clock_label')}
-							onchange={(value) =>
-								updateConfig((config) => {
-									config.screensaver_show_clock = value ? undefined : false;
+						<SettingsRow
+							icon="history"
+							label={$lang('hearth_versions')}
+							sub={$lang('hearth_versions_row_sub')}
+							onclick={() =>
+								openEditor({
+									kind: 'versions',
+									from: { kind: 'settings', section: 'maintenance' }
 								})}
 						/>
-					</SettingsRow>
-					{#if showClock}
-						<SettingsRow label={$lang('hearth_layout')}>
-							<SelectField
-								inline
-								label={$lang('hearth_layout')}
-								value={$hearthConfig.screensaver_clock_layout ?? 'default'}
-								options={[
-									{ value: 'default', label: $lang('hearth_default') },
-									{ value: 'stacked', label: $lang('hearth_stack') }
-								]}
-								onchange={(value) =>
-									updateConfig((config) => {
-										config.screensaver_clock_layout = value === 'stacked' ? 'stacked' : undefined;
-									})}
-							/>
-						</SettingsRow>
-						<SettingsRow label={$lang('hearth_font')}>
-							<SelectField
-								inline
-								label={$lang('hearth_font')}
-								value={clockFont}
-								options={CLOCK_FONT_OPTIONS}
-								onchange={(value) =>
-									updateConfig((config) => {
-										config.screensaver_clock_font =
-											value === 'mono' || value === 'serif' ? value : undefined;
-									})}
-							/>
-						</SettingsRow>
-						<SettingsRow label={$lang('hearth_hour_format')}>
-							<SelectField
-								inline
-								label={$lang('hearth_hour_format')}
-								value={hourFormat}
-								options={HOUR_FORMAT_OPTIONS}
-								onchange={(value) =>
-									updateConfig((config) => {
-										config.screensaver_hour_format =
-											value === 'auto' || value === '12' || value === '24' ? value : undefined;
-									})}
-							/>
-						</SettingsRow>
-						<SettingsRow label={$lang('hearth_show_seconds')}>
-							<Switch
-								checked={showSeconds}
-								label={$lang('hearth_show_seconds')}
-								onchange={(value) =>
-									updateConfig((config) => {
-										config.screensaver_show_seconds = value ? true : undefined;
-									})}
-							/>
-						</SettingsRow>
-						<SettingsRow label={$lang('hearth_sleep_clock_size')}>
-							<SelectField
-								inline
-								label={$lang('hearth_sleep_clock_size')}
-								value={clockSize}
-								options={CLOCK_SIZE_OPTIONS}
-								onchange={setClockSize}
-							/>
-						</SettingsRow>
-					{/if}
-					{#each ['x', 'y'] as axis (axis)}
-						{@const key = axis === 'x' ? 'screensaver_position_x' : 'screensaver_position_y'}
-						{@const label = `${$lang('hearth_position')} ${axis.toUpperCase()}`}
-						<SettingsRow {label}>
-							<div class="sleep-range">
-								<input
-									type="range"
-									min="0"
-									max="100"
-									step="1"
-									aria-label={label}
-									value={(axis === 'x' ? previewX : previewY) ?? $hearthConfig[key] ?? 50}
-									oninput={(event) => {
-										if (axis === 'x') previewX = Number(event.currentTarget.value);
-										else previewY = Number(event.currentTarget.value);
-									}}
-									onchange={(event) => setSleepPercentage(key, event.currentTarget.value)}
-								/>
-								<span>{(axis === 'x' ? previewX : previewY) ?? $hearthConfig[key] ?? 50}%</span>
-							</div>
-						</SettingsRow>
-					{/each}
-					<SettingsRow label={$lang('hearth_sleep_show_date')}>
-						<Switch
-							checked={showDate}
-							label={$lang('hearth_sleep_show_date')}
-							onchange={setShowDate}
-						/>
-					</SettingsRow>
-					<SettingsRow
-						label={$lang('hearth_screensaver_drift')}
-						sub={$lang('hearth_slowly_moves_the_clock_to_protect')}
-					>
-						<Switch
-							checked={screensaverDrift}
-							label={$lang('hearth_screensaver_drift')}
-							onchange={setScreensaverDrift}
-						/>
-					</SettingsRow>
-					<SettingsRow label={$lang('hearth_screensaver_brightness')}>
-						<SelectField
-							inline
-							label={$lang('hearth_screensaver_brightness')}
-							value={screensaverBrightness}
-							options={SCREENSAVER_BRIGHTNESS_OPTIONS}
-							onchange={setScreensaverBrightness}
-						/>
-					</SettingsRow>
-					<SettingsRow label={$lang('hearth_sleep_background')}>
-						<SelectField
-							inline
-							label={$lang('hearth_sleep_background')}
-							value={background}
-							options={BACKGROUND_OPTIONS}
-							onchange={setBackground}
-						/>
-					</SettingsRow>
-					{#if background !== 'none'}
-						<SettingsRow label={$lang('hearth_sleep_background_brightness')}>
-							<SelectField
-								inline
-								label={$lang('hearth_sleep_background_brightness')}
-								value={String($hearthConfig.screensaver_background_brightness ?? 'dashboard')}
-								options={withCurrent(
-									[
-										{ value: 'dashboard', label: $lang('hearth_default') },
-										...[0, 10, 25, 50, 75, 100].map((value) => ({
-											value: String(value),
-											label: `${value}%`
-										}))
-									],
-									String($hearthConfig.screensaver_background_brightness ?? 'dashboard'),
-									$lang
-								)}
-								onchange={(value) =>
-									value === 'dashboard'
-										? updateConfig((config) => {
-												config.screensaver_background_brightness = undefined;
-											})
-										: setSleepPercentage('screensaver_background_brightness', value)}
-							/>
-						</SettingsRow>
-					{/if}
-					{#if background === 'media'}
-						<SettingsRow
-							label={$lang('hearth_sleep_media_fallback')}
-							sub={$lang('hearth_sleep_media_fallback_sub')}
-						>
-							<SelectField
-								inline
-								label={$lang('hearth_sleep_media_fallback')}
-								value={mediaFallback}
-								options={MEDIA_FALLBACK_OPTIONS}
-								onchange={setMediaFallback}
-							/>
-						</SettingsRow>
-					{/if}
-					{#if scene === 'photos'}
-						<SettingsRow label={$lang('hearth_sleep_photo_seconds')}>
-							<SelectField
-								inline
-								label={$lang('hearth_sleep_photo_seconds')}
-								value={photoSeconds}
-								options={PHOTO_SECONDS_OPTIONS}
-								onchange={setPhotoSeconds}
-							/>
-						</SettingsRow>
-						<SettingsRow label={$lang('hearth_sleep_photo_order')}>
-							<SelectField
-								inline
-								label={$lang('hearth_sleep_photo_order')}
-								value={photoOrder}
-								options={PHOTO_ORDER_OPTIONS}
-								onchange={setPhotoOrder}
-							/>
-						</SettingsRow>
-					{/if}
-					{#if scene === 'radar'}
-						<SettingsRow label={$lang('hearth_sleep_radar_map_style')}>
-							<SelectField
-								inline
-								label={$lang('hearth_sleep_radar_map_style')}
-								value={radar.basemap ?? 'dark'}
-								options={BASEMAP_OPTIONS}
-								onchange={(value) => setRadar({ basemap: value === 'light' ? 'light' : 'dark' })}
-							/>
-						</SettingsRow>
-						<SettingsRow
-							label={$lang('hearth_sleep_radar_zoom')}
-							sub={$lang('hearth_sleep_radar_zoom_sub')}
-						>
-							<SelectField
-								inline
-								label={$lang('hearth_sleep_radar_zoom')}
-								value={String(radar.zoom ?? RADAR_ZOOM.fallback)}
-								options={ZOOM_OPTIONS}
-								onchange={(value) => setRadar({ zoom: integerFromInput(value) })}
-							/>
-						</SettingsRow>
-						{#if homeKnown}
-							<SettingsRow
-								label={$lang('hearth_sleep_use_home_location')}
-								sub={$lang('hearth_sleep_use_home_location_sub')}
-							>
-								<Switch
-									checked={useHomeLocation}
-									label={$lang('hearth_sleep_use_home_location')}
-									onchange={setUseHomeLocation}
-								/>
-							</SettingsRow>
-						{/if}
-						{#if !homeKnown || !useHomeLocation}
-							{#each COORDINATES as { axis, label, limit } (axis)}
-								<SettingsRow
-									{label}
-									sub={coordinateInvalid[axis]
-										? fill($lang('hearth_sleep_coordinate_invalid'), { limit })
-										: undefined}
-								>
-									<span class="unit-input">
-										<span class="stepper field-frame">
-											<input
-												class="coordinate"
-												type="number"
-												step="any"
-												min={-limit}
-												max={limit}
-												aria-label={label}
-												aria-invalid={coordinateInvalid[axis] || undefined}
-												value={radar[axis]}
-												onchange={(event) => setCoordinate(axis, limit, event.currentTarget.value)}
-											/>
-										</span>
-									</span>
-								</SettingsRow>
-							{/each}
-						{/if}
-					{/if}
-					<div class="row-fields">
-						{#if background === 'media'}
-							<EntityField
-								label={$lang('hearth_sleep_media_entity')}
-								hint={$lang('hearth_sleep_media_entity_hint')}
-								domains={['media_player']}
-								value={mediaEntity}
-								onchange={setMediaEntity}
-							/>
-						{/if}
-						{#if scene === 'photos'}
-							<PhotoListField
-								label={$lang('hearth_sleep_photos')}
-								hint={$lang('hearth_sleep_photos_hint')}
-								value={photos}
-								onchange={setPhotos}
-							/>
-						{/if}
-						{#if scene === 'radar'}
-							<TextField
-								label={$lang('hearth_sleep_tile_url')}
-								value={radar.tile_url ?? ''}
-								placeholder={OSM_TILES}
-								hint={$lang('hearth_sleep_tile_url_hint')}
-								error={tileUrlInvalid ? $lang('hearth_sleep_tile_url_invalid') : undefined}
-								onchange={setTileUrl}
-							/>
-							{#if radar.tile_url}
-								<TextField
-									label={$lang('hearth_sleep_tile_attribution')}
-									value={radar.attribution ?? ''}
-									onchange={(value) => setRadar({ attribution: value.trim() || undefined })}
-								/>
-							{/if}
-						{/if}
-						{#if scene === 'image'}
-							<ImageField
-								label={$lang('hearth_background_image')}
-								value={backgroundImage}
-								onchange={setBackgroundImage}
-							/>
-						{/if}
-						<EntityField
-							label={$lang('hearth_sleep_weather_entity')}
-							hint={$lang('hearth_sleep_weather_entity_hint')}
-							domains={['weather']}
-							value={weatherEntity}
-							onchange={setWeatherEntity}
-						/>
-					</div>
+					</SettingsSection>
+					<ServerSection
+						bind:this={server}
+						bind:changes={serverChanges}
+						bind:saving={serverSaving}
+						onsaved={() => (serverSaved = true)}
+					/>
+					<p class="no-match" role="status">
+						{#if search.active && search.matched === 0}{$lang('hearth_no_matches')}{/if}
+					</p>
 				</div>
-				<div class="group-title">{$lang('hearth_greeting')}</div>
-				{#each persons as person (person)}
-					{@const name = $states?.[person]?.attributes?.friendly_name || person}
-					<SettingsRow label={fill($lang('hearth_greet_person'), { name })}>
-						<Switch
-							checked={greeting?.persons.includes(person) ?? false}
-							label={fill($lang('hearth_greet_person'), { name })}
-							onchange={(greeted) => setGreetingPerson(person, greeted)}
-						/>
-					</SettingsRow>
-				{:else}
-					<div class="row-note">{$lang('hearth_greeting_no_persons')}</div>
-				{/each}
-				{#if greeting}
-					<SettingsRow
-						label={$lang('hearth_greeting_minutes')}
-						sub={$lang('hearth_greeting_minutes_sub')}
-					>
-						<SelectField
-							inline
-							label={$lang('hearth_greeting_minutes')}
-							value={greetingMinutes}
-							options={GREETING_MINUTE_OPTIONS}
-							onchange={setGreetingMinutes}
-						/>
-					</SettingsRow>
-				{/if}
 			</div>
-		</section>
-
-		<section>
-			{@render sectionHead($lang('hearth_alerts'), $lang('hearth_scope_dashboard'))}
-			<div class="rows">
-				{#each $hearthConfig.alerts ?? [] as rule, index (rule.id)}
-					<SettingsRow
-						icon={rule.icon || 'notifications_active'}
-						label={rule.title}
-						sub={rule.message}
-						onclick={() => editor.set({ kind: 'alert', index })}
-					/>
-				{/each}
-				<SettingsRow
-					icon="add"
-					label={$lang('hearth_add_alert')}
-					sub={$lang('hearth_alerts_sub')}
-					onclick={() => editor.set({ kind: 'alert', index: null })}
-				/>
-				<div class="group-title">{$lang('hearth_alert_chimes')}</div>
-				{#each CHIME_SEVERITIES as { severity, label } (severity)}
-					<SettingsRow {label}>
-						<SelectField
-							inline
-							{label}
-							value={chimeValue(chimes[severity]) || 'none'}
-							options={CHIME_OPTIONS}
-							onchange={(value) => setSeverityChime(severity, value)}
-						/>
-					</SettingsRow>
-				{/each}
-				<SettingsRow label={$lang('hearth_alert_chime_volume')}>
-					<SelectField
-						inline
-						label={$lang('hearth_alert_chime_volume')}
-						value={chimeVolume}
-						options={VOLUME_OPTIONS}
-						onchange={(value) => setChimes({ volume: integerFromInput(value) })}
-					/>
-				</SettingsRow>
-				<SettingsRow
-					icon="volume_up"
-					label={$lang('hearth_alert_chime_test')}
-					sub={$lang(
-						$screenOverrides.mute_chimes
-							? 'hearth_alert_chime_muted_here'
-							: 'hearth_alert_chime_first_tap'
-					)}
-					chevron={false}
-					onclick={playTestChime}
-				/>
-			</div>
-		</section>
-
-		<section>
-			{@render sectionHead($lang('hearth_pages'), $lang('hearth_scope_dashboard'))}
-			<div class="rows">
-				<!-- every page in rail order, reachable whatever the rail shows -->
-				{#each $hearthConfig.rooms as room, index (room.id)}
-					<div class="page-row">
+			<footer class="settings-footer">
+				<div class="footer-status">
+					{#if dashboardChanges}
+						<span class="dashboard-status">
+							<Icon name="dashboard" size={ICON.inline} />
+							{fill(
+								$lang(
+									dashboardChanges === 1
+										? 'hearth_dashboard_changes_one'
+										: 'hearth_dashboard_changes'
+								),
+								{ count: dashboardChanges }
+							)}
+						</span>
+					{/if}
+					{#if serverChanges}
+						<span class="server-status">
+							<Icon name="dns" size={ICON.inline} />
+							{fill(
+								$lang(
+									serverChanges === 1
+										? 'hearth_unsaved_server_settings_one'
+										: 'hearth_unsaved_server_settings'
+								),
+								{ count: serverChanges }
+							)}
+						</span>
+					{/if}
+					<span class="server-status" role="status">
+						{#if serverSaved}
+							<Icon name="check" size={ICON.inline} />
+							{$lang('hearth_server_settings_saved')}
+						{/if}
+					</span>
+					{#if !dashboardChanges && !serverChanges && !serverSaved}
+						<span>{$lang('hearth_settings_status_idle')}</span>
+					{/if}
+				</div>
+				{#if serverChanges}
+					<div class="footer-actions">
 						<button
 							type="button"
-							class="page-open"
-							onclick={() => editor.set({ kind: 'room', id: room.id })}
+							class="hearth-button secondary pressable"
+							disabled={serverSaving}
+							use:Ripple={PRESS_RIPPLE}
+							onclick={() => server?.discard()}
 						>
-							<Icon name={room.icon} size={ICON.control} />
-							<span class="page-name">{room.name || room.id}</span>
+							{$lang('hearth_discard')}
 						</button>
 						<button
 							type="button"
-							class="step"
-							aria-label={fill($lang('hearth_move_named_up'), { name: room.name || room.id })}
-							disabled={index === 0}
-							onclick={() => movePage(index, -1)}
+							class="hearth-button primary pressable"
+							disabled={serverSaving}
+							use:Ripple={PRESS_RIPPLE}
+							onclick={saveServer}
 						>
-							<Icon name="arrow_upward" size={ICON.control} />
-						</button>
-						<button
-							type="button"
-							class="step"
-							aria-label={fill($lang('hearth_move_named_down'), { name: room.name || room.id })}
-							disabled={index === $hearthConfig.rooms.length - 1}
-							onclick={() => movePage(index, 1)}
-						>
-							<Icon name="arrow_downward" size={ICON.control} />
+							{$lang('hearth_save_server_settings')}
 						</button>
 					</div>
-				{/each}
-				<SettingsRow
-					icon="add"
-					label={$lang('hearth_add_page')}
-					onclick={() => editor.set({ kind: 'room', id: null })}
-				/>
-				<SettingsRow
-					icon="auto_awesome"
-					label={$lang('hearth_setup')}
-					sub={$lang('hearth_setup_row_sub')}
-					onclick={() => {
-						setupWizardSource.set('areas');
-						setupWizardOpen.set(true);
-					}}
-				/>
-				<SettingsRow
-					icon="dashboard_customize"
-					label={$lang('hearth_starter_layouts')}
-					sub={$lang('hearth_starter_layouts_sub')}
-					onclick={() => {
-						setupWizardSource.set('starter');
-						setupWizardOpen.set(true);
-					}}
-				/>
-			</div>
-		</section>
-
-		<section>
-			{@render sectionHead($lang('hearth_server'), $lang('hearth_scope_saved_now'))}
-			<div class="rows">
-				<SettingsRow
-					icon="dns"
-					label={$lang('hearth_server_settings')}
-					sub={$lang('hearth_server_settings_sub')}
-					onclick={() => editor.set({ kind: 'appSettings' })}
-				/>
-			</div>
-		</section>
-
-		<section>
-			{@render sectionHead($lang('hearth_maintenance'))}
-			<div class="rows">
-				<SettingsRow
-					icon="code"
-					label={$lang('hearth_edit_configuration_yaml')}
-					sub={$lang('hearth_edits_the_whole_configuration_as_yaml')}
-					onclick={() => editor.set({ kind: 'code', from: { kind: 'settings' } })}
-				/>
-				<SettingsRow
-					icon="history"
-					label={$lang('hearth_versions')}
-					sub={$lang('hearth_versions_row_sub')}
-					onclick={() => editor.set({ kind: 'versions', from: { kind: 'settings' } })}
-				/>
-			</div>
-		</section>
-	</div>
+				{/if}
+			</footer>
+		</div>
+	{/if}
 </EditSheet>
 
 <style>
-	.rows.sleep-rows {
-		overflow: clip;
-	}
-	.sleep-preview {
-		position: sticky;
-		top: 0;
-		z-index: var(--h-layer-raised);
-	}
-	/* a pinned preview would cover most of a landscape phone's sheet */
-	@media (max-height: 500px) {
-		.sleep-preview {
-			position: static;
-		}
-	}
-	.sleep-range {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-	.sleep-range input {
-		width: 120px;
-		accent-color: var(--h-accent-text);
-	}
-	.sleep-range span {
-		min-width: 4ch;
-		text-align: right;
-		font-variant-numeric: tabular-nums;
-	}
 	.settings {
 		display: flex;
 		flex-direction: column;
-		gap: 24px;
-		max-width: 560px;
+		gap: 18px;
+		max-width: 640px;
 		margin: 0 auto;
 		width: 100%;
 	}
 
-	.section-title {
-		font-family: var(--h-font-mono);
-		font-size: var(--h-type-label);
-		letter-spacing: 2px;
-		text-transform: uppercase;
-		color: var(--h-label);
-		margin: 0 0 4px;
-	}
-
-	.section-scope,
-	.settings-note,
-	.row-note {
-		font-size: var(--h-type-small);
-		color: var(--h-text-6);
-		margin: 0 0 8px;
-	}
-
-	.row-note {
-		margin: 0;
-		padding: 10px 16px 14px;
-	}
-
-	/* a run of rows inside a section, set off by its own small heading */
-	.group-title {
-		padding: 14px 16px 4px;
-		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
-		font-family: var(--h-font-mono);
-		font-size: var(--h-type-label);
-		letter-spacing: 2px;
-		text-transform: uppercase;
-		color: var(--h-label);
-	}
-
-	.inline-text {
-		width: 120px;
-		border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
-		border-radius: var(--h-radius-xs);
-		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
-		color: var(--h-text-2);
-		font-family: var(--h-font-mono);
-		font-size: var(--h-type-body);
-		padding: 8px 12px;
-		outline: none;
-	}
-
-	.rows {
-		border-radius: var(--h-radius-sm);
-		border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
-		background: var(--h-track);
-		overflow: hidden;
-	}
-
-	.row-fields {
-		padding: 14px 16px 2px;
-		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
-	}
-
-	.unit-input input.coordinate {
-		width: 112px;
-		padding: 8px 12px;
-	}
-
-	.unit-input {
+	.search {
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		flex: none;
-	}
-
-	/* px and % differ in width; a fixed slot keeps the steppers aligned */
-	.unit {
-		min-width: 2ch;
-		font-size: var(--h-type-secondary);
-		color: var(--h-text-6);
-	}
-
-	/* minus, value, plus in one bordered group; the native spinner is hidden */
-	.stepper {
-		display: flex;
-		align-items: center;
-		border-radius: var(--h-radius-xs);
+		gap: 8px;
+		padding: 0 14px 0 10px;
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
-		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
-	}
-
-	.stepper:focus-within {
-		border-color: rgb(var(--h-accent-rgb) / calc(0.4 * var(--h-accent-scale)));
-	}
-
-	.step {
-		display: grid;
-		place-items: center;
-		width: 36px;
-		height: 36px;
-		border: 0;
-		background: none;
+		border-radius: var(--h-radius-pill);
+		background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));
 		color: var(--h-icon);
-		cursor: pointer;
 	}
 
-	@media (hover: hover) {
-		.step:hover {
-			color: var(--h-accent-text);
-		}
-	}
-
-	.unit-input input {
-		width: 48px;
-		text-align: center;
+	.search input {
+		flex: 1;
+		min-width: 0;
 		padding: 8px 0;
 		border: 0;
 		background: none;
 		color: var(--h-text-2);
-		font-family: inherit;
+		font: inherit;
 		font-size: var(--h-type-body);
 		outline: none;
 	}
 
-	/* the native spinner paints white over the dark field and eats the padding */
-	.unit-input input[type='number'] {
-		appearance: textfield;
-		-moz-appearance: textfield;
+	.search input::placeholder {
+		color: var(--h-text-4);
 	}
 
-	.unit-input input::-webkit-outer-spin-button,
-	.unit-input input::-webkit-inner-spin-button {
-		appearance: none;
-		margin: 0;
-	}
-
-	.page-row {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		padding: 6px 10px 6px 0;
-		min-height: 56px;
-		border-bottom: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
-	}
-
-	.page-open {
+	.settings-layout {
 		flex: 1;
-		min-width: 0;
+		min-height: 0;
+		display: grid;
+		grid-template-columns: 236px minmax(0, 1fr);
+		grid-template-rows: minmax(0, 1fr) auto;
+	}
+
+	.section-nav {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		padding: 14px 10px;
+		overflow-y: auto;
+		border-right: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
+	}
+
+	.nav-group {
+		padding: 14px 12px 6px;
+		font-family: var(--h-font-mono);
+		font-size: var(--h-type-label);
+		letter-spacing: 2px;
+		text-transform: uppercase;
+		color: var(--h-label);
+	}
+
+	.nav-group:first-child {
+		padding-top: 4px;
+	}
+
+	.nav-item {
 		display: flex;
 		align-items: center;
-		gap: 14px;
-		align-self: stretch;
-		padding: 0 16px;
+		gap: 12px;
+		padding: 10px 12px;
 		border: 0;
+		border-radius: var(--h-radius-xs);
 		background: none;
-		color: var(--h-icon);
+		color: var(--h-text-3);
 		font: inherit;
+		font-size: var(--h-type-body);
 		text-align: left;
 		cursor: pointer;
+		transition: background var(--h-motion-fast) var(--h-ease);
 	}
 
-	.page-name {
-		overflow: hidden;
-		white-space: nowrap;
-		text-overflow: ellipsis;
-		font-size: var(--h-type-body);
-		color: var(--h-text-2);
+	.nav-item :global(.mi) {
+		color: var(--h-icon);
 	}
 
 	@media (hover: hover) {
-		.page-open:hover .page-name {
-			color: var(--h-accent-text);
+		.nav-item:hover {
+			background: rgb(var(--h-surface-rgb) / calc(0.04 * var(--h-fill-scale)));
 		}
 	}
 
-	.step:disabled {
-		color: var(--h-icon-dim);
-		cursor: default;
+	.nav-item[aria-current='true'] {
+		background: rgb(var(--h-surface-rgb) / calc(0.08 * var(--h-fill-scale)));
+		color: var(--h-text-1);
 	}
 
-	.setting-warning {
-		display: flex;
-		align-items: flex-start;
-		gap: 8px;
-		padding: 10px 14px;
-		border-top: 1px solid rgb(var(--h-bad-rgb) / calc(0.22 * var(--h-accent-scale)));
-		background: rgb(var(--h-bad-rgb) / calc(0.06 * var(--h-accent-scale)));
-		color: var(--h-bad-text);
+	.nav-item[aria-current='true'] :global(.mi) {
+		color: var(--h-accent-text);
+	}
+
+	.nav-title {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.nav-count {
+		padding: 0 8px;
+		border-radius: var(--h-radius-pill);
+		background: rgb(var(--h-accent-rgb) / calc(0.16 * var(--h-accent-scale)));
+		color: var(--h-accent-text);
+		font-family: var(--h-font-mono);
 		font-size: var(--h-type-small);
-		line-height: 1.4;
+	}
+
+	/* read out with the button, drawn as the bare number */
+	.hidden-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.settings-content {
+		position: relative;
+		overflow-y: auto;
+		scrollbar-gutter: stable;
+		padding: 22px 28px 32px;
+	}
+
+	.settings-list {
+		display: flex;
+		flex-direction: column;
+		gap: 28px;
+		max-width: 640px;
+	}
+
+	.no-match {
+		margin: 0;
+		color: var(--h-text-4);
+		font-size: var(--h-type-body);
+		text-align: center;
+	}
+
+	/* live regions stay in the page while empty, or their first text goes unannounced */
+	.no-match:empty,
+	.footer-status > span:empty {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+
+	.settings-footer {
+		grid-column: 1 / -1;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px 16px;
+		padding: 12px 28px;
+		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
+		font-size: var(--h-type-small);
+		color: var(--h-text-4);
+	}
+
+	/* wraps above the buttons once both no longer fit on one line */
+	.footer-status {
+		flex: 1 1 240px;
+		min-width: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px 16px;
+	}
+
+	.footer-status > span {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.dashboard-status {
+		color: var(--h-accent-text);
+	}
+
+	.server-status {
+		color: var(--h-good-text);
+	}
+
+	.footer-actions {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: 8px;
+		min-width: 0;
+		margin-left: auto;
+	}
+
+	/* see breakpoints.ts */
+	@media (max-width: 900px) {
+		.settings-layout {
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: auto minmax(0, 1fr) auto;
+		}
+
+		.section-nav {
+			flex-direction: row;
+			gap: 6px;
+			padding: 8px 10px;
+			overflow-x: auto;
+			overflow-y: hidden;
+			border-right: 0;
+			border-bottom: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
+			scrollbar-width: none;
+		}
+
+		.nav-group,
+		.nav-item :global(.mi) {
+			display: none;
+		}
+
+		.nav-item {
+			flex: none;
+			gap: 8px;
+			padding: 8px 12px;
+			border: 1px solid rgb(var(--h-line-rgb) / calc(0.08 * var(--h-line-scale)));
+			border-radius: var(--h-radius-pill);
+			white-space: nowrap;
+		}
+
+		.settings-content {
+			padding: 18px;
+		}
+
+		.settings-footer {
+			padding: 10px 18px 14px;
+		}
+
+		/* a long label in a narrow sheet wraps inside its button instead of running off */
+		.footer-actions {
+			flex: 1 1 100%;
+		}
+
+		.footer-actions button {
+			flex: 1 1 auto;
+			min-width: 0;
+			white-space: normal;
+		}
 	}
 </style>

@@ -30,6 +30,28 @@ describe('layers', () => {
 		expect(first).toHaveBeenCalledTimes(1);
 	});
 
+	it('leaves Escape to a search field until it is empty', () => {
+		const close = vi.fn();
+		const release = pushLayer(close);
+		const field = document.createElement('input');
+		field.type = 'search';
+		field.value = 'scale';
+		document.body.append(field);
+		const press = () =>
+			field.dispatchEvent(
+				new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+			);
+
+		press();
+		expect(close).not.toHaveBeenCalled();
+		field.value = '';
+		press();
+		expect(close).toHaveBeenCalledTimes(1);
+
+		field.remove();
+		release();
+	});
+
 	it('ignores a release called twice', () => {
 		const release = pushLayer(() => {});
 		release();

@@ -149,6 +149,18 @@ hearthEditMode.subscribe(holdReloads);
 
 // edit mode arranges layout; taps there must never fire real device commands
 
+/** The sections of the settings sheet. */
+export type SettingsSectionId =
+	| 'screen'
+	| 'appearance'
+	| 'layout'
+	| 'size'
+	| 'wall'
+	| 'alerts'
+	| 'pages'
+	| 'maintenance'
+	| 'server';
+
 export type Editor =
 	| { kind: 'room'; id: string | null }
 	// Existing cards are addressed by their globally unique id. Column/stack
@@ -159,10 +171,10 @@ export type Editor =
 	// side is the rail a new widget was added from, while there are two
 	| { kind: 'railWidget'; index: number | null; side?: RailSide }
 	| { kind: 'theme' }
-	| { kind: 'settings' }
+	// `section` is the one the sheet opens scrolled to
+	| { kind: 'settings'; section?: SettingsSectionId }
 	// a null index is a new alert rule, appended on Done
 	| { kind: 'alert'; index: number | null }
-	| { kind: 'appSettings' }
 	| { kind: 'customCss' }
 	// `from` is the sheet a back arrow returns to, in the state it was left in.
 	// `draft` is an unapplied YAML edit handed back from Versions; the editor
@@ -248,6 +260,11 @@ export async function fetchServerRevision(): Promise<number | undefined> {
 	} catch {
 		return undefined;
 	}
+}
+
+/** What edit mode started with or last saved, which Cancel returns to; null outside edit mode. */
+export function editBaseline(): HearthConfig | null {
+	return editSnapshot;
 }
 
 /** True when the draft differs from what edit mode started with or last saved. */

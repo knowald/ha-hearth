@@ -42,7 +42,7 @@ describe('CustomCssEditSheet', () => {
 			expect.objectContaining({ method: 'POST' })
 		);
 		// back to Settings, where Custom CSS was opened from
-		expect(get(editor)).toEqual({ kind: 'settings' });
+		expect(get(editor)).toEqual({ kind: 'settings', section: 'appearance' });
 	});
 
 	it('saves on cmd+s inside the editor', async () => {

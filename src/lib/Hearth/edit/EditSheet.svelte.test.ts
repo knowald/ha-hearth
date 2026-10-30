@@ -130,3 +130,21 @@ describe('EditSheet done reason', () => {
 		).toBeNull();
 	});
 });
+
+describe('EditSheet header tools', () => {
+	it('puts the tools between the title and Done', () => {
+		const tools = createRawSnippet(() => ({ render: () => '<input aria-label="Find" />' }));
+		const { container } = render(EditSheet, {
+			title: 'Settings',
+			children,
+			tools,
+			onclose: () => {},
+			ondone: () => {}
+		});
+		const header = container.ownerDocument.querySelector('.header')!;
+		expect(header.classList.contains('tooled')).toBe(true);
+		const order = [...header.children].map((node) => node.className.split(' ')[0]);
+		expect(order.indexOf('tools')).toBe(order.indexOf('title') + 1);
+		expect(screen.getByRole('textbox', { name: 'Find' })).toBeTruthy();
+	});
+});

@@ -41,6 +41,7 @@
 		confirmRemove = true,
 		onduplicate,
 		actions,
+		tools,
 		onmoveup,
 		onmovedown,
 		moveUpDisabled = false,
@@ -74,6 +75,8 @@
 		onduplicate?: () => void;
 		/** More buttons for the footer, after Duplicate. */
 		actions?: Snippet;
+		/** Controls for the header, between the title and Done, such as a search field. */
+		tools?: Snippet;
 		onmoveup?: () => void;
 		onmovedown?: () => void;
 		/** The item already sits first or last where it will land. */
@@ -233,6 +236,7 @@
 			class="header"
 			class:handle={floats}
 			class:captioned={doneReason !== undefined}
+			class:tooled={!!tools}
 			use:windowDrag={{
 				position: () => position,
 				size: () => ({ width: sheet?.offsetWidth ?? 0, height: sheet?.offsetHeight ?? 0 }),
@@ -250,6 +254,9 @@
 				</button>
 			{/if}
 			<div class="title">{title}</div>
+			{#if tools}
+				<div class="tools">{@render tools()}</div>
+			{/if}
 			{#if onmoveup || onmovedown}
 				<div class="move-actions">
 					{#if onmoveup}
@@ -384,6 +391,11 @@
 		font-weight: 600;
 		letter-spacing: -0.3px;
 		color: var(--h-text-1);
+	}
+
+	.tools {
+		flex: 0 1 280px;
+		min-width: 0;
 	}
 
 	/* sits under the header's actions, so it reads as Done's own caption */
@@ -583,7 +595,8 @@
 
 		/* stretched rather than sized from the viewport, so it follows the
 		   overlay when an on-screen keyboard shrinks the page */
-		.sheet {
+		.sheet,
+		.sheet.wide {
 			width: 100%;
 			height: auto;
 			border-radius: var(--h-radius-md);
@@ -591,6 +604,16 @@
 
 		.header {
 			padding: 14px 14px 12px 18px;
+		}
+
+		/* the tools take a line of their own under the title and actions */
+		.header.tooled {
+			flex-wrap: wrap;
+		}
+
+		.tools {
+			order: 1;
+			flex-basis: 100%;
 		}
 
 		.done-reason {
