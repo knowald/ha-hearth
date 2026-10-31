@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { clickScreenEntry } from './edit-entry';
 
 for (const screen of [
 	{ name: 'tablet', width: 1280, height: 800, scale: 100 },
@@ -44,7 +45,7 @@ for (const screen of [
 			expect(box!.y + box!.height).toBeLessThanOrEqual(screen.height + 0.1);
 			await page.clock.fastForward('01:00');
 		}
-		await page.getByRole('button', { name: 'This screen', exact: true }).click();
+		await clickScreenEntry(page);
 		const sheet = page.getByRole('dialog', { name: 'This screen' });
 		await expect(sheet).toBeVisible();
 		const held = await layout.boundingBox();

@@ -4,6 +4,9 @@
 	import { clockTimeOptions } from '../clock';
 	import { displayTimeZone, railClock } from '../store';
 
+	// inline sets the date beside the time, for the phone header's single row
+	let { inline = false }: { inline?: boolean } = $props();
+
 	let now = $derived($timer);
 	let time = $derived(
 		now.toLocaleTimeString(
@@ -23,7 +26,7 @@
 	);
 </script>
 
-<time class="clock" datetime={stamp}>
+<time class="clock" class:inline datetime={stamp}>
 	<span class="time">{time}</span>
 	<span class="date">{date}</span>
 </time>
@@ -38,6 +41,17 @@
 		line-height: 1.15;
 		white-space: nowrap;
 		font-variant-numeric: tabular-nums;
+	}
+
+	.clock.inline {
+		flex-direction: row;
+		align-items: baseline;
+		gap: 10px;
+		padding: 0;
+	}
+
+	.clock.inline .date {
+		font-size: var(--h-type-body);
 	}
 
 	.time {

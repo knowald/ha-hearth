@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
-/* The phone layout: pages stay reachable without scrolling, sheets fit. */
+/* The phone layout: pages stay in thumb reach, the header is one row, sheets fit. */
 
 const HEARTH_FILE = new URL('./fixture/data/hearth.yaml', import.meta.url);
 const HEARTH_FIXTURE = readFileSync(HEARTH_FILE, 'utf8');
@@ -11,12 +11,11 @@ const HEARTH_FIXTURE = readFileSync(HEARTH_FILE, 'utf8');
  * document of its own rather than an edit of the shared one: other specs
  * save into that file.
  */
-function writeFixture(settings: { phoneClock?: boolean } = {}) {
+function writeFixture() {
 	writeFileSync(
 		HEARTH_FILE,
 		`version: 5
 revision: 1
-phone_clock: ${settings.phoneClock === true}
 rail:
   - id: clock
     type: clock
@@ -49,6 +48,15 @@ rooms:
 async function open(page: Page) {
 	await page.goto('/');
 	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
+}
+
+const bar = (page: Page) => page.getByRole('navigation', { name: 'Pages' });
+
+/* the edit entry sits in the bottom bar's More menu on a phone */
+async function startEditing(page: Page) {
+	await bar(page).getByRole('button', { name: 'More' }).click();
+	await page.getByRole('button', { name: 'Edit dashboard' }).click();
+	await expect(page.locator('.edit-bar')).toBeVisible();
 }
 
 /*
@@ -105,15 +113,40 @@ test.afterEach(() => writeFileSync(HEARTH_FILE, HEARTH_FIXTURE));
 test.describe('the shared fixture', () => {
 	test.beforeEach(async ({ page }) => open(page));
 
-	test('the page strip sits at the top and switches pages without scrolling', async ({ page }) => {
-		const strip = page.getByRole('navigation', { name: 'Pages' });
+	test('the bottom bar holds the pages, search and More within thumb reach', async ({ page }) => {
+		const strip = bar(page);
 		await expect(strip).toBeInViewport();
+		const box = (await strip.boundingBox())!;
+		expect(box.y + box.height).toBeGreaterThan(844 - 40);
+		expect(box.y + box.height).toBeLessThanOrEqual(844);
 		await expect(strip.getByRole('button', { name: /Office/ })).toHaveAttribute(
 			'aria-current',
 			'page'
 		);
-		await expect(page.getByRole('button', { name: 'Edit Hearth configuration' })).toBeInViewport();
+		// the floating edit and screen buttons moved into the bar's More menu
+		await expect(page.getByRole('button', { name: 'Edit Hearth configuration' })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'This screen' })).toHaveCount(0);
+		await strip.getByRole('button', { name: 'More' }).click();
+		await expect(page.getByRole('button', { name: 'Edit dashboard' })).toBeInViewport();
+		await page.getByRole('button', { name: 'Screen settings' }).click();
+		await expect(page.getByRole('dialog', { name: 'This screen' })).toBeVisible();
+		await page.keyboard.press('Escape');
 		expect(await sidewaysOverflow(page)).toEqual({ cut: 0, past: 0 });
+	});
+
+	test('edit mode trades the bottom bar for its own and the page strip at the top', async ({
+		page
+	}) => {
+		await startEditing(page);
+		await expect(page.locator('.phone-bar')).toHaveCount(0);
+		const strip = page.locator('.phone-nav');
+		await expect(strip.getByRole('button', { name: 'Office' })).toBeInViewport();
+		await expect(strip.getByRole('button', { name: 'Add page' })).toBeVisible();
+		expect((await strip.boundingBox())!.y).toBeLessThan(20);
+
+		await page.locator('.edit-bar').getByRole('button', { name: 'Cancel' }).click();
+		await expect(bar(page)).toBeInViewport();
+		await expect(page.locator('.phone-nav')).toHaveCount(0);
 	});
 
 	test('the window reaches under the device cutouts', async ({ page }) => {
@@ -125,32 +158,38 @@ test.describe('the shared fixture', () => {
 		);
 	});
 
-	test('the glance widgets ride above the page and the rest follow it', async ({ page }) => {
-		const runs = page.locator('.rail-run');
-		await expect(runs).toHaveCount(2);
+	test('a one-row header stands in for the clock widget above the page', async ({ page }) => {
+		// nothing else rides above the page, so only the run below it is drawn
+		await expect(page.locator('.rail-run')).toHaveCount(1);
+		await expect(page.locator('.rail-run [data-id="clock"]')).toHaveCount(0);
 
-		const clock = runs.first().locator('.widget').first();
-		await expect(clock).toBeVisible();
-		const clockBox = (await clock.boundingBox())!;
+		const header = page.locator('.phone-header');
+		await expect(header.locator('time')).toHaveText(/\d{1,2}:\d{2}/);
+		const headerBox = (await header.boundingBox())!;
 		const pageBox = (await page.locator('.main').boundingBox())!;
-		expect(clockBox.y).toBeLessThan(pageBox.y);
+		expect(headerBox.y + headerBox.height).toBeLessThanOrEqual(pageBox.y);
+		expect(headerBox.height).toBeLessThanOrEqual(48);
 
-		// the strip carries the pages, so the rail's own copy would be redundant
+		// the bar carries the pages, so the rail's own copy would be redundant
 		await expect(page.locator('.rail-run .widget.in-switcher')).toHaveCount(1);
-		await expect(
-			page.getByRole('navigation', { name: 'Pages' }).getByRole('button', { name: 'Office' })
-		).toBeVisible();
+		await expect(bar(page).getByRole('button', { name: 'Office' })).toBeVisible();
+
+		// the editor still shows the clock, dimmed, where it would go
+		await startEditing(page);
+		await expect(page.locator('.rail-run').first().locator('[data-id="clock"]')).toHaveClass(
+			/visibility-dimmed/
+		);
 	});
 
-	test('nothing scrolls under the page strip', async ({ page }) => {
+	test('the bottom bar stays put while the page scrolls under it', async ({ page }) => {
+		const before = (await bar(page).boundingBox())!;
 		await page.evaluate(() => {
 			(document.querySelector('.layout') as HTMLElement).scrollTop = 400;
 		});
-		const strip = page.getByRole('navigation', { name: 'Pages' });
-		const box = (await strip.boundingBox())!;
-		expect(Math.round(box.y)).toBe(0);
-		// opaque, so the page passing behind it cannot show through the pills
-		await expect(strip).toHaveCSS('background-image', 'none');
+		const after = (await bar(page).boundingBox())!;
+		expect(after.y).toBe(before.y);
+		// opaque, so the page passing behind it cannot show through the tabs
+		await expect(bar(page)).toHaveCSS('background-image', /gradient/);
 	});
 
 	test('a light popup opens as a bottom sheet and the card sheet leads with its fields', async ({
@@ -171,7 +210,7 @@ test.describe('the shared fixture', () => {
 		expect(Math.round(sheetBox.y + sheetBox.height)).toBe(844);
 		await page.keyboard.press('Escape');
 
-		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await startEditing(page);
 		await page
 			.locator('.card-slot', { hasText: 'Lights' })
 			.getByRole('button', { name: 'Edit' })
@@ -197,7 +236,7 @@ test.describe('the shared fixture', () => {
 					};
 				});
 		const tile = await touchStyle(/Desk lamp/);
-		const button = await touchStyle('Edit Hearth configuration');
+		const button = await touchStyle('More');
 		expect(tile.highlight).toBe('rgba(0, 0, 0, 0)');
 		expect(button.highlight).toBe('rgba(0, 0, 0, 0)');
 		// tiles keep vertical panning and pinch zoom; plain buttons lose the double-tap zoom
@@ -207,7 +246,7 @@ test.describe('the shared fixture', () => {
 	});
 
 	test('entity drag handles take a finger-sized touch', async ({ page }) => {
-		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await startEditing(page);
 		const handle = page.locator('.entity-drag-handle').first();
 		await expect(handle).toBeVisible();
 		const visible = (await handle.boundingBox())!;
@@ -221,7 +260,7 @@ test.describe('the shared fixture', () => {
 	});
 
 	test('edit chips take a finger-sized touch on the grip and the pencil', async ({ page }) => {
-		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await startEditing(page);
 		const card = page.locator('.card-slot', { hasText: 'Lights' });
 		const pencil = card.getByRole('button', { name: 'Edit Lights', exact: true });
 		await expect(pencil).toBeVisible();
@@ -255,7 +294,7 @@ test.describe('the shared fixture', () => {
 	});
 
 	test('a touch drag on an entity handle reorders the tiles', async ({ page }) => {
-		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await startEditing(page);
 		const card = page.locator('.card-slot', { hasText: 'Lights' });
 		const slots = card.locator('.entity-slot');
 		await expect(slots.first()).toContainText('Desk lamp');
@@ -273,7 +312,7 @@ test.describe('the shared fixture', () => {
 	});
 
 	test('a touch drag on a card grip moves the card', async ({ page }) => {
-		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await startEditing(page);
 		const cards = page.locator('.column > .card-slot');
 		await expect(cards.first()).toHaveAttribute('data-id', 'lights');
 
@@ -298,7 +337,7 @@ test.describe('a page taller than the screen', () => {
 
 	test('a page opens at its own top, not the previous page scroll offset', async ({ page }) => {
 		// the fixture has one page; the second one is the point of the test
-		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await startEditing(page);
 		await page.getByRole('button', { name: 'Add page' }).first().click();
 		const sheet = page.getByRole('dialog', { name: 'Add page' });
 		await sheet.getByLabel('Name').fill('Garage');
@@ -322,14 +361,12 @@ test.describe('a page taller than the screen', () => {
 		expect(await scrollTop()).toBe(0);
 	});
 
-	test('scrolled to the end, the edit toggle clears the last content', async ({ page }) => {
+	test('scrolled to the end, the bottom bar clears the last content', async ({ page }) => {
 		await page.evaluate(() => {
 			const layout = document.querySelector('.layout') as HTMLElement;
 			layout.scrollTop = layout.scrollHeight;
 		});
-		const toggle = (await page
-			.getByRole('button', { name: 'Edit Hearth configuration' })
-			.boundingBox())!;
+		const toggle = (await bar(page).boundingBox())!;
 		const contentBottom = await page.evaluate(() =>
 			Math.max(
 				...[...document.querySelectorAll('.card-slot, .rail-run .widget')]
@@ -363,7 +400,7 @@ test.describe('a card with its own column count', () => {
 		expect(await lightsTracks(page)).toBe(2);
 		expect(await sidewaysOverflow(page)).toEqual({ cut: 0, past: 0 });
 
-		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await startEditing(page);
 		await expect(page.locator('.entity-drag-handle').first()).toBeVisible();
 		expect(await lightsTracks(page)).toBe(1);
 	});
@@ -386,56 +423,48 @@ test.describe('held sideways', () => {
 		await open(page);
 	});
 
-	test('the page starts at the strip and the pills shed their labels', async ({ page }) => {
+	test('the page starts under the header and the tabs set their labels beside the icon', async ({
+		page
+	}) => {
 		// no height to spend before the page, so nothing rides above it
 		await expect(page.locator('.rail-run')).toHaveCount(1);
 		const main = (await page.locator('.main').boundingBox())!;
 		expect(main.y).toBeLessThan(120);
 
-		const strip = page.getByRole('navigation', { name: 'Pages' });
-		const office = strip.getByRole('button', { name: 'Office' });
-		const kitchen = strip.getByRole('button', { name: 'Kitchen' });
-		// the page being viewed keeps its label
+		const office = bar(page).getByRole('button', { name: 'Office' });
 		await expect(office).toHaveAttribute('aria-current', 'page');
 		await expect(office.getByText('Office', { exact: true })).toBeVisible();
-		// the others shrink to their icon; the label goes to assistive
-		// technology rather than being dropped
-		await expect(kitchen).toBeVisible();
-		expect((await kitchen.boundingBox())!.width).toBeLessThanOrEqual(44);
-		const label = (await kitchen.getByText('Kitchen', { exact: true }).boundingBox())!;
-		expect(label.width).toBeLessThanOrEqual(1);
+		expect((await bar(page).boundingBox())!.height).toBeLessThanOrEqual(56);
+		const icon = (await office.locator('.mi').boundingBox())!;
+		const label = (await office.getByText('Office', { exact: true }).boundingBox())!;
+		expect(label.x).toBeGreaterThan(icon.x + icon.width - 1);
 		expect(await sidewaysOverflow(page)).toEqual({ cut: 0, past: 0 });
 	});
 });
 
-test.describe('the page strip clock', () => {
+test.describe('the phone header', () => {
 	test.beforeEach(async ({ page }) => {
-		writeFixture({ phoneClock: true });
+		writeFixture();
 		await open(page);
 	});
 
-	async function expectClockFits(page: Page) {
-		const strip = page.getByRole('navigation', { name: 'Pages' });
-		const clock = strip.locator('time');
-		await expect(clock).toBeVisible();
-		await expect(clock).toHaveText(/\d{2}:\d{2}/);
-		// the strip keeps the height its pills give it
-		const office = (await strip.getByRole('button', { name: /Office/ }).boundingBox())!;
-		const box = (await clock.boundingBox())!;
-		expect(box.height).toBeLessThanOrEqual(office.height);
-		expect(box.x + box.width).toBeLessThanOrEqual(office.x);
+	async function expectHeaderFits(page: Page) {
+		const header = page.locator('.phone-header');
+		// the clock widget's hour format carries over
+		await expect(header.locator('time')).toHaveText(/\d{2}:\d{2}/);
+		expect((await header.boundingBox())!.height).toBeLessThanOrEqual(48);
 		expect(await sidewaysOverflow(page)).toEqual({ cut: 0, past: 0 });
 	}
 
-	test('sits before the pages without growing the strip', async ({ page }) => {
-		await expectClockFits(page);
+	test('shows the time in one row', async ({ page }) => {
+		await expectHeaderFits(page);
 	});
 
 	test.describe('at 320 wide', () => {
 		test.use({ viewport: { width: 320, height: 568 } });
 
 		test('still fits', async ({ page }) => {
-			await expectClockFits(page);
+			await expectHeaderFits(page);
 		});
 	});
 
@@ -443,19 +472,36 @@ test.describe('the page strip clock', () => {
 		test.use({ viewport: { width: 844, height: 390 } });
 
 		test('still fits', async ({ page }) => {
-			await expectClockFits(page);
+			await expectHeaderFits(page);
 		});
 	});
 });
 
-test.describe('without the strip clock', () => {
+test.describe('many pages', () => {
 	test.beforeEach(async ({ page }) => {
-		writeFixture();
-		await open(page);
+		const rooms = ['Kitchen', 'Garage', 'Hallway', 'Bedroom', 'Garden', 'Attic']
+			.map(
+				(name) =>
+					`  - id: ${name.toLowerCase()}\n    name: ${name}\n    icon: home\n    cards: []\n`
+			)
+			.join('');
+		writeFileSync(HEARTH_FILE, `${HEARTH_FIXTURE.trimEnd()}\n${rooms}`);
+		await page.goto('/?room=attic');
+		await expect(bar(page).getByRole('button', { name: 'Attic' })).toBeVisible();
 	});
 
-	test('the strip has no clock', async ({ page }) => {
-		await expect(page.getByRole('navigation', { name: 'Pages' }).locator('time')).toHaveCount(0);
+	test('scroll sideways inside the bar while search and More stay put', async ({ page }) => {
+		const attic = bar(page).getByRole('button', { name: 'Attic' });
+		await expect(attic).toHaveAttribute('aria-current', 'page');
+		// a page opened by link is scrolled into the bar
+		await expect(attic).toBeInViewport({ ratio: 1 });
+		const more = (await bar(page).getByRole('button', { name: 'More' }).boundingBox())!;
+		expect(more.x + more.width).toBeLessThanOrEqual(390);
+		const scrolls = await page
+			.locator('.phone-bar .tabs')
+			.evaluate((element) => element.scrollWidth > element.clientWidth);
+		expect(scrolls).toBe(true);
+		expect(await sidewaysOverflow(page)).toEqual({ cut: 0, past: 0 });
 	});
 });
 

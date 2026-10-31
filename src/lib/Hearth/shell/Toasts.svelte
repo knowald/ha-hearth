@@ -463,13 +463,22 @@
 
 	/* see breakpoints.ts */
 	@media (max-width: 900px) {
-		/* the page switcher is pinned to the top of a folded layout and carries
-		   the status bar inset; the top toasts sit under both */
+		/* the page switcher is pinned to the top of a folded layout while
+		   editing and carries the status bar inset; the top toasts sit under
+		   both, which also clears the phone header otherwise */
 		.connection-toast,
 		.load-errors,
 		.save-alert,
 		.overflow-toast {
 			top: calc(72px + var(--h-safe-top)); /* literal ok: page switcher height plus margin */
+		}
+
+		/* outside edit mode the bottom bar floats there instead */
+		.save-toast,
+		.command-error {
+			bottom: calc(
+				12px + var(--h-pad-y) + var(--h-safe-bottom) + 64px + 16px
+			); /* literal ok: the bottom bar's offset and height plus a gap */
 		}
 
 		/* the folded edit bar hugs the bottom edge above the home indicator */
