@@ -784,8 +784,6 @@
 	"hearth_run": "چلائیں",
 	"hearth_run_actions": "ایکشنز چلائیں",
 	"hearth_run_named": "{name} چلائیں",
-	"hearth_same_as_dashboard": "ڈیش بورڈ کے مطابق ({value})",
-	"hearth_same_as_interface_scale": "انٹرفیس کے پیمانے کے مطابق ({value})",
 	"hearth_save_close_sheet_hint": "اپنی ترامیم کاپی کرنے، اوور رائٹ کرنے یا دوبارہ لوڈ کرنے کے لیے اس شیٹ کو بند کریں۔",
 	"hearth_save_current_theme_as": "موجودہ کو اس نام سے محفوظ کریں...",
 	"hearth_save_failed": "محفوظ کرنا ناکام ہوا",

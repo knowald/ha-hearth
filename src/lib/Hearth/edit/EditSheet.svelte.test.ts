@@ -89,6 +89,22 @@ describe('EditSheet initial focus', () => {
 		renderSheet({ children: token });
 		expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Token' }));
 	});
+
+	it('focuses the close button of a sheet without Done, not the search in its header', () => {
+		vi.stubGlobal('matchMedia', () => ({
+			matches: false,
+			addEventListener: () => {},
+			removeEventListener: () => {}
+		}));
+		const tools = createRawSnippet(() => ({ render: () => '<input aria-label="Find" />' }));
+		const onclose = vi.fn();
+		render(EditSheet, { title: 'Settings', children, tools, onclose });
+		expect(screen.queryByRole('button', { name: en.done })).toBeNull();
+		const close = screen.getByRole('button', { name: en.hearth_close });
+		expect(document.activeElement).toBe(close);
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+		expect(onclose).toHaveBeenCalledOnce();
+	});
 });
 
 describe('EditSheet done reason', () => {

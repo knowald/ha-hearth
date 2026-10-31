@@ -220,10 +220,10 @@ describe('SettingsEditSheet', () => {
 		expect(get(setupWizardOpen)).toBe(true);
 	});
 
-	it('names its header action Close, since every row applies live', () => {
+	it('has one close button and no Done, since every row applies live', () => {
 		render(SettingsEditSheet);
 		expect(screen.queryByRole('button', { name: en.done })).toBeNull();
-		expect(screen.getAllByRole('button', { name: en.hearth_close })).toHaveLength(2);
+		expect(screen.getAllByRole('button', { name: en.hearth_close })).toHaveLength(1);
 	});
 
 	it.each([

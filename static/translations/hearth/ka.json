@@ -784,8 +784,6 @@
 	"hearth_run": "გაშვება",
 	"hearth_run_actions": "მოქმედებების გაშვება",
 	"hearth_run_named": "{name}-ის გაშვება",
-	"hearth_same_as_dashboard": "დაშბორდის მსგავსად ({value})",
-	"hearth_same_as_interface_scale": "ინტერფეისის მასშტაბის მსგავსად ({value})",
 	"hearth_save_close_sheet_hint": "დახურეთ ეს ფურცელი ცვლილებების დასაკოპირებლად, გადასაწერად ან გადასატვირთად.",
 	"hearth_save_current_theme_as": "მიმდინარეს შენახვა როგორც...",
 	"hearth_save_failed": "შენახვა ვერ მოხერხდა",

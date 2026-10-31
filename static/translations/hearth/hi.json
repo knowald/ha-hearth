@@ -784,8 +784,6 @@
 	"hearth_run": "चलाएं",
 	"hearth_run_actions": "कार्रवाइयां चलाएं",
 	"hearth_run_named": "{name} चलाएं",
-	"hearth_same_as_dashboard": "डैशबोर्ड के समान ({value})",
-	"hearth_same_as_interface_scale": "इंटरफ़ेस स्केल के समान ({value})",
 	"hearth_save_close_sheet_hint": "अपने संपादन कॉपी करने, ओवरराइट करने या रीलोड करने के लिए इस शीट को बंद करें।",
 	"hearth_save_current_theme_as": "वर्तमान को इस नाम से सहेजें...",
 	"hearth_save_failed": "सहेजना विफल रहा",

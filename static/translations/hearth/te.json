@@ -784,8 +784,6 @@
 	"hearth_run": "అమలు చేయండి",
 	"hearth_run_actions": "చర్యలను అమలు చేయండి",
 	"hearth_run_named": "{name} అమలు చేయండి",
-	"hearth_same_as_dashboard": "డాష్‌బోర్డ్ లాగానే ({value})",
-	"hearth_same_as_interface_scale": "ఇంటర్‌ఫేస్ స్కేల్ లాగానే ({value})",
 	"hearth_save_close_sheet_hint": "మీ మార్పులను కాపీ చేయడానికి, ఓవర్‌రైట్ చేయడానికి లేదా రీలోడ్ చేయడానికి ఈ షీట్‌ను మూసివేయండి.",
 	"hearth_save_current_theme_as": "ప్రస్తుతాన్ని ఇలా సేవ్ చేయండి...",
 	"hearth_save_failed": "సేవ్ విఫలమైంది",

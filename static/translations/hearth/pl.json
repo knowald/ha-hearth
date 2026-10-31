@@ -784,8 +784,6 @@
 	"hearth_run": "Uruchom",
 	"hearth_run_actions": "Uruchom akcje",
 	"hearth_run_named": "Uruchom {name}",
-	"hearth_same_as_dashboard": "Jak dashboard ({value})",
-	"hearth_same_as_interface_scale": "Jak skala interfejsu ({value})",
 	"hearth_save_close_sheet_hint": "Zamknij ten panel, aby skopiować zmiany, nadpisać lub przeładować.",
 	"hearth_save_current_theme_as": "Zapisz bieżący jako...",
 	"hearth_save_failed": "Zapis nie powiódł się",

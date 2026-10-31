@@ -784,8 +784,6 @@
 	"hearth_run": "Futtatás",
 	"hearth_run_actions": "Műveletek futtatása",
 	"hearth_run_named": "{name} futtatása",
-	"hearth_same_as_dashboard": "Mint az irányítópulton ({value})",
-	"hearth_same_as_interface_scale": "Mint a felület skálázása ({value})",
 	"hearth_save_close_sheet_hint": "Zárja be ezt a lapot a módosítások másolásához, felülíráshoz vagy újratöltéshez.",
 	"hearth_save_current_theme_as": "Jelenlegi mentése másként...",
 	"hearth_save_failed": "A mentés nem sikerült",

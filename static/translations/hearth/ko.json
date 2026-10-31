@@ -784,8 +784,6 @@
 	"hearth_run": "실행",
 	"hearth_run_actions": "동작 실행",
 	"hearth_run_named": "{name} 실행",
-	"hearth_same_as_dashboard": "대시보드와 같음 ({value})",
-	"hearth_same_as_interface_scale": "인터페이스 배율과 같음 ({value})",
 	"hearth_save_close_sheet_hint": "편집 내용을 복사하거나 덮어쓰거나 다시 불러오려면 이 시트를 닫으세요.",
 	"hearth_save_current_theme_as": "현재 테마를 다른 이름으로 저장...",
 	"hearth_save_failed": "저장하지 못했습니다",

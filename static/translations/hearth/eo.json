@@ -784,8 +784,6 @@
 	"hearth_run": "Ruli",
 	"hearth_run_actions": "Ruli agojn",
 	"hearth_run_named": "Ruli {name}",
-	"hearth_same_as_dashboard": "Same kiel la panelo ({value})",
-	"hearth_same_as_interface_scale": "Same kiel la interfaca skalo ({value})",
 	"hearth_save_close_sheet_hint": "Fermu ĉi tiun folion por kopii viajn redaktojn, anstataŭi aŭ reŝargi.",
 	"hearth_save_current_theme_as": "Konservi nunan kiel...",
 	"hearth_save_failed": "Konservo malsukcesis",

@@ -39,8 +39,9 @@ test.describe('phone', () => {
 		// handing the choice back to the dashboard arms the shared delay again
 		await page.getByRole('button', { name: 'This screen' }).click();
 		const sheet = page.getByRole('dialog', { name: 'This screen' });
-		await sheet.getByLabel('Sleep screen turns on').selectOption('');
-		await sheet.getByRole('button', { name: 'Close' }).first().click();
+		await sheet.getByRole('button', { name: 'Reset to dashboard (After 1 minute)' }).click();
+		await expect(sheet.getByLabel('Sleep screen turns on')).toHaveValue('1');
+		await sheet.getByRole('button', { name: 'Close' }).click();
 		await expect(sheet).toBeHidden();
 		// the sleep screen mounts on demand and only then starts its timer
 		await expect(page.locator('html')).toHaveAttribute('data-sleep-timer', 'armed');
@@ -57,7 +58,7 @@ test('This screen opens without edit mode and keeps its choices in this browser'
 	const sheet = page.getByRole('dialog', { name: 'This screen' });
 	await expect(sheet.getByText('Stored in this browser only')).toBeVisible();
 	await expect(editBarSave(page)).toHaveCount(0);
-	await sheet.getByLabel('Keep screen awake').selectOption('off');
+	await sheet.getByRole('switch', { name: 'Keep screen awake' }).click();
 	await page.keyboard.press('Escape');
 	await expect(sheet).toBeHidden();
 	// a closed sheet takes its history entry back with history.back() a task
@@ -67,7 +68,11 @@ test('This screen opens without edit mode and keeps its choices in this browser'
 
 	await page.reload();
 	await page.getByRole('button', { name: 'This screen' }).click();
-	await expect(sheet.getByLabel('Keep screen awake')).toHaveValue('off');
+	await expect(sheet.getByRole('switch', { name: 'Keep screen awake' })).toHaveAttribute(
+		'aria-checked',
+		'false'
+	);
+	await expect(sheet.getByRole('button', { name: 'Reset to dashboard (On)' })).toBeVisible();
 	expect(await page.evaluate(() => localStorage.getItem('hearthScreen'))).toBe(
 		'{"keep_screen_on":false}'
 	);

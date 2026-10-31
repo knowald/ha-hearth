@@ -784,8 +784,6 @@
 	"hearth_run": "Rhedeg",
 	"hearth_run_actions": "Rhedeg gweithredoedd",
 	"hearth_run_named": "Rhedeg {name}",
-	"hearth_same_as_dashboard": "Yr un fath â'r dangosfwrdd ({value})",
-	"hearth_same_as_interface_scale": "Yr un fath â graddfa'r rhyngwyneb ({value})",
 	"hearth_save_close_sheet_hint": "Caewch y ddalen hon i gopïo eich golygiadau, trosysgrifo neu ail-lwytho.",
 	"hearth_save_current_theme_as": "Cadw'r gyfredol fel...",
 	"hearth_save_failed": "Methodd y cadw",

@@ -57,7 +57,8 @@
 		children: Snippet;
 		onclose: () => void;
 		onback?: () => void;
-		ondone: () => void;
+		/** Without it the sheet has no Done button and the close button is its only exit. */
+		ondone?: () => void;
 		doneDisabled?: boolean;
 		/**
 		 * Why Done is disabled, shown under it while it is. A sheet that can
@@ -186,15 +187,16 @@
 	/*
 	 * A modal sheet takes focus and keeps Tab inside. A form field that asks
 	 * for focus with data-autofocus gets it under a mouse or trackpad; otherwise
-	 * the done button does, so opening an editor never raises an on-screen
-	 * keyboard by itself. data-autofocus="always" is for a field the sheet
+	 * the done button (or, without one, the close button) does, so opening an
+	 * editor never raises an on-screen keyboard by itself. data-autofocus="always" is for a field the sheet
 	 * exists to fill, where the keyboard is coming anyway.
 	 */
 	function initialFocus(node: HTMLElement) {
 		return (
 			node.querySelector<HTMLElement>('[data-autofocus="always"]') ??
 			(finePointer() ? node.querySelector<HTMLElement>('[data-autofocus]') : null) ??
-			node.querySelector<HTMLElement>('.header .primary:not(:disabled)')
+			node.querySelector<HTMLElement>('.header .primary:not(:disabled)') ??
+			node.querySelector<HTMLElement>('.header .close-button')
 		);
 	}
 
@@ -285,16 +287,18 @@
 					{/if}
 				</div>
 			{/if}
-			<button
-				type="button"
-				class="hearth-button primary pressable"
-				disabled={doneDisabled}
-				aria-describedby={describedBy(`${uid}-done`, undefined, undefined, blockedReason)}
-				use:Ripple={PRESS_RIPPLE}
-				onclick={() => !doneDisabled && ondone()}
-			>
-				{doneLabel ?? $lang('done')}
-			</button>
+			{#if ondone}
+				<button
+					type="button"
+					class="hearth-button primary pressable"
+					disabled={doneDisabled}
+					aria-describedby={describedBy(`${uid}-done`, undefined, undefined, blockedReason)}
+					use:Ripple={PRESS_RIPPLE}
+					onclick={() => !doneDisabled && ondone()}
+				>
+					{doneLabel ?? $lang('done')}
+				</button>
+			{/if}
 			<CloseButton onclick={close} />
 		</div>
 		{#if doneReason !== undefined}

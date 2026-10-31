@@ -784,8 +784,6 @@
 	"hearth_run": "Käivita",
 	"hearth_run_actions": "Käivita toimingud",
 	"hearth_run_named": "Käivita {name}",
-	"hearth_same_as_dashboard": "Sama mis töölaual ({value})",
-	"hearth_same_as_interface_scale": "Sama mis liidese skaala ({value})",
 	"hearth_save_close_sheet_hint": "Sulge see leht, et muudatusi kopeerida, üle kirjutada või uuesti laadida.",
 	"hearth_save_current_theme_as": "Salvesta praegune nimega...",
 	"hearth_save_failed": "Salvestamine ebaõnnestus",

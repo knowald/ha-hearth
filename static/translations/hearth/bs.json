@@ -784,8 +784,6 @@
 	"hearth_run": "Pokreni",
 	"hearth_run_actions": "Pokreni radnje",
 	"hearth_run_named": "Pokreni {name}",
-	"hearth_same_as_dashboard": "Isto kao kontrolna ploča ({value})",
-	"hearth_same_as_interface_scale": "Isto kao razmjera interfejsa ({value})",
 	"hearth_save_close_sheet_hint": "Zatvorite ovaj prozor da biste kopirali izmjene, prepisali ili ponovo učitali.",
 	"hearth_save_current_theme_as": "Sačuvaj trenutnu kao...",
 	"hearth_save_failed": "Čuvanje nije uspjelo",

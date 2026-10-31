@@ -784,8 +784,6 @@
 	"hearth_run": "実行",
 	"hearth_run_actions": "アクションを実行",
 	"hearth_run_named": "{name} を実行",
-	"hearth_same_as_dashboard": "ダッシュボードと同じ ({value})",
-	"hearth_same_as_interface_scale": "インターフェースの拡大率と同じ ({value})",
 	"hearth_save_close_sheet_hint": "編集内容のコピー、上書き、再読み込みを行うには、このシートを閉じてください。",
 	"hearth_save_current_theme_as": "現在のテーマを名前を付けて保存...",
 	"hearth_save_failed": "保存に失敗しました",

@@ -784,8 +784,6 @@
 	"hearth_run": "Zaženi",
 	"hearth_run_actions": "Zaženi dejanja",
 	"hearth_run_named": "Zaženi {name}",
-	"hearth_same_as_dashboard": "Enako kot nadzorna plošča ({value})",
-	"hearth_same_as_interface_scale": "Enako kot merilo vmesnika ({value})",
 	"hearth_save_close_sheet_hint": "Zaprite ta list, da kopirate spremembe, prepišete ali znova naložite.",
 	"hearth_save_current_theme_as": "Shrani trenutno kot...",
 	"hearth_save_failed": "Shranjevanje ni uspelo",

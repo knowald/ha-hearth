@@ -784,8 +784,6 @@
 	"hearth_run": "Покрени",
 	"hearth_run_actions": "Покрени радње",
 	"hearth_run_named": "Покрени {name}",
-	"hearth_same_as_dashboard": "Исто као контролна табла ({value})",
-	"hearth_same_as_interface_scale": "Исто као размера интерфејса ({value})",
 	"hearth_save_close_sheet_hint": "Затворите овај прозор да бисте копирали измене, преписали или поново учитали.",
 	"hearth_save_current_theme_as": "Сачувај тренутну као...",
 	"hearth_save_failed": "Чување није успело",

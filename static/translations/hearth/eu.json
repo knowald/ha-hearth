@@ -784,8 +784,6 @@
 	"hearth_run": "Exekutatu",
 	"hearth_run_actions": "Exekutatu ekintzak",
 	"hearth_run_named": "Exekutatu {name}",
-	"hearth_same_as_dashboard": "Aginte-panelaren berdina ({value})",
-	"hearth_same_as_interface_scale": "Interfazearen eskalaren berdina ({value})",
 	"hearth_save_close_sheet_hint": "Itxi orri hau zure aldaketak kopiatzeko, gainidazteko edo birkargatzeko.",
 	"hearth_save_current_theme_as": "Gorde unekoa honela...",
 	"hearth_save_failed": "Gordetzeak huts egin du",

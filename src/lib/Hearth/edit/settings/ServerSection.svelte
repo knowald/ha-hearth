@@ -242,7 +242,7 @@
 	</SettingsRow>
 	<SettingsRow label={$lang('hearth_long_lived_token')} sub={$lang('hearth_token_hint')}>
 		<input
-			class="inline-text"
+			class="inline-text wide-control"
 			type="password"
 			aria-label={$lang('hearth_long_lived_token')}
 			bind:value={token}
@@ -287,7 +287,6 @@
 	}
 
 	.inline-text {
-		width: min(240px, 45%);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
 		border-radius: var(--h-radius-xs);
 		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));

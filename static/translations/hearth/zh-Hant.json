@@ -784,8 +784,6 @@
 	"hearth_run": "執行",
 	"hearth_run_actions": "執行動作",
 	"hearth_run_named": "執行 {name}",
-	"hearth_same_as_dashboard": "與儀表板相同 ({value})",
-	"hearth_same_as_interface_scale": "與介面縮放相同 ({value})",
 	"hearth_save_close_sheet_hint": "關閉此面板即可複製你的編輯內容、覆寫或重新載入。",
 	"hearth_save_current_theme_as": "將目前主題另存為...",
 	"hearth_save_failed": "儲存失敗",

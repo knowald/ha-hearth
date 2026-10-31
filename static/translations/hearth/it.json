@@ -784,8 +784,6 @@
 	"hearth_run": "Esegui",
 	"hearth_run_actions": "Esegui azioni",
 	"hearth_run_named": "Esegui {name}",
-	"hearth_same_as_dashboard": "Come la plancia ({value})",
-	"hearth_same_as_interface_scale": "Come la scala dell'interfaccia ({value})",
 	"hearth_save_close_sheet_hint": "Chiudi questo pannello per copiare le modifiche, sovrascrivere o ricaricare.",
 	"hearth_save_current_theme_as": "Salva l'attuale come...",
 	"hearth_save_failed": "Salvataggio non riuscito",

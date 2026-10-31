@@ -784,8 +784,6 @@
 	"hearth_run": "Rith",
 	"hearth_run_actions": "Rith gníomhartha",
 	"hearth_run_named": "Rith {name}",
-	"hearth_same_as_dashboard": "Mar an gcéanna leis an bpainéal ({value})",
-	"hearth_same_as_interface_scale": "Mar an gcéanna le scála an chomhéadain ({value})",
 	"hearth_save_close_sheet_hint": "Dún an bileog seo chun d'athruithe a chóipeáil, a fhorscríobh nó a athlódáil.",
 	"hearth_save_current_theme_as": "Sábháil an ceann reatha mar...",
 	"hearth_save_failed": "Theip ar an sábháil",

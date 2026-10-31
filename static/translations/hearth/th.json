@@ -784,8 +784,6 @@
 	"hearth_run": "รัน",
 	"hearth_run_actions": "รันการกระทำ",
 	"hearth_run_named": "รัน {name}",
-	"hearth_same_as_dashboard": "เหมือนแดชบอร์ด ({value})",
-	"hearth_same_as_interface_scale": "เหมือนสเกลอินเทอร์เฟซ ({value})",
 	"hearth_save_close_sheet_hint": "ปิดแผ่นนี้เพื่อคัดลอกการแก้ไข เขียนทับ หรือโหลดใหม่",
 	"hearth_save_current_theme_as": "บันทึกปัจจุบันเป็น...",
 	"hearth_save_failed": "บันทึกไม่สำเร็จ",

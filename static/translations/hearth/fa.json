@@ -784,8 +784,6 @@
 	"hearth_run": "اجرا",
 	"hearth_run_actions": "اجرای کنش‌ها",
 	"hearth_run_named": "اجرای {name}",
-	"hearth_same_as_dashboard": "مانند داشبورد ({value})",
-	"hearth_same_as_interface_scale": "مانند مقیاس رابط ({value})",
 	"hearth_save_close_sheet_hint": "برای کپی ویرایش‌ها، بازنویسی یا بارگذاری دوباره، این برگه را ببندید.",
 	"hearth_save_current_theme_as": "ذخیره فعلی با نام...",
 	"hearth_save_failed": "ذخیره ناموفق بود",

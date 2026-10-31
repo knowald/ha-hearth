@@ -784,8 +784,6 @@
 	"hearth_run": "Suorita",
 	"hearth_run_actions": "Suorita toiminnot",
 	"hearth_run_named": "Suorita {name}",
-	"hearth_same_as_dashboard": "Sama kuin kojelaudalla ({value})",
-	"hearth_same_as_interface_scale": "Sama kuin käyttöliittymän skaalaus ({value})",
 	"hearth_save_close_sheet_hint": "Sulje tämä taulukko kopioidaksesi muutokset, korvataksesi tai ladataksesi uudelleen.",
 	"hearth_save_current_theme_as": "Tallenna nykyinen nimellä...",
 	"hearth_save_failed": "Tallennus epäonnistui",

@@ -784,8 +784,6 @@
 	"hearth_run": "Запустити",
 	"hearth_run_actions": "Виконати дії",
 	"hearth_run_named": "Запустити {name}",
-	"hearth_same_as_dashboard": "Як у панелі ({value})",
-	"hearth_same_as_interface_scale": "Як масштаб інтерфейсу ({value})",
 	"hearth_save_close_sheet_hint": "Закрийте це вікно, щоб скопіювати зміни, перезаписати або перезавантажити.",
 	"hearth_save_current_theme_as": "Зберегти поточну як...",
 	"hearth_save_failed": "Не вдалося зберегти",

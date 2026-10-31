@@ -784,8 +784,6 @@
 	"hearth_run": "Uitvoeren",
 	"hearth_run_actions": "Acties uitvoeren",
 	"hearth_run_named": "{name} uitvoeren",
-	"hearth_same_as_dashboard": "Zelfde als dashboard ({value})",
-	"hearth_same_as_interface_scale": "Zelfde als interfaceschaal ({value})",
 	"hearth_save_close_sheet_hint": "Sluit dit venster om je wijzigingen te kopiëren, te overschrijven of opnieuw te laden.",
 	"hearth_save_current_theme_as": "Huidige opslaan als...",
 	"hearth_save_failed": "Opslaan mislukt",

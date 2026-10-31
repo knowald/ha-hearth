@@ -784,8 +784,6 @@
 	"hearth_run": "Usfüehre",
 	"hearth_run_actions": "Aktione usfüehre",
 	"hearth_run_named": "{name} usfüehre",
-	"hearth_same_as_dashboard": "Glych wie Dashboard ({value})",
-	"hearth_same_as_interface_scale": "Glych wie Oberflächeskalierig ({value})",
 	"hearth_save_close_sheet_hint": "Schliess die Ahsicht, für d Änderige z kopiere, z überschrybe oder nöi z lade.",
 	"hearth_save_current_theme_as": "Aktuells spychere als...",
 	"hearth_save_failed": "Spychere fählgschlage",

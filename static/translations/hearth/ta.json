@@ -784,8 +784,6 @@
 	"hearth_run": "இயக்கு",
 	"hearth_run_actions": "செயல்களை இயக்கு",
 	"hearth_run_named": "{name} ஐ இயக்கு",
-	"hearth_same_as_dashboard": "டாஷ்போர்டைப் போலவே ({value})",
-	"hearth_same_as_interface_scale": "இடைமுக அளவைப் போலவே ({value})",
 	"hearth_save_close_sheet_hint": "உங்கள் திருத்தங்களை நகலெடுக்க, மேலெழுத அல்லது மீண்டும் ஏற்ற இந்தத் தாளை மூடவும்.",
 	"hearth_save_current_theme_as": "தற்போதையதை இப்படிச் சேமி...",
 	"hearth_save_failed": "சேமிப்பு தோல்வியடைந்தது",
