@@ -782,8 +782,6 @@
 	"hearth_run": "Rulează",
 	"hearth_run_actions": "Rulează acțiunile",
 	"hearth_run_named": "Rulează {name}",
-	"hearth_same_as_dashboard": "Ca dashboardul ({value})",
-	"hearth_same_as_interface_scale": "Ca scara interfeței ({value})",
 	"hearth_save_close_sheet_hint": "Închide această foaie pentru a copia modificările, a suprascrie sau a reîncărca.",
 	"hearth_save_current_theme_as": "Salvează curenta ca...",
 	"hearth_save_failed": "Salvarea a eșuat",

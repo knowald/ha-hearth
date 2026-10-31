@@ -782,8 +782,6 @@
 	"hearth_run": "Ausführen",
 	"hearth_run_actions": "Aktionen ausführen",
 	"hearth_run_named": "{name} ausführen",
-	"hearth_same_as_dashboard": "Wie Dashboard ({value})",
-	"hearth_same_as_interface_scale": "Wie Oberflächenskalierung ({value})",
 	"hearth_save_close_sheet_hint": "Schließe dieses Fenster, um deine Änderungen zu kopieren, zu überschreiben oder neu zu laden.",
 	"hearth_save_current_theme_as": "Aktuelles speichern als...",
 	"hearth_save_failed": "Speichern fehlgeschlagen",

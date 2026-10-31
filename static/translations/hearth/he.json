@@ -782,8 +782,6 @@
 	"hearth_run": "הפעלה",
 	"hearth_run_actions": "הפעלת פעולות",
 	"hearth_run_named": "הפעלת {name}",
-	"hearth_same_as_dashboard": "כמו הלוח ({value})",
-	"hearth_same_as_interface_scale": "כמו קנה המידה של הממשק ({value})",
 	"hearth_save_close_sheet_hint": "יש לסגור את הגיליון הזה כדי להעתיק את העריכות, לכתוב מחדש או לטעון מחדש.",
 	"hearth_save_current_theme_as": "שמירת הנוכחית בשם...",
 	"hearth_save_failed": "השמירה נכשלה",

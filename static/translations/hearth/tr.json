@@ -782,8 +782,6 @@
 	"hearth_run": "Çalıştır",
 	"hearth_run_actions": "Eylemleri çalıştır",
 	"hearth_run_named": "{name} çalıştır",
-	"hearth_same_as_dashboard": "Panoyla aynı ({value})",
-	"hearth_same_as_interface_scale": "Arayüz ölçeğiyle aynı ({value})",
 	"hearth_save_close_sheet_hint": "Düzenlemelerinizi kopyalamak, üzerine yazmak veya yeniden yüklemek için bu sayfayı kapatın.",
 	"hearth_save_current_theme_as": "Mevcut temayı farklı kaydet...",
 	"hearth_save_failed": "Kaydetme başarısız oldu",

@@ -782,8 +782,6 @@
 	"hearth_run": "Գործարկել",
 	"hearth_run_actions": "Գործարկել գործողությունները",
 	"hearth_run_named": "Գործարկել {name}-ը",
-	"hearth_same_as_dashboard": "Նույնը, ինչ վահանակը ({value})",
-	"hearth_same_as_interface_scale": "Նույնը, ինչ ինտերֆեյսի մասշտաբը ({value})",
 	"hearth_save_close_sheet_hint": "Փակեք այս թերթը՝ խմբագրումները պատճենելու, վերագրելու կամ վերաբեռնելու համար։",
 	"hearth_save_current_theme_as": "Պահել ընթացիկը որպես...",
 	"hearth_save_failed": "Պահպանումը չհաջողվեց",

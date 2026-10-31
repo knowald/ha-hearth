@@ -782,8 +782,6 @@
 	"hearth_run": "പ്രവർത്തിപ്പിക്കുക",
 	"hearth_run_actions": "പ്രവർത്തനങ്ങൾ പ്രവർത്തിപ്പിക്കുക",
 	"hearth_run_named": "{name} പ്രവർത്തിപ്പിക്കുക",
-	"hearth_same_as_dashboard": "ഡാഷ്ബോർഡിന് തുല്യം ({value})",
-	"hearth_same_as_interface_scale": "ഇന്റർഫേസ് സ്കെയിലിന് തുല്യം ({value})",
 	"hearth_save_close_sheet_hint": "നിങ്ങളുടെ എഡിറ്റുകൾ പകർത്താനോ മേലെഴുതാനോ റീലോഡ് ചെയ്യാനോ ഈ ഷീറ്റ് അടയ്ക്കുക.",
 	"hearth_save_current_theme_as": "നിലവിലുള്ളത് ഇങ്ങനെ സേവ് ചെയ്യുക...",
 	"hearth_save_failed": "സേവ് ചെയ്യാൻ കഴിഞ്ഞില്ല",

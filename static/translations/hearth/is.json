@@ -782,8 +782,6 @@
 	"hearth_run": "Keyra",
 	"hearth_run_actions": "Keyra aðgerðir",
 	"hearth_run_named": "Keyra {name}",
-	"hearth_same_as_dashboard": "Eins og mælaborðið ({value})",
-	"hearth_same_as_interface_scale": "Eins og kvarði viðmóts ({value})",
 	"hearth_save_close_sheet_hint": "Lokaðu þessu blaði til að afrita breytingarnar, skrifa yfir eða endurhlaða.",
 	"hearth_save_current_theme_as": "Vista núverandi sem...",
 	"hearth_save_failed": "Vistun mistókst",

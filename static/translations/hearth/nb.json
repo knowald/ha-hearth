@@ -782,8 +782,6 @@
 	"hearth_run": "Kjør",
 	"hearth_run_actions": "Kjør handlinger",
 	"hearth_run_named": "Kjør {name}",
-	"hearth_same_as_dashboard": "Samme som dashbordet ({value})",
-	"hearth_same_as_interface_scale": "Samme som grensesnittskalaen ({value})",
 	"hearth_save_close_sheet_hint": "Lukk dette arket for å kopiere endringene dine, skrive over eller laste på nytt.",
 	"hearth_save_current_theme_as": "Lagre gjeldende som...",
 	"hearth_save_failed": "Lagring mislyktes",

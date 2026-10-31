@@ -782,8 +782,6 @@
 	"hearth_run": "Ausféieren",
 	"hearth_run_actions": "Aktiounen ausféieren",
 	"hearth_run_named": "{name} ausféieren",
-	"hearth_same_as_dashboard": "Wéi d'Dashboard ({value})",
-	"hearth_same_as_interface_scale": "Wéi d'Interface-Skala ({value})",
 	"hearth_save_close_sheet_hint": "Maach dëst Blat zou, fir Är Ännerungen ze kopéieren, ze iwwerschreiwen oder nei ze lueden.",
 	"hearth_save_current_theme_as": "Aktuellt späichere als ...",
 	"hearth_save_failed": "Späichere feelgeschloen",

@@ -782,8 +782,6 @@
 	"hearth_run": "تشغيل",
 	"hearth_run_actions": "تشغيل الإجراءات",
 	"hearth_run_named": "تشغيل {name}",
-	"hearth_same_as_dashboard": "مثل لوحة المعلومات ({value})",
-	"hearth_same_as_interface_scale": "مثل حجم الواجهة ({value})",
 	"hearth_save_close_sheet_hint": "أغلق هذه اللوحة لنسخ تعديلاتك أو الاستبدال أو إعادة التحميل.",
 	"hearth_save_current_theme_as": "حفظ الحالي باسم...",
 	"hearth_save_failed": "فشل الحفظ",

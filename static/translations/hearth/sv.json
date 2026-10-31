@@ -782,8 +782,6 @@
 	"hearth_run": "Kör",
 	"hearth_run_actions": "Kör åtgärder",
 	"hearth_run_named": "Kör {name}",
-	"hearth_same_as_dashboard": "Samma som instrumentpanelen ({value})",
-	"hearth_same_as_interface_scale": "Samma som gränssnittsskalan ({value})",
 	"hearth_save_close_sheet_hint": "Stäng det här bladet för att kopiera dina ändringar, skriva över eller läsa in igen.",
 	"hearth_save_current_theme_as": "Spara aktuellt som...",
 	"hearth_save_failed": "Sparningen misslyckades",

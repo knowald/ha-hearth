@@ -782,8 +782,6 @@
 	"hearth_run": "Vykdyti",
 	"hearth_run_actions": "Vykdyti veiksmus",
 	"hearth_run_named": "Vykdyti {name}",
-	"hearth_same_as_dashboard": "Kaip prietaisų skydelyje ({value})",
-	"hearth_same_as_interface_scale": "Kaip sąsajos mastelis ({value})",
 	"hearth_save_close_sheet_hint": "Uždarykite šį langą, kad nukopijuotumėte pakeitimus, perrašytumėte arba įkeltumėte iš naujo.",
 	"hearth_save_current_theme_as": "Išsaugoti dabartinę kaip...",
 	"hearth_save_failed": "Išsaugoti nepavyko",

@@ -782,8 +782,6 @@
 	"hearth_run": "Изпълнение",
 	"hearth_run_actions": "Изпълнение на действия",
 	"hearth_run_named": "Изпълнение на {name}",
-	"hearth_same_as_dashboard": "Както в таблото ({value})",
-	"hearth_same_as_interface_scale": "Както мащаба на интерфейса ({value})",
 	"hearth_save_close_sheet_hint": "Затворете този лист, за да копирате промените си, да презапишете или да презаредите.",
 	"hearth_save_current_theme_as": "Запазване на текущата като...",
 	"hearth_save_failed": "Запазването не успя",

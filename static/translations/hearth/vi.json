@@ -782,8 +782,6 @@
 	"hearth_run": "Chạy",
 	"hearth_run_actions": "Chạy hành động",
 	"hearth_run_named": "Chạy {name}",
-	"hearth_same_as_dashboard": "Giống bảng điều khiển ({value})",
-	"hearth_same_as_interface_scale": "Giống tỷ lệ giao diện ({value})",
 	"hearth_save_close_sheet_hint": "Đóng bảng này để sao chép các chỉnh sửa, ghi đè hoặc tải lại.",
 	"hearth_save_current_theme_as": "Lưu hiện tại thành...",
 	"hearth_save_failed": "Lưu thất bại",

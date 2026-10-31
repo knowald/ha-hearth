@@ -140,7 +140,7 @@ The This screen section of Settings keeps these per browser, in local storage:
 - Show favorites page, see [favorites](#favorites).
 - Log out, which clears the Home Assistant session in this browser.
 
-Each row except Device name, Presence sensor, Pixel shifting and Show favorites page starts at Same as dashboard and follows the shared value from `hearth.yaml` or `configuration.yaml` until you pick another one. A shared row that this screen overrides says so in the Settings sheet. A scale picked here also applies at 900 px and narrower unless that row has a value of its own. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
+Each row except Device name, Presence sensor, Pixel shifting and Show favorites page starts with a Dashboard tag: it shows the shared value from `hearth.yaml` or `configuration.yaml` and follows it until you pick another one. A row with a value of its own is tagged This screen, and Reset to dashboard under its label goes back to the shared value. A scale picked here also applies at 900 px and narrower unless that row has a value of its own; that row is then tagged Interface scale. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
 
 Outside edit mode, the button next to Edit Hearth configuration opens Settings with only this section. With `?menu=false` both buttons are hidden; press and hold the bottom-left corner of the screen for 2 seconds instead. The corner works only with `?menu=false`, since the buttons sit there otherwise. In edit mode it is the first section of Settings.
 

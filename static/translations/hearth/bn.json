@@ -782,8 +782,6 @@
 	"hearth_run": "চালান",
 	"hearth_run_actions": "অ্যাকশন চালান",
 	"hearth_run_named": "{name} চালান",
-	"hearth_same_as_dashboard": "ড্যাশবোর্ডের মতো ({value})",
-	"hearth_same_as_interface_scale": "ইন্টারফেস স্কেলের মতো ({value})",
 	"hearth_save_close_sheet_hint": "আপনার সম্পাদনা কপি, ওভাররাইট বা রিলোড করতে এই শিট বন্ধ করুন।",
 	"hearth_save_current_theme_as": "বর্তমানটি এই নামে সংরক্ষণ করুন...",
 	"hearth_save_failed": "সংরক্ষণ ব্যর্থ হয়েছে",

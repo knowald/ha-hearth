@@ -782,8 +782,6 @@
 	"hearth_run": "Spustiť",
 	"hearth_run_actions": "Spustiť akcie",
 	"hearth_run_named": "Spustiť {name}",
-	"hearth_same_as_dashboard": "Rovnaké ako dashboard ({value})",
-	"hearth_same_as_interface_scale": "Rovnaké ako mierka rozhrania ({value})",
 	"hearth_save_close_sheet_hint": "Zatvorte tento panel, ak chcete skopírovať úpravy, prepísať alebo znova načítať.",
 	"hearth_save_current_theme_as": "Uložiť aktuálnu ako...",
 	"hearth_save_failed": "Uloženie zlyhalo",

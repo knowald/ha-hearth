@@ -223,16 +223,14 @@
 	</label>
 {/snippet}
 
-<!-- every dashboard and screen row applies as it changes, so the header action
-     only closes; server values wait for the footer's Save -->
+<!-- every dashboard and screen row applies as it changes, so the close button is
+     the only header action; server values wait for the footer's Save -->
 <EditSheet
 	title={$lang(screenOnly ? 'hearth_this_screen' : 'settings')}
 	wide={!screenOnly}
 	split={!screenOnly}
 	dirty={serverChanges > 0}
 	onclose={close}
-	ondone={() => confirmDiscard(serverChanges > 0, close)}
-	doneLabel={$lang('hearth_close')}
 	tools={screenOnly ? undefined : searchField}
 >
 	{#if screenOnly}
@@ -375,8 +373,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 18px;
-		max-width: 640px;
-		margin: 0 auto;
 		width: 100%;
 	}
 
@@ -508,7 +504,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 28px;
-		max-width: 640px;
+		max-width: 920px;
 	}
 
 	.no-match {

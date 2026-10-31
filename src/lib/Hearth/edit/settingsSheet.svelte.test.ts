@@ -420,15 +420,15 @@ describe('closing with staged server values', () => {
 
 	it('closes straight away with nothing staged', async () => {
 		render(SettingsEditSheet);
-		await fireEvent.click(screen.getAllByRole('button', { name: en.hearth_close })[0]);
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_close }));
 		expect(get(requestedConfirmation)).toBeNull();
 		expect(get(editor)).toBeNull();
 	});
 
-	it.each([0, 1])('asks before close button %i drops them', async (index) => {
+	it('asks before the close button drops them', async () => {
 		render(SettingsEditSheet);
 		await stage();
-		await fireEvent.click(screen.getAllByRole('button', { name: en.hearth_close })[index]);
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_close }));
 		expect(get(editor)).toEqual({ kind: 'settings' });
 		expect(get(requestedConfirmation)?.confirmLabel).toBe(en.hearth_discard);
 		confirmRequestedAction();
@@ -476,7 +476,7 @@ describe('closing with staged server values', () => {
 		render(SettingsEditSheet);
 		await stage();
 		await stage();
-		await fireEvent.click(screen.getAllByRole('button', { name: en.hearth_close })[0]);
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_close }));
 		expect(get(requestedConfirmation)).toBeNull();
 		expect(get(editor)).toBeNull();
 	});
@@ -502,17 +502,20 @@ describe('This screen outside edit mode', () => {
 		expect(screen.queryByText(en.hearth_settings_status_idle)).toBeNull();
 	});
 
+	const screenSwitch = (name: string) => screen.getByRole('switch', { name });
+	const row = (name: string) => select(name).closest('.row') as HTMLElement;
+	const resetLink = (value: string) =>
+		screen.getByRole('button', { name: fill(en.hearth_reset_to_dashboard, { value }) });
+
 	it('says where its settings live and starts every row at the shared value', () => {
 		renderScreen();
 		expect(screen.getByText(en.hearth_stored_in_this_browser_only)).toBeTruthy();
 		const sleep = select(en.hearth_screensaver);
-		expect(sleep.value).toBe('');
-		expect(sleep.selectedOptions[0].textContent).toBe(
-			fill(en.hearth_same_as_dashboard, { value: en.hearth_after_5_minutes })
-		);
-		expect(select(en.hearth_keep_screen_awake).selectedOptions[0].textContent).toBe(
-			fill(en.hearth_same_as_dashboard, { value: en.on })
-		);
+		expect(sleep.value).toBe('5');
+		expect(sleep.selectedOptions[0].textContent).toBe(en.hearth_after_5_minutes);
+		expect(row(en.hearth_screensaver).textContent).toContain(en.hearth_dashboard);
+		expect(screenSwitch(en.hearth_keep_screen_awake).getAttribute('aria-checked')).toBe('true');
+		expect(screen.queryByRole('button', { name: /^Reset to/ })).toBeNull();
 	});
 
 	it('turns the sleep screen off here and back to the shared value', async () => {
@@ -520,10 +523,23 @@ describe('This screen outside edit mode', () => {
 		await fireEvent.change(select(en.hearth_screensaver), { target: { value: '0' } });
 		expect(get(screenSettings).sleepMinutes).toBe(0);
 		expect(JSON.parse(localStorage.getItem('hearthScreen')!)).toEqual({ screensaver_minutes: 0 });
+		expect(row(en.hearth_screensaver).textContent).toContain(en.hearth_this_screen);
 
-		await fireEvent.change(select(en.hearth_screensaver), { target: { value: '' } });
+		await fireEvent.click(resetLink(en.hearth_after_5_minutes));
 		expect(get(screenSettings).sleepMinutes).toBe(5);
 		expect(localStorage.getItem('hearthScreen')).toBeNull();
+		expect(select(en.hearth_screensaver).value).toBe('5');
+		expect(row(en.hearth_screensaver).textContent).toContain(en.hearth_dashboard);
+		// the link is gone with the override, so focus moves to the control
+		await waitFor(() => expect(document.activeElement).toBe(select(en.hearth_screensaver)));
+	});
+
+	it('keeps a value picked here even when it matches the shared one', async () => {
+		renderScreen();
+		await fireEvent.change(select(en.hearth_screensaver), { target: { value: '0' } });
+		await fireEvent.change(select(en.hearth_screensaver), { target: { value: '5' } });
+		expect(get(screenOverrides).screensaver_minutes).toBe(5);
+		expect(resetLink(en.hearth_after_5_minutes)).toBeTruthy();
 	});
 
 	it('enables pixel shifting for this browser and removes the override when turned off', async () => {
@@ -539,7 +555,7 @@ describe('This screen outside edit mode', () => {
 
 	it('keeps the wake lock and scale for this screen alone', async () => {
 		renderScreen();
-		await fireEvent.change(select(en.hearth_keep_screen_awake), { target: { value: 'off' } });
+		await fireEvent.click(screenSwitch(en.hearth_keep_screen_awake));
 		await fireEvent.change(select(en.hearth_interface_scale), { target: { value: '130' } });
 		expect(get(screenSettings)).toMatchObject({
 			keepScreenOn: false,
@@ -547,18 +563,38 @@ describe('This screen outside edit mode', () => {
 			mobileScale: 130
 		});
 		expect(get(hearthConfig).keep_screen_on).toBeUndefined();
-		expect(select(en.hearth_scale_at_900_px_and_narrower).selectedOptions[0].textContent).toBe(
-			fill(en.hearth_same_as_interface_scale, { value: '130%' })
+		expect(resetLink(en.on)).toBeTruthy();
+		expect(resetLink('100%')).toBeTruthy();
+		// the narrow scale follows this screen's own scale, and says so
+		const narrow = select(en.hearth_scale_at_900_px_and_narrower);
+		expect(narrow.value).toBe('130');
+		expect(row(en.hearth_scale_at_900_px_and_narrower).textContent).toContain(
+			en.hearth_interface_scale
 		);
+		await fireEvent.change(narrow, { target: { value: '90' } });
+		expect(
+			screen.getByRole('button', {
+				name: fill(en.hearth_reset_to_interface_scale, { value: '130%' })
+			})
+		).toBeTruthy();
 	});
 
 	it('mutes alert chimes on this screen alone', async () => {
 		renderScreen();
-		await fireEvent.change(select(en.hearth_mute_alert_chimes), { target: { value: 'on' } });
+		await fireEvent.click(screenSwitch(en.hearth_mute_alert_chimes));
 		expect(get(screenOverrides).mute_chimes).toBe(true);
 		expect(JSON.parse(localStorage.getItem('hearthScreen')!)).toEqual({ mute_chimes: true });
-		await fireEvent.change(select(en.hearth_mute_alert_chimes), { target: { value: '' } });
+		await fireEvent.click(resetLink(en.off));
 		expect(get(screenOverrides).mute_chimes).toBeUndefined();
+	});
+
+	it('shows the presence sensor as a row with the field beside its label', () => {
+		renderScreen();
+		const field = screen.getByLabelText(en.hearth_presence_sensor);
+		const presence = field.closest('.row') as HTMLElement;
+		expect(presence.querySelector('.row-label')?.textContent).toBe(en.hearth_presence_sensor);
+		expect(presence.querySelector('.row-sub')?.textContent).toBe(en.hearth_presence_sensor_hint);
+		expect(presence.querySelector('.field-label')).toBeNull();
 	});
 
 	it('says where the browser cannot scale', () => {
@@ -575,6 +611,7 @@ describe('This screen outside edit mode', () => {
 		screenOverrides.set({ locale: 'pl' });
 		renderScreen();
 		expect(select(en.language).selectedOptions[0].textContent).toBe('Polski');
+		expect(resetLink('English')).toBeTruthy();
 	});
 
 	it('names this device', async () => {
@@ -612,7 +649,7 @@ describe('This screen outside edit mode', () => {
 
 	it('closes from the header', async () => {
 		renderScreen();
-		await fireEvent.click(screen.getAllByRole('button', { name: en.hearth_close })[0]);
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_close }));
 		expect(get(screenSheetOpen)).toBe(false);
 	});
 });

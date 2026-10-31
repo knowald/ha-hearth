@@ -782,8 +782,6 @@
 	"hearth_run": "Запустить",
 	"hearth_run_actions": "Выполнить действия",
 	"hearth_run_named": "Запустить {name}",
-	"hearth_same_as_dashboard": "Как у панели ({value})",
-	"hearth_same_as_interface_scale": "Как масштаб интерфейса ({value})",
 	"hearth_save_close_sheet_hint": "Закройте эту панель, чтобы скопировать изменения, перезаписать или перезагрузить.",
 	"hearth_save_current_theme_as": "Сохранить текущую как...",
 	"hearth_save_failed": "Не удалось сохранить",

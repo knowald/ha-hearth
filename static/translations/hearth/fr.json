@@ -782,8 +782,6 @@
 	"hearth_run": "Exécuter",
 	"hearth_run_actions": "Exécuter les actions",
 	"hearth_run_named": "Exécuter {name}",
-	"hearth_same_as_dashboard": "Comme le tableau de bord ({value})",
-	"hearth_same_as_interface_scale": "Comme l'échelle de l'interface ({value})",
 	"hearth_save_close_sheet_hint": "Fermez ce panneau pour copier vos modifications, écraser ou recharger.",
 	"hearth_save_current_theme_as": "Enregistrer l'actuel sous...",
 	"hearth_save_failed": "Échec de l'enregistrement",

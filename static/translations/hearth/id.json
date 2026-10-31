@@ -782,8 +782,6 @@
 	"hearth_run": "Jalankan",
 	"hearth_run_actions": "Jalankan tindakan",
 	"hearth_run_named": "Jalankan {name}",
-	"hearth_same_as_dashboard": "Sama dengan dasbor ({value})",
-	"hearth_same_as_interface_scale": "Sama dengan skala antarmuka ({value})",
 	"hearth_save_close_sheet_hint": "Tutup lembar ini untuk menyalin hasil edit, menimpa, atau memuat ulang.",
 	"hearth_save_current_theme_as": "Simpan saat ini sebagai...",
 	"hearth_save_failed": "Gagal menyimpan",

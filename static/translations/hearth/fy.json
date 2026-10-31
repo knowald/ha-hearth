@@ -782,8 +782,6 @@
 	"hearth_run": "Utfiere",
 	"hearth_run_actions": "Aksjes útfiere",
 	"hearth_run_named": "{name} útfiere",
-	"hearth_same_as_dashboard": "Itselde as dashboard ({value})",
-	"hearth_same_as_interface_scale": "Itselde as ynterfaceskaal ({value})",
 	"hearth_save_close_sheet_hint": "Slút dit blêd om jo wizigingen te kopiearjen, oer te skriuwen of opnij te laden.",
 	"hearth_save_current_theme_as": "Aktueel opslaan as...",
 	"hearth_save_failed": "Opslaan mislearre",

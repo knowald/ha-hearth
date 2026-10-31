@@ -782,8 +782,6 @@
 	"hearth_run": "Voer uit",
 	"hearth_run_actions": "Voer aksies uit",
 	"hearth_run_named": "Voer {name} uit",
-	"hearth_same_as_dashboard": "Dieselfde as paneelbord ({value})",
-	"hearth_same_as_interface_scale": "Dieselfde as koppelvlakskaal ({value})",
 	"hearth_save_close_sheet_hint": "Sluit hierdie blad om jou wysigings te kopieer, oor te skryf of weer te laai.",
 	"hearth_save_current_theme_as": "Stoor huidige as...",
 	"hearth_save_failed": "Stoor het misluk",

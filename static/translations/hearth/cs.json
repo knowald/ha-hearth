@@ -782,8 +782,6 @@
 	"hearth_run": "Spustit",
 	"hearth_run_actions": "Spustit akce",
 	"hearth_run_named": "Spustit {name}",
-	"hearth_same_as_dashboard": "Stejné jako ovládací panel ({value})",
-	"hearth_same_as_interface_scale": "Stejné jako měřítko rozhraní ({value})",
 	"hearth_save_close_sheet_hint": "Zavřete tento panel, abyste mohli zkopírovat úpravy, přepsat nebo načíst znovu.",
 	"hearth_save_current_theme_as": "Uložit aktuální jako...",
 	"hearth_save_failed": "Uložení selhalo",

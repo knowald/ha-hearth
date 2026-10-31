@@ -782,8 +782,6 @@
 	"hearth_run": "Kør",
 	"hearth_run_actions": "Kør handlinger",
 	"hearth_run_named": "Kør {name}",
-	"hearth_same_as_dashboard": "Samme som dashboardet ({value})",
-	"hearth_same_as_interface_scale": "Samme som skalering af brugerfladen ({value})",
 	"hearth_save_close_sheet_hint": "Luk dette panel for at kopiere dine ændringer, overskrive eller genindlæse.",
 	"hearth_save_current_theme_as": "Gem aktuelt som...",
 	"hearth_save_failed": "Gemning mislykkedes",
