@@ -23,7 +23,7 @@ test('a presence sensor keeps the screen black while nobody is around', async ({
 	const fade = sheet.getByLabel('Presence fade');
 	await expect(fade).toHaveValue('2');
 	await fade.selectOption('10');
-	await sheet.getByRole('button', { name: 'Close' }).first().click();
+	await sheet.getByRole('button', { name: 'Close' }).click();
 	await expect(sheet).toBeHidden();
 
 	const html = page.locator('html');

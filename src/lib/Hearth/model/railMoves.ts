@@ -1,5 +1,13 @@
 import type { MobileSlot, RailPosition, RailSide, RailWidget } from '../types';
-import { moveItem, railSideOf, railSides, railSlots, slugify, uniqueId } from '../config';
+import {
+	headerStandIn,
+	moveItem,
+	railSideOf,
+	railSides,
+	railSlots,
+	slugify,
+	uniqueId
+} from '../config';
 
 /*
  * Rearranging the rail's widgets by hand, folded or wide. Only edit mode moves
@@ -11,11 +19,21 @@ import { moveItem, railSideOf, railSides, railSlots, slugify, uniqueId } from '.
  * Landing in a folded run stamps the widget with that run's slot, so the
  * arrangement the user made by hand stops depending on where the flexible gap
  * happens to sit. A widget hidden on mobile keeps its slot - it is only in a
- * run at all because the editor shows hidden widgets dimmed.
+ * run at all because the editor shows hidden widgets dimmed. So does one the
+ * phone header stands in for, unless it is the one dropped (`dropped`), since
+ * dragging it into a run is how it comes back.
  */
-function stampSlot(widgets: RailWidget[], slot: Exclude<MobileSlot, 'hidden'>): RailWidget[] {
+function stampSlot(
+	widgets: RailWidget[],
+	slot: Exclude<MobileSlot, 'hidden'>,
+	dropped?: string
+): RailWidget[] {
 	return widgets.map((widget) =>
-		widget.mobile === 'hidden' || widget.hide_mobile ? widget : { ...widget, mobile: slot }
+		widget.mobile === 'hidden' ||
+		widget.hide_mobile ||
+		(headerStandIn(widget) && widget.id !== dropped)
+			? widget
+			: { ...widget, mobile: slot }
 	);
 }
 
@@ -23,9 +41,10 @@ function stampSlot(widgets: RailWidget[], slot: Exclude<MobileSlot, 'hidden'>): 
 function withRun(
 	run: RailWidget[],
 	rest: RailWidget[],
-	slot: Exclude<MobileSlot, 'hidden'>
+	slot: Exclude<MobileSlot, 'hidden'>,
+	dropped?: string
 ): RailWidget[] {
-	const placed = stampSlot(run, slot);
+	const placed = stampSlot(run, slot, dropped);
 	return slot === 'top' ? [...placed, ...rest] : [...rest, ...placed];
 }
 
@@ -77,7 +96,7 @@ export function placeInSlot(
 	const runs = railSlots(remaining, { includeHidden: true, compact, position });
 	const run = [...runs[slot]];
 	run.splice(index, 0, entry as RailWidget);
-	return withRun(run, slot === 'top' ? runs.bottom : runs.top, slot);
+	return withRun(run, slot === 'top' ? runs.bottom : runs.top, slot, entry.id);
 }
 
 function stampSide(widgets: RailWidget[], side: RailSide): RailWidget[] {

@@ -2,26 +2,27 @@
 	import { ICON } from './iconSizes';
 	import { lang } from '$lib/core/i18n';
 	import { activateOnKeyboard } from './interaction';
-	import { states } from '$lib/core/ha/entities';
 	import { hearthConfig, hearthEditMode } from './store';
 	import { imageSource } from './images';
-	import { sensorNumber } from '$lib/core/ha/entities';
+	import { sensorNumber, states, UNAVAILABLE_STATES } from '$lib/core/ha/entities';
+	import { formatReading } from './format';
+	import type { ShownStat } from './model/headerStats';
 	import Icon from './Icon.svelte';
+	import type { HassEntity } from 'home-assistant-js-websocket';
 
 	let {
 		icon = 'home',
 		title = '',
 		subtitle = undefined,
-		tempEntity = undefined,
-		humidityEntity = undefined,
+		stats = [],
 		backgroundImage = undefined,
 		onedit = undefined
 	}: {
 		icon?: string;
 		title?: string;
 		subtitle?: string;
-		tempEntity?: string;
-		humidityEntity?: string;
+		/** The readings at the right, in order; see headerStatList. */
+		stats?: ShownStat[];
 		/** A URL, or `hearth-images/<file>` for an uploaded image. */
 		backgroundImage?: string;
 		onedit?: () => void;
@@ -34,14 +35,30 @@
 	let failedBackground = $state<string>();
 	let banner = $derived(!!background && background !== failedBackground);
 
-	let climate = $derived.by(() => {
-		const temp = sensorNumber(tempEntity ? $states?.[tempEntity]?.state : undefined);
-		const humidity = sensorNumber(humidityEntity ? $states?.[humidityEntity]?.state : undefined);
-		return {
-			temp: temp === null ? '-' : `${temp.toFixed(1)}°`,
-			humidity: humidity === null ? '-' : `${Math.round(humidity)}%`
-		};
-	});
+	// temperature and humidity keep the short form the header always had
+	function readingText(entity: HassEntity | undefined, kind: ShownStat['kind']): string {
+		const value = sensorNumber(entity?.state);
+		if (kind === 'temperature') return value === null ? '-' : `${value.toFixed(1)}\u00b0`;
+		if (kind === 'humidity') return value === null ? '-' : `${Math.round(value)}%`;
+		if (value !== null) return formatReading(value, entity?.attributes?.unit_of_measurement);
+		return !entity || UNAVAILABLE_STATES.includes(entity.state) ? '-' : entity.state;
+	}
+
+	let readings = $derived(
+		stats.map((stat) => {
+			const entity = $states?.[stat.entity];
+			const deviceClass = entity?.attributes?.device_class;
+			const kind =
+				stat.kind ??
+				(deviceClass === 'temperature' || deviceClass === 'humidity' ? deviceClass : undefined);
+			const kindLabel = kind && $lang(kind === 'temperature' ? 'hearth_temp' : 'hearth_humidity');
+			return {
+				entity: stat.entity,
+				value: readingText(entity, kind),
+				label: stat.name ?? kindLabel ?? entity?.attributes?.friendly_name ?? stat.entity
+			};
+		})
+	);
 </script>
 
 {#snippet content()}
@@ -71,20 +88,16 @@
 			<Icon name="edit" size={ICON.control} />
 		</div>
 	{/if}
-	<div class="chips">
-		{#if tempEntity}
-			<div class="chip">
-				<div class="chip-value">{climate.temp}</div>
-				<div class="chip-label">{$lang('hearth_temp')}</div>
-			</div>
-		{/if}
-		{#if humidityEntity}
-			<div class="chip">
-				<div class="chip-value">{climate.humidity}</div>
-				<div class="chip-label">{$lang('hearth_humidity')}</div>
-			</div>
-		{/if}
-	</div>
+	{#if readings.length}
+		<div class="stats">
+			{#each readings as reading, index (index)}
+				<div class="stat" data-entity={reading.entity}>
+					<div class="stat-value">{reading.value}</div>
+					<div class="stat-label">{reading.label}</div>
+				</div>
+			{/each}
+		</div>
+	{/if}
 {/snippet}
 
 <!-- a control only while there is something to edit; otherwise plain content -->
@@ -107,7 +120,7 @@
 	.header {
 		display: flex;
 		align-items: center;
-		/* the stat chips drop under the title before the title wraps per word */
+		/* the readings drop under the title before the title wraps per word */
 		flex-wrap: wrap;
 		gap: 18px;
 	}
@@ -126,7 +139,7 @@
 		overflow: hidden;
 	}
 
-	/* a wash of the theme's own background keeps title and chips legible over
+	/* a wash of the theme's own background keeps title and readings legible over
 	   any photo, in light and dark themes alike; as ::after it paints over the
 	   image, which shares its layer */
 	.header.banner::after {
@@ -183,33 +196,36 @@
 		color: var(--h-text-5);
 	}
 
-	.chips {
+	.stats {
 		display: flex;
-		gap: 12px;
+		align-items: center;
+		gap: 20px;
 	}
 
-	.chip {
-		height: 64px;
-		padding: 0 18px;
-		border-radius: var(--h-radius-sm);
-		background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));
-		backdrop-filter: var(--h-surface-blur);
-		box-shadow: var(--h-card-shadow);
-		border: 1px solid rgb(var(--h-line-rgb) / calc(0.07 * var(--h-line-scale)));
+	.stat {
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
-		text-align: center;
+		align-items: flex-end;
+		text-align: right;
+		line-height: 1.2;
 	}
 
-	.chip-value {
+	.stat + .stat {
+		padding-left: 20px;
+		border-left: 1px solid rgb(var(--h-line-rgb) / calc(0.12 * var(--h-line-scale)));
+	}
+
+	.stat-value {
 		font-size: var(--h-type-headline);
-		font-weight: 600;
+		font-weight: 500;
 		color: var(--h-text-1);
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 	}
 
-	.chip-label {
+	.stat-label {
 		font-size: var(--h-type-small);
 		color: var(--h-text-5);
+		white-space: nowrap;
 	}
 </style>

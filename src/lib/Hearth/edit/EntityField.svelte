@@ -18,6 +18,7 @@
 		domains = [],
 		deviceClass = undefined,
 		required = false,
+		inline = false,
 		hint = undefined,
 		error = undefined,
 		onchange = undefined
@@ -29,6 +30,9 @@
 		deviceClass?: string;
 		/** Marks the label and tells assistive tech; the editor decides what blocks Done. */
 		required?: boolean;
+		/** Sit beside a settings row's label: the label becomes the accessible name only. */
+		inline?: boolean;
+		/** Not shown inline, where the settings row carries the explanation. */
 		hint?: string;
 		error?: string | null;
 		/** Fires when a value is committed: typed and left, or picked. */
@@ -84,11 +88,14 @@
 	}
 </script>
 
-<div class="field">
-	<label class="field-label" class:field-required={required} for="{uid}-input">{label}</label>
+<div class="field" class:inline>
+	{#if !inline}
+		<label class="field-label" class:field-required={required} for="{uid}-input">{label}</label>
+	{/if}
 	<span class="input-wrap">
 		<input
 			id="{uid}-input"
+			aria-label={inline ? label : undefined}
 			type="text"
 			bind:value
 			list="entities-{uid}"
@@ -99,7 +106,10 @@
 			onblur={() => (typing = false)}
 			aria-invalid={error ? true : undefined}
 			aria-required={required || undefined}
-			aria-describedby={[entity && `${uid}-entity`, describedBy(uid, hint, error, warning)]
+			aria-describedby={[
+				entity && `${uid}-entity`,
+				describedBy(uid, inline ? undefined : hint, error, warning)
+			]
 				.filter(Boolean)
 				.join(' ') || undefined}
 		/>
@@ -126,7 +136,7 @@
 			<span class="entity-state"><StateLogic entity_id={entityId} /></span>
 		</span>
 	{/if}
-	<FieldMessages id={uid} {hint} {error} {warning} />
+	<FieldMessages id={uid} hint={inline ? undefined : hint} {error} {warning} />
 </div>
 
 {#if pickerOpen}
@@ -146,6 +156,10 @@
 	.field {
 		display: block;
 		margin-bottom: 14px;
+	}
+
+	.field.inline {
+		margin-bottom: 0;
 	}
 
 	.field-label {

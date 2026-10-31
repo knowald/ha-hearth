@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as v from 'valibot';
 import { english as en } from '$lib/core/i18n/testing';
 import { CARD_TYPES } from './cards';
+import { CARD_GROUPS } from './model/registry';
 import { RAIL_WIDGET_TYPES } from './widgets';
 
 const translated = (key: string) => typeof (en as Record<string, unknown>)[key] === 'string';
@@ -31,6 +32,15 @@ describe('Hearth type registries', () => {
 			).not.toThrow();
 			expectSchemaContract(descriptor.type, descriptor.schema, descriptor.normalize({}));
 		}
+	});
+
+	it('files every card type under a gallery heading, groups kept together', () => {
+		const groups = CARD_GROUPS.map((group) => group.id);
+		for (const group of CARD_GROUPS) expect(translated(group.label)).toBe(true);
+		for (const descriptor of CARD_TYPES) expect(groups).toContain(descriptor.group);
+		// gallery order is group order, so a heading never comes back further down
+		const order = CARD_TYPES.map((descriptor) => groups.indexOf(descriptor.group));
+		expect(order).toEqual([...order].sort((a, b) => a - b));
 	});
 
 	it('gives every rail widget type a complete, unique descriptor', async () => {

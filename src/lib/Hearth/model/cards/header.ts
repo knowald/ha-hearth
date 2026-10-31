@@ -2,7 +2,8 @@ import * as v from 'valibot';
 import type { OverviewCard } from '../../types';
 import { trimmedOrUndefined } from '../../normalizers';
 import type { CardDefinition } from '../types';
-import { OptionalText, OptionalEntityId } from '../../schema';
+import { OptionalText, OptionalEntityId, HeaderStatListSchema } from '../../schema';
+import { headerStatList, normalizeHeaderStats } from '../headerStats';
 
 export type HeaderCard = Extract<OverviewCard, { type: 'header' }>;
 
@@ -12,12 +13,14 @@ export const headerCard: CardDefinition<HeaderCard> = {
 	name: 'hearth_card_header_name',
 	sub: 'hearth_card_header_sub',
 	icon: 'view_agenda',
+	group: 'information',
 	normalize: (card) => ({
 		title: trimmedOrUndefined(card.title),
 		subtitle: trimmedOrUndefined(card.subtitle),
 		icon: trimmedOrUndefined(card.icon),
 		temp_entity: trimmedOrUndefined(card.temp_entity),
 		humidity_entity: trimmedOrUndefined(card.humidity_entity),
+		stats: normalizeHeaderStats(card.stats),
 		background_image: trimmedOrUndefined(card.background_image)
 	}),
 	schema: v.looseObject({
@@ -26,11 +29,10 @@ export const headerCard: CardDefinition<HeaderCard> = {
 		icon: OptionalText,
 		temp_entity: OptionalEntityId,
 		humidity_entity: OptionalEntityId,
+		stats: HeaderStatListSchema,
 		background_image: OptionalText
 	}),
+	draft: ({ pageName }) => ({ title: pageName }),
 	needsConfiguration: () => false,
-	entityIds: (card) => [
-		...(card.temp_entity ? [card.temp_entity] : []),
-		...(card.humidity_entity ? [card.humidity_entity] : [])
-	]
+	entityIds: (card) => headerStatList(card).map((stat) => stat.entity)
 };

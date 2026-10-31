@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import { clickEditEntry } from './edit-entry';
 
 /* The one Settings sheet: its section list, search, change counts and server save. */
 
@@ -8,9 +9,11 @@ const CONFIG_FIXTURE = readFileSync(CONFIG_FILE, 'utf8');
 
 test.afterEach(() => writeFileSync(CONFIG_FILE, CONFIG_FIXTURE));
 
+const sections = (sheet: Locator) => sheet.getByRole('navigation', { name: 'Settings sections' });
+
 async function openSettings(page: Page) {
 	await page.goto('/');
-	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await clickEditEntry(page);
 	await page.getByRole('button', { name: 'Settings', exact: true }).click();
 	const sheet = page.getByRole('dialog', { name: 'Settings' });
 	await expect(sheet).toBeVisible();
@@ -51,6 +54,59 @@ test('searches, jumps between sections and counts dashboard changes', async ({ p
 		sheet.getByText('1 dashboard change, kept when you choose Save in the edit bar')
 	).toBeVisible();
 	await expect(sections.getByRole('button', { name: /Appearance/ })).toContainText('1');
+});
+
+test('closes from its one close button, with each row beside its control', async ({ page }) => {
+	const sheet = await openSettings(page);
+	await expect(sheet.getByText('Changes apply right away.')).toBeVisible();
+	await expect(sheet.getByRole('button', { name: 'Close', exact: true })).toHaveCount(1);
+	await expect(sheet.getByRole('button', { name: 'Done' })).toHaveCount(0);
+
+	// the label on the left, the control in its own column on the right
+	const row = sheet
+		.locator('.row')
+		.filter({ has: page.getByLabel('Sleep screen turns on') })
+		.first();
+	const sleep = row.getByLabel('Sleep screen turns on');
+	const label = (await row.locator('.row-label').boundingBox())!;
+	const control = (await sleep.boundingBox())!;
+	expect(control.x).toBeGreaterThan(label.x + label.width);
+	expect(Math.abs(control.y + control.height / 2 - (label.y + label.height / 2))).toBeLessThan(24);
+
+	// the presence sensor is a row like the others
+	const presenceRow = sheet
+		.locator('.row')
+		.filter({ has: page.getByLabel('Presence sensor', { exact: true }) });
+	const presence = presenceRow.getByLabel('Presence sensor', { exact: true });
+	await expect(presenceRow.locator('.row-label')).toHaveText('Presence sensor');
+	const presenceBox = (await presence.boundingBox())!;
+	const presenceLabel = (await presenceRow.locator('.row-label').boundingBox())!;
+	expect(presenceBox.x).toBeGreaterThan(presenceLabel.x + presenceLabel.width);
+
+	await sheet.getByRole('button', { name: 'Close', exact: true }).click();
+	await expect(sheet).toBeHidden();
+});
+
+test('tags an inherited value and resets an override to it', async ({ page }) => {
+	const sheet = await openSettings(page);
+	const row = sheet
+		.locator('.row')
+		.filter({ has: page.getByRole('combobox', { name: 'Interface scale', exact: true }) });
+	const scale = row.getByRole('combobox');
+	await expect(scale).toHaveValue('100');
+	await expect(row.locator('.row-tag')).toHaveText('Dashboard');
+	await expect(row.getByRole('button', { name: /^Reset to/ })).toHaveCount(0);
+
+	await scale.selectOption('120');
+	await expect(row.locator('.row-tag')).toHaveText('This screen');
+	await expect(sections(sheet).getByRole('button', { name: /This screen/ })).toContainText('1');
+	expect(await page.evaluate(() => localStorage.getItem('hearthScreen'))).toBe('{"scale":120}');
+
+	await row.getByRole('button', { name: 'Reset to dashboard (100%)' }).click();
+	await expect(scale).toHaveValue('100');
+	await expect(scale).toBeFocused();
+	await expect(row.locator('.row-tag')).toHaveText('Dashboard');
+	expect(await page.evaluate(() => localStorage.getItem('hearthScreen'))).toBeNull();
 });
 
 test('saves a server setting from the footer and stays open', async ({ page }) => {
@@ -102,6 +158,28 @@ test.describe('phone', () => {
 		const width = await page.evaluate(() => document.documentElement.scrollWidth);
 		expect(width).toBeLessThanOrEqual(390);
 	});
+
+	test('puts a wide control under its label and keeps a switch beside it', async ({ page }) => {
+		const sheet = await openSettings(page);
+		const sleepRow = sheet
+			.locator('.row')
+			.filter({ has: page.getByLabel('Sleep screen turns on') })
+			.first();
+		const sleep = sleepRow.getByLabel('Sleep screen turns on');
+		const sleepLabel = sleepRow.locator('.row-label');
+		expect((await sleep.boundingBox())!.y).toBeGreaterThan(
+			(await sleepLabel.boundingBox())!.y + 10
+		);
+		const shiftRow = sheet
+			.locator('.row')
+			.filter({ has: page.getByRole('switch', { name: 'Pixel shifting' }) });
+		const shift = shiftRow.getByRole('switch');
+		const shiftLabel = shiftRow.locator('.row-label');
+		const shiftBox = (await shift.boundingBox())!;
+		expect(shiftBox.x).toBeGreaterThan((await shiftLabel.boundingBox())!.x + 100);
+		const width = await page.evaluate(() => document.documentElement.scrollWidth);
+		expect(width).toBeLessThanOrEqual(390);
+	});
 });
 
 test.describe('the smallest phone, in a longer language', () => {
@@ -112,7 +190,7 @@ test.describe('the smallest phone, in a longer language', () => {
 			localStorage.setItem('hearthScreen', JSON.stringify({ locale: 'de' }))
 		);
 		await page.goto('/');
-		await page.locator('.edit-toggle').click();
+		await clickEditEntry(page);
 		await page.getByRole('button', { name: 'Einstellungen', exact: true }).click();
 		const sheet = page.getByRole('dialog').first();
 		await expect(sheet).toBeVisible();

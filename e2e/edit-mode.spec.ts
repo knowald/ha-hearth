@@ -62,13 +62,18 @@ const REQUIRED_VALUES: Record<string, string> = {
 };
 
 async function fillRequired(sheet: Locator, name: string) {
-	const done = sheet.getByRole('button', { name: 'Done' });
+	const done = sheet.getByRole('button', { name: /^(Done$|Add to )/ });
 	if (name === 'Template') {
 		await expect(done).toBeDisabled();
 		await sheet.locator('.cm-content').fill("{{ states('sun.sun') }}");
 	} else if (REQUIRED_VALUES[name]) {
-		await expect(done).toBeDisabled();
-		await sheet.locator('input[aria-required="true"]').fill(REQUIRED_VALUES[name]);
+		const required = sheet.locator('input[aria-required="true"]');
+		await expect(required).toBeVisible();
+		// a card may start filled from Home Assistant by the gallery's draft
+		if (!(await required.inputValue())) {
+			await expect(done).toBeDisabled();
+			await required.fill(REQUIRED_VALUES[name]);
+		}
 	}
 	await expect(done).toBeEnabled();
 }
@@ -93,11 +98,11 @@ test('every card type opens its editor and lands on the page', async ({ page }) 
 		await page.getByRole('button', { name: 'Add card' }).click();
 		const sheet = page.getByRole('dialog', { name: 'Add card' });
 		await expect(sheet).toBeVisible();
-		// a new card opens on the type gallery; picking a kind collapses it
-		await sheet.getByRole('option', { name: new RegExp(`^${name}\\b`) }).click();
+		// a new card opens on the type gallery; a double tap on a kind goes on to its fields
+		await sheet.getByRole('option', { name: new RegExp(`^${name}\\b`) }).dblclick();
 		await expect(sheet.getByRole('button', { name: /Card type/ })).toBeVisible();
 		await fillRequired(sheet, name);
-		await sheet.getByRole('button', { name: 'Done' }).click();
+		await sheet.getByRole('button', { name: /^Add to / }).click();
 		await expect(sheet).toBeHidden();
 	}
 	await expect(page.locator('.card-slot')).toHaveCount(2 + CARD_NAMES.length);
@@ -218,7 +223,7 @@ test('an uploaded image backs a header card and the theme', async ({ page }) => 
 
 	await page.getByRole('button', { name: 'Add card' }).click();
 	const sheet = page.getByRole('dialog', { name: 'Add card' });
-	await sheet.getByRole('option', { name: /^Header\b/ }).click();
+	await sheet.getByRole('option', { name: /^Header\b/ }).dblclick();
 	await sheet
 		.locator('input[type="file"]')
 		.setInputFiles({ name: 'room.png', mimeType: 'image/png', buffer: png });
@@ -226,7 +231,7 @@ test('an uploaded image backs a header card and the theme', async ({ page }) => 
 	await expect(sheet.getByLabel('Background image')).toHaveValue(
 		/^hearth-images\/[a-f0-9]{32}\.webp$/
 	);
-	await sheet.getByRole('button', { name: 'Done' }).click();
+	await sheet.getByRole('button', { name: /^Add to / }).click();
 
 	const backdrop = page.locator('.header.banner img.backdrop');
 	await expect(backdrop).toBeVisible();

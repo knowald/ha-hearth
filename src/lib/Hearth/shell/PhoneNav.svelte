@@ -13,10 +13,10 @@
 	import { FOLD_QUERY } from '../breakpoints';
 
 	/**
-	 * Page switcher for narrow viewports, where the rail folds under the page
-	 * and its navigation widget would be a screen away. Sticky at the top of
-	 * the scroll container; hidden by CSS above the rail-folds breakpoint
-	 * unless `always`, which a dashboard with no rail at all passes.
+	 * Page switcher along the top: on a wide dashboard with no rail at all
+	 * (`always`), and on a folded one while editing, when the edit bar takes
+	 * the bottom bar's place (see PhoneBar). Sticky at the top of the scroll
+	 * container; hidden by CSS above the rail-folds breakpoint unless `always`.
 	 */
 	let { onsearch, always = false }: { onsearch: () => void; always?: boolean } = $props();
 
@@ -25,8 +25,9 @@
 	// With no rail nothing folds, so hidden on mobile does not count.
 	let hasSearch = $derived(searchAvailable($hearthConfig.rail, $states, !always));
 
-	// the strip is display:none above the fold, where a mounted clock would
-	// still tick every second
+	// folded, the phone header carries the time; above the fold without
+	// `always` the strip is display:none, where a mounted clock would still
+	// tick every second
 	const narrow = mediaQuery(FOLD_QUERY);
 
 	// a page picked from search or a ?room= link can sit past the strip's edge
@@ -41,7 +42,7 @@
 </script>
 
 <nav class="phone-nav" class:always aria-label={$lang('hearth_pages')}>
-	{#if $hearthConfig.phone_clock && (always || $narrow)}
+	{#if $hearthConfig.phone_clock && always && !$narrow}
 		<PhoneClock />
 	{/if}
 	<div class="pages">

@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { clickEditEntry } from './edit-entry';
 
 // the fixture's long-lived token, which the fake Home Assistant accepts
 const SIGNED = { Authorization: 'Bearer e2e-long-lived-token' };
@@ -367,7 +368,7 @@ test('the clock size still applies to a stacked clock with seconds', async ({ pa
 
 test('the preview leaves room for the settings on a landscape phone', async ({ page }) => {
 	await page.setViewportSize({ width: 844, height: 390 });
-	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await clickEditEntry(page);
 	await page.getByRole('button', { name: 'Settings', exact: true }).click();
 	const sheet = page.getByRole('dialog', { name: 'Settings' });
 	const live = sheet.getByRole('img', { name: 'Live preview', exact: true });

@@ -22,19 +22,19 @@ export type { CardDescriptor, CardDraft, CardEditorProps, CardFields } from './t
 
 const REGISTERED = [
 	entitiesCard,
+	climateCard,
+	vacuumCard,
+	scenesCard,
+	todoCard,
 	headerCard,
 	temperatureCard,
+	daysSinceCard,
+	templateCard,
 	mediaCard,
-	vacuumCard,
+	conditionalMediaCard,
 	cameraCard,
 	imageCard,
-	climateCard,
-	scenesCard,
-	iframeCard,
-	templateCard,
-	daysSinceCard,
-	conditionalMediaCard,
-	todoCard
+	iframeCard
 ] as const;
 
 // a card shape in types.ts without a descriptor (or the reverse) fails here
@@ -44,7 +44,7 @@ type Unregistered =
 const everyCardTypeRegistered: [Unregistered] extends [never] ? true : never = true;
 void everyCardTypeRegistered;
 
-/** Every card type, in gallery order. Register a new type here and nowhere else. */
+/** Every card type, in gallery order within its group. Register a new type here and nowhere else. */
 export const CARD_TYPES: CardDescriptor<any>[] = [...REGISTERED];
 
 const BY_TYPE = new Map<string, CardDescriptor<any>>(CARD_TYPES.map((card) => [card.type, card]));

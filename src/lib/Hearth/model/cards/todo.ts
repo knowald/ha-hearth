@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import type { OverviewCard } from '../../types';
 import { trimmedOrUndefined } from '../../normalizers';
 import type { CardDefinition } from '../types';
+import { firstEntity } from './draft';
 import { EntityIdSchema, OptionalFlag, OptionalText } from '../../schema';
 
 export type TodoCard = Extract<OverviewCard, { type: 'todo' }>;
@@ -14,6 +15,7 @@ export const todoCard: CardDefinition<TodoCard> = {
 	name: 'hearth_card_todo_name',
 	sub: 'hearth_card_todo_sub',
 	icon: 'checklist',
+	group: 'devices',
 	normalize: (card) => {
 		const entity = trimmedOrUndefined(card.entity);
 		return {
@@ -33,6 +35,7 @@ export const todoCard: CardDefinition<TodoCard> = {
 		),
 		hide_add: OptionalFlag
 	}),
+	draft: ({ entityIds }) => firstEntity(entityIds, 'todo'),
 	needsConfiguration: (card) => !card.entity,
 	entityIds: (card) => (card.entity ? [card.entity] : [])
 };

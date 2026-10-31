@@ -43,13 +43,13 @@
 	import { favorites, showFavoritesPage } from '../../favorites';
 	import { settingsGuard } from './guard';
 	import PresenceStatus from './PresenceStatus.svelte';
-	import Searchable from './Searchable.svelte';
 	import SettingsSection from './SettingsSection.svelte';
 
 	/*
-	 * Settings this screen keeps for itself. Every row starts at "Same as
-	 * dashboard", which follows the shared value; any other choice applies at
-	 * once and stays in this browser.
+	 * Settings this screen keeps for itself. A row without its own value shows
+	 * the shared one under a Dashboard tag and follows it; any choice applies
+	 * at once, stays in this browser, and offers a link back to the shared
+	 * value.
 	 */
 
 	let languages = $state<Option[]>([]);
@@ -75,66 +75,53 @@
 		}
 	});
 
-	/** What this screen would use with one override cleared, for the "Same as" label. */
+	/** What this screen would use with one override cleared: the value a reset brings back. */
 	function followed(key: keyof ScreenOverrides) {
 		const rest = { ...$screenOverrides };
 		delete rest[key];
 		return resolveScreenSettings($hearthConfig, $configuration, rest, $prefersReducedMotion);
 	}
 
-	function same(value: string): Option {
-		return { value: '', label: fill($lang('hearth_same_as_dashboard'), { value }) };
+	/** The tag and reset link of a row this screen can override, see SettingsRow. */
+	function inherit(
+		key: keyof ScreenOverrides,
+		shown: string,
+		source: 'dashboard' | 'interface_scale' = 'dashboard'
+	) {
+		const dashboard = source === 'dashboard';
+		return {
+			overridden: $screenOverrides[key] !== undefined,
+			from: $lang(dashboard ? 'hearth_dashboard' : 'hearth_interface_scale'),
+			reset: fill(
+				$lang(dashboard ? 'hearth_reset_to_dashboard' : 'hearth_reset_to_interface_scale'),
+				{ value: shown }
+			),
+			onreset: () => setScreenOverride(key, undefined)
+		};
 	}
 
 	const onOff = (value: boolean) => $lang(value ? 'on' : 'off');
 	const percent = (value: number) => `${value}%`;
 	const SCALES = Array.from({ length: 16 }, (_, index) => String(50 + index * 10));
 
-	function scaleOptions(value: string, shown: number, label = same(percent(shown))): Option[] {
+	function scaleOptions(value: string): Option[] {
 		return withCurrent(
-			[label, ...SCALES.map((scale) => ({ value: scale, label: `${scale}%` }))],
+			SCALES.map((scale) => ({ value: scale, label: `${scale}%` })),
 			value,
 			$lang
 		);
 	}
 
-	function flagValue(value: boolean | undefined) {
-		return value === undefined ? '' : value ? 'on' : 'off';
-	}
-
-	function setFlag(
-		key: 'keep_screen_on' | 'reduce_motion' | 'haptics' | 'mute_chimes',
-		value: string
-	) {
-		setScreenOverride(key, value === '' ? undefined : value === 'on');
-	}
-
 	function setNumber(key: 'screensaver_minutes' | 'scale' | 'mobile_scale', value: string) {
-		setScreenOverride(key, value === '' ? undefined : Number(value));
+		setScreenOverride(key, Number(value));
 	}
 
-	function flagOptions(shared: boolean): Option[] {
-		return [
-			same(onOff(shared)),
-			{ value: 'on', label: $lang('on') },
-			{ value: 'off', label: $lang('off') }
-		];
-	}
-
-	let minutes = $derived(String($screenOverrides.screensaver_minutes ?? ''));
 	let sharedMinutes = $derived(followed('screensaver_minutes').sleepMinutes);
-	let minuteOptions = $derived(
-		withCurrent(
-			[
-				same(
-					sleepOptions($lang).find((option) => option.value === String(sharedMinutes))?.label ??
-						String(sharedMinutes)
-				),
-				...sleepOptions($lang)
-			],
-			minutes,
-			$lang
-		)
+	let minutes = $derived(String($screenOverrides.screensaver_minutes ?? sharedMinutes));
+	let minuteOptions = $derived(withCurrent(sleepOptions($lang), minutes, $lang));
+	let sharedMinutesLabel = $derived(
+		sleepOptions($lang).find((option) => option.value === String(sharedMinutes))?.label ??
+			String(sharedMinutes)
 	);
 
 	let fadeSeconds = $derived(
@@ -170,19 +157,25 @@
 		)
 	);
 
+	let sharedScale = $derived(followed('scale').scale);
+	let scale = $derived(String($screenOverrides.scale ?? sharedScale));
+
 	let mobileFollowed = $derived(followed('mobile_scale'));
 	let mobileShown = $derived(mobileFollowed.mobileScale ?? mobileFollowed.scale);
+	let mobileScale = $derived(String($screenOverrides.mobile_scale ?? mobileShown));
 
 	let sharedLocale = $derived(followed('locale').locale);
-	// the stored choice shows by name while the list is still loading
-	let languageOptions = $derived.by(() => {
-		const chosen = $screenOverrides.locale;
-		const unlisted =
-			chosen && !languages.some((option) => option.value === chosen)
-				? [{ value: chosen, label: languageName(chosen) }]
-				: [];
-		return [same(languageName(sharedLocale)), ...languages, ...unlisted];
-	});
+	let locale = $derived($screenOverrides.locale ?? sharedLocale);
+	// the shown language keeps its name while the list is still loading
+	let languageOptions = $derived(
+		languages.some((option) => option.value === locale)
+			? languages
+			: [...languages, { value: locale, label: languageName(locale) }]
+	);
+
+	let sharedKeepScreenOn = $derived(followed('keep_screen_on').keepScreenOn);
+	let sharedReduceMotion = $derived(!followed('reduce_motion').motion);
+	let sharedHaptics = $derived(followed('haptics').haptics);
 
 	const guard = settingsGuard();
 
@@ -209,207 +202,190 @@
 </script>
 
 <SettingsSection id="screen" title={$lang('hearth_this_screen')} scope="browser">
-	<!-- "Same as dashboard (100%)" needs more than the usual inline select width -->
-	<div class="wide-selects">
-		<SettingsRow label={$lang('hearth_device_name')} sub={$lang('hearth_device_name_sub')}>
-			<input
-				class="inline-text"
-				type="text"
-				aria-label={$lang('hearth_device_name')}
-				value={$deviceName}
-				placeholder="kitchen"
-				autocomplete="off"
-				spellcheck="false"
-				onchange={(event) => saveDeviceName(event.currentTarget.value)}
-			/>
-		</SettingsRow>
-		<SettingsRow
-			label={$lang('hearth_keep_screen_awake')}
-			sub={$lang('hearth_while_the_dashboard_is_open')}
-		>
-			<SelectField
-				inline
-				label={$lang('hearth_keep_screen_awake')}
-				value={flagValue($screenOverrides.keep_screen_on)}
-				options={flagOptions(followed('keep_screen_on').keepScreenOn)}
-				onchange={(value) => setFlag('keep_screen_on', value)}
-			/>
-		</SettingsRow>
-		<SettingsRow label={$lang('hearth_screensaver')}>
-			<SelectField
-				inline
-				label={$lang('hearth_screensaver')}
-				value={minutes}
-				options={minuteOptions}
-				onchange={(value) => setNumber('screensaver_minutes', value)}
-			/>
-		</SettingsRow>
-		<Searchable text={[$lang('hearth_presence_sensor'), $lang('hearth_presence_sensor_hint')]}>
-			<div class="row-field">
-				<EntityField
-					label={$lang('hearth_presence_sensor')}
-					hint={$lang('hearth_presence_sensor_hint')}
-					domains={['binary_sensor']}
-					deviceClass="occupancy"
-					value={$screenOverrides.presence_entity ?? ''}
-					onchange={(value) => setScreenOverride('presence_entity', value.trim() || undefined)}
-				/>
-				{#if $screenOverrides.presence_entity}
-					<PresenceStatus entity={$screenOverrides.presence_entity} />
-				{/if}
-			</div>
-		</Searchable>
-		{#if $screenOverrides.presence_entity}
-			<SettingsRow label={$lang('hearth_presence_delay')} sub={$lang('hearth_presence_delay_sub')}>
-				<SelectField
-					inline
-					label={$lang('hearth_presence_delay')}
-					value={delayMinutes}
-					options={delayOptions}
-					onchange={(value) => setScreenOverride('presence_delay_minutes', Number(value))}
-				/>
-			</SettingsRow>
-			<SettingsRow label={$lang('hearth_presence_view')} sub={$lang('hearth_presence_view_sub')}>
-				<SelectField
-					inline
-					label={$lang('hearth_presence_view')}
-					value={$screenOverrides.presence_view ?? 'black'}
-					options={[
-						{ value: 'black', label: $lang('hearth_presence_view_black') },
-						{ value: 'dim', label: $lang('hearth_presence_view_dim') }
-					]}
-					onchange={(value) =>
-						setScreenOverride('presence_view', value === 'dim' ? 'dim' : 'black')}
-				/>
-			</SettingsRow>
-			<SettingsRow label={$lang('hearth_presence_fade')} sub={$lang('hearth_presence_fade_sub')}>
-				<SelectField
-					inline
-					label={$lang('hearth_presence_fade')}
-					value={fadeSeconds}
-					options={fadeOptions}
-					onchange={(value) => setScreenOverride('presence_fade_seconds', Number(value))}
-				/>
-			</SettingsRow>
-		{/if}
-		<SettingsRow label={$lang('hearth_pixel_shifting')}>
-			<Switch
-				checked={$screenOverrides.pixel_shift === true}
-				label={$lang('hearth_pixel_shifting')}
-				onchange={(enabled) => setScreenOverride('pixel_shift', enabled || undefined)}
-			/>
-		</SettingsRow>
-		<SettingsRow
-			label={$lang('hearth_interface_scale')}
-			sub={zoomSupported ? undefined : $lang('hearth_scale_unsupported')}
-		>
-			<SelectField
-				inline
-				label={$lang('hearth_interface_scale')}
-				value={String($screenOverrides.scale ?? '')}
-				options={scaleOptions(String($screenOverrides.scale ?? ''), followed('scale').scale)}
-				onchange={(value) => setNumber('scale', value)}
-			/>
-		</SettingsRow>
-		<SettingsRow
-			label={$lang('hearth_scale_at_900_px_and_narrower')}
-			sub={$lang(zoomSupported ? 'hearth_screen_mobile_scale_sub' : 'hearth_scale_unsupported')}
-		>
-			<SelectField
-				inline
-				label={$lang('hearth_scale_at_900_px_and_narrower')}
-				value={String($screenOverrides.mobile_scale ?? '')}
-				options={scaleOptions(
-					String($screenOverrides.mobile_scale ?? ''),
-					mobileShown,
-					$screenOverrides.scale === undefined
-						? undefined
-						: {
-								value: '',
-								label: fill($lang('hearth_same_as_interface_scale'), {
-									value: percent(mobileShown)
-								})
-							}
-				)}
-				onchange={(value) => setNumber('mobile_scale', value)}
-			/>
-		</SettingsRow>
-		<SettingsRow label={$lang('language')}>
-			<SelectField
-				inline
-				label={$lang('language')}
-				value={$screenOverrides.locale ?? ''}
-				options={languageOptions}
-				onchange={(value) => setScreenOverride('locale', value || undefined)}
-			/>
-		</SettingsRow>
-		<SettingsRow label={$lang('hearth_reduce_motion')}>
-			<SelectField
-				inline
-				label={$lang('hearth_reduce_motion')}
-				value={flagValue($screenOverrides.reduce_motion)}
-				options={flagOptions(!followed('reduce_motion').motion)}
-				onchange={(value) => setFlag('reduce_motion', value)}
-			/>
-		</SettingsRow>
-		<SettingsRow
-			label={$lang('hearth_show_favorites_page')}
-			sub={$lang('hearth_show_favorites_page_sub')}
-		>
-			<Switch
-				checked={$favorites.page}
-				label={$lang('hearth_show_favorites_page')}
-				onchange={showFavoritesPage}
-			/>
-		</SettingsRow>
-		<SettingsRow label={$lang('hearth_touch_feedback')} sub={$lang('hearth_touch_feedback_sub')}>
-			<SelectField
-				inline
-				label={$lang('hearth_touch_feedback')}
-				value={flagValue($screenOverrides.haptics)}
-				options={flagOptions(followed('haptics').haptics)}
-				onchange={(value) => {
-					setFlag('haptics', value);
-					if (value === 'on') sampleVibration('press');
-				}}
-			/>
-		</SettingsRow>
-		<SettingsRow label={$lang('hearth_mute_alert_chimes')}>
-			<SelectField
-				inline
-				label={$lang('hearth_mute_alert_chimes')}
-				value={flagValue($screenOverrides.mute_chimes)}
-				options={flagOptions(false)}
-				onchange={(value) => setFlag('mute_chimes', value)}
-			/>
-		</SettingsRow>
-		<SettingsRow
-			icon="logout"
-			label={$lang('log_out')}
-			sub={$lang('hearth_clears_the_home_assistant_session')}
-			danger
-			chevron={false}
-			onclick={handleLogout}
+	<SettingsRow label={$lang('hearth_device_name')} sub={$lang('hearth_device_name_sub')}>
+		<input
+			class="inline-text wide-control"
+			type="text"
+			aria-label={$lang('hearth_device_name')}
+			value={$deviceName}
+			placeholder="kitchen"
+			autocomplete="off"
+			spellcheck="false"
+			onchange={(event) => saveDeviceName(event.currentTarget.value)}
 		/>
-	</div>
+	</SettingsRow>
+	<SettingsRow
+		label={$lang('hearth_keep_screen_awake')}
+		sub={$lang('hearth_while_the_dashboard_is_open')}
+		inherit={inherit('keep_screen_on', onOff(sharedKeepScreenOn))}
+	>
+		<Switch
+			checked={$screenOverrides.keep_screen_on ?? sharedKeepScreenOn}
+			label={$lang('hearth_keep_screen_awake')}
+			onchange={(checked) => setScreenOverride('keep_screen_on', checked)}
+		/>
+	</SettingsRow>
+	<SettingsRow
+		label={$lang('hearth_screensaver')}
+		inherit={inherit('screensaver_minutes', sharedMinutesLabel)}
+	>
+		<SelectField
+			inline
+			label={$lang('hearth_screensaver')}
+			value={minutes}
+			options={minuteOptions}
+			onchange={(value) => setNumber('screensaver_minutes', value)}
+		/>
+	</SettingsRow>
+	<SettingsRow label={$lang('hearth_presence_sensor')} sub={$lang('hearth_presence_sensor_hint')}>
+		<div class="wide-control">
+			<EntityField
+				inline
+				label={$lang('hearth_presence_sensor')}
+				domains={['binary_sensor']}
+				deviceClass="occupancy"
+				value={$screenOverrides.presence_entity ?? ''}
+				onchange={(value) => setScreenOverride('presence_entity', value.trim() || undefined)}
+			/>
+			{#if $screenOverrides.presence_entity}
+				<PresenceStatus entity={$screenOverrides.presence_entity} />
+			{/if}
+		</div>
+	</SettingsRow>
+	{#if $screenOverrides.presence_entity}
+		<SettingsRow label={$lang('hearth_presence_delay')} sub={$lang('hearth_presence_delay_sub')}>
+			<SelectField
+				inline
+				label={$lang('hearth_presence_delay')}
+				value={delayMinutes}
+				options={delayOptions}
+				onchange={(value) => setScreenOverride('presence_delay_minutes', Number(value))}
+			/>
+		</SettingsRow>
+		<SettingsRow label={$lang('hearth_presence_view')} sub={$lang('hearth_presence_view_sub')}>
+			<SelectField
+				inline
+				label={$lang('hearth_presence_view')}
+				value={$screenOverrides.presence_view ?? 'black'}
+				options={[
+					{ value: 'black', label: $lang('hearth_presence_view_black') },
+					{ value: 'dim', label: $lang('hearth_presence_view_dim') }
+				]}
+				onchange={(value) => setScreenOverride('presence_view', value === 'dim' ? 'dim' : 'black')}
+			/>
+		</SettingsRow>
+		<SettingsRow label={$lang('hearth_presence_fade')} sub={$lang('hearth_presence_fade_sub')}>
+			<SelectField
+				inline
+				label={$lang('hearth_presence_fade')}
+				value={fadeSeconds}
+				options={fadeOptions}
+				onchange={(value) => setScreenOverride('presence_fade_seconds', Number(value))}
+			/>
+		</SettingsRow>
+	{/if}
+	<SettingsRow label={$lang('hearth_pixel_shifting')}>
+		<Switch
+			checked={$screenOverrides.pixel_shift === true}
+			label={$lang('hearth_pixel_shifting')}
+			onchange={(enabled) => setScreenOverride('pixel_shift', enabled || undefined)}
+		/>
+	</SettingsRow>
+	<SettingsRow
+		label={$lang('hearth_interface_scale')}
+		sub={zoomSupported ? undefined : $lang('hearth_scale_unsupported')}
+		inherit={inherit('scale', percent(sharedScale))}
+	>
+		<SelectField
+			inline
+			label={$lang('hearth_interface_scale')}
+			value={scale}
+			options={scaleOptions(scale)}
+			onchange={(value) => setNumber('scale', value)}
+		/>
+	</SettingsRow>
+	<SettingsRow
+		label={$lang('hearth_scale_at_900_px_and_narrower')}
+		sub={$lang(zoomSupported ? 'hearth_screen_mobile_scale_sub' : 'hearth_scale_unsupported')}
+		inherit={inherit(
+			'mobile_scale',
+			percent(mobileShown),
+			$screenOverrides.scale === undefined ? 'dashboard' : 'interface_scale'
+		)}
+	>
+		<SelectField
+			inline
+			label={$lang('hearth_scale_at_900_px_and_narrower')}
+			value={mobileScale}
+			options={scaleOptions(mobileScale)}
+			onchange={(value) => setNumber('mobile_scale', value)}
+		/>
+	</SettingsRow>
+	<SettingsRow label={$lang('language')} inherit={inherit('locale', languageName(sharedLocale))}>
+		<SelectField
+			inline
+			label={$lang('language')}
+			value={locale}
+			options={languageOptions}
+			onchange={(value) => setScreenOverride('locale', value)}
+		/>
+	</SettingsRow>
+	<SettingsRow
+		label={$lang('hearth_reduce_motion')}
+		inherit={inherit('reduce_motion', onOff(sharedReduceMotion))}
+	>
+		<Switch
+			checked={$screenOverrides.reduce_motion ?? sharedReduceMotion}
+			label={$lang('hearth_reduce_motion')}
+			onchange={(checked) => setScreenOverride('reduce_motion', checked)}
+		/>
+	</SettingsRow>
+	<SettingsRow
+		label={$lang('hearth_show_favorites_page')}
+		sub={$lang('hearth_show_favorites_page_sub')}
+	>
+		<Switch
+			checked={$favorites.page}
+			label={$lang('hearth_show_favorites_page')}
+			onchange={showFavoritesPage}
+		/>
+	</SettingsRow>
+	<SettingsRow
+		label={$lang('hearth_touch_feedback')}
+		sub={$lang('hearth_touch_feedback_sub')}
+		inherit={inherit('haptics', onOff(sharedHaptics))}
+	>
+		<Switch
+			checked={$screenOverrides.haptics ?? sharedHaptics}
+			label={$lang('hearth_touch_feedback')}
+			onchange={(checked) => {
+				setScreenOverride('haptics', checked);
+				if (checked) sampleVibration('press');
+			}}
+		/>
+	</SettingsRow>
+	<SettingsRow
+		label={$lang('hearth_mute_alert_chimes')}
+		inherit={inherit('mute_chimes', onOff(false))}
+	>
+		<Switch
+			checked={$screenOverrides.mute_chimes ?? false}
+			label={$lang('hearth_mute_alert_chimes')}
+			onchange={(checked) => setScreenOverride('mute_chimes', checked)}
+		/>
+	</SettingsRow>
+	<SettingsRow
+		icon="logout"
+		label={$lang('log_out')}
+		sub={$lang('hearth_clears_the_home_assistant_session')}
+		danger
+		chevron={false}
+		onclick={handleLogout}
+	/>
 </SettingsSection>
 
 <style>
-	.row-field {
-		padding: 14px 16px 2px;
-		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
-	}
-
-	.row-field + :global(.row) {
-		border-top: 1px solid rgb(var(--h-line-rgb) / calc(0.06 * var(--h-line-scale)));
-	}
-
-	.wide-selects :global(.inline select) {
-		width: min(250px, calc(50 * var(--h-vw)));
-	}
-
 	.inline-text {
-		width: min(250px, 45%);
 		border: 1px solid rgb(var(--h-line-rgb) / calc(0.1 * var(--h-line-scale)));
 		border-radius: var(--h-radius-xs);
 		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));

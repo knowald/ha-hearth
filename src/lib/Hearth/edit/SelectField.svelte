@@ -107,7 +107,8 @@
 		position: relative;
 		display: flex;
 		align-items: center;
-		flex: none;
+		flex: 1;
+		min-width: 0;
 		color: var(--h-icon);
 	}
 
@@ -117,9 +118,9 @@
 		pointer-events: none;
 	}
 
-	/* every inline select shares one width, so the left edges in a list line up */
+	/* fills the settings row's control column, so the edges in a list line up */
 	.inline select {
-		width: 200px;
+		width: 100%;
 		padding: 8px 32px 8px 12px;
 		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
 		cursor: pointer;

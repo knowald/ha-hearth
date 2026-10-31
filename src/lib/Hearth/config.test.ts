@@ -10,6 +10,7 @@ import {
 	foldedRail,
 	foldedTopCount,
 	isLinkUrl,
+	phoneHeader,
 	railDividerIndex,
 	railSides,
 	railSlots,
@@ -709,8 +710,16 @@ describe('foldedTopCount', () => {
 	});
 
 	it('counts a widget the switcher does not carry', () => {
-		expect(foldedTopCount([...rail, { id: 'clock', type: 'clock' } as RailWidget])).toBe(0);
-		expect(foldedTopCount([{ id: 'clock', type: 'clock' } as RailWidget, ...rail])).toBe(1);
+		const meter = { id: 'meter', type: 'energy' } as RailWidget;
+		expect(foldedTopCount([...rail, meter])).toBe(0);
+		expect(foldedTopCount([meter, ...rail])).toBe(1);
+	});
+
+	it('leaves out a clock the phone header stands in for', () => {
+		expect(foldedTopCount([{ id: 'clock', type: 'clock' } as RailWidget, ...rail])).toBe(0);
+		expect(
+			foldedTopCount([{ id: 'clock', type: 'clock', mobile: 'top' } as RailWidget, ...rail])
+		).toBe(1);
 	});
 });
 
@@ -722,17 +731,17 @@ describe('railSlots', () => {
 
 	it('splits at a flexible gap that has widgets after it', () => {
 		const widgets = [
-			{ id: 'clock', type: 'clock' },
+			{ id: 'status', type: 'status' },
 			{ id: 'gap', type: 'spacer' },
 			{ id: 'energy', type: 'energy' },
 			{ id: 'calendar', type: 'calendar' }
 		] as RailWidget[];
 		const { top, bottom } = railSlots(widgets);
-		expect(ids(top)).toEqual(['clock']);
+		expect(ids(top)).toEqual(['status']);
 		expect(ids(bottom)).toEqual(['gap', 'energy', 'calendar']);
 	});
 
-	it('takes the glance widgets above the page when the flexible gap is trailing', () => {
+	it('leaves the clock and weather to the phone header unless placed by hand', () => {
 		// the shape the default config has: the gap only keeps the rail's own
 		// widgets at the top of its column, so it divides nothing
 		const widgets = [
@@ -742,8 +751,15 @@ describe('railSlots', () => {
 			{ id: 'gap', type: 'spacer' }
 		] as RailWidget[];
 		const { top, bottom } = railSlots(widgets);
-		expect(ids(top)).toEqual(['clock', 'weather']);
+		expect(ids(top)).toEqual([]);
 		expect(ids(bottom)).toEqual(['energy', 'gap']);
+		// the editor shows them dimmed above the page, where a glance belongs
+		expect(ids(railSlots(widgets, { includeHidden: true }).top)).toEqual(['clock', 'weather']);
+
+		widgets[0].mobile = 'top';
+		widgets[1].mobile = 'bottom';
+		expect(ids(railSlots(widgets).top)).toEqual(['clock']);
+		expect(ids(railSlots(widgets).bottom)).toEqual(['weather', 'energy', 'gap']);
 	});
 
 	it('lets a widget name its own slot', () => {
@@ -767,8 +783,31 @@ describe('railSlots', () => {
 
 	it('places every widget exactly once', () => {
 		const widgets = rail('clock', 'weather', 'energy', 'calendar', 'status');
-		const { top, bottom } = railSlots(widgets);
+		const { top, bottom } = railSlots(widgets, { includeHidden: true });
 		expect([...ids(top), ...ids(bottom)].sort()).toEqual(ids(widgets).sort());
+	});
+});
+
+describe('phoneHeader', () => {
+	const clock = { id: 'clock', type: 'clock' } as RailWidget;
+	const weather = { id: 'weather', type: 'weather', entity: 'weather.home' } as RailWidget;
+
+	it('stands in for the clock and the first weather widget left on their automatic slot', () => {
+		expect(phoneHeader([clock, weather])).toEqual({ time: true, weather: 'weather.home' });
+		expect(phoneHeader([])).toEqual({ time: true, weather: undefined });
+	});
+
+	it('gives way to a clock placed above the page and a weather widget placed by hand', () => {
+		expect(phoneHeader([{ ...clock, mobile: 'top' }, weather]).time).toBe(false);
+		// below the page the full clock does not replace the strip's time
+		expect(phoneHeader([{ ...clock, mobile: 'bottom' }]).time).toBe(true);
+		for (const mobile of ['top', 'bottom', 'hidden'] as const) {
+			expect(phoneHeader([{ ...weather, mobile }]).weather).toBeUndefined();
+		}
+	});
+
+	it('reads no weather from a dashboard without a rail', () => {
+		expect(phoneHeader([clock, weather], { position: 'none' }).weather).toBeUndefined();
 	});
 });
 
@@ -805,7 +844,7 @@ describe('railSlots on a screen with no height', () => {
 	] as RailWidget[];
 
 	it('keeps only what asked for the slot by name', () => {
-		const { top, bottom } = railSlots(widgets, { compact: true });
+		const { top, bottom } = railSlots(widgets, { compact: true, includeHidden: true });
 		expect(top.map((widget) => widget.id)).toEqual(['pinned']);
 		expect(bottom.map((widget) => widget.id)).toEqual(['clock', 'weather']);
 	});
@@ -814,13 +853,28 @@ describe('railSlots on a screen with no height', () => {
 describe('moving a widget between folded runs', () => {
 	const rail = () =>
 		[
-			{ id: 'clock', type: 'clock' },
-			{ id: 'weather', type: 'weather' },
+			{ id: 'clock', type: 'clock', mobile: 'top' },
+			{ id: 'weather', type: 'weather', mobile: 'top' },
 			{ id: 'energy', type: 'energy' },
 			{ id: 'calendar', type: 'calendar' }
 		] as RailWidget[];
 
 	const ids = (widgets: RailWidget[]) => widgets.map((widget) => widget.id);
+
+	it('leaves a widget the phone header stands in for alone unless it is the one dropped', () => {
+		const start = [
+			{ id: 'clock', type: 'clock' },
+			{ id: 'weather', type: 'weather' },
+			{ id: 'energy', type: 'energy' }
+		] as RailWidget[];
+		const next = placeInSlot(start, 'energy', 'top', 0);
+		expect(ids(railSlots(next).top)).toEqual(['energy']);
+		expect(next.find((widget) => widget.id === 'clock')?.mobile).toBeUndefined();
+
+		const back = placeInSlot(next, 'clock', 'top', 1);
+		expect(ids(railSlots(back).top)).toEqual(['energy', 'clock']);
+		expect(back.find((widget) => widget.id === 'weather')?.mobile).toBeUndefined();
+	});
 
 	it('assigns the destination slot and takes the widget out of the other run', () => {
 		const next = placeInSlot(rail(), 'energy', 'top', 0);
@@ -970,9 +1024,9 @@ describe('sidebar position', () => {
 
 	it('keeps a folded drag across sides in the order it was dropped', () => {
 		const start = [
-			{ id: 'clock', type: 'clock' },
+			{ id: 'clock', type: 'clock', mobile: 'top' },
 			{ id: 'nav', type: 'nav' },
-			{ id: 'weather', type: 'weather', side: 'right' }
+			{ id: 'weather', type: 'weather', side: 'right', mobile: 'top' }
 		] as RailWidget[];
 		const top = railSlots(foldedRail(start, 'both'), { position: 'both' }).top;
 		expect(ids(top)).toEqual(['clock', 'weather']);
@@ -1001,7 +1055,10 @@ describe('sidebar position', () => {
 		] as RailWidget[];
 		expect(railDividerIndex(rightAfterGap, 'both')).toBe(-1);
 		expect(railDividerIndex(rightAfterGap, 'left')).toBe(2);
-		expect(ids(railSlots(rightAfterGap, { position: 'both' }).top)).toEqual(['clock', 'weather']);
+		expect(ids(railSlots(rightAfterGap, { position: 'both', includeHidden: true }).top)).toEqual([
+			'clock',
+			'weather'
+		]);
 
 		const dividing = [...rightAfterGap, { id: 'energy', type: 'energy' }] as RailWidget[];
 		expect(railDividerIndex(dividing, 'both')).toBe(2);

@@ -54,10 +54,19 @@ rooms:
 	);
 }
 
-async function startEditing(page: Page) {
+async function startEditing(page: Page, { phone = false } = {}) {
 	await page.goto('/');
 	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
-	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	if (phone) {
+		// a phone keeps the edit entry in the bottom bar's More menu
+		await page
+			.getByRole('navigation', { name: 'Pages' })
+			.getByRole('button', { name: 'More' })
+			.click();
+		await page.getByRole('button', { name: 'Edit dashboard' }).click();
+	} else {
+		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	}
 	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 }
 
@@ -181,8 +190,8 @@ test('a stack is framed and its chip stays clear of its cards', async ({ page })
 	// drop a card in so there is a card chip to stay clear of
 	await stack.getByRole('button', { name: 'Add card' }).click();
 	const sheet = page.getByRole('dialog', { name: 'Add card' });
-	await sheet.getByRole('option', { name: /^Entities\b/ }).click();
-	await sheet.getByRole('button', { name: 'Done' }).click();
+	await sheet.getByRole('option', { name: /^Entities\b/ }).dblclick();
+	await sheet.getByRole('button', { name: /^Add to / }).click();
 	const stackChip = (await stack.locator('.group-label .chip').boundingBox())!;
 	const cardChip = (await stack.locator('.card-slot .chip').boundingBox())!;
 	const overlaps =
@@ -210,7 +219,7 @@ test.describe('on a phone', () => {
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
 	test('a page is added from the page strip', async ({ page }) => {
-		await startEditing(page);
+		await startEditing(page, { phone: true });
 		await page.locator('.phone-nav').getByRole('button', { name: 'Add page' }).click();
 		const sheet = page.getByRole('dialog', { name: 'Add page' });
 		await sheet.getByLabel('Name').fill('Garage');
@@ -220,7 +229,7 @@ test.describe('on a phone', () => {
 	});
 
 	test('a scroll that starts on a card does not open it', async ({ page }) => {
-		await startEditing(page);
+		await startEditing(page, { phone: true });
 		const card = (await page.locator('.card-slot[data-id="lights"]').boundingBox())!;
 		const start = { x: card.x + card.width / 2, y: card.y + card.height / 2 };
 		const session = await page.context().newCDPSession(page);

@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/svelte
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { english as en } from '$lib/core/i18n/testing';
+import { motion } from '$lib/core/app/motion';
+import { MOTION } from '$lib/core/theme';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from '../config';
 import {
 	cancelEdit,
@@ -254,5 +256,76 @@ describe('EditToggle starting a session', () => {
 		expect(get(saveState)).toBe('error');
 		cancelEdit();
 		expect(get(hearthConfig).rooms[0].name).toBe(DEFAULT_HEARTH_CONFIG.rooms[0].name);
+	});
+});
+
+describe('EditToggle as the phone bar menu', () => {
+	const more = () => screen.getByRole('button', { name: en.hearth_more });
+	const editEntry = () => screen.getByRole('button', { name: en.hearth_edit_dashboard });
+
+	beforeEach(() => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({ ok: true, json: async () => ({ revision: 0, versions: [] }) }))
+		);
+		// the menu fades in and out without motion, and jsdom has no Web Animations
+		motion.set(0);
+		Element.prototype.animate ??= () =>
+			({ cancel() {}, finished: Promise.resolve() }) as unknown as Animation;
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		cancelEdit();
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+		hearthLoadError.set(null);
+		screenSheetOpen.set(false);
+		motion.set(MOTION.base);
+		vi.useRealTimers();
+	});
+
+	it('keeps both entries behind More', async () => {
+		withLock({});
+		render(EditToggle, { menu: true });
+		expect(screen.queryByRole('button', { name: en.hearth_edit_dashboard })).toBeNull();
+		expect(more().getAttribute('aria-expanded')).toBe('false');
+
+		await fireEvent.click(more());
+		expect(more().getAttribute('aria-expanded')).toBe('true');
+		await fireEvent.click(editEntry());
+		await waitFor(() => expect(get(hearthEditMode)).toBe(true));
+	});
+
+	it('opens the screen settings and closes the menu', async () => {
+		hearthLoadError.set('broken');
+		render(EditToggle, { menu: true });
+		await fireEvent.click(more());
+		expect(screen.queryByRole('button', { name: en.hearth_edit_dashboard })).toBeNull();
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_screen_settings }));
+		expect(get(screenSheetOpen)).toBe(true);
+		expect(screen.queryByRole('button', { name: en.hearth_screen_settings })).toBeNull();
+	});
+
+	it('keeps the PIN prompt once the menu has closed', async () => {
+		withLock({ edit_lock: 'pin', edit_pin: '2468' });
+		render(EditToggle, { menu: true });
+		await fireEvent.click(more());
+		await fireEvent.click(editEntry());
+		const input = await screen.findByLabelText(en.hearth_edit_pin);
+		expect(screen.queryByRole('button', { name: en.hearth_edit_dashboard })).toBeNull();
+		await fireEvent.input(input, { target: { value: '2468' } });
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_unlock }));
+		await waitFor(() => expect(get(hearthEditMode)).toBe(true));
+	});
+
+	it('takes the hold lock on the menu entry', async () => {
+		withLock({ edit_lock: 'hold' });
+		render(EditToggle, { menu: true });
+		await fireEvent.click(more());
+		vi.useFakeTimers();
+		await fireEvent.pointerDown(editEntry(), { button: 0 });
+		await act(() => vi.advanceTimersByTime(HOLD_MS));
+		vi.useRealTimers();
+		await waitFor(() => expect(get(hearthEditMode)).toBe(true));
 	});
 });

@@ -14,8 +14,18 @@
 		requestConfirmation
 	} from '../store';
 	import { HOLD_MS, screenSheetOpen } from '../screen';
+	import AnchoredPopover from '../AnchoredPopover.svelte';
 	import Icon from '../Icon.svelte';
 	import { preloadEditMode } from '../editLoader';
+
+	/*
+	 * Floating at the rail's foot, or with `menu` behind a More button in the
+	 * phone's bottom bar. Either way this component owns the edit lock, the
+	 * revision check and the PIN prompt, so closing the menu loses none of it.
+	 */
+	let { menu = false }: { menu?: boolean } = $props();
+	let menuOpen = $state(false);
+	let moreButton = $state<HTMLButtonElement | undefined>();
 
 	// the toggle sits at the rail's foot, so a lone right rail takes it along
 	let toggleRight = $derived(railPositionOf($hearthConfig) === 'right');
@@ -58,6 +68,7 @@
 			loadFailedTimer = setTimeout(() => (loadFailed = false), 4000);
 			return;
 		}
+		menuOpen = false;
 		if (revision === undefined || revision <= $hearthRevision) {
 			enterEditMode();
 			return;
@@ -94,7 +105,15 @@
 
 	function handleClick() {
 		if (lock === 'off') startEditing();
-		else if (lock === 'pin') pinOpen = true;
+		else if (lock === 'pin') {
+			menuOpen = false;
+			pinOpen = true;
+		}
+	}
+
+	function openScreenSheet() {
+		menuOpen = false;
+		screenSheetOpen.set(true);
 	}
 
 	function loadPinPrompt() {
@@ -116,49 +135,87 @@
 	});
 </script>
 
-<div class="edit-entry" class:right={toggleRight}>
-	{#if !$hearthLoadError}
-		<button
-			type="button"
-			class="edit-toggle pressable"
-			class:held={lock === 'hold'}
-			class:holding
-			class:busy={checkingRevision}
-			aria-busy={checkingRevision}
-			aria-label={$lang('hearth_edit_configuration')}
-			onclick={handleClick}
-			onpointerenter={warmEditMode}
-			onfocus={warmEditMode}
-			onpointerdown={(event) => {
-				warmEditMode();
-				if (event.button === 0) startHold();
-			}}
-			onpointerup={endHold}
-			onpointerleave={endHold}
-			onpointercancel={endHold}
-			oncontextmenu={(event) => lock === 'hold' && event.preventDefault()}
-			onkeydown={(event) => isActivation(event) && !event.repeat && startHold()}
-			onkeyup={(event) => isActivation(event) && endHold()}
-		>
-			<Icon name="edit" size={ICON.control} />
-			<span>{$lang(hint ? 'hearth_hold_to_edit' : 'hearth_edit_configuration')}</span>
-		</button>
-	{/if}
+{#snippet editButton(label: string)}
 	<button
 		type="button"
-		class="screen-toggle pressable"
-		aria-label={$lang('hearth_this_screen')}
-		title={$lang('hearth_this_screen')}
+		class="edit-toggle pressable"
+		class:held={lock === 'hold'}
+		class:holding
+		class:busy={checkingRevision}
+		aria-busy={checkingRevision}
+		aria-label={label}
+		onclick={handleClick}
 		onpointerenter={warmEditMode}
 		onfocus={warmEditMode}
-		onclick={() => screenSheetOpen.set(true)}
+		onpointerdown={(event) => {
+			warmEditMode();
+			if (event.button === 0) startHold();
+		}}
+		onpointerup={endHold}
+		onpointerleave={endHold}
+		onpointercancel={endHold}
+		oncontextmenu={(event) => lock === 'hold' && event.preventDefault()}
+		onkeydown={(event) => isActivation(event) && !event.repeat && startHold()}
+		onkeyup={(event) => isActivation(event) && endHold()}
 	>
-		<Icon name="display_settings" size={ICON.control} />
+		<Icon name="edit" size={ICON.control} />
+		<span>{hint ? $lang('hearth_hold_to_edit') : label}</span>
 	</button>
+{/snippet}
+
+{#snippet loadError()}
 	{#if loadFailed}
 		<span class="load-error" role="alert">{$lang('hearth_could_not_load_component')}</span>
 	{/if}
-</div>
+{/snippet}
+
+{#if menu}
+	<button
+		type="button"
+		class="more pressable"
+		aria-label={$lang('hearth_more')}
+		aria-haspopup="true"
+		aria-expanded={menuOpen}
+		bind:this={moreButton}
+		onpointerenter={warmEditMode}
+		onfocus={warmEditMode}
+		onclick={() => (menuOpen = !menuOpen)}
+	>
+		<Icon name="more_horiz" size={ICON.control} />
+	</button>
+	{#if menuOpen && moreButton}
+		<AnchoredPopover anchor={moreButton} onclose={() => (menuOpen = false)}>
+			<div class="menu">
+				{#if !$hearthLoadError}
+					{@render editButton($lang('hearth_edit_dashboard'))}
+				{/if}
+				<button type="button" class="screen-toggle pressable" onclick={openScreenSheet}>
+					<Icon name="display_settings" size={ICON.control} />
+					<span>{$lang('hearth_screen_settings')}</span>
+				</button>
+				{@render loadError()}
+			</div>
+		</AnchoredPopover>
+	{/if}
+{:else}
+	<div class="edit-entry" class:right={toggleRight}>
+		{#if !$hearthLoadError}
+			{@render editButton($lang('hearth_edit_configuration'))}
+		{/if}
+		<button
+			type="button"
+			class="screen-toggle pressable"
+			aria-label={$lang('hearth_this_screen')}
+			title={$lang('hearth_this_screen')}
+			onpointerenter={warmEditMode}
+			onfocus={warmEditMode}
+			onclick={openScreenSheet}
+		>
+			<Icon name="display_settings" size={ICON.control} />
+		</button>
+		{@render loadError()}
+	</div>
+{/if}
 
 {#if pinOpen}
 	<!-- only a PIN-locked dashboard pays for the prompt -->
@@ -217,8 +274,41 @@
 		-webkit-touch-callout: none;
 	}
 
-	.screen-toggle {
+	.edit-entry .screen-toggle {
 		padding: 12px;
+	}
+
+	.more {
+		flex: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 52px;
+		height: 52px;
+		border: 0;
+		border-radius: var(--h-radius-pill);
+		background: none;
+		color: var(--h-text-3);
+		cursor: pointer;
+	}
+
+	.more[aria-expanded='true'] {
+		background: rgb(var(--h-surface-rgb) / calc(0.08 * var(--h-fill-scale)));
+	}
+
+	.menu {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	/* full-width rows in the menu, readable without the floating translucency */
+	.menu .edit-toggle,
+	.menu .screen-toggle {
+		min-height: 48px;
+		opacity: 1;
+		color: var(--h-text-2);
+		background: none;
 	}
 
 	.load-error {

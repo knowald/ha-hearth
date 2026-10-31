@@ -46,9 +46,13 @@ Every save carries the revision the browser loaded. If another browser saved in 
 
 Closing an editor sheet with changes in it (backdrop tap, close button, Escape or back) asks before dropping them, and the browser asks before a reload or a closed tab drops unsaved edits. Moving an item with the arrows in a sheet's header, or a card to another page or column, is one of those changes: it applies on Done.
 
-Fields marked with `*` are required. Until they are filled, Done stays disabled and the reason is shown under it. An entity field shows the entity's name and state, and warns (without blocking) when Home Assistant does not report the entity or it belongs to another domain. List rows without an entity are removed on save. The entity picker also searches area and device names, filters by area, lists your recent picks first (and, for a page's temperature and humidity sensors, the fitting sensors first), and in list editors (Pick several entities) adds several entities at once.
+Fields marked with `*` are required. Until they are filled, Done stays disabled and the reason is shown under it. An entity field shows the entity's name and state, and warns (without blocking) when Home Assistant does not report the entity or it belongs to another domain. List rows without an entity are removed on save. The entity picker also searches area and device names, filters by area, lists your recent picks first, and in list editors (Pick several entities) adds several entities at once.
 
 To go back, open Settings > Versions, compare an earlier version with the open dashboard and restore it as an edit you can still undo.
+
+### Header readings
+
+A page header and a header card show readings at the top right. Pick them under Header readings in the page or card editor: add, remove and reorder entities and give each an optional label. In `hearth.yaml` they are a `stats` list of `entity` and `name`. A header without `stats` shows its `temp_entity` and `humidity_entity`, and an empty list shows none.
 
 ### Images
 
@@ -136,7 +140,7 @@ The This screen section of Settings keeps these per browser, in local storage:
 - Show favorites page, see [favorites](#favorites).
 - Log out, which clears the Home Assistant session in this browser.
 
-Each row except Device name, Presence sensor, Pixel shifting and Show favorites page starts at Same as dashboard and follows the shared value from `hearth.yaml` or `configuration.yaml` until you pick another one. A shared row that this screen overrides says so in the Settings sheet. A scale picked here also applies at 900 px and narrower unless that row has a value of its own. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
+Each row except Device name, Presence sensor, Pixel shifting and Show favorites page starts with a Dashboard tag: it shows the shared value from `hearth.yaml` or `configuration.yaml` and follows it until you pick another one. A row with a value of its own is tagged This screen, and Reset to dashboard under its label goes back to the shared value. A scale picked here also applies at 900 px and narrower unless that row has a value of its own; that row is then tagged Interface scale. Clearing site data, or a kiosk browser that wipes storage, returns the screen to the shared values.
 
 Outside edit mode, the button next to Edit Hearth configuration opens Settings with only this section. With `?menu=false` both buttons are hidden; press and hold the bottom-left corner of the screen for 2 seconds instead. The corner works only with `?menu=false`, since the buttons sit there otherwise. In edit mode it is the first section of Settings.
 
@@ -237,7 +241,7 @@ The energy sidebar widget shows today's total, its cost when a price is set, and
 
 ## Phone page strip
 
-On phones, and on any screen with the sidebar set to None, page buttons run along the top of the page. Settings > Layout and navigation > Clock in the phone page strip adds the time and a short date at the start of that strip, for small screens that have no room for a clock widget. In YAML it is `phone_clock: true`. It uses the time zone and hour format of the first clock widget in the sidebar, or the browser's when there is none.
+On a wide screen with the sidebar hidden, page buttons run along the top of the page. Settings > Layout and navigation > Clock beside the top page buttons adds the time and a short date at the start of that strip. In YAML it is `phone_clock: true`. It uses the time zone and hour format of the first clock widget in the sidebar, or the browser's when there is none. Phones show the time in their own header instead.
 
 ## Favorites
 

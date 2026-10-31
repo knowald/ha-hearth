@@ -3,6 +3,7 @@ import { OptionalEntityId, OptionalFlag, VacuumModeRefSchema } from '../../schem
 import type { OverviewCard, VacuumModeRef } from '../../types';
 import { normalizeVacuumModeRef, trimmedOrUndefined } from '../../normalizers';
 import type { CardDefinition } from '../types';
+import { firstEntity } from './draft';
 
 export type VacuumCard = Extract<OverviewCard, { type: 'vacuum' }>;
 
@@ -13,6 +14,7 @@ export const vacuumCard: CardDefinition<VacuumCard> = {
 	sub: 'hearth_card_vacuum_sub',
 	previewInteractive: true,
 	icon: 'robot_2',
+	group: 'devices',
 	normalize: (card) => ({
 		modes: (Array.isArray(card.modes) ? card.modes : [])
 			.map(normalizeVacuumModeRef)
@@ -28,6 +30,7 @@ export const vacuumCard: CardDefinition<VacuumCard> = {
 		bin_entity: OptionalEntityId,
 		quick_action: OptionalFlag
 	}),
+	draft: ({ entityIds }) => firstEntity(entityIds, 'vacuum'),
 	needsConfiguration: (card) => !card.entity,
 	entityIds: (card) => [
 		...(card.entity ? [card.entity] : []),

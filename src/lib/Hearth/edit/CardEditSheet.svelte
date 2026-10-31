@@ -21,7 +21,14 @@
 		takenCardIds,
 		uniqueId
 	} from '../config';
-	import { CARD_TYPES, cardDescriptor, type CardDraft } from '../cards';
+	import { CARD_TYPES, cardDescriptor, cardNeedsConfiguration, type CardDraft } from '../cards';
+	import { CARD_GROUPS } from '../model/registry';
+	import { states } from '$lib/core/ha/entities';
+	import { connection } from '$lib/core/ha/connection';
+	import { fetchRegistry, type RegistrySnapshot } from '$lib/core/ha/registry';
+	import { suggestCards } from '../pageSuggestions';
+	import { draftCard } from './cardDrafts';
+	import DraftPreview from './DraftPreview.svelte';
 	import {
 		cardColumnIndex,
 		duplicateOverviewItem,
@@ -80,6 +87,8 @@
 	// a new card opens on the gallery; an existing one on its fields
 	// svelte-ignore state_referenced_locally
 	let typeOpen = $state(id === null);
+	// a new card's gallery previews the picked type and adds it from there
+	let choosing = $derived(id === null && typeOpen);
 	// blank means the type's own default: media and sensor cards fill, the rest
 	// size to their content
 	let fill = $state<string>(
@@ -146,6 +155,55 @@
 	function choosePage(value: string) {
 		targetColumn = String(value === roomId ? startColumn : 0);
 		moveBy = 0;
+	}
+
+	let pageName = $derived(startRoom?.name || roomId);
+
+	/*
+	 * The gallery previews each type as a draft built from the page's area
+	 * (the import's own cards) and Home Assistant's entities. The registry
+	 * only sharpens it, so the preview does not wait for it.
+	 */
+	let registry = $state.raw<RegistrySnapshot | null>(null);
+
+	$effect(() => {
+		if (!choosing || !$connection || registry) return;
+		let current = true;
+		fetchRegistry().then(
+			(snapshot) => {
+				if (current) registry = snapshot;
+			},
+			(error) => console.warn('card drafts without the registry', error)
+		);
+		return () => {
+			current = false;
+		};
+	});
+
+	// built per registry load and arrival of the states, not on every state change
+	let statesLoaded = $derived($states !== undefined);
+	let suggestions = $derived(
+		registry && startRoom && statesLoaded
+			? suggestCards(startRoom, registry, get(states)).map((suggestion) => suggestion.card)
+			: []
+	);
+	let draftedCard = $derived.by(() => {
+		if (!choosing || !startRoom) return undefined;
+		return draftCard(type, {
+			room: startRoom,
+			suggestions,
+			knownIds: statesLoaded ? Object.keys(get(states)) : []
+		});
+	});
+
+	// the picked type's editor, mounted under the gallery, starts over from
+	// the card the preview showed
+	function confirmType() {
+		if (draftedCard?.type !== type) return;
+		base = { ...draftedCard };
+		draft = { fields: {} as CardDraft<OverviewCard>['fields'] };
+		untouchedFields = undefined;
+		editorRound += 1;
 	}
 
 	// the per-type editor reports its fields; the shell adds id, type and layout
@@ -353,19 +411,29 @@
 	</button>
 {/snippet}
 
+{#snippet typePreview()}
+	{#if draftedCard}
+		<DraftPreview card={draftedCard} />
+	{/if}
+{/snippet}
+
 <EditSheet
 	title={$lang(id !== null ? 'hearth_edit_card' : 'hearth_add_card')}
+	subtitle={id === null ? fillText($lang('hearth_to_page'), { page: pageName }) : undefined}
 	onclose={close}
-	ondone={done}
+	ondone={choosing ? undefined : done}
+	doneLabel={id === null ? fillText($lang('hearth_add_to_page'), { page: pageName }) : undefined}
 	{dirty}
 	doneDisabled={typeOpen || (mode === 'yaml' ? yamlIssue !== null : draft.valid === false)}
-	doneReason={typeOpen
-		? null
-		: mode === 'yaml'
-			? yamlIssue && $lang('hearth_fix_the_yaml')
-			: draft.valid === false
-				? (draft.reason ?? $lang('hearth_fix_marked_fields'))
-				: null}
+	doneReason={choosing
+		? undefined
+		: typeOpen
+			? null
+			: mode === 'yaml'
+				? yamlIssue && $lang('hearth_fix_the_yaml')
+				: draft.valid === false
+					? (draft.reason ?? $lang('hearth_fix_marked_fields'))
+					: null}
 	onremove={id !== null ? remove : undefined}
 	onmoveup={id !== null ? () => move(-1) : undefined}
 	onmovedown={id !== null ? () => move(1) : undefined}
@@ -374,6 +442,7 @@
 	onduplicate={id !== null ? duplicate : undefined}
 	actions={id !== null ? copyAction : undefined}
 	confirmRemove={false}
+	split={choosing}
 	wide
 >
 	{#if copyFallback !== null}
@@ -382,12 +451,21 @@
 	{#if mode === 'form'}
 		<TypeGallery
 			kinds={CARD_TYPES}
+			groups={CARD_GROUPS}
 			selected={type}
 			label="hearth_card_type"
 			searchPlaceholder={$lang('hearth_search_cards')}
 			noMatch={$lang('hearth_no_cards_match')}
 			bind:open={typeOpen}
 			onselect={selectType}
+			onconfirm={id === null ? confirmType : undefined}
+			confirmLabel={fillText($lang('hearth_add_to_page'), { page: pageName })}
+			preview={typePreview}
+			previewHint={$lang(
+				draftedCard && !cardNeedsConfiguration(draftedCard)
+					? 'hearth_add_card_next_adjust'
+					: 'hearth_add_card_next_configure'
+			)}
 			onpaste={id === null ? paste : undefined}
 			pasteCheck={(text) => pastedCards(text, [], stackId !== undefined).issue}
 			pasteHint={$lang('hearth_paste_cards_hint')}

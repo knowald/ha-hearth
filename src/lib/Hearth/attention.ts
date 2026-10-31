@@ -6,6 +6,7 @@ import { UNAVAILABLE_STATES } from '$lib/core/ha/entities';
 import { isStack, type HearthConfig, type VisibilityCondition } from './config';
 import { cardEntityIds } from './cards';
 import { widgetDescriptor } from './widgets';
+import { headerStatList } from './model/headerStats';
 
 /**
  * Entity ids the dashboard shows: card entities, rail widget entities and the
@@ -18,7 +19,7 @@ export function displayedEntityIds(config: HearthConfig): string[] {
 		for (const id of widgetDescriptor(widget.type).entityIds(widget)) ids.add(id);
 	}
 	for (const room of config.rooms) {
-		for (const id of [room.temp_entity, room.humidity_entity]) if (id) ids.add(id);
+		for (const stat of headerStatList(room)) ids.add(stat.entity);
 		for (const column of room.cards ?? []) {
 			for (const item of column) {
 				const cards = isStack(item) ? item.cards : [item];

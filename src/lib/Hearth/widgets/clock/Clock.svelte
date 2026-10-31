@@ -2,6 +2,7 @@
 	import { timer } from '$lib/core/app/clock';
 	import { lang, selectedLanguage } from '$lib/core/i18n';
 	import {
+		clockReading,
 		clockTimeOptions,
 		hourInTimeZone,
 		validTimeZone,
@@ -18,7 +19,8 @@
 
 	let activeTimezone = $derived(validTimeZone(timezone));
 	let time = $derived(
-		now.toLocaleTimeString(
+		clockReading(
+			now,
 			$selectedLanguage,
 			clockTimeOptions(activeTimezone, hour_format, show_seconds)
 		)
@@ -44,18 +46,36 @@
 </script>
 
 <div>
-	<div class="clock">{time}</div>
+	<div class="clock">
+		{#if time.period && time.periodFirst}<span class="period">{time.period}</span>{/if}
+		<span>{time.digits}</span>
+		{#if time.period && !time.periodFirst}<span class="period">{time.period}</span>{/if}
+	</div>
 	<div class="date">{date}</div>
 	<div class="greeting">{greeting}</div>
 </div>
 
 <style>
 	.clock {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		gap: 8px;
 		font-size: var(--h-type-clock);
 		font-weight: 600;
 		line-height: 0.9;
 		letter-spacing: -3px;
 		color: var(--h-text-1);
+	}
+
+	/* set small and high, like a superscript, so the time keeps to one line */
+	.period {
+		margin-top: 6px;
+		font-size: var(--h-type-headline);
+		font-weight: 500;
+		letter-spacing: 0;
+		line-height: 1;
+		color: var(--h-text-3);
 	}
 
 	.date {
@@ -75,6 +95,11 @@
 	@media (max-width: 900px) {
 		.clock {
 			font-size: var(--h-type-hero);
+		}
+
+		.period {
+			margin-top: 2px;
+			font-size: var(--h-type-small);
 		}
 	}
 </style>

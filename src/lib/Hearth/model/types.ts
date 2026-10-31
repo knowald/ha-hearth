@@ -13,7 +13,24 @@ interface Definition<T extends { type: string }> {
 	entityIds: (value: T) => string[];
 }
 
+/** The heading a card type sits under in the add-card gallery. */
+export type CardGroup = 'devices' | 'information' | 'media';
+
+/** What a card type's draft is built from when the add-card gallery previews it. */
+export interface CardDraftContext {
+	/** Candidate entity ids, the page's own first. */
+	entityIds: string[];
+	pageName: string;
+}
+
 export interface CardDefinition<T extends OverviewCard = OverviewCard> extends Definition<T> {
+	group: CardGroup;
+	/**
+	 * A first configuration for the add-card preview, picked from what Home
+	 * Assistant has. Undefined when nothing fits; the preview then shows what
+	 * the card still needs.
+	 */
+	draft?: (context: CardDraftContext) => Partial<T> | undefined;
 	fillByDefault?: boolean;
 	sizable?: boolean;
 	previewReorder?: boolean;

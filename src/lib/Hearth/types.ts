@@ -3,6 +3,7 @@ import type { SliderUpdateMode } from '$lib/core/app/configuration';
 import type {
 	ActionSchema,
 	EntityRefSchema,
+	HeaderStatSchema,
 	MediaShortcutSchema,
 	SceneRefSchema,
 	StyleRuleSchema,
@@ -31,6 +32,8 @@ export interface HearthRoom {
 	summary?: string;
 	temp_entity?: string;
 	humidity_entity?: string;
+	// the header readings in order; without it temp_entity and humidity_entity
+	stats?: HeaderStat[];
 	// drops the built-in page header; a `header` card can take its place
 	hide_header?: boolean;
 	// the page fills the screen instead of scrolling: cards that stretch share
@@ -69,6 +72,7 @@ export interface ThemeScheduleEntry {
 /** A configured tap or hold action; see ActionSchema. */
 export type HearthAction = v.InferOutput<typeof ActionSchema>;
 export type EntityRef = v.InferOutput<typeof EntityRefSchema>;
+export type HeaderStat = v.InferOutput<typeof HeaderStatSchema>;
 export type SceneRef = v.InferOutput<typeof SceneRefSchema>;
 export type StyleRule = v.InferOutput<typeof StyleRuleSchema>;
 export type VacuumModeRef = v.InferOutput<typeof VacuumModeRefSchema>;
@@ -194,6 +198,7 @@ type OverviewCardVariant =
 			icon?: string;
 			temp_entity?: string;
 			humidity_entity?: string;
+			stats?: HeaderStat[];
 			/** A URL, or `hearth-images/<file>` for an uploaded image. */
 			background_image?: string;
 	  }
