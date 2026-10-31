@@ -32,6 +32,7 @@ function seed() {
 const cards = () => get(hearthConfig).rooms[0].cards![0];
 const option = (name: string) => screen.getByRole('option', { name: new RegExp(`^${name}\\b`) });
 const done = () => screen.queryByRole('button', { name: en.done });
+const addToDen = () => screen.queryByRole('button', { name: 'Add to Den' });
 
 async function settle() {
 	await vi.dynamicImportSettled();
@@ -73,9 +74,9 @@ describe('the add-card gallery', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Add to Den' }));
 		await settle();
 		expect(screen.getByRole('button', { name: /Card type/ }).textContent).toContain('Climate');
-		expect(done()).toBeTruthy();
-		await vi.waitFor(() => expect(done()!.hasAttribute('disabled')).toBe(false));
-		await fireEvent.click(done()!);
+		expect(addToDen()).toBeTruthy();
+		await vi.waitFor(() => expect(addToDen()!.hasAttribute('disabled')).toBe(false));
+		await fireEvent.click(addToDen()!);
 		expect(cards()).toEqual([expect.objectContaining({ type: 'climate', entity: 'climate.hall' })]);
 	});
 

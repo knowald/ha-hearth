@@ -46,7 +46,7 @@ test('groups the types and previews the selected one', async ({ page }) => {
 	await expect(sheet.getByRole('combobox', { name: 'Entity', exact: true })).toHaveValue(
 		/^climate\./
 	);
-	await sheet.getByRole('button', { name: 'Done' }).click();
+	await sheet.getByRole('button', { name: /^Add to / }).click();
 	await expect(sheet).toBeHidden();
 	await expect(page.locator('.card-slot')).toHaveCount(3);
 });
@@ -57,7 +57,7 @@ test('Enter on a type goes straight on to its fields', async ({ page }) => {
 	await scenes.focus();
 	await scenes.press('Enter');
 	await expect(sheet.getByRole('button', { name: /Card type/ })).toContainText('Scenes');
-	await expect(sheet.getByRole('button', { name: 'Done' })).toBeEnabled();
+	await expect(sheet.getByRole('button', { name: /^Add to / })).toBeEnabled();
 });
 
 test('a type with nothing to start from says what the next step asks', async ({ page }) => {

@@ -422,6 +422,7 @@
 	subtitle={id === null ? fillText($lang('hearth_to_page'), { page: pageName }) : undefined}
 	onclose={close}
 	ondone={choosing ? undefined : done}
+	doneLabel={id === null ? fillText($lang('hearth_add_to_page'), { page: pageName }) : undefined}
 	{dirty}
 	doneDisabled={typeOpen || (mode === 'yaml' ? yamlIssue !== null : draft.valid === false)}
 	doneReason={choosing
