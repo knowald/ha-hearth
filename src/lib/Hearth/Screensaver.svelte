@@ -175,7 +175,8 @@
 	 */
 	function presenceChanged(nowAbsent: boolean) {
 		if (nowAbsent) {
-			const touched = delayMs > 0 && Date.now() - lastInput < ABSENT_IDLE_MS;
+			// the idle timer only runs awake, so a sleep screen goes dark at once
+			const touched = !active && delayMs > 0 && Date.now() - lastInput < ABSENT_IDLE_MS;
 			if (alertShowing || editing || touched || $sleepNow === 'preview') scheduleIdle();
 			else blackOut();
 		} else if (blank) {

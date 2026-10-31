@@ -618,6 +618,20 @@ describe('Screensaver', () => {
 			expect(get(presenceChangesAt)).toBeUndefined();
 		});
 
+		it('blacks out a sleep screen that started soon after a touch', async () => {
+			sense('on');
+			render(Screensaver, { minutes: 0.25, presence: SENSOR, delayMs: 30_000 });
+			await tick();
+			window.dispatchEvent(new Event('pointerdown'));
+			vi.advanceTimersByTime(15_000);
+			await tick();
+			expect(sleepTimer()).toBe('asleep');
+			sense('off');
+			vi.advanceTimersByTime(30_000);
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+		});
+
 		it('with a delay, waits a minute after the last touch before going black', async () => {
 			sense('on');
 			const { container } = render(Screensaver, { presence: SENSOR, delayMs: 30_000 });
