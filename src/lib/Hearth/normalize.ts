@@ -42,6 +42,7 @@ import {
 import { currentHearthConfig } from './format';
 import { imageFileOf } from '$lib/core/images';
 import { AlertRuleSchema, normalizeAlertChimes, normalizeAlertRules } from './model/alerts';
+import { normalizeHeaderStats } from './model/headerStats';
 import * as v from 'valibot';
 import { themeValueIssue, usableThemeValue } from '$lib/core/theme';
 import {
@@ -428,6 +429,7 @@ function normalizeRoom(raw: any, index: number, taken: string[], takenItems: str
 		summary: trimmedOrUndefined(raw?.summary),
 		temp_entity: trimmedOrUndefined(raw?.temp_entity),
 		humidity_entity: trimmedOrUndefined(raw?.humidity_entity),
+		stats: normalizeHeaderStats(raw?.stats),
 		hide_header: raw?.hide_header === true ? true : undefined,
 		fill_screen: raw?.fill_screen === true ? true : undefined,
 		columns,

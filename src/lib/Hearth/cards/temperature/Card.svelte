@@ -117,25 +117,25 @@
 			</div>
 		</div>
 		{#if climate && target !== null}
-			<div class="thermostat">
-				<div class="target-label">{$lang('hearth_target')}</div>
-				<div class="target-value">{formatReading(target, temperatureUnit)}</div>
-				<div class="target-buttons">
-					<button
-						type="button"
-						aria-label={$lang('hearth_lower_target')}
-						onclick={() => nudgeTarget(-1)}
-					>
-						<Icon name="remove" size={ICON.control} color="var(--h-text-3)" />
-					</button>
-					<button
-						type="button"
-						aria-label={$lang('hearth_raise_target')}
-						onclick={() => nudgeTarget(1)}
-					>
-						<Icon name="add" size={ICON.control} color="var(--h-text-3)" />
-					</button>
+			<div class="thermostat" role="group" aria-label={$lang('hearth_target')}>
+				<button
+					type="button"
+					aria-label={$lang('hearth_lower_target')}
+					onclick={() => nudgeTarget(-1)}
+				>
+					<Icon name="remove" size={ICON.control} color="var(--h-text-3)" />
+				</button>
+				<div class="target">
+					<div class="target-value">{formatReading(target, temperatureUnit)}</div>
+					<div class="target-label">{$lang('hearth_target')}</div>
 				</div>
+				<button
+					type="button"
+					aria-label={$lang('hearth_raise_target')}
+					onclick={() => nudgeTarget(1)}
+				>
+					<Icon name="add" size={ICON.control} color="var(--h-text-3)" />
+				</button>
 			</div>
 		{:else if verdict}
 			<div class="verdict" data-tone={verdict.tone}>{verdict.label}</div>
@@ -172,12 +172,6 @@
 				/>
 				<circle cx={chart.end.x} cy={chart.end.y} r="4" fill="rgb(var(--h-accent-rgb))" />
 			</svg>
-			{#if chart.targetY !== null && target !== null}
-				<div class="target-line-label" style:top="{(chart.targetY / CHART_HEIGHT) * 100}%">
-					{$lang('hearth_target')}
-					{formatReading(target, temperatureUnit)}
-				</div>
-			{/if}
 		</div>
 		<div class="chart-footer">
 			<span>24 H</span>
@@ -236,44 +230,52 @@
 		color: var(--h-text-3);
 	}
 
+	/* one pill: lower, the target with its caption, raise */
 	.thermostat {
-		text-align: right;
-	}
-
-	.target-label {
-		font-family: var(--h-font-mono);
-		font-size: var(--h-type-caption);
-		letter-spacing: 1.6px;
-		text-transform: uppercase;
-		color: var(--h-text-6);
-	}
-
-	.target-value {
-		font-size: var(--h-type-headline);
-		font-weight: 600;
-		color: var(--h-accent-icon);
-		margin-top: 6px;
-	}
-
-	.target-buttons {
 		display: flex;
+		align-items: center;
 		gap: 6px;
-		margin-top: 10px;
-		justify-content: flex-end;
+		flex: none;
+		padding: 4px;
+		border-radius: var(--h-radius-pill);
+		background: var(--h-inset);
 	}
 
-	.target-buttons button {
-		width: 34px;
-		height: 34px;
-		border-radius: var(--h-radius-xs);
-		background: rgb(var(--h-surface-rgb) / calc(0.05 * var(--h-fill-scale)));
-		border: 1px solid rgb(var(--h-line-rgb) / calc(0.09 * var(--h-line-scale)));
+	.thermostat button {
+		width: var(--h-touch-target);
+		height: var(--h-touch-target);
+		border-radius: var(--h-radius-pill);
+		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+		border: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
 		padding: 0;
 		font: inherit;
+	}
+
+	.target {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		min-width: 56px;
+	}
+
+	.target-value {
+		font-size: var(--h-type-title);
+		font-weight: 600;
+		line-height: 1.2;
+		color: var(--h-accent-icon);
+		white-space: nowrap;
+	}
+
+	.target-label {
+		font-family: var(--h-font-mono);
+		font-size: var(--h-type-caption);
+		letter-spacing: 1px;
+		text-transform: uppercase;
+		color: var(--h-text-6);
 	}
 
 	.verdict {
@@ -311,18 +313,6 @@
 		width: 100%;
 		height: 86px;
 		display: block;
-	}
-
-	.target-line-label {
-		position: absolute;
-		left: 0;
-		margin-top: 4px;
-		font-family: var(--h-font-mono);
-		font-size: var(--h-type-caption);
-		letter-spacing: 1px;
-		text-transform: uppercase;
-		color: var(--h-label);
-		pointer-events: none;
 	}
 
 	.chart-footer {

@@ -10,6 +10,7 @@
 		type VisibilityCondition
 	} from '../config';
 	import { duplicateRoom, shiftItem } from '../model/layoutEdits';
+	import { headerStatList, storedHeaderStats } from '../model/headerStats';
 	import { confirmDiscard } from './discard';
 	import { currentRoom, editor, hearthConfig, updateConfig } from '../store';
 	import { pageBackgroundIssue } from '../normalize';
@@ -20,7 +21,7 @@
 	import { themeOptions, withCurrent } from './options';
 	import CheckField from './CheckField.svelte';
 	import EditSheet from './EditSheet.svelte';
-	import EntityField from './EntityField.svelte';
+	import HeaderStatsField, { type EditableStat } from './HeaderStatsField.svelte';
 	import IconField from './IconField.svelte';
 	import SelectField from './SelectField.svelte';
 	import TextField from './TextField.svelte';
@@ -37,8 +38,9 @@
 	let name = $state(initial?.name ?? '');
 	let icon = $state(initial?.icon ?? 'meeting_room');
 	let summary = $state(initial?.summary ?? '');
-	let tempEntity = $state(initial?.temp_entity ?? '');
-	let humidityEntity = $state(initial?.humidity_entity ?? '');
+	let stats = $state<EditableStat[]>(
+		headerStatList(initial).map((stat) => ({ entity: stat.entity, name: stat.name ?? '' }))
+	);
 	let hideHeader = $state(initial?.hide_header ?? false);
 	let fillScreen = $state(initial?.fill_screen ? 'fill' : 'scroll');
 	let columns = $state(initial?.columns ? String(initial.columns) : '');
@@ -76,8 +78,7 @@
 			name,
 			icon,
 			summary,
-			tempEntity,
-			humidityEntity,
+			stats,
 			hideHeader,
 			fillScreen,
 			columns,
@@ -115,8 +116,7 @@
 				room.name = name.trim();
 				room.icon = icon.trim() || 'meeting_room';
 				room.summary = summary.trim() || undefined;
-				room.temp_entity = tempEntity.trim() || undefined;
-				room.humidity_entity = humidityEntity.trim() || undefined;
+				Object.assign(room, storedHeaderStats($state.snapshot(stats), initial));
 				room.hide_header = hideHeader || undefined;
 				room.fill_screen = fillScreen === 'fill' || undefined;
 				room.columns = roomColumns;
@@ -135,8 +135,7 @@
 					name: name.trim(),
 					icon: icon.trim() || 'meeting_room',
 					summary: summary.trim() || undefined,
-					temp_entity: tempEntity.trim() || undefined,
-					humidity_entity: humidityEntity.trim() || undefined,
+					...storedHeaderStats($state.snapshot(stats), undefined),
 					hide_header: hideHeader || undefined,
 					fill_screen: fillScreen === 'fill' || undefined,
 					columns: roomColumns,
@@ -207,18 +206,6 @@
 		bind:value={summary}
 		placeholder={$lang('hearth_example_page_summary')}
 	/>
-	<EntityField
-		label={$lang('hearth_temperature_sensor')}
-		bind:value={tempEntity}
-		domains={['sensor']}
-		deviceClass="temperature"
-	/>
-	<EntityField
-		label={$lang('hearth_humidity_sensor')}
-		bind:value={humidityEntity}
-		domains={['sensor']}
-		deviceClass="humidity"
-	/>
 	<SelectField
 		label={$lang('hearth_screen_height')}
 		bind:value={fillScreen}
@@ -246,6 +233,8 @@
 			{$lang('hearth_this_is_the_last_page_so')}
 		{/if}
 	</div>
+
+	<HeaderStatsField bind:value={stats} />
 
 	<VisibilitySection bind:value={visibility} />
 	<div class="field-hint">{$lang('hearth_page_visibility_hint')}</div>

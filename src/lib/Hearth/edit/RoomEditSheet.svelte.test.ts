@@ -80,17 +80,59 @@ describe('RoomEditSheet', () => {
 		expect(get(hearthConfig).rooms[0].visibility).toEqual([{ device: ['kitchen', 'hall'] }]);
 	});
 
-	it.each([
-		[en.hearth_temperature_sensor, ['Attic', 'Living temperature']],
-		[en.hearth_humidity_sensor, ['Living humidity']]
-	])('lists fitting sensors first for the %s', async (label, expected) => {
-		render(RoomEditSheet, { id: null });
-		const field = screen.getByLabelText(label).closest('.field') as HTMLElement;
-		await fireEvent.click(within(field).getByRole('button', { name: en.hearth_choose_entity }));
-		const picker = screen.getByRole('dialog', { name: en.hearth_choose_entity });
-		const options = within(picker).getAllByRole('option');
-		// the rest stay reachable below, for a sensor that declares neither
-		expect(options).toHaveLength(4);
-		expected.forEach((name, index) => expect(options[index].textContent).toContain(name));
+	function withReadings(stats?: { entity: string; name?: string }[]) {
+		hearthConfig.update((config) => {
+			Object.assign(config.rooms[0], {
+				temp_entity: 'sensor.living_temperature',
+				humidity_entity: 'sensor.living_humidity',
+				stats
+			});
+			return config;
+		});
+	}
+
+	it('keeps the temperature and humidity fields when the readings stay as they were', async () => {
+		withReadings();
+		render(RoomEditSheet, { id: 'home' });
+		const entities = screen.getAllByLabelText(en.entity) as HTMLInputElement[];
+		expect(entities.map((input) => input.value)).toEqual([
+			'sensor.living_temperature',
+			'sensor.living_humidity'
+		]);
+		await fireEvent.input(screen.getByLabelText(en.summary), { target: { value: 'Cosy' } });
+		await fireEvent.click(screen.getByRole('button', { name: en.done }));
+		const room = get(hearthConfig).rooms[0];
+		expect(room.stats).toBeUndefined();
+		expect([room.temp_entity, room.humidity_entity]).toEqual([
+			'sensor.living_temperature',
+			'sensor.living_humidity'
+		]);
+	});
+
+	it('saves added, labeled and reordered readings as a list', async () => {
+		withReadings();
+		render(RoomEditSheet, { id: 'home' });
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_add_reading }));
+		const entities = screen.getAllByLabelText(en.entity);
+		await fireEvent.input(entities[2], { target: { value: 'sensor.power' } });
+		const labels = screen.getAllByLabelText(en.hearth_label_optional);
+		await fireEvent.input(labels[2], { target: { value: 'Power' } });
+		await fireEvent.click(screen.getAllByRole('button', { name: en.hearth_move_reading_up })[2]);
+		await fireEvent.click(screen.getAllByRole('button', { name: en.hearth_remove_reading })[0]);
+		await fireEvent.click(screen.getByRole('button', { name: en.done }));
+		const room = get(hearthConfig).rooms[0];
+		expect(room.stats).toEqual([
+			{ entity: 'sensor.power', name: 'Power' },
+			{ entity: 'sensor.living_humidity', name: undefined }
+		]);
+		expect([room.temp_entity, room.humidity_entity]).toEqual([undefined, undefined]);
+	});
+
+	it('saves an emptied list so the header shows no readings', async () => {
+		withReadings([{ entity: 'sensor.power' }]);
+		render(RoomEditSheet, { id: 'home' });
+		await fireEvent.click(screen.getByRole('button', { name: en.hearth_remove_reading }));
+		await fireEvent.click(screen.getByRole('button', { name: en.done }));
+		expect(get(hearthConfig).rooms[0].stats).toEqual([]);
 	});
 });

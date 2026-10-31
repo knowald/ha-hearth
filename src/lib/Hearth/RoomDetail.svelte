@@ -9,6 +9,7 @@
 	import { editor, hearthConfig, hearthEditMode, hearthLoadError } from './store';
 	import CardColumns from './CardColumns.svelte';
 	import HeaderCard from './HeaderCard.svelte';
+	import { headerStatList } from './model/headerStats';
 
 	let { roomId, fillScreen = false }: { roomId: string; fillScreen?: boolean } = $props();
 
@@ -56,8 +57,7 @@
 					icon={room.icon}
 					title={room.name}
 					subtitle={room.summary}
-					tempEntity={room.temp_entity}
-					humidityEntity={room.humidity_entity}
+					stats={headerStatList(room)}
 					onedit={() => editor.set({ kind: 'room', id: roomId })}
 				/>
 			</div>

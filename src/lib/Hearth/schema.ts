@@ -229,6 +229,17 @@ export const StyleRuleSchema = v.lazy(() =>
 	)
 );
 
+/** One reading in a page or header card header: the entity and an optional label. */
+export const HeaderStatSchema = v.object({
+	entity: EntityIdSchema,
+	name: OptionalText
+});
+
+/** Replaces temp_entity and humidity_entity when set; an empty list shows no readings. */
+export const HeaderStatListSchema = v.optional(
+	v.array(HeaderStatSchema, 'must be a list of readings')
+);
+
 export const EntityRefSchema = v.object({
 	entity: EntityIdSchema,
 	name: OptionalText,
@@ -425,6 +436,7 @@ export const RoomSchema = v.looseObject({
 	summary: OptionalText,
 	temp_entity: OptionalEntityId,
 	humidity_entity: OptionalEntityId,
+	stats: HeaderStatListSchema,
 	hide_header: OptionalFlag,
 	fill_screen: OptionalFlag,
 	visibility: VisibilityListSchema,
