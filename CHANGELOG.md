@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.9.0] - 2026-10-31
+
+### Added
+
+- Fade the screen to black and back when the presence sensor changes ([#38](https://github.com/knowald/ha-hearth/pull/38))
+- Wait a set time after the presence sensor clears before the screen changes ([#38](https://github.com/knowald/ha-hearth/pull/38))
+- Show a dimmed sleep screen instead of black while nobody is around ([#38](https://github.com/knowald/ha-hearth/pull/38))
+- Show what the presence sensor reads under its setting ([#38](https://github.com/knowald/ha-hearth/pull/38))
+- Start the sleep screen after 15 or 30 seconds ([#38](https://github.com/knowald/ha-hearth/pull/38))
+
+### Fixed
+
+- Keep the screen as it is when the presence sensor becomes unavailable ([#38](https://github.com/knowald/ha-hearth/pull/38))
+- Keep the screen dark when an automation puts it to sleep while nobody is around ([#38](https://github.com/knowald/ha-hearth/pull/38))
+
 ## [0.8.0] - 2026-10-30
 
 ### Changed
@@ -280,6 +295,7 @@
 
 - Make blur work everywhere in the application
 
+[0.9.0]: https://github.com/knowald/ha-hearth/releases/tag/0.9.0
 [0.8.0]: https://github.com/knowald/ha-hearth/releases/tag/0.8.0
 [0.7.0]: https://github.com/knowald/ha-hearth/releases/tag/0.7.0
 [0.6.0]: https://github.com/knowald/ha-hearth/releases/tag/0.6.0
