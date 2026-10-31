@@ -42,6 +42,18 @@ function isFlexibleGap(widget: RailWidget): boolean {
  */
 const GLANCE_TYPES = new Set<RailWidget['type']>(['clock', 'weather']);
 
+/*
+ * The widgets the folded layout's header strip stands in for. Left on their
+ * automatic slot they stay off phones; placing one above or below the page
+ * by hand brings the full widget back.
+ */
+const HEADER_TYPES = new Set<RailWidget['type']>(['clock', 'weather']);
+
+/** A widget left off phones because the header strip stands in for it. */
+export function headerStandIn(widget: RailWidget): boolean {
+	return !widget.mobile && !widget.hide_mobile && HEADER_TYPES.has(widget.type);
+}
+
 /**
  * The gap that divides the rail's two folded runs: a flexible gap with
  * widgets after it. A trailing one divides nothing - it only says the rail
@@ -76,7 +88,7 @@ function defaultSlot(
 /** Which side of the page a widget lands on once the rail folds. */
 export function mobileSlotOf(widget: RailWidget, index: number, dividerIndex: number): MobileSlot {
 	if (widget.mobile) return widget.mobile;
-	if (widget.hide_mobile) return 'hidden';
+	if (widget.hide_mobile || headerStandIn(widget)) return 'hidden';
 	return defaultSlot(widget, index, dividerIndex);
 }
 
@@ -125,6 +137,24 @@ export function foldedTopCount(
 	const { top } = railSlots(rail, { includeHidden: editing, compact, position });
 	if (editing) return top.length;
 	return top.filter((widget) => widget.type !== 'nav' && widget.type !== 'search').length;
+}
+
+/**
+ * What the folded layout's header strip shows: the time unless a clock widget
+ * rides above the page anyway, and the weather of the first weather widget
+ * left on its automatic slot.
+ */
+export function phoneHeader(
+	rail: RailWidget[],
+	{ compact = false, position }: { compact?: boolean; position?: RailPosition } = {}
+): { time: boolean; weather?: string } {
+	const folded = foldedRail(rail, position ?? 'left');
+	const { top } = railSlots(folded, { compact, position });
+	const weather = folded.find((widget) => widget.type === 'weather' && headerStandIn(widget));
+	return {
+		time: !top.some((widget) => widget.type === 'clock'),
+		weather: weather?.type === 'weather' ? weather.entity : undefined
+	};
 }
 
 export function railPositionOf(config: Pick<HearthConfig, 'rail_position'>): RailPosition {

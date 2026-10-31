@@ -125,7 +125,10 @@ test('a phone folds both rails into the page and drops a hidden one', async ({ p
 	writeRail('both', 'right');
 	await open(page);
 	await expect(page.locator('.rail-scroll')).toHaveCount(0);
-	await expect(page.locator('.rail-run [data-id="clock"]')).toBeVisible();
+	await expect(page.locator('.rail-run [data-id="nav"]')).toHaveCount(1);
+	// the phone header stands in for the clock, whichever rail it sits on
+	await expect(page.locator('.rail-run [data-id="clock"]')).toHaveCount(0);
+	await expect(page.locator('.phone-header time')).toBeVisible();
 
 	writeRail('none');
 	await open(page);
@@ -180,7 +183,11 @@ rail:
 		)
 	);
 	await open(page);
-	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await page
+		.getByRole('navigation', { name: 'Pages' })
+		.getByRole('button', { name: 'More' })
+		.click();
+	await page.getByRole('button', { name: 'Edit dashboard' }).click();
 	const top = page.locator('.rail-run').first();
 	await expect(top.locator('.widget')).toHaveCount(2);
 	// stored order puts the right rail's weather first; drag it below the clock

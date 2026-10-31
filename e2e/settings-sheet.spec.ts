@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { clickEditEntry } from './edit-entry';
 
 /* The one Settings sheet: its section list, search, change counts and server save. */
 
@@ -10,7 +11,7 @@ test.afterEach(() => writeFileSync(CONFIG_FILE, CONFIG_FIXTURE));
 
 async function openSettings(page: Page) {
 	await page.goto('/');
-	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await clickEditEntry(page);
 	await page.getByRole('button', { name: 'Settings', exact: true }).click();
 	const sheet = page.getByRole('dialog', { name: 'Settings' });
 	await expect(sheet).toBeVisible();
@@ -112,7 +113,7 @@ test.describe('the smallest phone, in a longer language', () => {
 			localStorage.setItem('hearthScreen', JSON.stringify({ locale: 'de' }))
 		);
 		await page.goto('/');
-		await page.locator('.edit-toggle').click();
+		await clickEditEntry(page);
 		await page.getByRole('button', { name: 'Einstellungen', exact: true }).click();
 		const sheet = page.getByRole('dialog').first();
 		await expect(sheet).toBeVisible();

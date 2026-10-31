@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { clickScreenEntry } from './edit-entry';
 
 /* Settings one screen keeps for itself, and the lock in front of edit mode. */
 
@@ -37,7 +38,7 @@ test.describe('phone', () => {
 		await expect(sleepScreen(page)).toHaveCount(0);
 
 		// handing the choice back to the dashboard arms the shared delay again
-		await page.getByRole('button', { name: 'This screen' }).click();
+		await clickScreenEntry(page);
 		const sheet = page.getByRole('dialog', { name: 'This screen' });
 		await sheet.getByLabel('Sleep screen turns on').selectOption('');
 		await sheet.getByRole('button', { name: 'Close' }).first().click();
@@ -46,6 +47,35 @@ test.describe('phone', () => {
 		await expect(page.locator('html')).toHaveAttribute('data-sleep-timer', 'armed');
 		await page.clock.fastForward('01:30');
 		await expect(sleepScreen(page)).toBeVisible();
+	});
+
+	test('a kiosk frame with ?menu=false keeps the pages but drops More', async ({ page }) => {
+		await open(page, '/?menu=false');
+		const bar = page.getByRole('navigation', { name: 'Pages' });
+		await expect(bar.getByRole('button', { name: 'Office' })).toBeVisible();
+		await expect(bar.getByRole('button', { name: 'More' })).toHaveCount(0);
+	});
+
+	test('the hold lock works from the More menu', async ({ page }) => {
+		writeFileSync(HEARTH_FILE, `${HEARTH_FIXTURE}edit_lock: hold\n`);
+		await open(page);
+		await page
+			.getByRole('navigation', { name: 'Pages' })
+			.getByRole('button', { name: 'More' })
+			.click();
+		const entry = page.getByRole('button', { name: 'Edit dashboard' });
+		await entry.click();
+		await expect(entry).toContainText('Hold for 2 seconds to edit');
+		await expect(editBarSave(page)).toHaveCount(0);
+
+		const box = (await entry.boundingBox())!;
+		const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+		const session = await page.context().newCDPSession(page);
+		await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+		await page.waitForTimeout(2300);
+		await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+		await session.detach();
+		await expect(editBarSave(page)).toBeVisible();
 	});
 });
 

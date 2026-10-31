@@ -14,6 +14,7 @@ import {
 	hearthNeedsSetup,
 	setupWizardOpen
 } from './store';
+import { FOLD_QUERY } from './breakpoints';
 import HearthDashboard from './HearthDashboard.svelte';
 
 vi.mock('$lib/core/ha/registry', () => ({ fetchRegistry: vi.fn(() => new Promise(() => {})) }));
@@ -99,6 +100,28 @@ describe('HearthDashboard navigation', () => {
 		await act(() => enterEditMode());
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_search_placeholder }));
 		expect(screen.queryByRole('dialog', { name: en.search })).toBeNull();
+	});
+
+	it('folded, keeps the pages and the edit entry in the bottom bar outside edit mode', async () => {
+		vi.stubGlobal('matchMedia', (query: string) => ({
+			matches: query === FOLD_QUERY,
+			addEventListener() {},
+			removeEventListener() {}
+		}));
+		hearthConfig.set(withRooms([{ id: 'clock', type: 'clock' }]));
+		const { container } = render(HearthDashboard);
+		await act();
+		const bar = container.querySelector('.phone-bar');
+		expect(bar?.querySelectorAll('.tab')).toHaveLength(2);
+		expect(container.querySelector('.phone-header time')).not.toBeNull();
+		expect(container.querySelector('.phone-nav')).toBeNull();
+		expect(container.querySelector('.edit-entry')).toBeNull();
+		expect(screen.getByRole('button', { name: en.hearth_more })).toBeTruthy();
+
+		// the edit bar takes the bottom, so the pages move to the top strip
+		await act(() => enterEditMode());
+		expect(container.querySelector('.phone-bar')).toBeNull();
+		expect(container.querySelectorAll('.phone-nav .page:not(.add)')).toHaveLength(2);
 	});
 
 	it('builds the page list into a wide rail that has no visible nav widget', async () => {

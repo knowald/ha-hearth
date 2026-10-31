@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { clickEditEntry } from './edit-entry';
 
 /* The interface scale zooms the root; the frame and the sheets must still fit the screen. */
 
@@ -40,7 +41,7 @@ async function expectInsideViewport(page: Page, element: Locator) {
 }
 
 async function openSettings(page: Page) {
-	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await clickEditEntry(page);
 	await page.getByRole('button', { name: 'Settings', exact: true }).click();
 	const sheet = page.getByRole('dialog', { name: 'Settings' });
 	await expect(sheet).toBeVisible();
@@ -82,7 +83,7 @@ test.describe('phone', () => {
 
 	test('edit controls stay finger-sized on screen at 80%', async ({ page }) => {
 		await page.goto('/');
-		await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+		await clickEditEntry(page);
 		const pencil = page.getByRole('button', { name: 'Edit Lights', exact: true });
 		// the hit area in screen pixels: its CSS size times the root zoom
 		const pencilArea = await pencil.evaluate((element) => {

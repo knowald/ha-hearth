@@ -52,7 +52,8 @@ test.describe('favorites on a phone', () => {
 		await expect(strip.getByRole('button', { name: 'Favorites' })).toBeVisible();
 		expect(readFileSync(HEARTH_FILE, 'utf8')).toBe(HEARTH_FIXTURE);
 
-		await page.getByRole('button', { name: 'This screen' }).click();
+		await strip.getByRole('button', { name: 'More' }).click();
+		await page.getByRole('button', { name: 'Screen settings' }).click();
 		await page.getByRole('switch', { name: 'Show favorites page' }).click();
 		await page.getByRole('button', { name: 'Close', exact: true }).first().click();
 		await expect(strip.getByRole('button', { name: 'Favorites' })).toHaveCount(0);

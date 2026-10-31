@@ -48,6 +48,8 @@
 	import EditLoadError from './shell/EditLoadError.svelte';
 	import EditToggle from './shell/EditToggle.svelte';
 	import Keyboard from './shell/Keyboard.svelte';
+	import PhoneBar from './shell/PhoneBar.svelte';
+	import PhoneHeader from './shell/PhoneHeader.svelte';
 	import PhoneNav from './shell/PhoneNav.svelte';
 	import ThemeStyle from './shell/ThemeStyle.svelte';
 	import Toasts from './shell/Toasts.svelte';
@@ -253,8 +255,9 @@
 	});
 
 	/*
-	 * Pages stay reachable on every layout. The folded layout, and a wide one
-	 * with no rail, always have the page switcher; a wide rail whose nav widget
+	 * Pages stay reachable on every layout. The folded layout has the bottom
+	 * bar, or the page switcher while editing; a wide one with no rail has the
+	 * page switcher; a wide rail whose nav widget
 	 * was removed or is hidden by its visibility conditions gets the same page
 	 * list built in, above the rest of the first rail. The nav widget's own
 	 * settings shape only the wide rail.
@@ -443,15 +446,19 @@
 		bind:this={layoutElement}
 		use:scrollEdges={{ report: (edges) => (layoutCut = edges) }}
 	>
-		<PhoneNav onsearch={openSearch} always={railPosition === 'none'} />
+		{#if !$narrow || $hearthEditMode}
+			<PhoneNav onsearch={openSearch} always={railPosition === 'none'} />
+		{/if}
 		{#if $narrow}
+			<PhoneHeader compact={$shortScreen} />
 			{#if leadingWidgets > 0}
 				<div class="rail-run">
 					<Rail mobileSlot="top" compact={$shortScreen} onsearch={openSearch} />
 				</div>
 			{/if}
 			{@render pageColumn()}
-			<!-- kept without a rail too: its padding is the room under the page -->
+			<!-- kept without a rail too: its padding is the room under the page,
+			     clear of the bottom bar -->
 			<div class="rail-run trailing">
 				{#if railPosition !== 'none'}
 					<Rail mobileSlot="bottom" compact={$shortScreen} onsearch={openSearch} />
@@ -470,6 +477,12 @@
 	{#if edgeBlur}
 		<ScrollEdge edge="top" size={96} active={layoutCut.top} />
 		<ScrollEdge edge="bottom" size={96} active={layoutCut.bottom} />
+	{/if}
+	{#if $narrow && !$hearthEditMode}
+		<!-- nothing sticks to the top outside edit mode, so the page would
+		     scroll under the status bar of an installed app -->
+		<div class="status-band" aria-hidden="true"></div>
+		<PhoneBar onsearch={openSearch} noRail={railPosition === 'none'} menu={!hideEditToggle} />
 	{/if}
 	<ControlPopup />
 	{#if $hearthEditMode || $screenSheetOpen}
@@ -526,7 +539,7 @@
 		{#if editorHostFailed || editBarFailed}
 			<EditLoadError onretry={() => (editAttempt += 1)} />
 		{/if}
-	{:else if !hideEditToggle}
+	{:else if !hideEditToggle && !$narrow}
 		<EditToggle />
 	{/if}
 </section>
@@ -648,7 +661,8 @@
 		top: var(--h-shift-y, 0px);
 	}
 
-	.pixel-shifting :global(.edit-entry) {
+	.pixel-shifting :global(.edit-entry),
+	.pixel-shifting :global(.phone-bar) {
 		translate: var(--h-shift-x, 0px) var(--h-shift-y, 0px);
 	}
 
@@ -756,6 +770,23 @@
 		overscroll-behavior-y: contain;
 	}
 
+	/* the page switcher only pins to the top while editing; otherwise the
+	   phone header is the first row and the layout carries the top inset */
+	.layout.narrow:not(.editing) {
+		padding-top: calc(12px + var(--h-pad-y) + var(--h-safe-top));
+		scroll-padding-top: calc(12px + var(--h-pad-y) + var(--h-safe-top));
+	}
+
+	.status-band {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: var(--h-safe-top);
+		z-index: var(--h-layer-bar);
+		background: var(--h-bg-1);
+	}
+
 	/* the edit bar floats over the scroll container; leave room under the
 	   last widget so nothing hides behind it */
 	.layout.narrow.editing {
@@ -785,8 +816,9 @@
 		min-width: 0;
 	}
 
-	/* room for the floating edit toggle over the foot of the page */
+	/* room for the bottom bar over the foot of the page; the layout's own
+	   padding already holds the home indicator inset */
 	.rail-run.trailing {
-		padding-bottom: 80px; /* literal ok: toggle height plus margin */
+		padding-bottom: 80px; /* literal ok: bottom bar height plus margin */
 	}
 </style>

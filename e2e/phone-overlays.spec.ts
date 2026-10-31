@@ -30,8 +30,17 @@ test.beforeEach(async ({ page }) => {
 
 test.afterEach(() => writeFileSync(HEARTH_FILE, HEARTH_FIXTURE));
 
+/* the edit entry sits in the bottom bar's More menu on a phone */
+async function startEditing(page: Page) {
+	await page
+		.getByRole('navigation', { name: 'Pages' })
+		.getByRole('button', { name: 'More' })
+		.click();
+	await page.getByRole('button', { name: 'Edit dashboard' }).click();
+}
+
 async function openCardEditor(page: Page, title: string) {
-	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await startEditing(page);
 	await page
 		.locator('.card-slot', { hasText: title })
 		.getByRole('button', { name: 'Edit' })
@@ -127,7 +136,7 @@ test('the viewport meta asks the keyboard to resize the page', async ({ page }) 
 });
 
 test('the edit bar publishes its height for the toasts above it', async ({ page }) => {
-	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await startEditing(page);
 	const bar = page.locator('.edit-bar');
 	await expect(bar).toBeVisible();
 	const height = (await bar.boundingBox())!.height;
