@@ -88,12 +88,12 @@
 		/>
 	</SettingsRow>
 	<SettingsRow
-		label={$lang('hearth_clock_in_the_phone_page_strip')}
+		label={$lang('hearth_clock_beside_the_top_page_buttons')}
 		sub={$lang('hearth_shows_the_time_and_date_beside')}
 	>
 		<Switch
 			checked={phoneClock}
-			label={$lang('hearth_clock_in_the_phone_page_strip')}
+			label={$lang('hearth_clock_beside_the_top_page_buttons')}
 			onchange={setPhoneClock}
 		/>
 	</SettingsRow>
