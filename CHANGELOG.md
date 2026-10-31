@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.10.0] - 2026-10-31
+
+### Changed
+
+- Move page tabs, search, edit and screen settings into a bar at the bottom of the phone screen ([#39](https://github.com/knowald/ha-hearth/pull/39))
+- Show the time, date and weather in one row at the top of the phone screen instead of the large clock and weather card ([#39](https://github.com/knowald/ha-hearth/pull/39))
+- Show the clock's AM or PM small on the same line as the time ([#39](https://github.com/knowald/ha-hearth/pull/39))
+- Put the thermostat target between its minus and plus buttons on the temperature card ([#39](https://github.com/knowald/ha-hearth/pull/39))
+- Show the page header readings as plain values instead of boxes ([#39](https://github.com/knowald/ha-hearth/pull/39))
+- Lay out the Settings sheet in label and control rows with a single close button ([#39](https://github.com/knowald/ha-hearth/pull/39))
+- Show whether a This screen setting follows the dashboard, with a link to reset it ([#39](https://github.com/knowald/ha-hearth/pull/39))
+- Group the card types when adding a card and preview the selected one ([#39](https://github.com/knowald/ha-hearth/pull/39))
+- Start new entity and climate cards with entities from the page ([#39](https://github.com/knowald/ha-hearth/pull/39))
+
+### Added
+
+- Choose which readings a page header or header card shows ([#39](https://github.com/knowald/ha-hearth/pull/39))
+
+### Fixed
+
+- Draw a single focus outline on the card search field ([#39](https://github.com/knowald/ha-hearth/pull/39))
+
 ## [0.9.0] - 2026-10-31
 
 ### Added
@@ -295,6 +317,7 @@
 
 - Make blur work everywhere in the application
 
+[0.10.0]: https://github.com/knowald/ha-hearth/releases/tag/0.10.0
 [0.9.0]: https://github.com/knowald/ha-hearth/releases/tag/0.9.0
 [0.8.0]: https://github.com/knowald/ha-hearth/releases/tag/0.8.0
 [0.7.0]: https://github.com/knowald/ha-hearth/releases/tag/0.7.0
