@@ -241,7 +241,7 @@ The energy sidebar widget shows today's total, its cost when a price is set, and
 
 ## Phone page strip
 
-On a wide screen with the sidebar set to None, page buttons run along the top of the page. Settings > Layout and navigation > Clock beside the top page buttons adds the time and a short date at the start of that strip. In YAML it is `phone_clock: true`. It uses the time zone and hour format of the first clock widget in the sidebar, or the browser's when there is none. Phones show the time in their own header instead.
+On a wide screen with the sidebar hidden, page buttons run along the top of the page. Settings > Layout and navigation > Clock beside the top page buttons adds the time and a short date at the start of that strip. In YAML it is `phone_clock: true`. It uses the time zone and hour format of the first clock widget in the sidebar, or the browser's when there is none. Phones show the time in their own header instead.
 
 ## Favorites
 

@@ -875,7 +875,7 @@
 	"hearth_show_more": "Show more",
 	"hearth_show_seconds": "Show seconds",
 	"hearth_shown_while_the_switch_entity_reads": "Shown while the switch entity reads night. This tab previews the night theme.",
-	"hearth_shows_the_time_and_date_beside": "On wide screens with the sidebar set to None, shows the time and date beside the page buttons along the top",
+	"hearth_shows_the_time_and_date_beside": "On wide screens with the sidebar hidden, shows the time and date beside the page buttons along the top",
 	"hearth_side_padding": "Side padding",
 	"hearth_sidebar": "Sidebar",
 	"hearth_sidebar_both": "Left and right",
