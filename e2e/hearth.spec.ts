@@ -204,10 +204,11 @@ test('adds a card and a widget from the galleries', async ({ page }) => {
 	const cardSheet = page.getByRole('dialog', { name: 'Add card' });
 	await expect(cardSheet).toBeVisible();
 	await cardSheet.getByRole('option', { name: /^Entities\b/ }).click();
+	await cardSheet.getByRole('button', { name: 'Add to Office' }).click();
 	await cardSheet.getByRole('button', { name: 'Done' }).click();
-	// a card without entities renders its setup placeholder
+	// the card starts with entities from Home Assistant, so it needs no setup
 	await expect(page.locator('.card-slot')).toHaveCount(3);
-	await expect(page.getByText('Configure Entities')).toBeVisible();
+	await expect(page.getByText('Configure Entities')).toBeHidden();
 
 	await page.getByRole('button', { name: 'Add widget' }).click();
 	const widgetSheet = page.getByRole('dialog', { name: 'Add widget' });

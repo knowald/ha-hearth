@@ -13,6 +13,7 @@ export const headerCard: CardDefinition<HeaderCard> = {
 	name: 'hearth_card_header_name',
 	sub: 'hearth_card_header_sub',
 	icon: 'view_agenda',
+	group: 'information',
 	normalize: (card) => ({
 		title: trimmedOrUndefined(card.title),
 		subtitle: trimmedOrUndefined(card.subtitle),
@@ -31,6 +32,7 @@ export const headerCard: CardDefinition<HeaderCard> = {
 		stats: HeaderStatListSchema,
 		background_image: OptionalText
 	}),
+	draft: ({ pageName }) => ({ title: pageName }),
 	needsConfiguration: () => false,
 	entityIds: (card) => headerStatList(card).map((stat) => stat.entity)
 };

@@ -28,6 +28,7 @@
 
 	let {
 		title,
+		subtitle = undefined,
 		children,
 		onclose,
 		onback,
@@ -54,10 +55,12 @@
 		backKeepsChanges = false
 	}: {
 		title: string;
+		/** Muted words after the title, such as the page a card is added to. */
+		subtitle?: string;
 		children: Snippet;
 		onclose: () => void;
 		onback?: () => void;
-		/** Without it the sheet has no Done button and the close button is its only exit. */
+		/** Without it the header has no Done: the body carries its own action, or the close button is the only exit. */
 		ondone?: () => void;
 		doneDisabled?: boolean;
 		/**
@@ -255,7 +258,9 @@
 					<Icon name="arrow_back" size={ICON.tile} />
 				</button>
 			{/if}
-			<div class="title">{title}</div>
+			<div class="title">
+				{title}{#if subtitle}<span class="subtitle">{subtitle}</span>{/if}
+			</div>
 			{#if tools}
 				<div class="tools">{@render tools()}</div>
 			{/if}
@@ -395,6 +400,14 @@
 		font-weight: 600;
 		letter-spacing: -0.3px;
 		color: var(--h-text-1);
+	}
+
+	.subtitle {
+		margin-left: 10px;
+		font-size: var(--h-type-body);
+		font-weight: 400;
+		letter-spacing: normal;
+		color: var(--h-text-5);
 	}
 
 	.tools {

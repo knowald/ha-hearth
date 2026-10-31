@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import type { OverviewCard } from '../../types';
 import { trimmedOrUndefined } from '../../normalizers';
 import type { CardDefinition } from '../types';
+import { firstEntity } from './draft';
 import { EntityIdSchema, OptionalText } from '../../schema';
 
 export type DaysSinceCard = Extract<OverviewCard, { type: 'days_since' }>;
@@ -12,6 +13,7 @@ export const daysSinceCard: CardDefinition<DaysSinceCard> = {
 	name: 'hearth_card_days_since_name',
 	sub: 'hearth_card_days_since_sub',
 	icon: 'event_repeat',
+	group: 'information',
 	normalize: (card) => ({
 		// the reset writes input_datetime.set_datetime; any other domain cannot hold the date
 		entity: /^input_datetime\..+/.test(trimmedOrUndefined(card.entity) ?? '')
@@ -27,6 +29,7 @@ export const daysSinceCard: CardDefinition<DaysSinceCard> = {
 		title: OptionalText,
 		icon: OptionalText
 	}),
+	draft: ({ entityIds }) => firstEntity(entityIds, 'input_datetime'),
 	needsConfiguration: (card) => !card.entity,
 	entityIds: (card) => (card.entity ? [card.entity] : [])
 };

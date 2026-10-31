@@ -19,10 +19,14 @@ test.beforeEach(async ({ page, request }) => {
 test('a climate card without an entity keeps Done disabled and says why', async ({ page }) => {
 	await page.getByRole('button', { name: 'Add card' }).click();
 	const sheet = page.getByRole('dialog', { name: 'Add card' });
-	await sheet.getByRole('option', { name: /^Climate\b/ }).click();
+	await sheet.getByRole('option', { name: /^Climate\b/ }).dblclick();
 
 	const done = sheet.getByRole('button', { name: 'Done' });
 	const entity = sheet.getByRole('combobox', { name: 'Entity', exact: true });
+	// the gallery's draft starts on a thermostat Home Assistant has
+	await expect(entity).toHaveValue(/^climate\./);
+	await entity.fill('');
+	await entity.press('Tab');
 	await expect(entity).toHaveAttribute('aria-required', 'true');
 	await expect(done).toBeDisabled();
 	await expect(sheet.getByText('Entity is required')).toBeVisible();

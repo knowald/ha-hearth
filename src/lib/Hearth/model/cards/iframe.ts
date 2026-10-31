@@ -12,6 +12,7 @@ export const iframeCard: CardDefinition<IframeCard> = {
 	name: 'hearth_card_iframe_name',
 	sub: 'hearth_card_iframe_sub',
 	icon: 'web',
+	group: 'media',
 	fillByDefault: true,
 	sizable: true,
 	stretchMinHeight: 200,

@@ -1,4 +1,4 @@
-import type { CardDefinition, WidgetDefinition } from './types';
+import type { CardDefinition, CardGroup, WidgetDefinition } from './types';
 import type { OverviewCard, RailWidget } from '../types';
 import { cameraCard } from './cards/camera';
 import { climateCard } from './cards/climate';
@@ -64,6 +64,13 @@ export const WIDGET_DEFINITIONS = [
 	statusWidget,
 	weatherWidget
 ] as const;
+
+/** The add-card gallery's headings, in order. */
+export const CARD_GROUPS: { id: CardGroup; label: string }[] = [
+	{ id: 'devices', label: 'hearth_card_group_devices' },
+	{ id: 'information', label: 'hearth_card_group_information' },
+	{ id: 'media', label: 'hearth_card_group_media' }
+];
 
 export function cardDefinition(type: string): CardDefinition<any> | undefined {
 	return CARD_DEFINITIONS.find((item) => item.type === type);
