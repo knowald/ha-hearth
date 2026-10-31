@@ -24,10 +24,12 @@ export function withCurrent(
 	return [...options, { value, label: fill(lang('hearth_custom_value'), { value: shown }) }];
 }
 
-/** Sleep screen delays in minutes; 0 is off. */
+/** Sleep screen delays in minutes, down to a quarter; 0 is off. */
 export function sleepOptions(lang: Translate): Option[] {
 	return [
 		{ value: '0', label: lang('off') },
+		{ value: '0.25', label: lang('hearth_after_15_seconds') },
+		{ value: '0.5', label: lang('hearth_after_30_seconds') },
 		{ value: '1', label: lang('hearth_after_1_minute') },
 		{ value: '5', label: lang('hearth_after_5_minutes') },
 		{ value: '10', label: lang('hearth_after_10_minutes') },

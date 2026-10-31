@@ -51,6 +51,17 @@ describe('normalizeHearthConfig', () => {
 		).toMatchObject({ screensaver_drift: true, screensaver_brightness: 100 });
 	});
 
+	it('keeps sleep delays in quarter minutes', () => {
+		const minutes = (screensaver_minutes: number) =>
+			normalizeHearthConfig({ rail: [], rooms: [], screensaver_minutes }).screensaver_minutes;
+		expect(minutes(0.25)).toBe(0.25);
+		expect(minutes(0.5)).toBe(0.5);
+		expect(minutes(2.4)).toBe(2.5);
+		expect(minutes(10)).toBe(10);
+		expect(minutes(0.2)).toBeUndefined();
+		expect(minutes(0)).toBeUndefined();
+	});
+
 	it('preserves advanced sleep settings and bounds positions and background brightness', () => {
 		const config = normalizeHearthConfig({
 			rail: [],

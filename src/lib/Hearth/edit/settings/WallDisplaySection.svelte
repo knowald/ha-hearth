@@ -220,7 +220,7 @@
 	});
 
 	function setScreensaver(value: string) {
-		const minutes = integerFromInput(value);
+		const minutes = numberFromInput(value);
 		updateConfig((config) => {
 			config.screensaver_minutes = minutes > 0 ? minutes : undefined;
 		});

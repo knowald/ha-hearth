@@ -7,35 +7,124 @@
 	import { lang } from '$lib/core/i18n';
 	import { derived } from 'svelte/store';
 	import { states } from '$lib/core/ha/entities';
-	import { activeAlerts, hearthEditMode, screensaverActive, sleepNow, wakeScreen } from './store';
+	import {
+		activeAlerts,
+		hearthEditMode,
+		presenceChangesAt,
+		screensaverActive,
+		sleepNow,
+		wakeScreen
+	} from './store';
 	import { layer } from '$lib/ui/layers';
 	import { swallowNextClick } from '$lib/ui/gestures';
 	import Scene from './screensaver/Scene.svelte';
 
 	/*
 	 * Without minutes the screensaver never arms itself and shows only on
-	 * preview. With a presence sensor the screen goes black while the sensor
-	 * is off, and comes back to the sleep screen (or, without minutes, the
-	 * dashboard) once it turns on.
+	 * preview. With a presence sensor the screen goes black, or with `dim`
+	 * shows a dimmed sleep screen, once the sensor has been off for `delayMs`,
+	 * and comes back to the sleep screen (or, without minutes, the dashboard)
+	 * once it turns on. Both changes take `fadeMs`.
 	 */
-	let { minutes, presence }: { minutes?: number; presence?: string } = $props();
+	let {
+		minutes,
+		presence,
+		fadeMs = 0,
+		delayMs = 0,
+		dim = false
+	}: {
+		minutes?: number;
+		presence?: string;
+		fadeMs?: number;
+		delayMs?: number;
+		dim?: boolean;
+	} = $props();
 
 	// an awake screen nobody touches goes black this long after the sensor turns off
 	const ABSENT_IDLE_MS = 60_000;
 
 	let active = $state(false);
-	// showing plain black instead of the sleep screen
+	// showing what nobody-around looks like, plain black or dimmed, instead of the sleep screen
 	let blank = $state(false);
 
-	// only a sensor that says off counts; unavailable or unknown keeps the screen as it is
-	let absent = $derived(!!presence && $states?.[presence]?.state === 'off');
+	let fadeDuration = $derived($motion ? fadeMs : 0);
+	// the sleep screen stays under the blackout while it fades in
+	let covering = $state(false);
+	let coverTimer: ReturnType<typeof setTimeout>;
+	// the sensor, not a tap, ended the blackout, so the wake fades as slowly as it went
+	let arrived = $state(false);
+
+	/*
+	 * Only on and off are readings: on means someone is around, off for
+	 * `delayMs` means nobody is, and anything else (unavailable, unknown, not
+	 * loaded yet) leaves the screen as it is. Once nobody is around, only on
+	 * ends it, so a longer delay or a restart's fresh last_changed does not wake
+	 * the screen. The wait runs from Home Assistant's last_changed, so a reload
+	 * does not start it over; a stamp ahead of this clock, or none, counts as now.
+	 */
+	let reading = $derived(presence ? $states?.[presence]?.state : undefined);
+	let offStamp = $derived(
+		presence && reading === 'off' ? ($states?.[presence]?.last_changed ?? '') : undefined
+	);
+	let absent = $state(false);
 
 	$effect(() => {
-		if ($sleepNow) {
-			active = true;
-			blank = false;
+		if (!presence || reading === 'on') absent = false;
+		if (offStamp === undefined) return;
+		const now = Date.now();
+		const changed = Date.parse(offStamp);
+		const changesAt = Math.min(Number.isFinite(changed) ? changed : now, now) + delayMs;
+		if (changesAt <= now) {
+			absent = true;
+			return;
 		}
+		if (untrack(() => absent)) return;
+		presenceChangesAt.set(changesAt);
+		const timer = setTimeout(() => (absent = true), changesAt - now);
+		return () => {
+			clearTimeout(timer);
+			presenceChangesAt.set(undefined);
+		};
 	});
+
+	$effect(() => {
+		if (!$sleepNow) return;
+		// a sleep action asks for the dashboard to go, not for a lit screen in an empty room
+		if ($sleepNow === 'action' && untrack(() => absent)) {
+			untrack(blackOut);
+			return;
+		}
+		arrived = false;
+		active = true;
+		blank = false;
+	});
+
+	$effect(() => {
+		if (blank) return;
+		clearTimeout(coverTimer);
+		covering = false;
+	});
+
+	$effect(() => () => clearTimeout(coverTimer));
+
+	function blackOut() {
+		clearTimeout(idleTimer);
+		if (active && !blank && !dim && fadeDuration) {
+			covering = true;
+			coverTimer = setTimeout(() => (covering = false), fadeDuration);
+		}
+		arrived = false;
+		active = true;
+		blank = true;
+	}
+
+	/*
+	 * One transition both ways, so the sensor flapping mid-fade reverses it
+	 * instead of restarting from transparent. Svelte reads these when a fade
+	 * starts: in while `active` is already true, out once it is false.
+	 */
+	const wakeIn = () => (blank ? fadeDuration : $motion ? MOTION.theme * 2 : 0);
+	const wakeOut = () => (arrived ? fadeDuration : $motion ? MOTION.fast : 0);
 
 	$effect(() => {
 		screensaverActive.set(active);
@@ -43,6 +132,8 @@
 	});
 
 	let lastActivity = Date.now();
+	// the last touch or key, unlike lastActivity, which waking and loading also set
+	let lastInput = -Infinity;
 	let idleTimer: ReturnType<typeof setTimeout>;
 	// an alert card on screen must stay readable, so the idle clock waits for it
 	let alertShowing = false;
@@ -67,28 +158,33 @@
 		idleState = 'armed';
 		const remaining = Math.max(0, wait - (Date.now() - lastActivity));
 		idleTimer = setTimeout(() => {
+			arrived = false;
 			active = true;
 			blank = absent;
 		}, remaining);
 	}
 
 	/*
-	 * The sensor turning off blacks the screen out at once, over the sleep
-	 * screen too, unless an alert or an edit session holds it. Turning on
-	 * brings back what was asleep, and the dashboard when the sleep screen is
-	 * off. A preview shows the sleep screen whatever the sensor says.
+	 * Nobody being around blacks or dims the screen out at once, over the sleep
+	 * screen too, unless an alert or an edit session holds it, or, with a delay
+	 * set, a touch within the last minute; the idle timer then does it a minute
+	 * after the last use.
+	 * Turning on brings back what was asleep, and the dashboard when the sleep
+	 * screen is off and no sleep action asked for it. A preview shows the sleep
+	 * screen whatever the sensor says.
 	 */
 	function presenceChanged(nowAbsent: boolean) {
 		if (nowAbsent) {
-			if (alertShowing || editing || $sleepNow === 'preview') scheduleIdle();
-			else {
-				clearTimeout(idleTimer);
-				active = true;
-				blank = true;
-			}
+			// the idle timer only runs awake, so a sleep screen goes dark at once
+			const touched = !active && delayMs > 0 && Date.now() - lastInput < ABSENT_IDLE_MS;
+			if (alertShowing || editing || touched || $sleepNow === 'preview') scheduleIdle();
+			else blackOut();
 		} else if (blank) {
-			if (minutes) blank = false;
-			else hide();
+			if (minutes || $sleepNow === 'action') blank = false;
+			else {
+				arrived = true;
+				hide();
+			}
 		} else scheduleIdle();
 	}
 
@@ -101,17 +197,19 @@
 	 * Published on <html> for custom CSS and for the browser tests, which can
 	 * only tell "stays awake" from "has not loaded yet" by it: armed (the idle
 	 * timer runs), held (an alert or an edit session pauses it), off (no
-	 * timeout, preview only), asleep or blank (black while nobody is around).
+	 * timeout, preview only), asleep, blank (black while nobody is around) or
+	 * dimmed (the dimmed sleep screen instead).
 	 */
 	$effect(() => {
 		const root = document.documentElement;
-		root.dataset.sleepTimer = active ? (blank ? 'blank' : 'asleep') : idleState;
+		root.dataset.sleepTimer = active ? (blank ? (dim ? 'dimmed' : 'blank') : 'asleep') : idleState;
 		return () => delete root.dataset.sleepTimer;
 	});
 
 	// pointermove fires continuously, so cap timestamp writes to one per second
 	function recordActivity() {
 		const stamp = Date.now();
+		lastInput = stamp;
 		if (stamp - lastActivity < 1000) return;
 		lastActivity = stamp;
 		scheduleIdle();
@@ -132,13 +230,14 @@
 		event.preventDefault();
 		event.stopPropagation();
 		if (event.type === 'pointerdown') swallowNextClick();
+		lastInput = Date.now();
 		hide();
 	}
 
 	$effect(() => {
 		const events = ['pointerdown', 'pointermove', 'keydown', 'touchstart'] as const;
 		for (const name of events) window.addEventListener(name, recordActivity, { passive: true });
-		scheduleIdle();
+		untrack(scheduleIdle);
 		return () => {
 			for (const name of events) window.removeEventListener(name, recordActivity);
 			clearTimeout(idleTimer);
@@ -160,7 +259,7 @@
 		hearthEditMode.subscribe((next) => {
 			if (editing && !next) lastActivity = Date.now();
 			editing = next;
-			scheduleIdle();
+			untrack(scheduleIdle);
 		})
 	);
 
@@ -170,7 +269,7 @@
 			([$alerts, $editing]) => !$editing && $alerts.some((alert) => alert.popup)
 		).subscribe((showing) => {
 			alertShowing = showing;
-			scheduleIdle();
+			untrack(scheduleIdle);
 		})
 	);
 </script>
@@ -186,14 +285,16 @@
 		tabindex="-1"
 		role="button"
 		aria-label={$lang('hearth_dismiss_screensaver')}
-		in:fade={{ duration: $motion ? MOTION.theme * 2 : 0, easing: cubicOut }}
-		out:fade={{ duration: $motion ? MOTION.fast : 0 }}
+		transition:fade={{ duration: active ? wakeIn() : wakeOut(), easing: cubicOut }}
 		onpointerdown={dismiss}
 		onkeydown={dismiss}
 		use:layer={{ close: hide, initialFocus: true }}
 	>
-		{#if !blank}
+		{#if !blank || covering || dim}
 			<Scene {active} preview={$sleepNow === 'preview'} />
+		{/if}
+		{#if blank}
+			<div class="blackout" class:dim transition:fade={{ duration: fadeDuration }}></div>
 		{/if}
 	</div>
 {/if}
@@ -205,5 +306,16 @@
 		z-index: var(--h-layer-screensaver);
 		outline: none;
 		background: #000 /* literal ok: pure black for OLED, every pixel off */;
+	}
+
+	.blackout {
+		position: absolute;
+		inset: 0;
+		background: #000 /* literal ok: pure black for OLED, every pixel off */;
+	}
+
+	/* the fade runs to this opacity, leaving the sleep screen at a third of its brightness */
+	.blackout.dim {
+		opacity: 0.67;
 	}
 </style>

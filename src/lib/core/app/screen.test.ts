@@ -22,6 +22,9 @@ describe('parseScreenOverrides', () => {
 					haptics: true,
 					mute_chimes: true,
 					presence_entity: 'binary_sensor.hallway',
+					presence_fade_seconds: 5,
+					presence_delay_minutes: 2,
+					presence_view: 'dim',
 					unknown: 1
 				})
 			)
@@ -33,7 +36,10 @@ describe('parseScreenOverrides', () => {
 			locale: 'de-CH',
 			haptics: true,
 			mute_chimes: true,
-			presence_entity: 'binary_sensor.hallway'
+			presence_entity: 'binary_sensor.hallway',
+			presence_fade_seconds: 5,
+			presence_delay_minutes: 2,
+			presence_view: 'dim'
 		});
 	});
 
@@ -44,6 +50,12 @@ describe('parseScreenOverrides', () => {
 		expect(parseScreenOverrides(JSON.stringify({ locale: '../etc' }))).toEqual({});
 		expect(parseScreenOverrides(JSON.stringify({ pixel_shift: 'true' }))).toEqual({});
 		expect(parseScreenOverrides(JSON.stringify({ presence_entity: 'hallway' }))).toEqual({});
+		expect(parseScreenOverrides(JSON.stringify({ presence_fade_seconds: 61 }))).toEqual({});
+		expect(parseScreenOverrides(JSON.stringify({ screensaver_minutes: 0.3 }))).toEqual({});
+		expect(parseScreenOverrides(JSON.stringify({ presence_view: 'grey' }))).toEqual({});
+		expect(parseScreenOverrides(JSON.stringify({ screensaver_minutes: 0.5 }))).toEqual({
+			screensaver_minutes: 0.5
+		});
 	});
 });
 

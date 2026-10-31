@@ -4,10 +4,18 @@ import { get } from 'svelte/store';
 import type { HassConfig, HassEntities } from 'home-assistant-js-websocket';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { motion } from '$lib/core/app/motion';
+import { MOTION } from '$lib/core/theme';
 import { config as haConfig } from '$lib/core/ha/connection';
 import { states } from '$lib/core/ha/entities';
 import { DEFAULT_HEARTH_CONFIG, type HearthConfig } from './config';
-import { activeAlerts, hearthConfig, hearthEditMode, requestWake, sleepNow } from './store';
+import {
+	activeAlerts,
+	hearthConfig,
+	hearthEditMode,
+	presenceChangesAt,
+	requestWake,
+	sleepNow
+} from './store';
 import Screensaver from './Screensaver.svelte';
 import Scene from './screensaver/Scene.svelte';
 import { sequenceResume } from './screensaver/photos';
@@ -363,12 +371,23 @@ describe('Screensaver', () => {
 		expect(container.querySelector('.screensaver-content.clock-large')).not.toBeNull();
 		expect(container.querySelector('.weather')?.textContent).toContain('18°');
 	});
+	it('sleeps after 15 seconds', async () => {
+		const { container } = render(Screensaver, { minutes: 0.25 });
+		vi.advanceTimersByTime(14_999);
+		await tick();
+		expect(container.querySelector('.screensaver')).toBeNull();
+		vi.advanceTimersByTime(1);
+		await tick();
+		expect(container.querySelector('.screensaver')).not.toBeNull();
+	});
+
 	describe('presence sensor', () => {
 		const SENSOR = 'binary_sensor.hallway';
 
-		function sense(state: string) {
+		function sense(state: string, changedAgoMs = 0) {
+			const last_changed = new Date(Date.now() - changedAgoMs).toISOString();
 			states.set({
-				[SENSOR]: { entity_id: SENSOR, state, attributes: {} }
+				[SENSOR]: { entity_id: SENSOR, state, attributes: {}, last_changed }
 			} as unknown as HassEntities);
 		}
 
@@ -462,6 +481,196 @@ describe('Screensaver', () => {
 			await tick();
 			expect(overlay(container)).toBeNull();
 			expect(sleepTimer()).toBe('off');
+		});
+
+		it('fades a showing sleep screen to black and back over the fade', async () => {
+			motion.set(MOTION.base);
+			sense('on');
+			const { container } = render(Screensaver, { minutes: 1, presence: SENSOR, fadeMs: 3000 });
+			vi.advanceTimersByTime(60_000);
+			await tick();
+			sense('off');
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+			expect(container.querySelector('.blackout')).not.toBeNull();
+			// the sleep screen stays under the blackout until it has faded in
+			expect(container.querySelector('.clock')).not.toBeNull();
+			vi.advanceTimersByTime(2_999);
+			await tick();
+			expect(container.querySelector('.clock')).not.toBeNull();
+			vi.advanceTimersByTime(1);
+			await tick();
+			expect(container.querySelector('.clock')).toBeNull();
+			sense('on');
+			await tick();
+			expect(container.querySelector('.clock')).not.toBeNull();
+			expect(sleepTimer()).toBe('asleep');
+		});
+
+		it('keeps the sleep screen when someone arrives during the fade', async () => {
+			motion.set(MOTION.base);
+			sense('on');
+			const { container } = render(Screensaver, { minutes: 1, presence: SENSOR, fadeMs: 3000 });
+			vi.advanceTimersByTime(60_000);
+			await tick();
+			sense('off');
+			await tick();
+			vi.advanceTimersByTime(1_000);
+			sense('on');
+			await tick();
+			vi.advanceTimersByTime(5_000);
+			await tick();
+			expect(container.querySelector('.clock')).not.toBeNull();
+			expect(sleepTimer()).toBe('asleep');
+		});
+
+		it('never shows the sleep screen when an awake dashboard fades to black', async () => {
+			motion.set(MOTION.base);
+			sense('on');
+			const { container } = render(Screensaver, { minutes: 5, presence: SENSOR, fadeMs: 3000 });
+			await tick();
+			sense('off');
+			await tick();
+			expect(overlay(container)).not.toBeNull();
+			expect(container.querySelector('.clock')).toBeNull();
+		});
+
+		it('waits for the sensor to read off for the delay', async () => {
+			sense('on');
+			const { container } = render(Screensaver, { presence: SENSOR, delayMs: 120_000 });
+			sense('off');
+			await tick();
+			vi.advanceTimersByTime(119_999);
+			await tick();
+			expect(overlay(container)).toBeNull();
+			vi.advanceTimersByTime(1);
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+		});
+
+		it('starts no blackout when someone moves again within the delay', async () => {
+			sense('on');
+			const { container } = render(Screensaver, { presence: SENSOR, delayMs: 120_000 });
+			sense('off');
+			await tick();
+			vi.advanceTimersByTime(60_000);
+			sense('on');
+			await tick();
+			vi.advanceTimersByTime(120_000);
+			await tick();
+			expect(overlay(container)).toBeNull();
+		});
+
+		it('counts the delay from when the sensor last changed', async () => {
+			sense('off', 5 * 60_000);
+			render(Screensaver, { presence: SENSOR, delayMs: 120_000 });
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+		});
+
+		it('dims the sleep screen instead of going black', async () => {
+			sense('on');
+			const { container } = render(Screensaver, { minutes: 5, presence: SENSOR, dim: true });
+			sense('off');
+			await tick();
+			expect(sleepTimer()).toBe('dimmed');
+			expect(container.querySelector('.clock')).not.toBeNull();
+			expect(container.querySelector('.blackout.dim')).not.toBeNull();
+			sense('on');
+			await tick();
+			expect(sleepTimer()).toBe('asleep');
+			expect(container.querySelector('.blackout')).toBeNull();
+		});
+
+		it('stays black when the sensor drops out or restarts while nobody is around', async () => {
+			sense('off');
+			const { container } = render(Screensaver, { minutes: 5, presence: SENSOR });
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+			sense('unavailable');
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+			expect(container.querySelector('.clock')).toBeNull();
+			// a restart brings the sensor back off with a fresh last_changed
+			sense('off');
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+		});
+
+		it('stays black when the delay grows while nobody is around', async () => {
+			sense('off', 60_000);
+			const view = render(Screensaver, { presence: SENSOR, delayMs: 0 });
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+			await view.rerender({ presence: SENSOR, delayMs: 5 * 60_000 });
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+		});
+
+		it('publishes when the wait ends for the status line', async () => {
+			sense('on');
+			render(Screensaver, { presence: SENSOR, delayMs: 120_000 });
+			sense('off');
+			await tick();
+			expect(get(presenceChangesAt)).toBe(Date.now() + 120_000);
+			sense('on');
+			await tick();
+			expect(get(presenceChangesAt)).toBeUndefined();
+		});
+
+		it('blacks out a sleep screen that started soon after a touch', async () => {
+			sense('on');
+			render(Screensaver, { minutes: 0.25, presence: SENSOR, delayMs: 30_000 });
+			await tick();
+			window.dispatchEvent(new Event('pointerdown'));
+			vi.advanceTimersByTime(15_000);
+			await tick();
+			expect(sleepTimer()).toBe('asleep');
+			sense('off');
+			vi.advanceTimersByTime(30_000);
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+		});
+
+		it('with a delay, waits a minute after the last touch before going black', async () => {
+			sense('on');
+			const { container } = render(Screensaver, { presence: SENSOR, delayMs: 30_000 });
+			await tick();
+			sense('off');
+			await tick();
+			vi.advanceTimersByTime(20_000);
+			window.dispatchEvent(new Event('pointerdown'));
+			vi.advanceTimersByTime(10_000);
+			await tick();
+			expect(overlay(container)).toBeNull();
+			expect(sleepTimer()).toBe('armed');
+			vi.advanceTimersByTime(50_000);
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+		});
+
+		it('keeps a sleep action black while nobody is around, and shows the sleep screen on arrival', async () => {
+			sense('off');
+			const { container } = render(Screensaver, { presence: SENSOR, dim: false });
+			await tick();
+			sleepNow.set('action');
+			await tick();
+			expect(sleepTimer()).toBe('blank');
+			expect(container.querySelector('.clock')).toBeNull();
+			sense('on');
+			await tick();
+			expect(sleepTimer()).toBe('asleep');
+			expect(container.querySelector('.clock')).not.toBeNull();
+		});
+
+		it('shows the sleep screen for a sleep action while someone is around', async () => {
+			sense('on');
+			const { container } = render(Screensaver, { presence: SENSOR });
+			await tick();
+			sleepNow.set('action');
+			await tick();
+			expect(sleepTimer()).toBe('asleep');
+			expect(container.querySelector('.clock')).not.toBeNull();
 		});
 
 		it('still previews the sleep screen while nobody is around', async () => {
