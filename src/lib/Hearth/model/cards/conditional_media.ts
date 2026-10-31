@@ -1,6 +1,7 @@
 import * as v from 'valibot';
 import type { OverviewCard } from '../../types';
 import type { CardDefinition } from '../types';
+import { inDomains } from './draft';
 import { EntityIdSchema, optionalNumberAtLeast } from '../../schema';
 
 export type ConditionalMediaCard = Extract<OverviewCard, { type: 'conditional_media' }>;
@@ -11,6 +12,7 @@ export const conditionalMediaCard: CardDefinition<ConditionalMediaCard> = {
 	name: 'hearth_card_conditional_media_name',
 	sub: 'hearth_card_conditional_media_sub',
 	icon: 'play_circle',
+	group: 'media',
 	fillByDefault: true,
 	sizable: true,
 	normalize: (card) => ({
@@ -26,6 +28,10 @@ export const conditionalMediaCard: CardDefinition<ConditionalMediaCard> = {
 		media_players: v.optional(v.array(EntityIdSchema, 'must be a list of entity ids')),
 		timeout: optionalNumberAtLeast(0)
 	}),
+	draft: ({ entityIds }) => {
+		const players = inDomains(entityIds, ['media_player'], 3);
+		return players.length ? { media_players: players } : undefined;
+	},
 	needsConfiguration: (card) => card.media_players.length === 0,
 	entityIds: (card) => card.media_players
 };

@@ -3,6 +3,7 @@ import type { MediaShortcut, OverviewCard } from '../../types';
 import { MediaShortcutSchema, OptionalEntityId, OptionalText } from '../../schema';
 import { trimmedOrUndefined } from '../../normalizers';
 import type { CardDefinition } from '../types';
+import { firstEntity } from './draft';
 
 export type MediaCard = Extract<OverviewCard, { type: 'media' }>;
 
@@ -12,6 +13,7 @@ export const mediaCard: CardDefinition<MediaCard> = {
 	name: 'hearth_card_media_name',
 	sub: 'hearth_card_media_sub',
 	icon: 'music_note',
+	group: 'media',
 	fillByDefault: true,
 	sizable: true,
 	stretchMinHeight: 140,
@@ -35,6 +37,7 @@ export const mediaCard: CardDefinition<MediaCard> = {
 		shortcuts: v.optional(v.array(MediaShortcutSchema, 'must be a list')),
 		default_device: OptionalText
 	}),
+	draft: ({ entityIds }) => firstEntity(entityIds, 'media_player'),
 	needsConfiguration: (card) => !card.entity,
 	entityIds: (card) => (card.entity ? [card.entity] : [])
 };

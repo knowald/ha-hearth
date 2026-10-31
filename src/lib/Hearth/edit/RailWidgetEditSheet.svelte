@@ -51,6 +51,8 @@
 	);
 	// svelte-ignore state_referenced_locally
 	let typeOpen = $state(index === null);
+	// a new widget's gallery is the whole sheet: picking a type is its only way on
+	let choosing = $derived(index === null && typeOpen);
 	let draft = $state<WidgetDraft<RailWidget>>({ fields: {} as WidgetDraft<RailWidget>['fields'] });
 
 	let descriptor = $derived(widgetDescriptor(type));
@@ -291,16 +293,18 @@
 <EditSheet
 	title={$lang(index !== null ? 'hearth_edit_widget' : 'hearth_add_widget')}
 	onclose={close}
-	ondone={done}
+	ondone={choosing ? undefined : done}
 	{dirty}
 	doneDisabled={typeOpen || (mode === 'yaml' ? yamlIssue !== null : draft.valid === false)}
-	doneReason={typeOpen
-		? null
-		: mode === 'yaml'
-			? yamlIssue && $lang('hearth_fix_the_yaml')
-			: draft.valid === false
-				? (draft.reason ?? $lang('hearth_fix_marked_fields'))
-				: null}
+	doneReason={choosing
+		? undefined
+		: typeOpen
+			? null
+			: mode === 'yaml'
+				? yamlIssue && $lang('hearth_fix_the_yaml')
+				: draft.valid === false
+					? (draft.reason ?? $lang('hearth_fix_marked_fields'))
+					: null}
 	onremove={initial ? remove : undefined}
 	onmoveup={initial ? () => move(-1) : undefined}
 	onmovedown={initial ? () => move(1) : undefined}

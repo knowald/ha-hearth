@@ -12,6 +12,7 @@ export const headerCard: CardDefinition<HeaderCard> = {
 	name: 'hearth_card_header_name',
 	sub: 'hearth_card_header_sub',
 	icon: 'view_agenda',
+	group: 'information',
 	normalize: (card) => ({
 		title: trimmedOrUndefined(card.title),
 		subtitle: trimmedOrUndefined(card.subtitle),
@@ -28,6 +29,7 @@ export const headerCard: CardDefinition<HeaderCard> = {
 		humidity_entity: OptionalEntityId,
 		background_image: OptionalText
 	}),
+	draft: ({ pageName }) => ({ title: pageName }),
 	needsConfiguration: () => false,
 	entityIds: (card) => [
 		...(card.temp_entity ? [card.temp_entity] : []),

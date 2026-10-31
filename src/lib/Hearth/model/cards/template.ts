@@ -12,6 +12,7 @@ export const templateCard: CardDefinition<TemplateCard> = {
 	name: 'hearth_card_template_name',
 	sub: 'hearth_card_template_sub',
 	icon: 'code',
+	group: 'information',
 	normalize: (card) => {
 		const entities = (Array.isArray(card.entities) ? card.entities : [])
 			.map(trimmedOrUndefined)

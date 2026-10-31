@@ -181,7 +181,7 @@ test('a stack is framed and its chip stays clear of its cards', async ({ page })
 	// drop a card in so there is a card chip to stay clear of
 	await stack.getByRole('button', { name: 'Add card' }).click();
 	const sheet = page.getByRole('dialog', { name: 'Add card' });
-	await sheet.getByRole('option', { name: /^Entities\b/ }).click();
+	await sheet.getByRole('option', { name: /^Entities\b/ }).dblclick();
 	await sheet.getByRole('button', { name: 'Done' }).click();
 	const stackChip = (await stack.locator('.group-label .chip').boundingBox())!;
 	const cardChip = (await stack.locator('.card-slot .chip').boundingBox())!;

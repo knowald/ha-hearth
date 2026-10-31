@@ -2,6 +2,7 @@ import * as v from 'valibot';
 import type { OverviewCard } from '../../types';
 import { normalizeVerdict, trimmedOrUndefined } from '../../normalizers';
 import type { CardDefinition } from '../types';
+import { inDomains } from './draft';
 import { OptionalText, OptionalEntityId, VerdictBandsSchema } from '../../schema';
 
 export type TemperatureCard = Extract<OverviewCard, { type: 'temperature' }>;
@@ -12,6 +13,7 @@ export const temperatureCard: CardDefinition<TemperatureCard> = {
 	name: 'hearth_card_temperature_name',
 	sub: 'hearth_card_temperature_sub',
 	icon: 'monitoring',
+	group: 'information',
 	fillByDefault: true,
 	sizable: true,
 	stretchMinHeight: 110,
@@ -26,6 +28,13 @@ export const temperatureCard: CardDefinition<TemperatureCard> = {
 		climate_entity: OptionalEntityId,
 		verdict: v.optional(v.union([v.literal(false), VerdictBandsSchema], 'must be false or bands'))
 	}),
+	// entity ids carry no device class; the name is the cheap tell
+	draft: ({ entityIds }) => {
+		const entity = inDomains(entityIds, ['sensor']).find((entityId) =>
+			entityId.includes('temperature')
+		);
+		return entity ? { entity } : undefined;
+	},
 	needsConfiguration: (card) => !card.entity,
 	entityIds: (card) => [
 		...(card.entity ? [card.entity] : []),

@@ -3,6 +3,7 @@ import { EntityRefListSchema, OptionalEntityId, OptionalFlag, OptionalText } fro
 import type { EntityRef, OverviewCard } from '../../types';
 import { normalizeEntityRef, trimmedOrUndefined } from '../../normalizers';
 import type { CardDefinition } from '../types';
+import { inDomains } from './draft';
 
 export type EntitiesCard = Extract<OverviewCard, { type: 'entities' }>;
 
@@ -12,6 +13,7 @@ export const entitiesCard: CardDefinition<EntitiesCard> = {
 	name: 'hearth_card_entities_name',
 	sub: 'hearth_card_entities_sub',
 	icon: 'grid_view',
+	group: 'devices',
 	previewReorder: true,
 	normalize: (card) => ({
 		entities: (Array.isArray(card.entities) ? card.entities : [])
@@ -55,6 +57,12 @@ export const entitiesCard: CardDefinition<EntitiesCard> = {
 		summary_entity: OptionalEntityId,
 		entities: v.optional(EntityRefListSchema)
 	}),
+	// lights first: what a new grid on a room page most often holds
+	draft: ({ entityIds }) => {
+		const lights = inDomains(entityIds, ['light'], 4);
+		const tiles = lights.length ? lights : inDomains(entityIds, ['switch', 'fan', 'cover'], 4);
+		return tiles.length ? { entities: tiles.map((entity) => ({ entity })) } : undefined;
+	},
 	needsConfiguration: (card) => card.entities.length === 0 && !card.wildcard?.trim(),
 	entityIds: (card) => [
 		...card.entities.map((ref) => ref.entity),

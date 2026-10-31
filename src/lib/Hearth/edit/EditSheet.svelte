@@ -28,6 +28,7 @@
 
 	let {
 		title,
+		subtitle = undefined,
 		children,
 		onclose,
 		onback,
@@ -54,10 +55,13 @@
 		backKeepsChanges = false
 	}: {
 		title: string;
+		/** Muted words after the title, such as the page a card is added to. */
+		subtitle?: string;
 		children: Snippet;
 		onclose: () => void;
 		onback?: () => void;
-		ondone: () => void;
+		/** Without it the header has no Done; the body carries its own action. */
+		ondone?: () => void;
 		doneDisabled?: boolean;
 		/**
 		 * Why Done is disabled, shown under it while it is. A sheet that can
@@ -253,7 +257,9 @@
 					<Icon name="arrow_back" size={ICON.tile} />
 				</button>
 			{/if}
-			<div class="title">{title}</div>
+			<div class="title">
+				{title}{#if subtitle}<span class="subtitle">{subtitle}</span>{/if}
+			</div>
 			{#if tools}
 				<div class="tools">{@render tools()}</div>
 			{/if}
@@ -285,16 +291,18 @@
 					{/if}
 				</div>
 			{/if}
-			<button
-				type="button"
-				class="hearth-button primary pressable"
-				disabled={doneDisabled}
-				aria-describedby={describedBy(`${uid}-done`, undefined, undefined, blockedReason)}
-				use:Ripple={PRESS_RIPPLE}
-				onclick={() => !doneDisabled && ondone()}
-			>
-				{doneLabel ?? $lang('done')}
-			</button>
+			{#if ondone}
+				<button
+					type="button"
+					class="hearth-button primary pressable"
+					disabled={doneDisabled}
+					aria-describedby={describedBy(`${uid}-done`, undefined, undefined, blockedReason)}
+					use:Ripple={PRESS_RIPPLE}
+					onclick={() => !doneDisabled && ondone()}
+				>
+					{doneLabel ?? $lang('done')}
+				</button>
+			{/if}
 			<CloseButton onclick={close} />
 		</div>
 		{#if doneReason !== undefined}
@@ -391,6 +399,14 @@
 		font-weight: 600;
 		letter-spacing: -0.3px;
 		color: var(--h-text-1);
+	}
+
+	.subtitle {
+		margin-left: 10px;
+		font-size: var(--h-type-body);
+		font-weight: 400;
+		letter-spacing: normal;
+		color: var(--h-text-5);
 	}
 
 	.tools {
