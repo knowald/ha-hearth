@@ -11,6 +11,8 @@ import { clamp, markPending, service, setControlOverride, throttled } from '../h
 export interface LightView {
 	availability: EntityAvailability;
 	on: boolean;
+	/** false only when the light reports on/off as its sole color mode */
+	dimmable: boolean;
 	level: number;
 	colorCss: string | null;
 	mode: 'temp' | 'color';
@@ -41,6 +43,14 @@ export function lightViewFor(
 				? overrideActive > 0
 				: entity?.state === 'on');
 
+	// a light without supported_color_modes keeps the brightness controls
+	const colorModes: unknown = attributes.supported_color_modes;
+	const dimmable = !(
+		Array.isArray(colorModes) &&
+		colorModes.length > 0 &&
+		colorModes.every((mode) => mode === 'onoff')
+	);
+
 	const rgb: [number, number, number] | undefined = attributes.rgb_color;
 	const colorMode: string | undefined = attributes.color_mode;
 	const colorCss =
@@ -62,6 +72,7 @@ export function lightViewFor(
 	return {
 		availability,
 		on,
+		dimmable,
 		level,
 		colorCss,
 		mode: colorCss ? 'color' : 'temp',

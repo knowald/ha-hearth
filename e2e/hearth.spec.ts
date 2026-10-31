@@ -108,6 +108,35 @@ test('a horizontal drag sets brightness from the release point', async ({ page, 
 	await expect(tile).toContainText('%');
 });
 
+test('an on/off-only light ignores the drag and its sheet has no brightness', async ({
+	page,
+	request
+}) => {
+	await request.post(`${FAKE_HASS}/_test/state`, {
+		data: {
+			entity_id: 'light.desk',
+			state: 'on',
+			attributes: { color_mode: 'onoff', supported_color_modes: ['onoff'], brightness: null }
+		}
+	});
+	const tile = page.getByRole('button', { name: /Desk lamp/ });
+	await expect(tile).toContainText('On');
+	await dragAcross(page, tile, 0.15, 0.7);
+	await page.mouse.up();
+	await page.waitForTimeout(500);
+	expect(
+		(await callsFor(request, 'light.desk')).filter((call) => call.service === 'turn_on')
+	).toEqual([]);
+	const box = await tile.boundingBox();
+	if (!box) throw new Error('tile has no box');
+	await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+	await page.mouse.down();
+	await page.waitForTimeout(700);
+	await page.mouse.up();
+	await expect(page.getByRole('switch', { name: 'Toggle light' })).toBeVisible();
+	await expect(page.getByText('Brightness')).toHaveCount(0);
+});
+
 test('a cancelled gesture sends nothing in release mode', async ({ page, request }) => {
 	const tile = page.getByRole('button', { name: /Shelf lamp/ });
 	await dragAcross(page, tile, 0.2, 0.9);

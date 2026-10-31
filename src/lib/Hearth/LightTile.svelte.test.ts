@@ -66,4 +66,27 @@ describe('LightTile', () => {
 		await fireEvent.keyDown(tile, { key: 'Enter' });
 		expect(toggleLight).not.toHaveBeenCalled();
 	});
+
+	it('treats an on/off-only light as a switch: full fill, On, tap toggles', async () => {
+		states.set({
+			'light.chamber': hassEntity('light.chamber', 'on', {
+				friendly_name: 'Chamber',
+				color_mode: 'onoff',
+				supported_color_modes: ['onoff']
+			})
+		});
+		const { container } = render(LightTile, { entity: 'light.chamber' });
+		const fill = container.querySelector<HTMLElement>('.fill');
+		expect(fill?.style.width).toBe('100%');
+		expect(screen.getByText('On')).toBeTruthy();
+		await fireEvent.click(screen.getByRole('button'));
+		expect(toggleLight).toHaveBeenCalledWith('light.chamber');
+	});
+
+	it('keeps the brightness fill for a light without supported_color_modes', () => {
+		states.set({ 'light.desk': hassEntity('light.desk', 'on', { brightness: 128 }) });
+		const { container } = render(LightTile, { entity: 'light.desk' });
+		expect(container.querySelector<HTMLElement>('.fill')?.style.width).toBe('50%');
+		expect(screen.getByText('50%')).toBeTruthy();
+	});
 });

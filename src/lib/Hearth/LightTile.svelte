@@ -76,6 +76,8 @@
 	// the tile's own tap, hold and drag; without them a configured action can
 	// still make the tile tappable
 	let ownControls = $derived(!readonly && controllable);
+	// an on/off-only light has no brightness to drag, so it taps and holds like a switch
+	let dragControls = $derived(ownControls && view.dimmable);
 	let customHold = $derived(actionRuns(holdAction, readonly));
 	let interactive = $derived(
 		$hearthEditMode || ownControls || actionRuns(tapAction, readonly) || customHold
@@ -122,7 +124,7 @@
 	onclick={() => {
 		if ($hearthEditMode) onedit?.();
 		// with the drag off, the click is the tap
-		else if (!ownControls) tap();
+		else if (!dragControls) tap();
 	}}
 	onkeydown={(event) =>
 		activateOnKeyboard(event, () => {
@@ -136,16 +138,20 @@
 		tap,
 		hold: holdAction?.action === 'none' ? undefined : hold,
 		deferOnTouch: customHold,
-		disabled: $hearthEditMode || !ownControls,
+		disabled: $hearthEditMode || !dragControls,
 		ignore: '.tune'
 	}}
 	use:longPress={{
 		hold,
 		deferOnTouch: true,
-		disabled: $hearthEditMode || ownControls || !customHold || holdAction?.action === 'none'
+		disabled:
+			$hearthEditMode ||
+			dragControls ||
+			!(customHold || ownControls) ||
+			holdAction?.action === 'none'
 	}}
 >
-	<div class="fill" style:width="{view.on ? view.level : 0}%"></div>
+	<div class="fill" style:width="{view.on ? (view.dimmable ? view.level : 100) : 0}%"></div>
 	<div class="content">
 		<TileIcon
 			name={icon || 'lightbulb'}
@@ -158,7 +164,13 @@
 			<div class="name">{label}</div>
 			<div class="state">
 				{templatedState ??
-					(available ? (view.on ? `${view.level}%` : capitalize($lang('off'))) : availabilityText)}
+					(available
+						? view.on
+							? view.dimmable
+								? `${view.level}%`
+								: capitalize($lang('on'))
+							: capitalize($lang('off'))
+						: availabilityText)}
 			</div>
 		</div>
 	</div>

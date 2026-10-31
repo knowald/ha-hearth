@@ -64,6 +64,14 @@ describe('Hearth store view helpers', () => {
 		).toMatchObject({ availability: 'unavailable', on: false, level: 0 });
 	});
 
+	it('marks a light dimmable unless on/off is its only color mode', () => {
+		const view = (attributes: Record<string, unknown>) =>
+			lightViewFor('light.desk', { 'light.desk': { state: 'on', attributes } } as any, {});
+		expect(view({ supported_color_modes: ['onoff'] }).dimmable).toBe(false);
+		expect(view({ supported_color_modes: ['brightness'] }).dimmable).toBe(true);
+		expect(view({}).dimmable).toBe(true);
+	});
+
 	it('renders discrete active-state overrides without lying about unavailable entities', () => {
 		expect(
 			entityActiveFor('switch.desk', { state: 'off' } as any, { 'active:switch.desk': 1 })

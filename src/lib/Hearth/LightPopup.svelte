@@ -69,102 +69,104 @@
 	}
 </script>
 
-<PopupSlider
-	label={$lang('hearth_brightness')}
-	icon="light_mode"
-	value={view.on ? view.level : 0}
-	variant="amber"
-	updateMode={sliderUpdates}
-	onchange={(value, commit) => setLightLevel(entity, value, commit)}
-/>
+{#if view.dimmable}
+	<PopupSlider
+		label={$lang('hearth_brightness')}
+		icon="light_mode"
+		value={view.on ? view.level : 0}
+		variant="amber"
+		updateMode={sliderUpdates}
+		onchange={(value, commit) => setLightLevel(entity, value, commit)}
+	/>
 
-<div class="presets">
-	{#each [25, 50, 100] as preset (preset)}
-		<div
-			class="preset pressable"
-			use:Ripple={PRESS_RIPPLE}
-			use:pressFeedback={entity}
-			onclick={() => selectPreset(preset)}
-			role="button"
-			tabindex="0"
-			onkeydown={(event) => activateOnKeyboard(event, () => selectPreset(preset))}
-		>
-			{preset}%
-		</div>
-	{/each}
-</div>
-
-<div class="color-header">
-	<div class="color-label">{$lang('hearth_color')}</div>
-	<div class="tabs">
-		<div
-			class="tab pressable"
-			class:active={mode === 'temp'}
-			onclick={() => (tabChoice = 'temp')}
-			role="button"
-			tabindex="0"
-			onkeydown={(event) => activateOnKeyboard(event, () => (tabChoice = 'temp'))}
-		>
-			{$lang('color_temp')}
-		</div>
-		<div
-			class="tab pressable"
-			class:active={mode === 'color'}
-			onclick={() => (tabChoice = 'color')}
-			role="button"
-			tabindex="0"
-			onkeydown={(event) => activateOnKeyboard(event, () => (tabChoice = 'color'))}
-		>
-			{$lang('color')}
-		</div>
-		{#if supportsWhite}
+	<div class="presets">
+		{#each [25, 50, 100] as preset (preset)}
 			<div
-				class="tab pressable"
-				class:active={mode === 'white'}
+				class="preset pressable"
+				use:Ripple={PRESS_RIPPLE}
 				use:pressFeedback={entity}
-				onclick={selectWhite}
+				onclick={() => selectPreset(preset)}
 				role="button"
 				tabindex="0"
-				onkeydown={(event) => activateOnKeyboard(event, selectWhite)}
+				onkeydown={(event) => activateOnKeyboard(event, () => selectPreset(preset))}
 			>
-				{$lang('hearth_white')}
+				{preset}%
 			</div>
-		{/if}
-	</div>
-</div>
-
-{#if mode === 'temp'}
-	<div
-		class="temp-bar"
-		use:horizontalDrag={{
-			set: (value, commit) => setLightTemp(entity, value, commit),
-			updateMode: sliderUpdates
-		}}
-	>
-		<div class="temp-thumb" style:left="calc({view.tempPct}% - 9px)"></div>
-	</div>
-	<div class="temp-labels">
-		<span>{$lang('hearth_candle')}</span>
-		<span class="kelvin">{kelvinLabel}</span>
-		<span>{$lang('hearth_daylight')}</span>
-	</div>
-{:else if mode === 'color'}
-	<div class="swatches">
-		{#each SWATCH_COLORS as swatch (swatch)}
-			<div
-				class="swatch pressable"
-				class:selected={swatchSelected(swatch)}
-				style:background={swatch}
-				use:pressFeedback={entity}
-				onclick={() => setLightColor(entity, swatch)}
-				role="button"
-				tabindex="0"
-				aria-label={`${$lang('color')} ${swatch}`}
-				aria-pressed={swatchSelected(swatch)}
-				onkeydown={(event) => activateOnKeyboard(event, () => setLightColor(entity, swatch))}
-			></div>
 		{/each}
 	</div>
+
+	<div class="color-header">
+		<div class="color-label">{$lang('hearth_color')}</div>
+		<div class="tabs">
+			<div
+				class="tab pressable"
+				class:active={mode === 'temp'}
+				onclick={() => (tabChoice = 'temp')}
+				role="button"
+				tabindex="0"
+				onkeydown={(event) => activateOnKeyboard(event, () => (tabChoice = 'temp'))}
+			>
+				{$lang('color_temp')}
+			</div>
+			<div
+				class="tab pressable"
+				class:active={mode === 'color'}
+				onclick={() => (tabChoice = 'color')}
+				role="button"
+				tabindex="0"
+				onkeydown={(event) => activateOnKeyboard(event, () => (tabChoice = 'color'))}
+			>
+				{$lang('color')}
+			</div>
+			{#if supportsWhite}
+				<div
+					class="tab pressable"
+					class:active={mode === 'white'}
+					use:pressFeedback={entity}
+					onclick={selectWhite}
+					role="button"
+					tabindex="0"
+					onkeydown={(event) => activateOnKeyboard(event, selectWhite)}
+				>
+					{$lang('hearth_white')}
+				</div>
+			{/if}
+		</div>
+	</div>
+
+	{#if mode === 'temp'}
+		<div
+			class="temp-bar"
+			use:horizontalDrag={{
+				set: (value, commit) => setLightTemp(entity, value, commit),
+				updateMode: sliderUpdates
+			}}
+		>
+			<div class="temp-thumb" style:left="calc({view.tempPct}% - 9px)"></div>
+		</div>
+		<div class="temp-labels">
+			<span>{$lang('hearth_candle')}</span>
+			<span class="kelvin">{kelvinLabel}</span>
+			<span>{$lang('hearth_daylight')}</span>
+		</div>
+	{:else if mode === 'color'}
+		<div class="swatches">
+			{#each SWATCH_COLORS as swatch (swatch)}
+				<div
+					class="swatch pressable"
+					class:selected={swatchSelected(swatch)}
+					style:background={swatch}
+					use:pressFeedback={entity}
+					onclick={() => setLightColor(entity, swatch)}
+					role="button"
+					tabindex="0"
+					aria-label={`${$lang('color')} ${swatch}`}
+					aria-pressed={swatchSelected(swatch)}
+					onkeydown={(event) => activateOnKeyboard(event, () => setLightColor(entity, swatch))}
+				></div>
+			{/each}
+		</div>
+	{/if}
 {/if}
 
 {#if effectList.length}
