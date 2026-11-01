@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.1] - 2026-11-01
+
+### Fixed
+
+- Switch lights without brightness on and off with a tap, and show them as On instead of a percentage ([`15e7393`](https://github.com/knowald/ha-hearth/commit/15e7393))
+
 ## [0.10.0] - 2026-10-31
 
 ### Changed
@@ -317,6 +323,7 @@
 
 - Make blur work everywhere in the application
 
+[0.10.1]: https://github.com/knowald/ha-hearth/releases/tag/0.10.1
 [0.10.0]: https://github.com/knowald/ha-hearth/releases/tag/0.10.0
 [0.9.0]: https://github.com/knowald/ha-hearth/releases/tag/0.9.0
 [0.8.0]: https://github.com/knowald/ha-hearth/releases/tag/0.8.0
