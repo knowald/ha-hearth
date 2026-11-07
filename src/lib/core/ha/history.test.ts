@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { callService } from 'home-assistant-js-websocket';
 import type { Connection } from 'home-assistant-js-websocket';
 import { connection, health } from './connection';
-import { cachedData, callServiceForResult, startDataRefresh } from './history';
+import {
+	cachedData,
+	callServiceForResponse,
+	callServiceForResult,
+	startDataRefresh
+} from './history';
 
 vi.mock('home-assistant-js-websocket', async (importOriginal) => ({
 	...(await importOriginal<typeof import('home-assistant-js-websocket')>()),
@@ -46,6 +51,35 @@ describe('callServiceForResult', () => {
 		health.set('degraded');
 		vi.mocked(callService).mockResolvedValueOnce({ response: { result: 1 } } as never);
 		expect(await callServiceForResult('spotifyplus', 'x', {})).toBe(1);
+	});
+});
+
+describe('callServiceForResponse', () => {
+	it('returns the whole response, unwrapped by nothing, and null when there is none', async () => {
+		connection.set({} as Connection);
+		health.set('connected');
+		vi.mocked(callService).mockResolvedValueOnce({
+			response: { 'media_player.kitchen': [{ queue_item_id: 'a' }] }
+		} as never);
+		expect(
+			await callServiceForResponse('mass_queue', 'get_queue_items', {
+				entity: 'media_player.kitchen'
+			})
+		).toEqual({ 'media_player.kitchen': [{ queue_item_id: 'a' }] });
+		// a top-level `result` key is data here, not a wrapper
+		vi.mocked(callService).mockResolvedValueOnce({ response: { result: 1 } } as never);
+		expect(await callServiceForResponse('x', 'y', {})).toEqual({ result: 1 });
+		vi.mocked(callService).mockResolvedValueOnce(undefined as never);
+		expect(await callServiceForResponse('x', 'y', {})).toBeNull();
+		expect(callService).toHaveBeenLastCalledWith({}, 'x', 'y', {}, undefined, true);
+	});
+
+	it('throws instead of asking while the websocket is down', async () => {
+		await expect(callServiceForResponse('mass_queue', 'x', {})).rejects.toThrow(/Not connected/);
+		connection.set({} as Connection);
+		health.set('lost');
+		await expect(callServiceForResponse('mass_queue', 'x', {})).rejects.toThrow(/Not connected/);
+		expect(callService).not.toHaveBeenCalled();
 	});
 });
 

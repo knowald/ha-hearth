@@ -2,13 +2,16 @@ import { get } from 'svelte/store';
 import { services } from '$lib/core/ha/connection';
 import { states } from '$lib/core/ha/entities';
 import { callEntityService } from '$lib/core/ha/commands';
-import { callServiceForResult } from '$lib/core/ha/history';
+import { callServiceForResponse, callServiceForResult } from '$lib/core/ha/history';
 
 export interface QueueTrack {
 	name: string;
 	artist: string;
+	/** seconds; 0 when the source does not say */
 	duration: number;
 	uri: string;
+	/** a Music Assistant queue item, which a tap can play */
+	id?: string;
 }
 
 export interface MediaPlaylist {
@@ -27,6 +30,60 @@ export function hasSpotifyPlus(attributes: Record<string, unknown>): boolean {
 /** A SpotifyPlus lookup; the integration answers with a loosely shaped mapping. */
 function spotifyPlusCall(name: string, data: Record<string, unknown>): Promise<any> {
 	return callServiceForResult('spotifyplus', name, data);
+}
+
+/** Whether the entity is a Music Assistant player. */
+export function isMusicAssistant(attributes: Record<string, unknown>): boolean {
+	return typeof attributes.mass_player_type === 'string';
+}
+
+/** How many tracks the queue panel asks for; it shows up to 20. */
+const QUEUE_LIMIT = 20;
+
+/** One item of mass_queue's answer; every field is read defensively. */
+interface MassQueueItem {
+	queue_item_id?: unknown;
+	media_title?: unknown;
+	media_artist?: unknown;
+	media_content_id?: unknown;
+}
+
+/**
+ * The tracks after the current one in a Music Assistant queue, through
+ * mass_queue. Its answer does not mark the current item, so it is found by the
+ * player's `media_content_id`; with one item asked for before it, the current
+ * item is the first or the second. When neither matches, the whole answer is
+ * shown rather than guessing.
+ */
+export async function fetchMassQueue(
+	entityId: string,
+	currentContentId: unknown
+): Promise<QueueTrack[] | null> {
+	try {
+		const response = (await callServiceForResponse('mass_queue', 'get_queue_items', {
+			entity: entityId,
+			limit_before: 1,
+			limit_after: QUEUE_LIMIT
+		})) as Record<string, unknown> | null;
+		const items = response?.[entityId];
+		if (!Array.isArray(items)) return null;
+		const queue = items as (MassQueueItem | null | undefined)[];
+		const matches = (index: number) =>
+			typeof currentContentId === 'string' &&
+			currentContentId !== '' &&
+			queue[index]?.media_content_id === currentContentId;
+		const current = matches(1) ? 1 : matches(0) ? 0 : -1;
+		return queue.slice(current + 1).map((item) => ({
+			name: String(item?.media_title ?? ''),
+			artist: String(item?.media_artist ?? ''),
+			duration: 0,
+			uri: String(item?.media_content_id ?? ''),
+			id: typeof item?.queue_item_id === 'string' ? item.queue_item_id : undefined
+		}));
+	} catch (error) {
+		console.error(error);
+		return null;
+	}
 }
 
 export async function fetchMediaQueue(entityId: string): Promise<QueueTrack[] | null> {

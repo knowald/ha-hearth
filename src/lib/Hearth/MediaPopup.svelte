@@ -5,6 +5,7 @@
 	import { lang, fill } from '$lib/core/i18n';
 	import { activateOnKeyboard } from './interaction';
 	import { states } from '$lib/core/ha/entities';
+	import { services } from '$lib/core/ha/connection';
 	import { timer } from '$lib/core/app/clock';
 	import { horizontalDrag } from './drag';
 	import {
@@ -13,8 +14,10 @@
 		playSpotifyUri,
 		type LibraryItem,
 		type LibraryKind,
+		fetchMassQueue,
 		fetchMediaQueue,
 		hasSpotifyPlus,
+		isMusicAssistant,
 		type MediaPlaylist,
 		type QueueTrack
 	} from './media';
@@ -24,6 +27,7 @@
 		controlOverrides,
 		controlValueFor,
 		pendingEntities,
+		service,
 		setControlOverride
 	} from '$lib/core/ha/commands';
 	import {
@@ -64,6 +68,10 @@
 	let now = $derived(playing ? $timer.getTime() : 0);
 
 	let spotify = $derived(hasSpotifyPlus(attributes));
+	// a Music Assistant player's queue comes through the mass_queue integration
+	let massQueue = $derived(
+		!spotify && isMusicAssistant(attributes) && Boolean($services?.mass_queue?.get_queue_items)
+	);
 
 	let appLabel = $derived(
 		attributes.app_name ??
@@ -113,19 +121,33 @@
 		tracks: undefined,
 		artists: undefined
 	});
-	let queue = $state<QueueTrack[] | null>(null);
+	// undefined: loading, null: the request failed, list: loaded
+	let queue = $state<QueueTrack[] | null | undefined>(undefined);
 	let playlists = $state<MediaPlaylist[] | null>(null);
 	let queueRequest = 0;
 
-	// refetch the queue whenever the playing item changes
-	$effect(() => {
-		if (!spotify) return;
-		void attributes.media_content_id;
+	function loadQueue(contentId: unknown) {
 		const request = ++queueRequest;
-		fetchMediaQueue(entity).then((tracks) => {
+		const tracks = spotify ? fetchMediaQueue(entity) : fetchMassQueue(entity, contentId);
+		tracks.then((tracks) => {
 			if (request === queueRequest) queue = tracks;
 		});
+	}
+
+	// refetch the queue whenever the playing item changes
+	$effect(() => {
+		if (!spotify && !massQueue) return;
+		loadQueue(attributes.media_content_id);
 	});
+
+	function retryQueue() {
+		queue = undefined;
+		loadQueue(attributes.media_content_id);
+	}
+
+	function playQueueItem(id: string) {
+		void service('mass_queue', 'play_queue_item', { entity, queue_item_id: id });
+	}
 
 	function openPlaylists() {
 		if (pane === 'playlists') {
@@ -298,18 +320,41 @@
 			</div>
 			<div class="panel-list">
 				{#if pane === 'queue'}
-					{#if !spotify}
+					{#if !spotify && !massQueue}
 						<div class="panel-empty">{$lang('hearth_queue_not_available_for_this_player')}</div>
-					{:else if queue === null}
+					{:else if queue === undefined}
 						<LoadingState inline text={$lang('hearth_loading_queue')} />
+					{:else if queue === null}
+						<button type="button" class="retry" onclick={retryQueue}>
+							{$lang('hearth_retry')}
+						</button>
 					{:else if queue.length === 0}
 						<div class="panel-empty">{$lang('hearth_queue_is_empty')}</div>
 					{:else}
 						{#each queue.slice(0, 20) as track, index (track.uri + index)}
-							<div class="queue-item" class:next={index === 0}>
-								<span class="queue-name">{track.name}</span>
-								<span class="queue-time">{formatTime(track.duration)}</span>
-							</div>
+							{@const id = track.id}
+							{#if id}
+								<div
+									class="queue-item pressable"
+									class:next={index === 0}
+									onclick={() => playQueueItem(id)}
+									role="button"
+									tabindex="0"
+									onkeydown={(event) => activateOnKeyboard(event, () => playQueueItem(id))}
+								>
+									<span class="queue-name">{track.name}</span>
+									{#if track.artist}
+										<span class="queue-artist">{track.artist}</span>
+									{/if}
+								</div>
+							{:else}
+								<div class="queue-item" class:next={index === 0}>
+									<span class="queue-name">{track.name}</span>
+									{#if track.duration}
+										<span class="queue-time">{formatTime(track.duration)}</span>
+									{/if}
+								</div>
+							{/if}
 						{/each}
 					{/if}
 				{:else if pane === 'playlists'}
@@ -711,6 +756,20 @@
 
 	.queue-item.next .queue-name {
 		color: var(--h-on-art-1);
+	}
+
+	.queue-item.pressable {
+		cursor: pointer;
+	}
+
+	.queue-artist {
+		flex: 0 1 40%;
+		font-size: var(--h-type-label);
+		color: var(--h-on-art-3);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		text-align: right;
 	}
 
 	.queue-time {

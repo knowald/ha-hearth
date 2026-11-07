@@ -41,6 +41,23 @@ export async function callServiceForResult(
 	return response?.response?.result ?? null;
 }
 
+/**
+ * Calls a service that answers with data and returns its whole response, null
+ * when it has none. Same rules as callServiceForResult, for integrations that
+ * do not wrap their answer in `result` (mass_queue answers keyed by entity).
+ */
+export async function callServiceForResponse(
+	domain: string,
+	service: string,
+	data: Record<string, unknown>
+): Promise<unknown> {
+	const conn = requireConnection();
+	if (!socketOpen()) throw new Error('Not connected to Home Assistant');
+	const response = (await callService(conn, domain, service, data, undefined, true)) as
+		{ response?: unknown } | undefined;
+	return response?.response ?? null;
+}
+
 export type StatisticPeriod = '5minute' | 'hour' | 'day' | 'week' | 'month';
 
 export interface StatisticRow {
