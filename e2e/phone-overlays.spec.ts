@@ -80,6 +80,34 @@ test('the media sheet gives the track the full width and stacks the queue under 
 	expect(hit).toBe(true);
 });
 
+test('a tap on the media card opens the full player, and its own controls do not', async ({
+	page
+}) => {
+	const card = page.locator('.card:has(.open-hit)');
+	const sheet = page.getByRole('dialog', { name: 'Living room speaker' });
+
+	// the text lets the tap through to the card, so tap where the title is
+	const title = (await card.locator('.title').boundingBox())!;
+	await page.touchscreen.tap(title.x + title.width / 2, title.y + title.height / 2);
+	await expect(sheet).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(sheet).toBeHidden();
+
+	// the transport, the seek bar and Open controls sit above the tap area
+	for (const control of ['.play', '.progress', '.tune']) {
+		const box = (await card.locator(control).boundingBox())!;
+		const hit = await page.evaluate(
+			({ x, y }) =>
+				document.elementFromPoint(x, y)?.closest('.play, .progress, .tune, .open-hit')?.className ??
+				'nothing',
+			{ x: box.x + box.width / 2, y: box.y + box.height / 2 }
+		);
+		expect(hit, control).toContain(control.slice(1));
+	}
+	await card.locator('.play').tap();
+	await expect(sheet).toBeHidden();
+});
+
 test.describe('at 320px', () => {
 	test.use({ viewport: { width: 320, height: 640 } });
 
