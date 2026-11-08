@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import LoadingState from './LoadingState.svelte';
 	import EmptyState from './EmptyState.svelte';
 	import { ICON } from './iconSizes';
@@ -15,6 +16,7 @@
 		type LibraryItem,
 		type LibraryKind,
 		fetchMassQueue,
+		trimQueueTo,
 		fetchMediaQueue,
 		hasSpotifyPlus,
 		isMusicAssistant,
@@ -128,6 +130,9 @@
 
 	function loadQueue(contentId: unknown) {
 		const request = ++queueRequest;
+		// a Music Assistant queue is trimmed to the new track at once, so the row
+		// that just started can't be tapped as "next" while the refresh is in flight
+		if (!spotify) untrack(() => (queue = trimQueueTo(queue, contentId)));
 		const tracks = spotify ? fetchMediaQueue(entity) : fetchMassQueue(entity, contentId);
 		tracks.then((tracks) => {
 			if (request === queueRequest) queue = tracks;

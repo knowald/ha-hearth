@@ -108,6 +108,39 @@ describe('MediaPopup queue', () => {
 		expect(screen.getByRole('button', { name: /Three/ })).toBeTruthy();
 	});
 
+	it('never leaves the track that just started tappable as next while the refresh is in flight', async () => {
+		maPlayer('x://1');
+		vi.mocked(callService).mockResolvedValueOnce(queueAnswer('One', 'Two', 'Three') as never);
+		render(MediaPopup, { entity: PLAYER, name: 'Kitchen' });
+		await screen.findByRole('button', { name: /Two/ });
+
+		// the refresh hangs until the test releases it
+		let release: (value: unknown) => void = () => {};
+		vi.mocked(callService).mockReturnValueOnce(
+			new Promise((resolve) => (release = resolve)) as never
+		);
+		maPlayer('x://2', { media_title: 'Two' });
+		await waitFor(() => expect(screen.queryByRole('button', { name: /Two/ })).toBeNull());
+		expect(screen.getByRole('button', { name: /Three/ })).toBeTruthy();
+		expect(screen.queryByText(/Loading queue/)).toBeNull();
+
+		release(queueAnswer('One', 'Two', 'Three', 'Four'));
+		expect(await screen.findByRole('button', { name: /Four/ })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: /Two/ })).toBeNull();
+	});
+
+	it('shows loading, not the old list, after a jump to a track that was not up next', async () => {
+		maPlayer('x://1');
+		vi.mocked(callService).mockResolvedValueOnce(queueAnswer('One', 'Two', 'Three') as never);
+		render(MediaPopup, { entity: PLAYER, name: 'Kitchen' });
+		await screen.findByRole('button', { name: /Two/ });
+
+		vi.mocked(callService).mockReturnValueOnce(new Promise(() => {}) as never);
+		maPlayer('x://9', { media_title: 'Elsewhere' });
+		expect(await screen.findByText(/Loading queue/)).toBeTruthy();
+		expect(screen.queryByRole('button', { name: /Two|Three/ })).toBeNull();
+	});
+
 	it('offers Retry when the queue could not be read, and loads it from there', async () => {
 		maPlayer('x://1');
 		vi.mocked(callService).mockRejectedValueOnce(new Error('Service not found'));

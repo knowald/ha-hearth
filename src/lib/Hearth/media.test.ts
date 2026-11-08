@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { callService, type Connection } from 'home-assistant-js-websocket';
 import { connection, health } from '$lib/core/ha/connection';
-import { fetchMassQueue, fetchMediaQueue, isMusicAssistant } from './media';
+import { fetchMassQueue, fetchMediaQueue, isMusicAssistant, trimQueueTo } from './media';
 
 vi.mock('home-assistant-js-websocket', async (importOriginal) => ({
 	...(await importOriginal<typeof import('home-assistant-js-websocket')>()),
@@ -141,5 +141,39 @@ describe('fetchMediaQueue', () => {
 		expect(await fetchMediaQueue('media_player.spotifyplus_will')).toEqual([
 			{ name: 'So What', artist: 'Miles Davis', duration: 562, uri: 's:1' }
 		]);
+	});
+});
+
+describe('trimQueueTo', () => {
+	const rows = [
+		{ name: 'Two', artist: '', duration: 0, uri: 'x://2', id: 'b' },
+		{ name: 'Three', artist: '', duration: 0, uri: 'x://3', id: 'c' },
+		{ name: 'Four', artist: '', duration: 0, uri: 'x://4', id: 'd' }
+	];
+
+	it('keeps only the rows after the new current track', () => {
+		expect(trimQueueTo(rows, 'x://2')?.map((row) => row.id)).toEqual(['c', 'd']);
+		expect(trimQueueTo(rows, 'x://3')?.map((row) => row.id)).toEqual(['d']);
+	});
+
+	it('is empty when the new track was the last row', () => {
+		expect(trimQueueTo(rows, 'x://4')).toEqual([]);
+	});
+
+	it('shows loading rather than a stale list when the new track is not among the rows', () => {
+		expect(trimQueueTo(rows, 'x://9')).toBeUndefined();
+		for (const missing of [undefined, null, '', 7])
+			expect(trimQueueTo(rows, missing)).toBeUndefined();
+	});
+
+	it('leaves nothing to trim when no list was shown', () => {
+		expect(trimQueueTo(undefined, 'x://2')).toBeUndefined();
+		expect(trimQueueTo(null, 'x://2')).toBeUndefined();
+		expect(trimQueueTo([], 'x://2')).toBeUndefined();
+	});
+
+	it('trims at the first match when a track is queued twice', () => {
+		const twice = [...rows, { name: 'Two again', artist: '', duration: 0, uri: 'x://2', id: 'e' }];
+		expect(trimQueueTo(twice, 'x://2')?.map((row) => row.id)).toEqual(['c', 'd', 'e']);
 	});
 });

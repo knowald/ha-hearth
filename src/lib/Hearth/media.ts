@@ -86,6 +86,22 @@ export async function fetchMassQueue(
 	}
 }
 
+/**
+ * What Up next can show the moment the track changes, before the refresh
+ * lands: the rows after the new current track, or undefined (loading) when
+ * that track isn't among them, so a stale row is never left to tap.
+ */
+export function trimQueueTo(
+	tracks: QueueTrack[] | null | undefined,
+	currentContentId: unknown
+): QueueTrack[] | undefined {
+	if (!Array.isArray(tracks) || typeof currentContentId !== 'string' || !currentContentId) {
+		return undefined;
+	}
+	const current = tracks.findIndex((track) => track.uri === currentContentId);
+	return current === -1 ? undefined : tracks.slice(current + 1);
+}
+
 export async function fetchMediaQueue(entityId: string): Promise<QueueTrack[] | null> {
 	try {
 		const result = await spotifyPlusCall('get_player_queue_info', { entity_id: entityId });
