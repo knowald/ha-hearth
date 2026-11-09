@@ -52,8 +52,14 @@ interface MassQueueItem {
  * The tracks after the current one in a Music Assistant queue, through
  * mass_queue. Its answer does not mark the current item, so it is found by the
  * player's `media_content_id`; with one item asked for before it, the current
- * item is the first or the second. When neither matches, the whole answer is
- * shown rather than guessing.
+ * item is the first or the second. At the head of a queue the answer starts AT
+ * the current item (mass_queue clamps the window to 0), and nothing tells that
+ * apart from a previous item, so when both match the first is taken: [A, A, B]
+ * keeps the real next A. The cost is the reverse case, the same track played
+ * twice in a row while on the second copy, which then lists the current track
+ * as next. When neither matches, the whole answer is shown rather than guessing.
+ * The answer is keyed by the entity asked about (mass_queue 0.10.3, also for a
+ * synced group member); an answer with exactly one other key is read as ours.
  */
 export async function fetchMassQueue(
 	entityId: string,
@@ -65,14 +71,15 @@ export async function fetchMassQueue(
 			limit_before: 1,
 			limit_after: QUEUE_LIMIT
 		})) as Record<string, unknown> | null;
-		const items = response?.[entityId];
+		const keys = response ? Object.keys(response) : [];
+		const items = response?.[entityId] ?? (keys.length === 1 ? response?.[keys[0]] : undefined);
 		if (!Array.isArray(items)) return null;
 		const queue = items as (MassQueueItem | null | undefined)[];
 		const matches = (index: number) =>
 			typeof currentContentId === 'string' &&
 			currentContentId !== '' &&
 			queue[index]?.media_content_id === currentContentId;
-		const current = matches(1) ? 1 : matches(0) ? 0 : -1;
+		const current = matches(0) ? 0 : matches(1) ? 1 : -1;
 		return queue.slice(current + 1).map((item) => ({
 			name: String(item?.media_title ?? ''),
 			artist: String(item?.media_artist ?? ''),

@@ -33,12 +33,10 @@ export async function callServiceForResult(
 	service: string,
 	data: Record<string, unknown>
 ): Promise<unknown> {
-	const conn = requireConnection();
-	// the connection object survives reconnects; health is the truth
-	if (!socketOpen()) throw new Error('Not connected to Home Assistant');
-	const response = (await callService(conn, domain, service, data, undefined, true)) as
-		{ response?: { result?: unknown } } | undefined;
-	return response?.response?.result ?? null;
+	const response = (await callServiceForResponse(domain, service, data)) as {
+		result?: unknown;
+	} | null;
+	return response?.result ?? null;
 }
 
 /**
@@ -52,6 +50,7 @@ export async function callServiceForResponse(
 	data: Record<string, unknown>
 ): Promise<unknown> {
 	const conn = requireConnection();
+	// the connection object survives reconnects; health is the truth
 	if (!socketOpen()) throw new Error('Not connected to Home Assistant');
 	const response = (await callService(conn, domain, service, data, undefined, true)) as
 		{ response?: unknown } | undefined;

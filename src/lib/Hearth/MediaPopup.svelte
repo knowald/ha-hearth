@@ -139,15 +139,20 @@
 		});
 	}
 
+	// `attributes` is a new object on every player update (volume, position,
+	// shuffle...), so the effect reads the id through its own derived value: a
+	// derived primitive only notifies when it actually changes
+	let contentId = $derived(attributes.media_content_id);
+
 	// refetch the queue whenever the playing item changes
 	$effect(() => {
 		if (!spotify && !massQueue) return;
-		loadQueue(attributes.media_content_id);
+		loadQueue(contentId);
 	});
 
 	function retryQueue() {
 		queue = undefined;
-		loadQueue(attributes.media_content_id);
+		loadQueue(contentId);
 	}
 
 	function playQueueItem(id: string) {

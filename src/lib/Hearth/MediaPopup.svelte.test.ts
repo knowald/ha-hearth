@@ -5,6 +5,7 @@ import { connection, health, services } from '$lib/core/ha/connection';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import { setCommandGate } from '$lib/core/ha/commands';
+import { tick } from 'svelte';
 import MediaPopup from './MediaPopup.svelte';
 
 vi.mock('home-assistant-js-websocket', async (importOriginal) => ({
@@ -139,6 +140,35 @@ describe('MediaPopup queue', () => {
 		maPlayer('x://9', { media_title: 'Elsewhere' });
 		expect(await screen.findByText(/Loading queue/)).toBeTruthy();
 		expect(screen.queryByRole('button', { name: /Two|Three/ })).toBeNull();
+	});
+
+	it('asks again only when the track changes, not on volume or position updates', async () => {
+		maPlayer('x://1');
+		vi.mocked(callService).mockResolvedValueOnce(queueAnswer('One', 'Two', 'Three') as never);
+		render(MediaPopup, { entity: PLAYER, name: 'Kitchen' });
+		await screen.findByRole('button', { name: /Two/ });
+		const asked = () =>
+			vi.mocked(callService).mock.calls.filter((call) => call[2] === 'get_queue_items').length;
+		expect(asked()).toBe(1);
+
+		// a volume drag, a position tick, shuffle: every update is a new attributes object
+		for (const attributes of [
+			{ volume_level: 0.2 },
+			{ volume_level: 0.35 },
+			{ media_position: 42 },
+			{ shuffle: true }
+		]) {
+			maPlayer('x://1', attributes);
+			await tick();
+			expect(screen.queryByText(/Loading queue/)).toBeNull();
+		}
+		expect(asked()).toBe(1);
+		expect(screen.getByRole('button', { name: /Two/ })).toBeTruthy();
+
+		// a real track change still refreshes
+		vi.mocked(callService).mockResolvedValueOnce(queueAnswer('One', 'Two', 'Three') as never);
+		maPlayer('x://2', { media_title: 'Two' });
+		await waitFor(() => expect(asked()).toBe(2));
 	});
 
 	it('offers Retry when the queue could not be read, and loads it from there', async () => {

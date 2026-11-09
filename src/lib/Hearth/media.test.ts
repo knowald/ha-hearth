@@ -83,9 +83,23 @@ describe('fetchMassQueue', () => {
 		expect((await fetchMassQueue(PLAYER, 'x://1'))?.map((track) => track.id)).toEqual(['b']);
 	});
 
-	it('takes the second match when the same track repeats around the current one', async () => {
+	it('keeps a track queued twice in a row: the first match is the current one', async () => {
+		// at the head of a queue mass_queue's answer starts AT the current item, and
+		// nothing marks which one is current, so [A, A, B] keeps the real next A
 		answer([item('a', 'Same', 'x://1'), item('b', 'Same', 'x://1'), item('c', 'Next', 'x://2')]);
-		expect((await fetchMassQueue(PLAYER, 'x://1'))?.map((track) => track.id)).toEqual(['c']);
+		expect((await fetchMassQueue(PLAYER, 'x://1'))?.map((track) => track.id)).toEqual(['b', 'c']);
+	});
+
+	it("reads the only list in an answer keyed by another entity, such as a group's leader", async () => {
+		vi.mocked(callService).mockResolvedValueOnce({
+			response: { 'media_player.leader': [item('a', 'One', 'x://1'), item('b', 'Two', 'x://2')] }
+		} as never);
+		expect((await fetchMassQueue(PLAYER, 'x://1'))?.map((track) => track.id)).toEqual(['b']);
+		// two lists and neither is ours: not a guess worth making
+		vi.mocked(callService).mockResolvedValueOnce({
+			response: { 'media_player.a': [item('a', 'One', 'x://1')], 'media_player.b': [] }
+		} as never);
+		expect(await fetchMassQueue(PLAYER, 'x://1')).toBeNull();
 	});
 
 	it('shows the whole answer rather than guess when the current item is not in it', async () => {
@@ -112,8 +126,9 @@ describe('fetchMassQueue', () => {
 	});
 
 	it('is null when the answer has no list for this player, or the call fails', async () => {
+		// one other key is read as ours (the group-leader fallback); two are not
 		vi.mocked(callService).mockResolvedValueOnce({
-			response: { 'media_player.other': [] }
+			response: { 'media_player.other': [], 'media_player.another': [] }
 		} as never);
 		expect(await fetchMassQueue(PLAYER, 'x://1')).toBeNull();
 		vi.mocked(callService).mockResolvedValueOnce(undefined as never);
