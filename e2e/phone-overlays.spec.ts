@@ -104,8 +104,37 @@ test('a tap on the media card opens the full player, and its own controls do not
 		);
 		expect(hit, control).toContain(control.slice(1));
 	}
-	await card.locator('.play').tap();
+	// the transport tap must land (its label flips once the player's state
+	// changes) before "the sheet stayed shut" means anything
+	const play = card.locator('.play');
+	const before = await play.getAttribute('aria-label');
+	await play.tap();
+	await expect(play).toHaveAttribute('aria-label', before === 'Pause' ? 'Play' : 'Pause');
 	await expect(sheet).toBeHidden();
+});
+
+test('closing the player opened from the card leaves focus on a real control, not the tap area', async ({
+	page
+}) => {
+	const card = page.locator('.card:has(.open-hit)');
+	const sheet = page.getByRole('dialog', { name: 'Living room speaker' });
+
+	// a mouse click is what focuses a button in Chrome and Firefox; the layer
+	// restores focus to whatever was focused when it opened
+	const title = (await card.locator('.title').boundingBox())!;
+	await page.mouse.click(title.x + title.width / 2, title.y + title.height / 2);
+	await expect(sheet).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(sheet).toBeHidden();
+
+	const focused = await page.evaluate(() => {
+		const element = document.activeElement;
+		return {
+			hidden: Boolean(element?.closest('[aria-hidden="true"]')),
+			hit: Boolean(element?.closest('.open-hit'))
+		};
+	});
+	expect(focused).toEqual({ hidden: false, hit: false });
 });
 
 test.describe('at 320px', () => {

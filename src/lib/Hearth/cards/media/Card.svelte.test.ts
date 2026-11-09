@@ -8,6 +8,7 @@ import { hassEntity } from '$lib/core/ha/testing';
 import { setCommandGate } from '$lib/core/ha/commands';
 import { closePopup, hearthEditMode, popup } from '../../store';
 import Card from './Card.svelte';
+import CardPreview from '../../edit/CardPreview.svelte';
 
 vi.mock('home-assistant-js-websocket', async (importOriginal) => ({
 	...(await importOriginal<typeof import('home-assistant-js-websocket')>()),
@@ -127,6 +128,32 @@ describe('media card', () => {
 		});
 		await fireEvent.click(hitArea(container)!);
 		expect(get(popup)).toBeNull();
+	});
+
+	it('still opens the player from a tap in edit mode inside a card preview', async () => {
+		playing();
+		hearthEditMode.set(true);
+		// CardPreview provides the 'preview' interaction mode, as the editor does
+		const { container } = render(CardPreview, {
+			card: { id: 'music', type: 'media', entity: PLAYER }
+		});
+		await fireEvent.click(hitArea(container)!);
+		expect(get(popup)).toMatchObject({ kind: 'media', entity: PLAYER });
+	});
+
+	it('plays a shortcut without opening the player', async () => {
+		playing();
+		render(Card, {
+			card: {
+				id: 'music',
+				type: 'media',
+				entity: PLAYER,
+				shortcuts: [{ name: 'Morning jazz', uri: 'spotify:playlist:37i9dQZF1DX0SM0LYsmbMT' }]
+			}
+		});
+		await fireEvent.click(screen.getByRole('button', { name: 'Morning jazz' }));
+		expect(get(popup)).toBeNull();
+		expect(callService).toHaveBeenCalled();
 	});
 
 	it('opens the player for an idle speaker too, where the queue and speaker picker live', async () => {

@@ -87,9 +87,10 @@
 	{#if card.entity}
 		<!-- a tap on the art or the track opens the full player; the controls above
 		     it keep their own taps, and the keyboard reaches it through the tune
-		     button, so this hit area stays out of the tab order -->
-		<button type="button" class="open-hit" tabindex="-1" aria-hidden="true" onclick={openPlayer}
-		></button>
+		     button. A plain element, not a button: a clicked button takes focus,
+		     and the player restores focus to its opener on close, so focus would
+		     land on this hidden, unnamed area instead of a real control -->
+		<div class="open-hit" aria-hidden="true" onclick={openPlayer}></div>
 	{/if}
 	<div class="controls">
 		{#if card.entity && card.shortcuts?.length}
@@ -198,14 +199,12 @@
 		-webkit-tap-highlight-color: transparent;
 	}
 
+	/* the button's default icon color reads poorly on album art; a variable,
+	   not a :global override, so it can't depend on stylesheet order */
 	.tune-slot {
 		display: inline-flex;
 		flex: none;
-	}
-
-	/* the button sets its own icon color, which reads poorly on album art */
-	.tune-slot :global(.tune) {
-		color: var(--h-on-art-1);
+		--tune-color: var(--h-on-art-1);
 	}
 
 	/* the text lets a tap through to the hit area; the controls take their own */
