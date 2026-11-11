@@ -2,13 +2,16 @@ import { get } from 'svelte/store';
 import { services } from '$lib/core/ha/connection';
 import { states } from '$lib/core/ha/entities';
 import { callEntityService } from '$lib/core/ha/commands';
-import { callServiceForResult } from '$lib/core/ha/history';
+import { callServiceForResponse, callServiceForResult } from '$lib/core/ha/history';
 
 export interface QueueTrack {
 	name: string;
 	artist: string;
+	/** seconds; 0 when the source does not say */
 	duration: number;
 	uri: string;
+	/** a Music Assistant queue item, which a tap can play */
+	id?: string;
 }
 
 export interface MediaPlaylist {
@@ -27,6 +30,84 @@ export function hasSpotifyPlus(attributes: Record<string, unknown>): boolean {
 /** A SpotifyPlus lookup; the integration answers with a loosely shaped mapping. */
 function spotifyPlusCall(name: string, data: Record<string, unknown>): Promise<any> {
 	return callServiceForResult('spotifyplus', name, data);
+}
+
+/** Whether the entity is a Music Assistant player. */
+export function isMusicAssistant(attributes: Record<string, unknown>): boolean {
+	return typeof attributes.mass_player_type === 'string';
+}
+
+/** How many tracks the queue panel asks for; it shows up to 20. */
+const QUEUE_LIMIT = 20;
+
+/** One item of mass_queue's answer; every field is read defensively. */
+interface MassQueueItem {
+	queue_item_id?: unknown;
+	media_title?: unknown;
+	media_artist?: unknown;
+	media_content_id?: unknown;
+}
+
+/**
+ * The tracks after the current one in a Music Assistant queue, through
+ * mass_queue. Its answer does not mark the current item, so it is found by the
+ * player's `media_content_id`, searched through the whole answer: with one item
+ * asked for before it, the current item is usually the first or the second, but
+ * mass_queue's index can lag Home Assistant's state by a track or more. At the
+ * head of a queue the answer starts AT the current item (mass_queue clamps the
+ * window to 0), and nothing tells that apart from a previous item, so the first
+ * match is taken: [A, A, B] keeps the real next A. The cost is the reverse case,
+ * the same track played twice in a row while on the second copy, which then
+ * lists the current track as next. When nothing matches, the whole answer is
+ * shown rather than guessing.
+ * The answer is keyed by the entity asked about (mass_queue 0.10.3, also for a
+ * synced group member); an answer with exactly one other key is read as ours.
+ */
+export async function fetchMassQueue(
+	entityId: string,
+	currentContentId: unknown
+): Promise<QueueTrack[] | null> {
+	try {
+		const response = (await callServiceForResponse('mass_queue', 'get_queue_items', {
+			entity: entityId,
+			limit_before: 1,
+			limit_after: QUEUE_LIMIT
+		})) as Record<string, unknown> | null;
+		const keys = response ? Object.keys(response) : [];
+		const items = response?.[entityId] ?? (keys.length === 1 ? response?.[keys[0]] : undefined);
+		if (!Array.isArray(items)) return null;
+		const queue = items as (MassQueueItem | null | undefined)[];
+		const current =
+			typeof currentContentId === 'string' && currentContentId !== ''
+				? queue.findIndex((item) => item?.media_content_id === currentContentId)
+				: -1;
+		return queue.slice(current + 1).map((item) => ({
+			name: String(item?.media_title ?? ''),
+			artist: String(item?.media_artist ?? ''),
+			duration: 0,
+			uri: String(item?.media_content_id ?? ''),
+			id: typeof item?.queue_item_id === 'string' ? item.queue_item_id : undefined
+		}));
+	} catch (error) {
+		console.error(error);
+		return null;
+	}
+}
+
+/**
+ * What Up next can show the moment the track changes, before the refresh
+ * lands: the rows after the new current track, or undefined (loading) when
+ * that track isn't among them, so a stale row is never left to tap.
+ */
+export function trimQueueTo(
+	tracks: QueueTrack[] | null | undefined,
+	currentContentId: unknown
+): QueueTrack[] | undefined {
+	if (!Array.isArray(tracks) || typeof currentContentId !== 'string' || !currentContentId) {
+		return undefined;
+	}
+	const current = tracks.findIndex((track) => track.uri === currentContentId);
+	return current === -1 ? undefined : tracks.slice(current + 1);
 }
 
 export async function fetchMediaQueue(entityId: string): Promise<QueueTrack[] | null> {
