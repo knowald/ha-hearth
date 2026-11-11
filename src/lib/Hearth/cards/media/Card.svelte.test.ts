@@ -124,6 +124,7 @@ describe('media card', () => {
 		const { container } = render(Card, {
 			card: { id: 'music', type: 'media', entity: PLAYER }
 		});
+		expect(container.querySelector('.controls.pass-through')).toBeTruthy();
 		await fireEvent.click(hitArea(container)!);
 		expect(get(popup)).toBeNull();
 	});
@@ -137,7 +138,10 @@ describe('media card', () => {
 		});
 		// the preview pane takes no taps (e2e covers that), so the keyboard is
 		// the one way in: Tab reaches the button and Enter clicks it
+		expect(container.querySelector('.preview')).toBeTruthy();
 		expect(container.querySelector('.preview.interactive')).toBeNull();
+		// the card must not turn pointer events back on under the pane
+		expect(container.querySelector('.controls.pass-through')).toBeNull();
 		await fireEvent.click(screen.getByRole('button', { name: 'Open controls' }));
 		expect(get(popup)).toMatchObject({ kind: 'media', entity: PLAYER });
 	});
