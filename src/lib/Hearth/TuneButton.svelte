@@ -45,7 +45,8 @@
 		border: 0;
 		border-radius: 50%;
 		background: transparent;
-		color: var(--h-icon);
+		/* a host on a busy background (album art) sets --tune-color */
+		color: var(--tune-color, var(--h-icon));
 		cursor: pointer;
 		font: inherit;
 		touch-action: manipulation;

@@ -5,7 +5,8 @@
 	import { timer } from '$lib/core/app/clock';
 	import { horizontalDrag } from '../../drag';
 	import type { OverviewCard } from '../../config';
-	import { popup } from '../../store';
+	import { hearthEditMode, popup } from '../../store';
+	import { getHearthInteractionMode } from '../../interaction';
 	import {
 		controlOverrides,
 		controlValueFor,
@@ -18,6 +19,8 @@
 	import TuneButton from '../../TuneButton.svelte';
 
 	let { card }: { card: Extract<OverviewCard, { type: 'media' }> } = $props();
+
+	const preview = getHearthInteractionMode() === 'preview';
 
 	let entity = $derived(card.entity ? $states?.[card.entity] : undefined);
 	let pending = $derived(card.entity !== undefined && $pendingEntities[card.entity] !== undefined);
@@ -59,6 +62,15 @@
 	function endScrub(value: number) {
 		if (card.entity) seekMedia(card.entity, value / 100);
 	}
+
+	function openPlayer() {
+		if (!card.entity || ($hearthEditMode && !preview)) return;
+		popup.set({
+			kind: 'media',
+			entity: card.entity,
+			name: attributes.friendly_name ?? 'Media'
+		});
+	}
 </script>
 
 <div
@@ -73,19 +85,14 @@
 	{/if}
 	<div class="scrim"></div>
 	{#if card.entity}
-		{@const entity = card.entity}
-		<div class="tune-wrap">
-			<TuneButton
-				onopen={() =>
-					popup.set({
-						kind: 'media',
-						entity,
-						name: attributes.friendly_name ?? 'Media'
-					})}
-			/>
-		</div>
+		<!-- a tap on the art or the track opens the full player; the controls above
+		     it keep their own taps, and the keyboard reaches it through the tune
+		     button. A plain element, not a button: a clicked button takes focus,
+		     and the player restores focus to its opener on close, so focus would
+		     land on this hidden, unnamed area instead of a real control -->
+		<div class="open-hit" aria-hidden="true" onclick={openPlayer}></div>
 	{/if}
-	<div class="controls">
+	<div class="controls" class:pass-through={!preview}>
 		{#if card.entity && card.shortcuts?.length}
 			<div class="shortcut-row">
 				<Shortcuts
@@ -107,6 +114,10 @@
 				<div class="title">{attributes.media_title ?? $lang('hearth_nothing_playing')}</div>
 				<div class="artist">{attributes.media_artist ?? ''}</div>
 			</div>
+			<!-- in the track row, not a corner, so a short card can't stack it on play -->
+			{#if card.entity}
+				<span class="tune-slot"><TuneButton onopen={openPlayer} /></span>
+			{/if}
 			{#if hasTrack}
 				<button
 					type="button"
@@ -176,11 +187,18 @@
 		background: linear-gradient(180deg, transparent 35%, var(--h-art-scrim-3));
 	}
 
-	.tune-wrap {
+	.open-hit {
 		position: absolute;
-		top: 14px;
-		right: 16px;
-		color: var(--h-on-art-1);
+		inset: 0;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	/* the button's default icon color reads poorly on album art */
+	.tune-slot {
+		display: inline-flex;
+		flex: none;
+		--tune-color: var(--h-on-art-1);
 	}
 
 	.controls {
@@ -188,6 +206,17 @@
 		left: 20px;
 		right: 20px;
 		bottom: 18px;
+	}
+
+	/* the text lets a tap through to the hit area; the controls take their own.
+	   Not in a preview: there the host's pointer-events: none has to reach every
+	   control, and an explicit auto here would undo it */
+	.pass-through {
+		pointer-events: none;
+	}
+
+	.pass-through :is(.shortcut-row, .tune-slot, .play, .progress) {
+		pointer-events: auto;
 	}
 
 	.shortcut-row {

@@ -68,3 +68,23 @@ test('a type with nothing to start from says what the next step asks', async ({ 
 	await expect(sheet.getByText('Choose what it shows in the next step.')).toBeVisible();
 	await expect(sheet.locator('.aside').getByText('Configure Web page')).toBeVisible();
 });
+
+test('the media preview only shows; a tap on it opens no player', async ({ page }) => {
+	const sheet = page.getByRole('dialog', { name: 'Add card' });
+	await sheet.getByRole('option', { name: /^Media\b/ }).click();
+	const card = sheet.locator('.draft-preview .card');
+	await expect(card.locator('.tune')).toBeVisible();
+
+	for (const target of ['.tune', '.art', '.play']) {
+		const box = (await card.locator(target).boundingBox())!;
+		const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+		const onCard = await page.evaluate(
+			({ x, y }) => Boolean(document.elementFromPoint(x, y)?.closest('.card')),
+			point
+		);
+		expect(onCard, target).toBe(false);
+		await page.mouse.click(point.x, point.y);
+	}
+	await expect(page.getByRole('dialog')).toHaveCount(1);
+	await expect(sheet).toBeVisible();
+});
