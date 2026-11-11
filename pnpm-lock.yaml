@@ -48,8 +48,8 @@ importers:
         specifier: ^0.47.4
         version: 0.47.4
       '@material-symbols/metadata':
-        specifier: ^0.47.5
-        version: 0.47.5
+        specifier: ^0.48.2
+        version: 0.48.2
       '@valibot/to-json-schema':
         specifier: ^1.8.0
         version: 1.8.0(valibot@1.5.0(typescript@6.0.3))
@@ -422,8 +422,8 @@ packages:
   '@material-symbols/font-400@0.47.4':
     resolution: {integrity: sha512-PIaqQ8EkHSsIlrfObw6gBBTKeW4XugFLFfbv6Po5X7HeUaLxqjS+w2jaxSOd6M3urznh/BeZQwsUh5Jv8wcMAw==}
 
-  '@material-symbols/metadata@0.47.5':
-    resolution: {integrity: sha512-4zNYdKHLIXFz3eUXfGfDXreb9FtL1dRZ+gjuRJ+4faUOP6O7Z7JVwXNk7pE/2E0zO5t9fjr86H/mtnZO6bKAOA==}
+  '@material-symbols/metadata@0.48.2':
+    resolution: {integrity: sha512-tCZW+Z0lGOrlmRJfF4MYchVTTlRlUV1lPKEXOc9Dx8H8DAM7+XhLVbLVzeSQEA/JCOQlfoHlDEnx0IafHvQ0pQ==}
 
   '@oxc-project/types@0.150.0':
     resolution: {integrity: sha512-rDS5/31E9HfPl/CIzGrn0DOlvBbXFseQ5URJ9sYMfstbKLD/c6Gm9vmRzRGDdAXyOIL4zmO37lc9RIwYqVruZw==}
@@ -2534,7 +2534,7 @@ snapshots:
 
   '@material-symbols/font-400@0.47.4': {}
 
-  '@material-symbols/metadata@0.47.5': {}
+  '@material-symbols/metadata@0.48.2': {}
 
   '@oxc-project/types@0.150.0': {}
 
