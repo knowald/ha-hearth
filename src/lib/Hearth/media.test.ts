@@ -90,6 +90,26 @@ describe('fetchMassQueue', () => {
 		expect((await fetchMassQueue(PLAYER, 'x://1'))?.map((track) => track.id)).toEqual(['b', 'c']);
 	});
 
+	it('finds the current item further in when the queue index lags behind', async () => {
+		answer([
+			item('a', 'Played', 'x://1'),
+			item('b', 'Was current', 'x://2'),
+			item('c', 'Now playing', 'x://3'),
+			item('d', 'Next', 'x://4')
+		]);
+		expect((await fetchMassQueue(PLAYER, 'x://3'))?.map((track) => track.id)).toEqual(['d']);
+	});
+
+	it('takes the first match further in too', async () => {
+		answer([
+			item('a', 'Played', 'x://1'),
+			item('b', 'Same', 'x://3'),
+			item('c', 'Same', 'x://3'),
+			item('d', 'Next', 'x://4')
+		]);
+		expect((await fetchMassQueue(PLAYER, 'x://3'))?.map((track) => track.id)).toEqual(['c', 'd']);
+	});
+
 	it("reads the only list in an answer keyed by another entity, such as a group's leader", async () => {
 		vi.mocked(callService).mockResolvedValueOnce({
 			response: { 'media_player.leader': [item('a', 'One', 'x://1'), item('b', 'Two', 'x://2')] }
