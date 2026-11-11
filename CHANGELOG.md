@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.11.0] - 2026-11-12
+
+### Changed
+
+- Move Open controls on the media card next to play and pause ([#48](https://github.com/knowald/ha-hearth/pull/48))
+
+### Added
+
+- Show the queue of Music Assistant players in the full player when the `mass_queue` integration is installed ([#47](https://github.com/knowald/ha-hearth/pull/47))
+- Play a track from the Music Assistant queue with a tap ([#47](https://github.com/knowald/ha-hearth/pull/47))
+
+### Fixed
+
+- Open the full player with a tap on the media card's art or track ([#48](https://github.com/knowald/ha-hearth/pull/48))
+- Offer Retry when the queue could not be loaded instead of loading forever ([#47](https://github.com/knowald/ha-hearth/pull/47))
+- Update the queue when shuffle is turned on or off ([#47](https://github.com/knowald/ha-hearth/pull/47))
+
 ## [0.10.1] - 2026-11-01
 
 ### Fixed
@@ -323,6 +340,7 @@
 
 - Make blur work everywhere in the application
 
+[0.11.0]: https://github.com/knowald/ha-hearth/releases/tag/0.11.0
 [0.10.1]: https://github.com/knowald/ha-hearth/releases/tag/0.10.1
 [0.10.0]: https://github.com/knowald/ha-hearth/releases/tag/0.10.0
 [0.9.0]: https://github.com/knowald/ha-hearth/releases/tag/0.9.0
