@@ -92,7 +92,7 @@
 		     land on this hidden, unnamed area instead of a real control -->
 		<div class="open-hit" aria-hidden="true" onclick={openPlayer}></div>
 	{/if}
-	<div class="controls">
+	<div class="controls" class:pass-through={!preview}>
 		{#if card.entity && card.shortcuts?.length}
 			<div class="shortcut-row">
 				<Shortcuts
@@ -190,36 +190,32 @@
 	.open-hit {
 		position: absolute;
 		inset: 0;
-		width: 100%;
-		height: 100%;
-		padding: 0;
-		border: 0;
-		background: transparent;
 		cursor: pointer;
 		-webkit-tap-highlight-color: transparent;
 	}
 
-	/* the button's default icon color reads poorly on album art; a variable,
-	   not a :global override, so it can't depend on stylesheet order */
+	/* the button's default icon color reads poorly on album art */
 	.tune-slot {
 		display: inline-flex;
 		flex: none;
 		--tune-color: var(--h-on-art-1);
 	}
 
-	/* the text lets a tap through to the hit area; the controls take their own */
 	.controls {
 		position: absolute;
 		left: 20px;
 		right: 20px;
 		bottom: 18px;
+	}
+
+	/* the text lets a tap through to the hit area; the controls take their own.
+	   Not in a preview: there the host's pointer-events: none has to reach every
+	   control, and an explicit auto here would undo it */
+	.pass-through {
 		pointer-events: none;
 	}
 
-	.shortcut-row,
-	.tune-slot,
-	.play,
-	.progress {
+	.pass-through :is(.shortcut-row, .tune-slot, .play, .progress) {
 		pointer-events: auto;
 	}
 
