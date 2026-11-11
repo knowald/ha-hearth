@@ -127,26 +127,33 @@
 	let queue = $state<QueueTrack[] | null | undefined>(undefined);
 	let playlists = $state<MediaPlaylist[] | null>(null);
 	let queueRequest = 0;
+	let queueContentId: unknown;
 
 	function loadQueue(contentId: unknown) {
 		const request = ++queueRequest;
 		// a Music Assistant queue is trimmed to the new track at once, so the row
-		// that just started can't be tapped as "next" while the refresh is in flight
-		if (!spotify) untrack(() => (queue = trimQueueTo(queue, contentId)));
+		// that just started can't be tapped as "next" while the refresh is in flight.
+		// A refresh for the same track (shuffle) keeps the list as it is.
+		if (!spotify && contentId !== queueContentId) {
+			untrack(() => (queue = trimQueueTo(queue, contentId)));
+		}
+		queueContentId = contentId;
 		const tracks = spotify ? fetchMediaQueue(entity) : fetchMassQueue(entity, contentId);
 		tracks.then((tracks) => {
 			if (request === queueRequest) queue = tracks;
 		});
 	}
 
-	// `attributes` is a new object on every player update (volume, position,
-	// shuffle...), so the effect reads the id through its own derived value: a
-	// derived primitive only notifies when it actually changes
+	// `attributes` is a new object on every player update (volume, position...),
+	// so the effect reads what it needs through derived values: a derived
+	// primitive only notifies when it actually changes
 	let contentId = $derived(attributes.media_content_id);
+	let shuffle = $derived(Boolean(attributes.shuffle));
 
-	// refetch the queue whenever the playing item changes
+	// refetch the queue whenever the playing item changes or shuffle reorders it
 	$effect(() => {
 		if (!spotify && !massQueue) return;
+		void shuffle;
 		loadQueue(contentId);
 	});
 

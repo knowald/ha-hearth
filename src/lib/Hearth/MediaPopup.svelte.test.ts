@@ -148,7 +148,7 @@ describe('MediaPopup queue', () => {
 		expect(screen.queryByRole('button', { name: /Two|Three/ })).toBeNull();
 	});
 
-	it('asks again only when the track changes, not on volume or position updates', async () => {
+	it('asks again when the track or shuffle changes, not on volume or position updates', async () => {
 		maPlayer('x://1');
 		vi.mocked(callService).mockResolvedValueOnce(queueAnswer('One', 'Two', 'Three') as never);
 		render(MediaPopup, { entity: PLAYER, name: 'Kitchen' });
@@ -157,12 +157,11 @@ describe('MediaPopup queue', () => {
 			vi.mocked(callService).mock.calls.filter((call) => call[2] === 'get_queue_items').length;
 		expect(asked()).toBe(1);
 
-		// a volume drag, a position tick, shuffle: every update is a new attributes object
+		// a volume drag, a position tick: every update is a new attributes object
 		for (const attributes of [
 			{ volume_level: 0.2 },
 			{ volume_level: 0.35 },
-			{ media_position: 42 },
-			{ shuffle: true }
+			{ media_position: 42 }
 		]) {
 			maPlayer('x://1', attributes);
 			await tick();
@@ -171,10 +170,39 @@ describe('MediaPopup queue', () => {
 		expect(asked()).toBe(1);
 		expect(screen.getByRole('button', { name: /Two/ })).toBeTruthy();
 
+		// shuffle reorders what comes next on the same track: the list stays until
+		// the reordered one lands
+		let release: (value: unknown) => void = () => {};
+		vi.mocked(callService).mockReturnValueOnce(
+			new Promise((resolve) => (release = resolve)) as never
+		);
+		maPlayer('x://1', { shuffle: true });
+		await tick();
+		expect(asked()).toBe(2);
+		expect(screen.queryByText(/Loading queue/)).toBeNull();
+		expect(screen.getByRole('button', { name: /Two/ })).toBeTruthy();
+		release({
+			response: {
+				[PLAYER]: [
+					{ queue_item_id: 'id-1', media_title: 'One', media_content_id: 'x://1' },
+					{ queue_item_id: 'id-3', media_title: 'Three', media_content_id: 'x://3' },
+					{ queue_item_id: 'id-2', media_title: 'Two', media_content_id: 'x://2' }
+				]
+			}
+		});
+		await waitFor(() =>
+			expect(
+				screen.getAllByRole('button', { name: /Two|Three/ }).map((row) => row.textContent)
+			).toEqual([expect.stringContaining('Three'), expect.stringContaining('Two')])
+		);
+		maPlayer('x://1', { shuffle: true, media_position: 50 });
+		await tick();
+		expect(asked()).toBe(2);
+
 		// a real track change still refreshes
 		vi.mocked(callService).mockResolvedValueOnce(queueAnswer('One', 'Two', 'Three') as never);
 		maPlayer('x://2', { media_title: 'Two' });
-		await waitFor(() => expect(asked()).toBe(2));
+		await waitFor(() => expect(asked()).toBe(3));
 	});
 
 	it('offers Retry when the queue could not be read, and loads it from there', async () => {
