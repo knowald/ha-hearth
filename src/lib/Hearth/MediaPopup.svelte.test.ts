@@ -103,9 +103,15 @@ describe('MediaPopup queue', () => {
 		render(MediaPopup, { entity: PLAYER, name: 'Kitchen' });
 		await screen.findByRole('button', { name: /Two/ });
 
-		vi.mocked(callService).mockResolvedValueOnce(queueAnswer('One', 'Two', 'Three') as never);
+		vi.mocked(callService).mockResolvedValueOnce(
+			queueAnswer('One', 'Two', 'Three', 'Four') as never
+		);
 		maPlayer('x://2', { media_title: 'Two' });
-		await waitFor(() => expect(screen.queryByRole('button', { name: /Two/ })).toBeNull());
+		expect(await screen.findByRole('button', { name: /Four/ })).toBeTruthy();
+		expect(
+			vi.mocked(callService).mock.calls.filter((call) => call[2] === 'get_queue_items')
+		).toHaveLength(2);
+		expect(screen.queryByRole('button', { name: /Two/ })).toBeNull();
 		expect(screen.getByRole('button', { name: /Three/ })).toBeTruthy();
 	});
 
