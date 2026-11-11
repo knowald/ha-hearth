@@ -199,10 +199,31 @@ describe('MediaPopup queue', () => {
 		await tick();
 		expect(asked()).toBe(2);
 
-		// a real track change still refreshes
-		vi.mocked(callService).mockResolvedValueOnce(queueAnswer('One', 'Two', 'Three') as never);
-		maPlayer('x://2', { media_title: 'Two' });
+		// a real track change still refreshes, and trims before the answer lands
+		vi.mocked(callService).mockReturnValueOnce(new Promise(() => {}) as never);
+		maPlayer('x://2', { shuffle: true, media_title: 'Two' });
 		await waitFor(() => expect(asked()).toBe(3));
+		expect(screen.queryByRole('button', { name: /Two/ })).toBeNull();
+	});
+
+	it('drops the rows when the popup moves to another player on the same track', async () => {
+		const other = 'media_player.den';
+		const playing = (entityId: string) =>
+			hassEntity(entityId, 'playing', {
+				media_title: 'One',
+				media_content_id: 'x://1',
+				mass_player_type: 'player',
+				app_id: 'music_assistant'
+			});
+		states.set({ [PLAYER]: playing(PLAYER), [other]: playing(other) });
+		vi.mocked(callService).mockResolvedValueOnce(queueAnswer('One', 'Two', 'Three') as never);
+		const { rerender } = render(MediaPopup, { entity: PLAYER, name: 'Kitchen' });
+		await screen.findByRole('button', { name: /Two/ });
+
+		vi.mocked(callService).mockReturnValueOnce(new Promise(() => {}) as never);
+		await rerender({ entity: other, name: 'Den' });
+		expect(await screen.findByText(/Loading queue/)).toBeTruthy();
+		expect(screen.queryByRole('button', { name: /Two|Three/ })).toBeNull();
 	});
 
 	it('offers Retry when the queue could not be read, and loads it from there', async () => {

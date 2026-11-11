@@ -127,16 +127,21 @@
 	let queue = $state<QueueTrack[] | null | undefined>(undefined);
 	let playlists = $state<MediaPlaylist[] | null>(null);
 	let queueRequest = 0;
+	let queueEntity: string | undefined;
 	let queueContentId: unknown;
 
 	function loadQueue(contentId: unknown) {
 		const request = ++queueRequest;
-		// a Music Assistant queue is trimmed to the new track at once, so the row
-		// that just started can't be tapped as "next" while the refresh is in flight.
-		// A refresh for the same track (shuffle) keeps the list as it is.
-		if (!spotify && contentId !== queueContentId) {
+		if (entity !== queueEntity) {
+			// another player's rows must not be tappable on this one
+			untrack(() => (queue = undefined));
+		} else if (!spotify && contentId !== queueContentId) {
+			// a Music Assistant queue is trimmed to the new track at once, so the row
+			// that just started can't be tapped as "next" while the refresh is in
+			// flight. A refresh for the same track (shuffle) keeps the list as it is.
 			untrack(() => (queue = trimQueueTo(queue, contentId)));
 		}
+		queueEntity = entity;
 		queueContentId = contentId;
 		const tracks = spotify ? fetchMediaQueue(entity) : fetchMassQueue(entity, contentId);
 		tracks.then((tracks) => {
