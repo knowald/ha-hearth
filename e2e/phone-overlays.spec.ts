@@ -1,29 +1,36 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dump, load } from 'js-yaml';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /* Overlays on a phone: sheets fit, controls stay reachable, inputs do not zoom. */
 
+const FAKE_HASS = `http://127.0.0.1:${process.env.E2E_HASS_PORT ?? 8124}`;
 const HEARTH_FILE = new URL('./fixture/data/hearth.yaml', import.meta.url);
 const HEARTH_FIXTURE = readFileSync(HEARTH_FILE, 'utf8');
 
+type FixtureCard = { id: string; type: string } & Record<string, unknown>;
+
 interface Fixture {
 	rail: { id: string; type: string }[];
-	rooms: { cards: { id: string; type: string; entity?: string }[][] }[];
+	rooms: { cards: FixtureCard[][] }[];
 }
 
 // the fixture has neither a media card nor a search widget; these tests need both
-function withMediaAndSearch() {
+function withMediaAndSearch(...extraCards: FixtureCard[]) {
 	const config = load(HEARTH_FIXTURE) as Fixture;
 	config.rail.push({ id: 'search', type: 'search' });
-	config.rooms[0].cards[0].push({ id: 'music', type: 'media', entity: 'media_player.living' });
+	config.rooms[0].cards[0].push(
+		{ id: 'music', type: 'media', entity: 'media_player.living' },
+		...extraCards
+	);
 	return dump(config);
 }
 
 test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, request }) => {
 	writeFileSync(HEARTH_FILE, withMediaAndSearch());
+	await request.post(`${FAKE_HASS}/_test/reset`);
 	await page.goto('/');
 	await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
 });
@@ -80,6 +87,20 @@ test('the media sheet gives the track the full width and stacks the queue under 
 	expect(hit).toBe(true);
 });
 
+/* what a tap at the middle of each control lands on: the control, not the tap area under it */
+async function expectControlsAboveTapArea(page: Page, card: Locator, controls: string[]) {
+	for (const control of controls) {
+		const box = (await card.locator(control).first().boundingBox())!;
+		const hit = await page.evaluate(
+			({ x, y }) =>
+				document.elementFromPoint(x, y)?.closest('.play, .progress, .tune, .shortcut, .open-hit')
+					?.className ?? 'nothing',
+			{ x: box.x + box.width / 2, y: box.y + box.height / 2 }
+		);
+		expect(hit, control).toContain(control.slice(1));
+	}
+}
+
 test('a tap on the media card opens the full player, and its own controls do not', async ({
 	page
 }) => {
@@ -94,16 +115,7 @@ test('a tap on the media card opens the full player, and its own controls do not
 	await expect(sheet).toBeHidden();
 
 	// the transport, the seek bar and Open controls sit above the tap area
-	for (const control of ['.play', '.progress', '.tune']) {
-		const box = (await card.locator(control).boundingBox())!;
-		const hit = await page.evaluate(
-			({ x, y }) =>
-				document.elementFromPoint(x, y)?.closest('.play, .progress, .tune, .open-hit')?.className ??
-				'nothing',
-			{ x: box.x + box.width / 2, y: box.y + box.height / 2 }
-		);
-		expect(hit, control).toContain(control.slice(1));
-	}
+	await expectControlsAboveTapArea(page, card, ['.play', '.progress', '.tune']);
 	// the transport tap must land (its label flips once the player's state
 	// changes) before "the sheet stayed shut" means anything
 	const play = card.locator('.play');
@@ -135,6 +147,68 @@ test('closing the player opened from the card leaves focus on a real control, no
 		};
 	});
 	expect(focused).toEqual({ hidden: false, hit: false });
+});
+
+test('a short media card and one with a shortcut keep every control above the tap area', async ({
+	page
+}) => {
+	const shortcuts = [{ name: 'Morning jazz', uri: 'spotify:playlist:morning' }];
+	writeFileSync(
+		HEARTH_FILE,
+		withMediaAndSearch(
+			{ id: 'short-music', type: 'media', entity: 'media_player.living', height: 150 },
+			{
+				id: 'shortcut-music',
+				type: 'media',
+				entity: 'media_player.living',
+				height: 260,
+				shortcuts
+			}
+		)
+	);
+	await page.reload();
+	const cards = page.locator('.card:has(.open-hit)');
+
+	const short = cards.nth(1);
+	// centered, so the bottom bar does not cover the controls
+	await short.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+	expect((await short.boundingBox())!.height).toBe(150);
+	await expectControlsAboveTapArea(page, short, ['.play', '.progress', '.tune']);
+	// a finger landing just off the thin bar still scrubs rather than opening the player
+	const progress = (await short.locator('.progress').boundingBox())!;
+	const hit = await page.evaluate(
+		({ x, y }) => Boolean(document.elementFromPoint(x, y)?.closest('.progress')),
+		{ x: progress.x + progress.width / 2, y: progress.y - 10 }
+	);
+	expect(hit).toBe(true);
+
+	// a 150px card has no room for the shortcut row, which overflows its top
+	// and is clipped, so the shortcut gets a taller card of its own
+	const withShortcut = cards.nth(2);
+	await withShortcut.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+	await expectControlsAboveTapArea(page, withShortcut, [
+		'.shortcut',
+		'.play',
+		'.progress',
+		'.tune'
+	]);
+});
+
+test('the media card in the card editor preview takes no taps', async ({ page }) => {
+	const editor = await openCardEditor(page, 'Blue in Green');
+	const preview = editor.locator('.preview .card');
+	await preview.scrollIntoViewIfNeeded();
+	for (const target of ['.tune', '.art', '.play']) {
+		const box = (await preview.locator(target).boundingBox())!;
+		const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+		const onCard = await page.evaluate(
+			({ x, y }) => Boolean(document.elementFromPoint(x, y)?.closest('.card')),
+			point
+		);
+		expect(onCard, target).toBe(false);
+		await page.touchscreen.tap(point.x, point.y);
+	}
+	await expect(page.getByRole('dialog', { name: 'Living room speaker' })).toHaveCount(0);
 });
 
 test.describe('at 320px', () => {
