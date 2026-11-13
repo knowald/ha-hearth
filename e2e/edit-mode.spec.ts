@@ -11,6 +11,7 @@ const CARD_NAMES = [
 	'Entities',
 	'Header',
 	'Sensor',
+	'Gauge',
 	'Media',
 	'Vacuum',
 	'Camera',
@@ -44,6 +45,7 @@ const WIDGET_NAMES = [
 // types that block Done until their one required field is filled
 const REQUIRED_VALUES: Record<string, string> = {
 	Sensor: 'sensor.temperature',
+	Gauge: 'sensor.humidity',
 	Media: 'media_player.living',
 	Vacuum: 'vacuum.robot',
 	Camera: 'camera.front',

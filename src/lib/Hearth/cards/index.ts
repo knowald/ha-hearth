@@ -8,6 +8,7 @@ import { climateCard } from './climate/descriptor';
 import { conditionalMediaCard } from './conditional_media/descriptor';
 import { daysSinceCard } from './days_since/descriptor';
 import { entitiesCard } from './entities/descriptor';
+import { gaugeCard } from './gauge/descriptor';
 import { headerCard } from './header/descriptor';
 import { iframeCard } from './iframe/descriptor';
 import { imageCard } from './image/descriptor';
@@ -28,6 +29,7 @@ const REGISTERED = [
 	todoCard,
 	headerCard,
 	temperatureCard,
+	gaugeCard,
 	daysSinceCard,
 	templateCard,
 	mediaCard,

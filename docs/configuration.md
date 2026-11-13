@@ -461,6 +461,38 @@ entities:
 
 Edit them under Style rules in an entity's options in the entities card editor.
 
+## Gauge card
+
+The `gauge` card shows one numeric entity on a half arc, filled from `min` to the value, with the reading inside the arc and the ends of the range under it. A tap opens the entity's detail sheet while it shows a number.
+
+```yaml
+- id: battery
+  type: gauge
+  entity: sensor.phone_battery
+  name: Phone battery
+  segments:
+    - from: 0
+      color: bad
+    - from: 20
+      color: accent
+    - from: 50
+      color: good
+```
+
+| Key        | Effect                                                                               |
+| ---------- | ------------------------------------------------------------------------------------ |
+| `entity`   | The numeric entity. Required.                                                        |
+| `name`     | Heading. Defaults to the entity's name.                                              |
+| `unit`     | Unit after the reading. Defaults to the entity's unit.                               |
+| `min`      | Start of the range. Defaults to `0`.                                                 |
+| `max`      | End of the range. Defaults to `100`. `min` must be below `max`, or both fall back.   |
+| `segments` | A list of `from` and `color` pairs that color the arc by the value, see below.       |
+| `needle`   | `true` draws the whole range in the segment colors and points a needle at the value. |
+
+The arc takes the color of the last segment whose `from` is at or below the value, and a thin band outside the arc shows where each segment starts. Below the first `from` the arc keeps the accent color. Segments may be listed in any order, so one list works for a battery, where low is bad, and for a CPU load, where high is bad. A `color` is a theme role (`accent`, `cool`, `good` or `bad`) or a CSS color; anything else draws in the accent. There is no warning role: a three-step scale reads `good`, `accent`, `bad`.
+
+A value outside the range stops the arc and the needle at its end, and the reading still shows the real value. A missing, unavailable or non-numeric entity shows an empty track with its state. In the card editor each segment has a From field and a choice of Good, Accent, Bad, Cool or Custom, where Custom takes a CSS color. A segment without a start or a color is left out when you save.
+
 ## To-do list card
 
 The `todo` card shows a Home Assistant to-do list, such as Shopping List, Local To-do or Google Tasks. Tick an item to complete it, type in the field at the top and press Enter to add one, tap an item's text to rename it and long-press an item (or press Delete on it) to remove it after a confirmation. Changes show at once and roll back if Home Assistant refuses them.
