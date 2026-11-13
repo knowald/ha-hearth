@@ -103,7 +103,7 @@ Hearth has no user accounts of its own. Every save needs a Home Assistant access
 - [Agents](docs/agents.md): the MCP server, the agent API, the JSON Schema and editing the files directly.
 - [Changelog](CHANGELOG.md).
 
-For contributors: [development](docs/development.md), [architecture](docs/architecture.md), [component conventions](src/lib/Hearth/README.md) and [releasing](docs/release.md).
+For contributors: [development](docs/development.md), [architecture](docs/architecture.md), [design](docs/design.md), [component conventions](src/lib/Hearth/README.md) and [releasing](docs/release.md).
 
 ## License
 

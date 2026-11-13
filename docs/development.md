@@ -78,6 +78,7 @@ CI runs `pnpm check:translations` as well. Both pass `--warn-only`, so missing a
 
 ## Conventions
 
+- [Design](design.md) covers how a card looks and behaves, and how to propose a new one.
 - [Component conventions](../src/lib/Hearth/README.md) cover adding cards and widgets, state and styling.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/), for example `fix: ...` or `fix(hearth): ...`.
 - The [changelog](../CHANGELOG.md) follows [Common Changelog](https://common-changelog.org/).

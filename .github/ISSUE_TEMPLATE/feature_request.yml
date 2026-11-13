@@ -14,7 +14,7 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
-      description: How should it work? Mockups or examples from other dashboards are welcome.
+      description: How should it work? Mockups or examples from other dashboards are welcome. For a new card or look, read the [design rules](https://github.com/knowald/ha-hearth/blob/master/docs/design.md) first.
     validations:
       required: true
 
