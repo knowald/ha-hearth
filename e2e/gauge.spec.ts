@@ -72,7 +72,7 @@ test('an unavailable sensor shows its state on an empty track', async ({ page, r
 	await expect(page.getByRole('button', { name: /^Humidity,/ })).toHaveCount(0);
 });
 
-test('a segment added in the editor colors the preview arc', async ({ page }) => {
+test('a segment added in the editor colors the preview arc and is saved', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.getByRole('button', { name: 'Humidity, 47%' })).toBeVisible();
 	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
@@ -92,5 +92,13 @@ test('a segment added in the editor colors the preview arc', async ({ page }) =>
 		.getByRole('button', { name: 'Bad' })
 		.click();
 	await expect(fill).toHaveAttribute('style', /--h-bad-text/);
-	await expect(sheet.getByRole('button', { name: 'Done' })).toBeEnabled();
+
+	await sheet.getByRole('button', { name: 'Done' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect
+		.poll(() => readFileSync(HEARTH_FILE, 'utf8'))
+		.toMatch(/from: 0\s+color: bad\s+- from: 30\s+color: good\s+- from: 40\s+color: bad/);
+
+	await page.reload();
+	await expect(page.getByRole('button', { name: 'Humidity, 47%' }).locator('.band')).toHaveCount(3);
 });

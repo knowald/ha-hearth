@@ -36,9 +36,10 @@ describe('gauge card editor', () => {
 		expect(fromInputs().map((input) => input.value)).toEqual(['0', '4']);
 		expect(chips(en.hearth_bad)[0].getAttribute('aria-pressed')).toBe('true');
 		expect(chips(en.hearth_custom)[1].getAttribute('aria-pressed')).toBe('true');
-		expect((screen.getByRole('textbox', { name: en.hearth_color }) as HTMLInputElement).value).toBe(
-			'orange'
-		);
+		expect(
+			(screen.getByRole('textbox', { name: en.hearth_segment_custom_color }) as HTMLInputElement)
+				.value
+		).toBe('orange');
 		expect(last()).toMatchObject({
 			valid: true,
 			fields: {
@@ -78,10 +79,34 @@ describe('gauge card editor', () => {
 
 	it('removes a row and keeps the next row as it was', async () => {
 		const { last } = open();
-		await fireEvent.click(screen.getAllByRole('button', { name: en.hearth_remove_segment })[0]);
+		await fireEvent.click(screen.getByRole('button', { name: 'Remove segment 1' }));
 		expect(fromInputs().map((input) => input.value)).toEqual(['4']);
 		expect(chips(en.hearth_custom)[0].getAttribute('aria-pressed')).toBe('true');
 		expect(last().fields.segments).toEqual([{ from: 4, color: 'orange' }]);
+	});
+
+	it('moves focus off the pressed remove button, to the next row or to Add', async () => {
+		open();
+		await fireEvent.click(screen.getByRole('button', { name: 'Remove segment 1' }));
+		await vi.waitFor(() => expect(document.activeElement).toBe(fromInputs()[0]));
+		await fireEvent.click(screen.getByRole('button', { name: 'Remove segment 1' }));
+		await vi.waitFor(() =>
+			expect(document.activeElement).toBe(
+				screen.getByRole('button', { name: en.hearth_add_segment })
+			)
+		);
+	});
+
+	it('names each row, so two rows can be told apart', () => {
+		open();
+		expect(screen.getByRole('group', { name: 'Segment 1' })).toBeTruthy();
+		expect(screen.getByRole('group', { name: 'Segment 2' })).toBeTruthy();
+	});
+
+	it('blocks Done on a stored color styleColor rejects, with the reason in its row', () => {
+		const { last } = open({ ...card, segments: [{ from: 0, color: 'var(--custom)' }] });
+		expect(last().valid).toBe(false);
+		expect(screen.getByText(en.hearth_style_color_invalid)).toBeTruthy();
 	});
 
 	it('blocks Done on a start that is not a number', async () => {
@@ -93,7 +118,7 @@ describe('gauge card editor', () => {
 
 	it('blocks Done on a color styleColor rejects', async () => {
 		const { last } = open();
-		await fireEvent.input(screen.getByRole('textbox', { name: en.hearth_color }), {
+		await fireEvent.input(screen.getByRole('textbox', { name: en.hearth_segment_custom_color }), {
 			target: { value: 'red; background: url(x)' }
 		});
 		expect(last().valid).toBe(false);
@@ -104,7 +129,9 @@ describe('gauge card editor', () => {
 		const { last } = open();
 		await fireEvent.click(chips(en.hearth_custom)[0]);
 		expect(chips(en.hearth_custom)[0].getAttribute('aria-pressed')).toBe('true');
-		expect(screen.getAllByRole('textbox', { name: en.hearth_color })).toHaveLength(2);
+		expect(screen.getAllByRole('textbox', { name: en.hearth_segment_custom_color })).toHaveLength(
+			2
+		);
 		// a blank color is unfinished, not wrong
 		expect(last()).toMatchObject({ valid: true, fields: { segments: [{ from: 4 }] } });
 	});

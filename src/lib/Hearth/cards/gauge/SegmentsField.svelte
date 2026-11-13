@@ -47,8 +47,9 @@
 </script>
 
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { ICON } from '../../iconSizes';
-	import { lang } from '$lib/core/i18n';
+	import { fill, lang } from '$lib/core/i18n';
 	import Icon from '../../Icon.svelte';
 	import TextField from '../../edit/TextField.svelte';
 
@@ -61,8 +62,19 @@
 		valid = value.every((row) => !segmentFromError(row) && !segmentColorError(row));
 	});
 
+	let root = $state<HTMLElement>();
+
 	function add() {
 		value.push({ from: '', color: 'accent' });
+	}
+
+	// rows are keyed by index, so the pressed button would become the next
+	// row's and a second press would remove that one too
+	async function remove(index: number) {
+		value.splice(index, 1);
+		await tick();
+		const next = root?.querySelectorAll<HTMLElement>('.segment-row')[index];
+		(next?.querySelector('input') ?? root?.querySelector<HTMLElement>('.add-segment'))?.focus();
 	}
 
 	// a custom row is any color that is not a role, blank included, so the
@@ -72,12 +84,16 @@
 	}
 </script>
 
-<div class="editor-fields gauge-segments">
+<div class="editor-fields gauge-segments" bind:this={root}>
 	<div class="group-label">{$lang('hearth_segments')}</div>
 	<div class="field-hint segments-hint">{$lang('hearth_segments_hint')}</div>
 	{#each value as row, index (index)}
 		{@const custom = !isRole(row.color)}
-		<div class="filter-row segment-row">
+		<div
+			class="filter-row segment-row"
+			role="group"
+			aria-label={fill($lang('hearth_segment_number'), { number: index + 1 })}
+		>
 			<div class="segment-line">
 				<div class="segment-from">
 					<TextField
@@ -91,8 +107,8 @@
 				<button
 					type="button"
 					class="remove"
-					aria-label={$lang('hearth_remove_segment')}
-					onclick={() => value.splice(index, 1)}
+					aria-label={fill($lang('hearth_remove_segment'), { number: index + 1 })}
+					onclick={() => remove(index)}
 				>
 					<Icon name="delete" size={ICON.control} />
 				</button>
@@ -127,7 +143,7 @@
 			</div>
 			{#if custom}
 				<TextField
-					label={$lang('hearth_color')}
+					label={$lang('hearth_segment_custom_color')}
 					placeholder="#e53935"
 					hint={$lang('hearth_style_color_hint')}
 					error={segmentColorError(row) ? $lang('hearth_style_color_invalid') : undefined}
