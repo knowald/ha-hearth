@@ -25,7 +25,7 @@ Optional fields:
 - `icon`: a Material icon name for the card.
 - `popup: false`: only list the alert in the notifications widget.
 - `auto_close: false`: keep the alert after the conditions stop holding, until someone dismisses it.
-- `entity`: open this entity's popup instead of an alert card.
+- `entity`: open this entity's popup instead of an alert card. With a camera, the popup plays its live stream.
 - `chime`: the sound the alert plays when it fires, `true` for a two-note chime, `soft`, `bell` or `none`. Unset uses the sound set for its severity.
 
 After you dismiss a rule's alert, it stays away until its conditions stop holding and then hold again.
@@ -78,7 +78,41 @@ actions:
 
 Every action accepts `device`, a name or a list of names. Without it, every screen acts on the event. With it, only screens whose device name matches exactly act on it; an empty name or list reaches no screen. Set the name under This screen > Device name, which is stored in that browser, or with `?device=<name>` in the URL.
 
-When the doorbell rings, show the camera page on the hallway tablet and wake it:
+When the doorbell rings, open the camera's live stream as a popup on the hallway tablet, and close it after a minute. `open_popup` wakes the screen by itself:
+
+```yaml
+alias: Doorbell camera popup
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.doorbell
+    to: 'on'
+actions:
+  - event: HEARTH
+    event_data:
+      action: open_popup
+      entity: camera.front_door
+      device: hallway
+  - delay: '00:01:00'
+  - event: HEARTH
+    event_data:
+      action: close_popup
+      entity: camera.front_door
+      device: hallway
+```
+
+A screen that is not connected when the event fires misses it. A [rule](#rules) with `entity` set to the camera does the same without an automation, and also reaches a screen that loads while the doorbell is still on:
+
+```yaml
+alerts:
+  - id: doorbell
+    title: Doorbell
+    entity: camera.front_door
+    conditions:
+      - entity: binary_sensor.doorbell
+        state: 'on'
+```
+
+Or show the camera page instead of a popup, and wake the screen:
 
 ```yaml
 alias: Doorbell to hallway tablet
