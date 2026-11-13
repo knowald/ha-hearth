@@ -92,13 +92,16 @@ export async function fetchStatistics(
 		types?: StatisticType[];
 	} = {}
 ): Promise<Record<string, StatisticRow[]>> {
+	// named one by one, so no other key of the object can replace a request field
+	const { units, types } = options;
 	const result = await requireConnection().sendMessagePromise<Record<string, StatisticRow[]>>({
 		type: 'recorder/statistics_during_period',
 		start_time: start.toISOString(),
 		end_time: end.toISOString(),
 		statistic_ids: statisticIds,
 		period,
-		...options
+		...(units && { units }),
+		...(types && { types })
 	});
 	return result ?? {};
 }
