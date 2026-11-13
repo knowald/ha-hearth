@@ -5,6 +5,7 @@ import { climateCard } from './cards/climate';
 import { conditionalMediaCard } from './cards/conditional_media';
 import { daysSinceCard } from './cards/days_since';
 import { entitiesCard } from './cards/entities';
+import { gaugeCard } from './cards/gauge';
 import { headerCard } from './cards/header';
 import { iframeCard } from './cards/iframe';
 import { imageCard } from './cards/image';
@@ -20,6 +21,7 @@ export const CARD_DEFINITIONS = [
 	conditionalMediaCard,
 	daysSinceCard,
 	entitiesCard,
+	gaugeCard,
 	headerCard,
 	iframeCard,
 	imageCard,

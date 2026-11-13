@@ -5,6 +5,7 @@ import { english as en } from '$lib/core/i18n/testing';
 import CameraEditor from '../cards/camera/Editor.svelte';
 import ClimateEditor from '../cards/climate/Editor.svelte';
 import DaysSinceEditor from '../cards/days_since/Editor.svelte';
+import GaugeEditor from '../cards/gauge/Editor.svelte';
 import IframeCardEditor from '../cards/iframe/Editor.svelte';
 import ImageEditor from '../cards/image/Editor.svelte';
 import MediaEditor from '../cards/media/Editor.svelte';
@@ -34,6 +35,7 @@ const EDITORS: [type: string, editor: unknown, label: string, filled: Record<str
 	['climate', ClimateEditor, en.entity, { entity: 'climate.living' }],
 	['camera', CameraEditor, en.entity, { entity: 'camera.door' }],
 	['days_since', DaysSinceEditor, en.entity, { entity: 'input_datetime.filter' }],
+	['gauge', GaugeEditor, en.entity, { entity: 'sensor.humidity' }],
 	['image', ImageEditor, en.entity, { entity: 'image.floorplan' }],
 	['media', MediaEditor, en.entity, { entity: 'media_player.living' }],
 	['temperature', TemperatureEditor, en.entity, { entity: 'sensor.temperature' }],

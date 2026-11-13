@@ -173,6 +173,30 @@ rooms:
           entity: sensor.temperature
           climate_entity: climate.living
           height: 260
+        - id: gauge
+          type: gauge
+          entity: sensor.humidity
+          segments:
+            - from: 0
+              color: bad
+            - from: 30
+              color: good
+            - from: 60
+              color: accent
+        - id: gauge-needle
+          type: gauge
+          name: Power draw
+          entity: sensor.power
+          unit: W
+          max: 1000
+          needle: true
+          segments:
+            - from: 0
+              color: good
+            - from: 500
+              color: accent
+            - from: 800
+              color: bad
         - id: media
           type: media
           entity: media_player.living

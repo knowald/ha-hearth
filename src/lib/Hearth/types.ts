@@ -216,6 +216,20 @@ type OverviewCardVariant =
 			verdict?: false | VerdictBands;
 			height?: number;
 	  }
+	// one numeric sensor on a half arc from min (0) to max (100); the arc
+	// takes the color of the last segment starting at or below the value
+	| {
+			id: string;
+			type: 'gauge';
+			entity?: string;
+			name?: string;
+			unit?: string;
+			min?: number;
+			max?: number;
+			// color is a role name (accent, cool, good, bad) or a CSS color
+			segments?: { from: number; color: string }[];
+			needle?: boolean;
+	  }
 	// shortcuts are one-tap Spotify URIs; default_device names the Connect
 	// device they start on when nothing is playing yet
 	| {
