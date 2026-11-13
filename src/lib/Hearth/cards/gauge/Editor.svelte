@@ -5,6 +5,7 @@
 	import { EditorForm, type FormValues } from '../../edit/form.svelte';
 	import { numberFromInput } from '../../edit/numbers';
 	import { GAUGE_MAX, GAUGE_MIN } from '../../model/cards/gauge';
+	import SegmentsField, { storedSegments, type EditableSegment } from './SegmentsField.svelte';
 
 	let { initial, onchange }: CardEditorProps<GaugeCard> = $props();
 
@@ -60,6 +61,24 @@
 			hint: 'hearth_needle_hint'
 		}
 	]);
+
+	// svelte-ignore state_referenced_locally
+	let segments = $state<EditableSegment[]>(
+		(initial?.segments ?? []).map((segment) => ({
+			from: String(segment.from),
+			color: segment.color
+		}))
+	);
+	let segmentsValid = $state(true);
+
+	$effect(() => {
+		onchange({
+			fields: { ...form.stored, segments: storedSegments($state.snapshot(segments)) },
+			...form.validity,
+			valid: form.validity.valid && segmentsValid
+		});
+	});
 </script>
 
-<FormRenderer {form} {onchange} />
+<FormRenderer {form} />
+<SegmentsField bind:value={segments} bind:valid={segmentsValid} />

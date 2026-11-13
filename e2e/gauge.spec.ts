@@ -71,3 +71,26 @@ test('an unavailable sensor shows its state on an empty track', async ({ page, r
 	await expect(card.locator('.track.empty')).toHaveCount(1);
 	await expect(page.getByRole('button', { name: /^Humidity,/ })).toHaveCount(0);
 });
+
+test('a segment added in the editor colors the preview arc', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.getByRole('button', { name: 'Humidity, 47%' })).toBeVisible();
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await page
+		.locator('.card-slot', { hasText: 'Humidity' })
+		.getByRole('button', { name: 'Edit' })
+		.click();
+	const sheet = page.getByRole('dialog', { name: 'Edit card' });
+	const fill = sheet.locator('.preview .gauge .fill');
+	await expect(fill).toHaveAttribute('style', /--h-good/);
+
+	await sheet.getByRole('button', { name: 'Add segment' }).click();
+	await sheet.getByRole('textbox', { name: 'From' }).last().fill('40');
+	await sheet
+		.getByRole('group', { name: 'Color' })
+		.last()
+		.getByRole('button', { name: 'Bad' })
+		.click();
+	await expect(fill).toHaveAttribute('style', /--h-bad-text/);
+	await expect(sheet.getByRole('button', { name: 'Done' })).toBeEnabled();
+});

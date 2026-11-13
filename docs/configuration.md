@@ -491,7 +491,7 @@ The `gauge` card shows one numeric entity on a half arc, filled from `min` to th
 
 The arc takes the color of the last segment whose `from` is at or below the value, and a thin band outside the arc shows where each segment starts. Below the first `from` the arc keeps the accent color. Segments may be listed in any order, so one list works for a battery, where low is bad, and for a CPU load, where high is bad. A `color` is a theme role (`accent`, `cool`, `good` or `bad`) or a CSS color; anything else draws in the accent. There is no warning role: a three-step scale reads `good`, `accent`, `bad`.
 
-A value outside the range stops the arc and the needle at its end, and the reading still shows the real value. A missing, unavailable or non-numeric entity shows an empty track with its state. The form edits everything but `segments`, which are set in YAML.
+A value outside the range stops the arc and the needle at its end, and the reading still shows the real value. A missing, unavailable or non-numeric entity shows an empty track with its state. In the card editor each segment has a From field and a choice of Good, Accent, Bad, Cool or Custom, where Custom takes a CSS color. A segment without a start or a color is left out when you save.
 
 ## To-do list card
 
