@@ -71,6 +71,11 @@
 	function arc(radius: number, start: number, end: number): string {
 		return `M${point(radius, start)} A${radius} ${radius} 0 0 1 ${point(radius, end)}`;
 	}
+
+	// a band shorter than the gap keeps its full length, or the cut would pass its end
+	function bandStart(band: { start: number; end: number }, index: number): number {
+		return index && band.end - band.start > BAND_GAP ? band.start + BAND_GAP : band.start;
+	}
 </script>
 
 {#snippet reading()}
@@ -88,14 +93,17 @@
 				{#if value === null}
 					<path class="track empty" d={arc(RADIUS, 0, 1)} />
 				{:else if card.needle}
-					<path class="track needle-track" d={arc(RADIUS, 0, 1)} style:stroke={ACCENT} />
-					{#each bands as band, index (index)}
-						<path
-							class="track needle-track"
-							d={arc(RADIUS, band.start, band.end)}
-							style:stroke={band.segment.paint}
-						/>
-					{/each}
+					<!-- one group opacity, so a band covers the accent under it instead of mixing with it -->
+					<g class="needle-tracks">
+						<path class="track needle-track" d={arc(RADIUS, 0, 1)} style:stroke={ACCENT} />
+						{#each bands as band, index (index)}
+							<path
+								class="track needle-track"
+								d={arc(RADIUS, band.start, band.end)}
+								style:stroke={band.segment.paint}
+							/>
+						{/each}
+					</g>
 					<g class="needle" style:transform="rotate({(fraction - 0.5) * 180}deg)">
 						<line x1={CX} y1={CY} x2={CX} y2={CY - NEEDLE_LENGTH} />
 					</g>
@@ -104,7 +112,7 @@
 					{#each bands as band, index (index)}
 						<path
 							class="band"
-							d={arc(BAND_RADIUS, index ? band.start + BAND_GAP : band.start, band.end)}
+							d={arc(BAND_RADIUS, bandStart(band, index), band.end)}
 							style:stroke={band.segment.paint}
 						/>
 					{/each}
@@ -201,6 +209,7 @@
 
 	.dial {
 		position: relative;
+		container-type: inline-size;
 	}
 
 	svg {
@@ -229,6 +238,9 @@
 	.track.needle-track {
 		stroke-width: 10;
 		stroke-linecap: butt;
+	}
+
+	.needle-tracks {
 		opacity: calc(0.7 * var(--h-accent-scale));
 	}
 
@@ -273,6 +285,10 @@
 		bottom: 0;
 		text-align: center;
 		font-size: var(--h-type-display);
+		font-size: min(
+			var(--h-type-display),
+			14.5cqi
+		); /* literal ok: shrinks with a narrow dial, so the digits stay inside the arc */
 	}
 
 	.reading.muted {

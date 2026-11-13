@@ -41,7 +41,10 @@ function normalizeSegments(raw: unknown): GaugeSegment[] | undefined {
 /** Where `value` sits between `min` and `max`, clamped to 0..1; 0 when there is no usable range. */
 export function gaugeFraction(value: number | null, min: number, max: number): number {
 	if (value === null || ![value, min, max].every(Number.isFinite) || min >= max) return 0;
-	return Math.min(1, Math.max(0, (value - min) / (max - min)));
+	if (value <= min) return 0;
+	if (value >= max) return 1;
+	// halved, so a range wider than the largest number does not overflow
+	return (value / 2 - min / 2) / (max / 2 - min / 2);
 }
 
 /** The last segment whose start is at or below `value`, in any listed order. */

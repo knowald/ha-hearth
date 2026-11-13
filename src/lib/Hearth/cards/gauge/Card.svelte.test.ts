@@ -56,6 +56,34 @@ describe('gauge card', () => {
 		expect(container.querySelectorAll('.band')).toHaveLength(3);
 	});
 
+	it('draws a band shorter than the gap left to right', () => {
+		setBattery('18');
+		const { container } = render(Card, {
+			card: gauge({
+				segments: [
+					{ from: 0, color: 'bad' },
+					{ from: 50, color: 'accent' },
+					{ from: 50.5, color: 'good' }
+				]
+			})
+		});
+		const bands = [...container.querySelectorAll<SVGPathElement>('.band')];
+		expect(bands).toHaveLength(3);
+		for (const band of bands) {
+			const [startX, , , , , , , endX] = (band.getAttribute('d') ?? '').match(/-?\d+\.?\d*/g) ?? [];
+			expect(Number(startX)).toBeLessThan(Number(endX));
+		}
+	});
+
+	it('paints needle segments under one opacity, so they do not mix with the accent', () => {
+		setBattery('18');
+		const { container } = render(Card, {
+			card: gauge({ needle: true, segments: [{ from: 50, color: 'good' }] })
+		});
+		const tracks = container.querySelectorAll('.needle-tracks > .needle-track');
+		expect(tracks).toHaveLength(2);
+	});
+
 	it('keeps the accent below the first segment and drops text that is no color', () => {
 		setBattery('5');
 		const { container } = render(Card, {

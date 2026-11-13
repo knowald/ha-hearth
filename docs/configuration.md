@@ -463,7 +463,7 @@ Edit them under Style rules in an entity's options in the entities card editor.
 
 ## Gauge card
 
-The `gauge` card shows one numeric entity on a half arc, filled from `min` to the value, with the reading inside the arc and the ends of the range under it. A tap opens the entity's detail sheet.
+The `gauge` card shows one numeric entity on a half arc, filled from `min` to the value, with the reading inside the arc and the ends of the range under it. A tap opens the entity's detail sheet while it shows a number.
 
 ```yaml
 - id: battery

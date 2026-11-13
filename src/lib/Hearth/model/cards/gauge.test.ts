@@ -29,6 +29,11 @@ describe('gaugeFraction', () => {
 		expect(gaugeFraction(-3, 0, 100)).toBe(0);
 	});
 
+	it('stays finite on a range wider than the largest number', () => {
+		expect(gaugeFraction(0, -1e308, 1e308)).toBe(0.5);
+		expect(gaugeFraction(1e308, -1e308, 1e308)).toBe(1);
+	});
+
 	it('is 0 for a range with min equal to or above max', () => {
 		expect(gaugeFraction(5, 10, 10)).toBe(0);
 		expect(gaugeFraction(5, 10, 0)).toBe(0);
