@@ -10,6 +10,7 @@
 	import { sensorNumber } from '$lib/core/ha/entities';
 	import { setClimateTemperature } from '$lib/core/domains/climate';
 	import { formatReading } from '../../format';
+	import { chartY, seriesPath } from '../../chartPath';
 	import Icon from '../../Icon.svelte';
 
 	let { card }: { card: Extract<OverviewCard, { type: 'temperature' }> } = $props();
@@ -72,7 +73,7 @@
 
 	const CHART_WIDTH = 520;
 	const CHART_HEIGHT = 90;
-	const CHART_PAD = 8;
+	const CHART_BOX = { width: CHART_WIDTH, height: CHART_HEIGHT, pad: 8 };
 
 	let chart = $derived.by(() => {
 		if (!history) return null;
@@ -80,23 +81,19 @@
 		const low = Math.min(...values);
 		const high = Math.max(...values);
 		// the target line must fit on the chart even when the room never reached it
-		const min = target === null ? low : Math.min(low, target);
-		const max = target === null ? high : Math.max(high, target);
-		const span = max - min || 1;
-		const y = (entry: number) =>
-			CHART_PAD + (1 - (entry - min) / span) * (CHART_HEIGHT - 2 * CHART_PAD);
-		const points = values.map((entry, index) => ({
-			x: (index / (values.length - 1)) * CHART_WIDTH,
-			y: y(entry)
-		}));
-		const line = points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' L');
+		const domain: [number, number] =
+			target === null ? [low, high] : [Math.min(low, target), Math.max(high, target)];
+		const path = seriesPath(
+			values.map((entry, index) => ({ x: index, y: entry })),
+			CHART_BOX,
+			{ x: [0, values.length - 1], y: domain }
+		);
 		return {
+			...path,
 			low,
 			high,
-			linePath: `M${line}`,
-			areaPath: `M${line} L${CHART_WIDTH},${CHART_HEIGHT} L0,${CHART_HEIGHT} Z`,
-			end: points[points.length - 1],
-			targetY: target === null ? null : y(target)
+			end: path.coords[path.coords.length - 1],
+			targetY: target === null ? null : chartY(target, CHART_BOX, domain)
 		};
 	});
 
@@ -162,9 +159,9 @@
 						stroke-dasharray="4 5"
 					/>
 				{/if}
-				<path d={chart.areaPath} fill="url(#{gradientId})" />
+				<path d={chart.area} fill="url(#{gradientId})" />
 				<path
-					d={chart.linePath}
+					d={chart.line}
 					fill="none"
 					stroke="var(--h-accent-dim-text)"
 					stroke-width="2"

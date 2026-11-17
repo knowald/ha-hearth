@@ -59,6 +59,17 @@ export async function callServiceForResponse(
 
 export type StatisticPeriod = '5minute' | 'hour' | 'day' | 'week' | 'month';
 
+/** How far back a chart looks for each period; a month is counted as 30 days. */
+export const PERIOD_MS = {
+	hour: 60 * 60 * 1000,
+	day: 24 * 60 * 60 * 1000,
+	week: 7 * 24 * 60 * 60 * 1000,
+	month: 30 * 24 * 60 * 60 * 1000
+} as const;
+
+/** The columns recorder statistics can return; asking for fewer keeps the reply small. */
+export type StatisticType = 'change' | 'last_reset' | 'max' | 'mean' | 'min' | 'state' | 'sum';
+
 export interface StatisticRow {
 	start: number;
 	end: number;
@@ -74,14 +85,23 @@ export async function fetchStatistics(
 	statisticIds: string[],
 	start: Date,
 	end: Date,
-	period: StatisticPeriod
+	period: StatisticPeriod,
+	options: {
+		/** Unit per device class to convert into, for example `{ energy: 'kWh' }`. */
+		units?: Record<string, string>;
+		types?: StatisticType[];
+	} = {}
 ): Promise<Record<string, StatisticRow[]>> {
+	// named one by one, so no other key of the object can replace a request field
+	const { units, types } = options;
 	const result = await requireConnection().sendMessagePromise<Record<string, StatisticRow[]>>({
 		type: 'recorder/statistics_during_period',
 		start_time: start.toISOString(),
 		end_time: end.toISOString(),
 		statistic_ids: statisticIds,
-		period
+		period,
+		...(units && { units }),
+		...(types && { types })
 	});
 	return result ?? {};
 }
