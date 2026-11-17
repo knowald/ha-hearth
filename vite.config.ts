@@ -77,9 +77,6 @@ export default defineConfig({
 	optimizeDeps: {
 		include: [
 			// include all because of dynamic imports, prevents: ✨ optimized dependencies changed. reloading
-			'd3-array',
-			'd3-scale',
-			'd3-shape',
 			'dompurify',
 			'dotenv',
 			'express',
