@@ -493,6 +493,35 @@ The arc takes the color of the last segment whose `from` is at or below the valu
 
 A value outside the range stops the arc and the needle at its end, and the reading still shows the real value. A missing, unavailable or non-numeric entity shows an empty track with its state. In the card editor each segment has a From field and a choice of Good, Accent, Bad, Cool or Custom, where Custom takes a CSS color. A segment without a start or a color is left out when you save.
 
+## Chart card
+
+The `chart` card plots the long-term statistics of up to six entities as lines or bars. A chip above the plot shows each entity's color, name and current reading, and a tap on it opens the entity's detail sheet. Tap the plot, or point at it with a mouse, to read the values of every entity at that time. With the plot focused, the arrow keys step through the times and Escape clears the selection.
+
+```yaml
+- id: temperatures
+  type: chart
+  name: Temperature
+  period: week
+  entities:
+    - entity: sensor.living_room_temperature
+      name: Living room
+    - entity: sensor.bedroom_temperature
+      name: Bedroom
+      color: cool
+```
+
+| Key        | Effect                                                                   |
+| ---------- | ------------------------------------------------------------------------ |
+| `entities` | A list of `entity`, with an optional `name` and `color`. Required.       |
+| `name`     | Heading. Defaults to the entity's name when the chart has one entity.    |
+| `style`    | `line` (default) or `bar`.                                               |
+| `period`   | `day` (default), `week` or `month`: how far back the chart looks.        |
+| `height`   | Fixes the card's height in pixels. Without it the card fills its column. |
+
+A line follows the mean of each hour, or of each day for a month. A week of lines is drawn by the hour; a week of bars, like a month, by the day. A bar shows how much a total, such as an energy meter, changed in its hour or day, and falls back to the mean for a sensor without a total. Bars can be negative, and the bar of the hour or day still running is drawn dashed. A time the recorder has no statistics for leaves a gap in a line and no bar.
+
+All entities share one axis, so pick entities with the same unit. A `color` is a theme role (`accent`, `cool`, `good` or `bad`) or a CSS color; without one the entities take accent, cool, good and bad in order, and a fifth and sixth repeat accent and cool, faded. A missing or unavailable entity shows its state in its chip.
+
 ## To-do list card
 
 The `todo` card shows a Home Assistant to-do list, such as Shopping List, Local To-do or Google Tasks. Tick an item to complete it, type in the field at the top and press Enter to add one, tap an item's text to rename it and long-press an item (or press Delete on it) to remove it after a confirmation. Changes show at once and roll back if Home Assistant refuses them.

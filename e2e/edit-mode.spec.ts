@@ -12,6 +12,7 @@ const CARD_NAMES = [
 	'Header',
 	'Sensor',
 	'Gauge',
+	'Chart',
 	'Media',
 	'Vacuum',
 	'Camera',
