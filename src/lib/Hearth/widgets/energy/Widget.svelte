@@ -32,9 +32,11 @@
 		async function fetchToday() {
 			const now = new Date();
 			const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-			return usagePerRow(
-				(await fetchStatistics([statisticId], start, new Date(), 'hour'))[statisticId] ?? []
-			);
+			// the widget prints kWh, so a statistic recorded in Wh or MWh is converted by the recorder
+			const statistics = await fetchStatistics([statisticId], start, new Date(), 'hour', {
+				units: { energy: 'kWh' }
+			});
+			return usagePerRow(statistics[statisticId] ?? []);
 		}
 
 		return startDataRefresh(fetchToday, (value) => (hours = value));
