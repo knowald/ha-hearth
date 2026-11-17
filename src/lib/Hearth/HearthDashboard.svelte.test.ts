@@ -260,7 +260,8 @@ describe('HearthDashboard navigation', () => {
 		hearthConfig.set(withRooms([{ id: 'search', type: 'search' }]));
 		render(HearthDashboard);
 		await fireEvent.click(screen.getByRole('button', { name: en.hearth_search_placeholder }));
-		expect(screen.getByRole('dialog', { name: en.search })).toBeTruthy();
+		// the overlay loads on first use
+		expect(await screen.findByRole('dialog', { name: en.search })).toBeTruthy();
 		await settle();
 		await act(() => window.dispatchEvent(new PopStateEvent('popstate')));
 		expect(screen.queryByRole('dialog', { name: en.search })).toBeNull();
