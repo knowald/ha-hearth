@@ -137,4 +137,10 @@ describe('seriesPath', () => {
 		expect(path.line).toBe('M0.0,50.0 L0.3,0.0');
 		expect(path.area).toBe('M0.0,50.0 L0.3,0.0 L0.3,50 L0,50 Z');
 	});
+
+	it('stays finite on a domain wider than the largest double', () => {
+		const path = seriesPath(indexed([-1e308, 1e308]), box, { x: [0, 1], y: [-1e308, 1e308] });
+		expect(path.line).toBe('M0.0,50.0 L100.0,0.0');
+		expect(chartY(0, box, [-1.7e308, 1.7e308])).toBe(25);
+	});
 });

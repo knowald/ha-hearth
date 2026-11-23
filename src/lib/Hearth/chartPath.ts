@@ -33,9 +33,11 @@ function shortest(value: number): string {
 	return String(Number(value.toFixed(1)));
 }
 
-// a flat domain divides by 1 instead of 0: every point lands on the low edge
+// a flat domain divides by 1 instead of 0: every point lands on the low edge.
+// Halved first, so a domain wider than the largest double stays finite;
+// halving is exact, so every other domain gives the same result.
 function fraction(value: number, [low, high]: [number, number]): number {
-	return (value - low) / (high - low || 1);
+	return (value / 2 - low / 2) / (high / 2 - low / 2 || 1);
 }
 
 export function chartY(value: number, box: ChartBox, domain: [number, number]): number {
