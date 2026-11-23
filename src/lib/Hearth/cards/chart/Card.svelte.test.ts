@@ -1,16 +1,18 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import type { StatisticRow } from '$lib/core/ha/history';
-import { closePopup, hearthEditMode, popup } from '../../store';
+import { DEFAULT_HEARTH_CONFIG, type RailWidget } from '../../config';
+import { closePopup, hearthConfig, hearthEditMode, popup } from '../../store';
 import type { ChartCard } from './descriptor';
 import Card from './Card.svelte';
 
 const mocks = vi.hoisted(() => ({
 	fetchStatistics: vi.fn(),
-	connected: undefined as unknown as import('svelte/store').Writable<boolean>
+	connected: undefined as unknown as import('svelte/store').Writable<boolean>,
+	refresh: () => Promise.resolve()
 }));
 
 vi.mock('$lib/core/ha/connection', async (original) => {
@@ -25,7 +27,8 @@ vi.mock('$lib/core/ha/connection', async (original) => {
 vi.mock('$lib/core/ha/history', async (original) => ({
 	...(await original<typeof import('$lib/core/ha/history')>()),
 	startDataRefresh: (load: () => Promise<unknown>, apply: (value: unknown) => void) => {
-		void load().then(apply);
+		mocks.refresh = () => load().then(apply);
+		void mocks.refresh();
 		return () => {};
 	},
 	cachedData: (_key: string, load: () => Promise<unknown>) => load(),
@@ -38,8 +41,12 @@ const DEGREES = `${String.fromCharCode(0xb0)}C`;
 // the last full hour, so the newest bucket has ended and is not the running one
 const LAST = Math.floor(Date.now() / HOUR) * HOUR - HOUR;
 
-function hourly(values: (number | null)[], field: 'mean' | 'change' = 'mean'): StatisticRow[] {
-	const first = LAST - (values.length - 1) * HOUR;
+function hourly(
+	values: (number | null)[],
+	field: 'mean' | 'change' = 'mean',
+	last = LAST
+): StatisticRow[] {
+	const first = last - (values.length - 1) * HOUR;
 	return values.flatMap((value, index) =>
 		value === null
 			? []
@@ -65,17 +72,37 @@ function setSensors(living = '21.4', bedroom = '19.7') {
 		'sensor.bedroom': hassEntity('sensor.bedroom', bedroom, {
 			friendly_name: 'Bedroom',
 			unit_of_measurement: DEGREES
+		}),
+		'sensor.energy': hassEntity('sensor.energy', '1284.6', {
+			friendly_name: 'Energy',
+			unit_of_measurement: 'kWh'
 		})
 	});
+}
+
+function useClock(timezone: string, hourFormat: '12' | '24' = '24') {
+	const clock = { id: 'clock', type: 'clock', timezone, hour_format: hourFormat } as RailWidget;
+	hearthConfig.set({ ...structuredClone(DEFAULT_HEARTH_CONFIG), rail: [clock] });
 }
 
 async function drawn(container: HTMLElement) {
 	await waitFor(() => expect(container.querySelector('.chart-body.ready')).toBeTruthy());
 }
 
+// jsdom has no PointerEvent, so the pointer type is set by hand
+async function pointer(target: Element, type: string, clientX = 0) {
+	const event = new MouseEvent(type, { bubbles: true, clientX });
+	Object.defineProperty(event, 'pointerType', { value: 'mouse' });
+	await fireEvent(target, event);
+}
+
+const chipValue = (container: HTMLElement, entity: string) =>
+	container.querySelector(`.chip[data-entity="${entity}"] .chip-value`)?.textContent;
+
 describe('chart card', () => {
 	beforeEach(() => {
 		closePopup();
+		useClock('UTC');
 		mocks.connected.set(true);
 		mocks.fetchStatistics.mockReset();
 		mocks.fetchStatistics.mockResolvedValue({
@@ -84,7 +111,10 @@ describe('chart card', () => {
 		});
 		setSensors();
 	});
-	afterEach(() => hearthEditMode.set(false));
+	afterEach(() => {
+		hearthEditMode.set(false);
+		hearthConfig.set(structuredClone(DEFAULT_HEARTH_CONFIG));
+	});
 
 	it('asks for every entity in one request', async () => {
 		const { container } = render(Card, { card: chart({ period: 'week' }) });
@@ -97,7 +127,27 @@ describe('chart card', () => {
 		expect(options).toEqual({ types: ['mean', 'state'] });
 	});
 
-	it('shows a chip per entity with its color, name and reading, which opens its detail', async () => {
+	it('starts week and month bars at a midnight in the display zone', async () => {
+		useClock('Asia/Kolkata');
+		render(Card, {
+			card: chart({ style: 'bar', period: 'week', entities: [{ entity: 'sensor.energy' }] })
+		});
+		await waitFor(() => expect(mocks.fetchStatistics).toHaveBeenCalled());
+		const [, start, end, period] = mocks.fetchStatistics.mock.calls[0];
+		expect(period).toBe('day');
+		const wall = new Intl.DateTimeFormat('en-GB', {
+			timeZone: 'Asia/Kolkata',
+			hour: '2-digit',
+			minute: '2-digit',
+			hourCycle: 'h23'
+		}).format(start);
+		expect(wall).toBe('00:00');
+		const span = end.getTime() - start.getTime();
+		expect(span).toBeLessThanOrEqual(7 * 24 * HOUR);
+		expect(span).toBeGreaterThan(6 * 24 * HOUR);
+	});
+
+	it('shows a chip per entity with its color, name and live reading, which opens its detail', async () => {
 		render(Card, { card: chart() });
 		const living = screen.getByRole('button', { name: /Living room/ });
 		expect(living.textContent).toContain(`21.4${DEGREES}`);
@@ -114,6 +164,19 @@ describe('chart card', () => {
 		});
 	});
 
+	it('shows the newest bar in a bar chip, not the meter total, and - until it loads', async () => {
+		let resolve: (value: unknown) => void = () => {};
+		mocks.fetchStatistics.mockReturnValue(new Promise((done) => (resolve = done)));
+		const { container } = render(Card, {
+			card: chart({ style: 'bar', entities: [{ entity: 'sensor.energy' }] })
+		});
+		await waitFor(() => expect(mocks.fetchStatistics).toHaveBeenCalled());
+		expect(chipValue(container, 'sensor.energy')).toBe('-');
+		resolve({ 'sensor.energy': hourly([1.2, 0.8, null], 'change') });
+		await drawn(container);
+		expect(chipValue(container, 'sensor.energy')).toBe('0.8 kWh');
+	});
+
 	it('draws a line per entity, broken where a bucket is missing', async () => {
 		const { container } = render(Card, { card: chart() });
 		await drawn(container);
@@ -128,7 +191,36 @@ describe('chart card', () => {
 			tick.textContent?.trim()
 		);
 		expect(ticks).toEqual(['18', '20', '22', '24']);
-		expect(container.querySelectorAll('.x-axis span')).toHaveLength(3);
+	});
+
+	it('labels the day every six hours of the display zone, in its hour format', async () => {
+		useClock('Asia/Kolkata', '24');
+		const { container } = render(Card, { card: chart() });
+		await drawn(container);
+		const labels = [...container.querySelectorAll('.x-axis .tick')].map((tick) =>
+			tick.textContent?.trim()
+		);
+		expect(labels).toHaveLength(4);
+		for (const label of labels) expect(label).toMatch(/^(00|06|12|18):00$/);
+		const positions = [...container.querySelectorAll<HTMLElement>('.x-axis .tick')].map((tick) =>
+			parseFloat(tick.style.left)
+		);
+		expect(positions).toEqual([...positions].sort((a, b) => a - b));
+		expect(new Set(positions.map((left) => Math.round(left))).size).toBe(4);
+	});
+
+	it('names a selected time in the rail clock zone and hour format', async () => {
+		useClock('America/New_York', '12');
+		const { container } = render(Card, { card: chart() });
+		await drawn(container);
+		await fireEvent.click(screen.getByRole('slider'), { clientX: 0 });
+		const expected = new Intl.DateTimeFormat(undefined, {
+			hour: '2-digit',
+			minute: '2-digit',
+			hour12: true,
+			timeZone: 'America/New_York'
+		}).format(LAST - 4 * HOUR);
+		expect(container.querySelector('.readout')?.textContent?.trim()).toBe(expected);
 	});
 
 	it('marks a point with no neighbour, which a line alone would not show', async () => {
@@ -170,21 +262,20 @@ describe('chart card', () => {
 		expect(container.querySelectorAll('rect.bar.current')).toHaveLength(1);
 	});
 
-	it('selects the nearest bucket on a tap and steps with the arrow keys', async () => {
+	it('selects the nearest bucket on a tap, shows its values in the chips and steps with keys', async () => {
 		const { container } = render(Card, { card: chart() });
 		await drawn(container);
 		const plot = screen.getByRole('slider', { name: 'Chart' });
 		expect(plot.getAttribute('tabindex')).toBe('0');
 		expect(container.querySelector('.readout.idle')).toBeTruthy();
+		expect(chipValue(container, 'sensor.living')).toBe(`21.4${DEGREES}`);
 
 		// jsdom lays out nothing, so the plot is 1px wide and clientX is the fraction
 		await fireEvent.click(plot, { clientX: 0 });
 		expect(plot.getAttribute('aria-valuenow')).toBe('0');
 		expect(container.querySelector('.readout.idle')).toBeNull();
-		const readout = container.querySelector('.readout')?.textContent ?? '';
-		expect(readout).toContain('Living room');
-		expect(readout).toContain(`20${DEGREES}`);
-		expect(readout).toContain(`18${DEGREES}`);
+		expect(chipValue(container, 'sensor.living')).toBe(`20${DEGREES}`);
+		expect(chipValue(container, 'sensor.bedroom')).toBe(`18${DEGREES}`);
 		expect(container.querySelector('line.cursor')).toBeTruthy();
 		expect(container.querySelectorAll('circle.marker')).toHaveLength(2);
 
@@ -195,12 +286,65 @@ describe('chart card', () => {
 		expect(plot.getAttribute('aria-valuetext')).toMatch(
 			new RegExp(`, Living room -, Bedroom 19.5${DEGREES}$`)
 		);
+		expect(chipValue(container, 'sensor.living')).toBe('-');
 		expect(container.querySelectorAll('circle.marker')).toHaveLength(1);
 
 		await fireEvent.keyDown(plot, { key: 'End' });
 		expect(plot.getAttribute('aria-valuenow')).toBe('4');
 		await fireEvent.keyDown(plot, { key: 'Escape' });
 		expect(container.querySelector('.readout.idle')).toBeTruthy();
+		expect(chipValue(container, 'sensor.living')).toBe(`21.4${DEGREES}`);
+	});
+
+	it('announces a change on the first arrow press', async () => {
+		const { container } = render(Card, { card: chart() });
+		await drawn(container);
+		const plot = screen.getByRole('slider');
+		const idle = plot.getAttribute('aria-valuetext');
+		expect(idle).toBe('Last 24 hours');
+		await fireEvent.keyDown(plot, { key: 'ArrowLeft' });
+		expect(plot.getAttribute('aria-valuenow')).toBe('4');
+		expect(plot.getAttribute('aria-valuetext')).not.toBe(idle);
+		expect(plot.getAttribute('aria-valuetext')).toContain('Living room 22');
+		await fireEvent.keyDown(plot, { key: 'ArrowLeft' });
+		expect(plot.getAttribute('aria-valuenow')).toBe('3');
+	});
+
+	it('keeps a clicked time when the mouse leaves, and drops one only hovered', async () => {
+		const { container } = render(Card, { card: chart() });
+		await drawn(container);
+		const plot = screen.getByRole('slider');
+		await pointer(plot, 'pointermove', 0);
+		expect(container.querySelector('.readout.idle')).toBeNull();
+		await pointer(plot, 'pointerleave');
+		expect(container.querySelector('.readout.idle')).toBeTruthy();
+
+		await fireEvent.click(plot, { clientX: 0 });
+		await pointer(plot, 'pointermove', 1);
+		expect(plot.getAttribute('aria-valuenow')).toBe('0');
+		await pointer(plot, 'pointerleave');
+		expect(plot.getAttribute('aria-valuenow')).toBe('0');
+		expect(container.querySelector('.readout.idle')).toBeNull();
+	});
+
+	it('keeps the selected time, not its position, through a refresh', async () => {
+		const { container } = render(Card, { card: chart() });
+		await drawn(container);
+		const plot = screen.getByRole('slider');
+		await fireEvent.click(plot, { clientX: 0 });
+		await fireEvent.keyDown(plot, { key: 'ArrowRight' });
+		const time = container.querySelector('.readout')?.textContent;
+		expect(plot.getAttribute('aria-valuenow')).toBe('1');
+
+		// the window slid on: the oldest bucket is gone and a new one came in
+		mocks.fetchStatistics.mockResolvedValue({
+			'sensor.living': hourly([21, null, 23, 22, 24], 'mean', LAST + HOUR),
+			'sensor.bedroom': hourly([19, 19.5, 20, 19, 18], 'mean', LAST + HOUR)
+		});
+		await act(() => mocks.refresh());
+		await waitFor(() => expect(plot.getAttribute('aria-valuenow')).toBe('0'));
+		expect(container.querySelector('.readout')?.textContent).toBe(time);
+		expect(chipValue(container, 'sensor.living')).toBe(`21${DEGREES}`);
 	});
 
 	it('names the plot after the card', async () => {
@@ -243,9 +387,11 @@ describe('chart card', () => {
 	});
 
 	it('takes a set color through styleColor and fades a fifth series without one', () => {
-		const entities = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ entity: `sensor.${id}` }));
-		entities[1] = { entity: 'sensor.b', color: 'red; background: url(x)' } as never;
-		entities[2] = { entity: 'sensor.c', color: 'Bad' } as never;
+		const entities: ChartCard['entities'] = ['a', 'b', 'c', 'd', 'e'].map((id) => ({
+			entity: `sensor.${id}`
+		}));
+		entities[1] = { entity: 'sensor.b', color: 'red; background: url(x)' };
+		entities[2] = { entity: 'sensor.c', color: 'Bad' };
 		const { container } = render(Card, { card: chart({ entities }) });
 		const dots = [...container.querySelectorAll<HTMLElement>('.legend .dot')];
 		expect(dots.map((dot) => dot.style.background)).toEqual([

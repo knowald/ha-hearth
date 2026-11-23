@@ -1,6 +1,7 @@
 import type { StatisticPeriod, StatisticRow, StatisticType } from '$lib/core/ha/history';
 import { chartY, type ChartBox, type ChartDomain } from '../../chartPath';
 import type { ChartCard } from '../../model/cards/chart';
+import { formatReading } from '../../format';
 
 /*
  * The chart card's data, from recorder rows to what the plot draws: one list
@@ -91,33 +92,96 @@ export function linePoints(data: ChartData, series: number): { x: number; y: num
 }
 
 const STEPS = [1, 2, 5, 10];
+// a span this small next to its values is below what a double can tell apart
+const RELATIVE_PRECISION = 1e-14;
+// values this close to zero are drawn as zero; steps for them would underflow
+const SMALLEST_MAGNITUDE = 1e-290;
+const MAX_TICKS = 12;
 
-/** Even ticks around `low` to `high`, about `intervals` apart, and the domain they span. */
-export function niceScale(
-	low: number,
-	high: number,
-	intervals = 3
-): { domain: [number, number]; ticks: number[]; step: number } {
-	if (!Number.isFinite(low) || !Number.isFinite(high)) {
-		return { domain: [0, 1], ticks: [0, 1], step: 1 };
+export interface NiceScale {
+	domain: [number, number];
+	ticks: number[];
+	step: number;
+}
+
+const FALLBACK_SCALE: NiceScale = { domain: [0, 1], ticks: [0, 0.5, 1], step: 0.5 };
+
+// the data's own ends as the only ticks, for a span no even step divides
+function endsOnly(low: number, high: number): NiceScale {
+	if (!(low < high)) return FALLBACK_SCALE;
+	return { domain: [low, high], ticks: [low, high], step: Math.abs(high / 2 - low / 2) };
+}
+
+/**
+ * Room around a span too narrow to divide: a tenth of the value on each
+ * side, or 0 to 1 at zero. Halved math keeps the largest numbers finite.
+ */
+function padded(low: number, high: number): [number, number] {
+	const center = low / 2 + high / 2;
+	if (center === 0) return [0, 1];
+	const room = Math.abs(center) / 10;
+	const below = center - room;
+	const above = center + room;
+	return [Number.isFinite(below) ? below : center, Number.isFinite(above) ? above : center];
+}
+
+/** The tick at `index` steps from zero, without the float noise of `index * 0.1`. */
+function tickAt(index: number, step: number): number {
+	return step < 1 ? index / Math.round(1 / step) : index * step;
+}
+
+/**
+ * Even ticks around `low` to `high`, about `intervals` apart, and a domain
+ * that holds both ends. Never loops past a few ticks, whatever the input.
+ */
+export function niceScale(low: number, high: number, intervals = 3): NiceScale {
+	if (!Number.isFinite(low) || !Number.isFinite(high)) return FALLBACK_SCALE;
+	if (low > high) [low, high] = [high, low];
+	if (Math.max(Math.abs(low), Math.abs(high)) < SMALLEST_MAGNITUDE) {
+		[low, high] = [low < 0 ? -1 : 0, high > 0 || low >= 0 ? 1 : 0];
 	}
-	if (low === high) {
-		// a flat series gets room around it; a flat zero only above, where bars grow
-		const room = Math.abs(low) / 10 || 1;
-		[low, high] = low === 0 ? [0, 1] : [low - room, high + room];
-	}
-	const raw = (high - low) / intervals;
-	const magnitude = 10 ** Math.floor(Math.log10(raw));
-	const step = Number(
-		((STEPS.find((factor) => factor * magnitude >= raw) ?? 10) * magnitude).toPrecision(12)
-	);
+	const magnitude = Math.max(Math.abs(low), Math.abs(high));
+	if (high / 2 - low / 2 <= magnitude * RELATIVE_PRECISION) [low, high] = padded(low, high);
+
+	const raw = ((high / 2 - low / 2) / intervals) * 2;
+	const power = 10 ** Math.floor(Math.log10(raw));
+	const step = (STEPS.find((factor) => factor * power >= raw) ?? 10) * power;
+	if (!(step > 0) || !Number.isFinite(step)) return endsOnly(low, high);
 	const first = Math.floor(low / step);
-	const last = Math.ceil(high / step);
+	const count = Math.ceil(high / step) - first + 1;
+	if (!Number.isFinite(count) || count < 2 || count > MAX_TICKS) return endsOnly(low, high);
+
 	const ticks: number[] = [];
-	for (let index = first; index <= last; index += 1) {
-		ticks.push(Number((index * step).toPrecision(12)));
+	for (let offset = 0; offset < count; offset += 1) {
+		const tick = tickAt(first + offset, step);
+		// past the largest double a tick is left out; the domain still holds the data
+		if (Number.isFinite(tick) && (!ticks.length || tick > ticks[ticks.length - 1])) {
+			ticks.push(tick);
+		}
 	}
-	return { domain: [ticks[0], ticks[ticks.length - 1]], ticks, step };
+	if (ticks.length < 2) return endsOnly(low, high);
+	return {
+		domain: [Math.min(ticks[0], low), Math.max(ticks[ticks.length - 1], high)],
+		ticks,
+		step
+	};
+}
+
+/** Decimals that tell ticks `step` apart, in plain notation for steps of any size. */
+export function tickDecimals(step: number): number {
+	if (!(step > 0) || !Number.isFinite(step)) return 0;
+	// 1, 2 and 5 times a power of ten need as many decimals as the power is below 0
+	return Math.min(20, Math.max(0, -Math.floor(Math.log10(step) + 1e-9)));
+}
+
+/** A tick's label, rounded to what the step can tell apart. */
+export function tickLabel(tick: number, step: number): string {
+	const decimals = tickDecimals(step);
+	const reading = formatReading(tick, '', decimals);
+	if (/^-?\d+(\.\d+)?$/.test(reading)) return reading;
+	// formatReading writes 1e-8 in exponent form and overflows near the largest doubles
+	const text = tick.toFixed(decimals);
+	return /^-0\.?0*$/.test(text) ? text.slice(1) : text;
 }
 
 /**
@@ -212,22 +276,4 @@ export function nearestBucket(data: ChartData, style: ChartStyle, time: number):
 		if (gap < distance) [nearest, distance] = [index, gap];
 	});
 	return nearest;
-}
-
-/** How the time axis and a selected bucket name their times. */
-export function timeFormats(
-	bucket: StatisticPeriod,
-	period: ChartPeriod
-): { axis: Intl.DateTimeFormatOptions; bucket: Intl.DateTimeFormatOptions } {
-	const clock: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
-	const day: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
-	return {
-		axis:
-			period === 'day'
-				? clock
-				: period === 'week'
-					? { weekday: 'short', day: 'numeric' }
-					: { day: 'numeric', month: 'short' },
-		bucket: bucket === 'day' ? day : period === 'day' ? clock : { weekday: 'short', ...clock }
-	};
 }

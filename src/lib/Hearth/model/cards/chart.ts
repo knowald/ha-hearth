@@ -21,10 +21,13 @@ const ChartEntitySchema = v.object({
 
 function normalizeEntities(raw: unknown): ChartEntity[] | undefined {
 	if (!Array.isArray(raw)) return undefined;
+	const seen = new Set<string>();
 	const entities = raw.flatMap((entry): ChartEntity[] => {
 		if (!isRecord(entry)) return [];
 		const entity = trimmedOrUndefined(entry.entity);
-		if (!entity) return [];
+		// one statistic drawn twice would hide under itself; the first listing wins
+		if (!entity || seen.has(entity)) return [];
+		seen.add(entity);
 		return [
 			{
 				entity,

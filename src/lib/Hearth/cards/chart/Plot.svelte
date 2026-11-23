@@ -1,11 +1,16 @@
 <script lang="ts" module>
 	export interface PlotSeries {
 		entity: string;
-		name?: string;
 		label: string;
 		unit: string;
 		paint: string;
 		faded: boolean;
+	}
+
+	/** What the legend shows from the plot: the selected bucket's values, or each series' newest. */
+	export interface PlotReading {
+		values: (number | null)[];
+		selected: boolean;
 	}
 </script>
 
@@ -20,8 +25,8 @@
 		startDataRefresh,
 		type StatisticRow
 	} from '$lib/core/ha/history';
-	import { hearthEditMode } from '../../store';
-	import { formatReading, stepDecimals } from '../../format';
+	import { displayTimeZone, hearthEditMode, railClock } from '../../store';
+	import { formatReading } from '../../format';
 	import { chartY, seriesPath } from '../../chartPath';
 	import {
 		barRects,
@@ -33,37 +38,62 @@
 		hasValues,
 		linePoints,
 		nearestBucket,
-		timeFormats,
+		tickLabel,
 		timeX,
 		type ChartPeriod,
 		type ChartStyle
 	} from './series';
+	import { axisTicks, chartStart, formatTime, timeFormats } from './time';
+	import { TYPE_SCALE } from '$lib/core/theme';
 
 	let {
 		series,
 		style,
 		period,
-		label
-	}: { series: PlotSeries[]; style: ChartStyle; period: ChartPeriod; label: string } = $props();
+		label,
+		idleText,
+		reading = $bindable()
+	}: {
+		series: PlotSeries[];
+		style: ChartStyle;
+		period: ChartPeriod;
+		label: string;
+		/** What the slider says while no time is selected. */
+		idleText: string;
+		reading?: PlotReading;
+	} = $props();
 
 	// what the plot measures before layout, and in tests
 	const FALLBACK_WIDTH = 300;
-	const FALLBACK_HEIGHT = 160;
+	const FALLBACK_HEIGHT = 120;
 	// room above and below the extreme ticks for the stroke and the selection dots
 	const PAD = 6;
+	// a mono digit is about 0.6em wide; labels are set in the small type size
+	const LABEL_CHAR = 0.6 * TYPE_SCALE.small;
+	const LABEL_SPACE = 12;
 
 	let entityKey = $derived(series.map((entry) => entry.entity).join(','));
 	let bucket = $derived(chartBucket(style, period));
+	let timeZone = $derived($displayTimeZone);
 
 	let loaded = $state<{ rows: Record<string, StatisticRow[]>; range: [number, number] }>();
-	let selected = $state<number | null>(null);
+	// the selected bucket's start, so a refresh that adds a bucket keeps the same time selected
+	let selectedStart = $state<number | null>(null);
+	// a click, tap or key pins the selection; a mouse only hovering does not
+	let pinned = $state(false);
+
+	function clearSelection() {
+		selectedStart = null;
+		pinned = false;
+	}
 
 	$effect(() => {
 		void entityKey;
 		void style;
 		void period;
+		void timeZone;
 		loaded = undefined;
-		selected = null;
+		clearSelection();
 	});
 
 	$effect(() => {
@@ -72,18 +102,20 @@
 		const span = PERIOD_MS[period];
 		const statistics = bucket;
 		const types = chartTypes(style);
+		const zone = timeZone;
 		return startDataRefresh(
 			() =>
-				cachedData(`chart-card:${style}:${period}:${entityKey}`, async () => {
+				cachedData(`chart-card:${style}:${period}:${zone ?? ''}:${entityKey}`, async () => {
 					const end = Date.now();
+					const start = chartStart(end, span, statistics, zone);
 					const rows = await fetchStatistics(
 						entityIds,
-						new Date(end - span),
+						new Date(start),
 						new Date(end),
 						statistics,
 						{ types }
 					);
-					return { rows, range: [end - span, end] as [number, number] };
+					return { rows, range: [start, end] as [number, number] };
 				}),
 			(value) => (loaded = value)
 		);
@@ -120,42 +152,75 @@
 			: []
 	);
 
-	let current = $derived(
-		drawable && selected !== null && selected < drawable.buckets.length ? selected : null
-	);
-	let shown = $derived(current ?? (drawable ? drawable.buckets.length - 1 : null));
+	let current = $derived.by(() => {
+		if (!drawable || selectedStart === null) return null;
+		const index = drawable.buckets.findIndex((entry) => entry.start === selectedStart);
+		return index < 0 ? null : index;
+	});
 
-	let formats = $derived(timeFormats(bucket, period));
-	function formatTime(time: number, options: Intl.DateTimeFormatOptions): string {
-		try {
-			return new Intl.DateTimeFormat($selectedLanguage || undefined, options).format(time);
-		} catch {
-			// a language tag the browser does not know
-			return new Intl.DateTimeFormat(undefined, options).format(time);
+	$effect(() => {
+		if (!data) {
+			reading = undefined;
+			return;
 		}
-	}
+		const chart = data;
+		reading =
+			current !== null
+				? { values: chart.values.map((values) => values[current]), selected: true }
+				: {
+						values: chart.values.map(
+							(values) => values.findLast((value) => value !== null) ?? null
+						),
+						selected: false
+					};
+	});
 
-	let axisTimes = $derived(
-		scale
-			? [0, 0.5, 1].map((at) => scale.domain.x[0] + at * (scale.domain.x[1] - scale.domain.x[0]))
-			: []
-	);
+	let formats = $derived(timeFormats(bucket, period, timeZone, $railClock?.hour_format));
 
-	let readout = $derived(
-		drawable && shown !== null
-			? {
-					time: formatTime(drawable.buckets[shown].start, formats.bucket),
-					values: series.map((entry, index) => ({
-						...entry,
-						text: formatReading(drawable.values[index][shown], entry.unit)
-					}))
-				}
-			: null
-	);
-	let readoutText = $derived(
-		readout
-			? [readout.time, ...readout.values.map((entry) => `${entry.label} ${entry.text}`)].join(', ')
+	let axisLabels = $derived.by(() => {
+		if (!scale || !loaded) return [];
+		const scaled = scale;
+		const end = loaded.range[1];
+		const label = (time: number) => formatTime(time, $selectedLanguage, formats.axis);
+		// the room a label takes, from its text, so a 12-hour clock spaces wider
+		const widthOf = (text: string) => text.length * LABEL_CHAR;
+		let ticks = axisTicks(period, style, scaled.domain.x, end, timeZone);
+		let texts = ticks.map((tick) => label(tick.time));
+		const widest = Math.max(0, ...texts.map(widthOf));
+		if (period === 'week' && box.width / 7 < widest + LABEL_SPACE) {
+			ticks = axisTicks(period, style, scaled.domain.x, end, timeZone, true);
+			texts = ticks.map((tick) => label(tick.time));
+		}
+		const placed: { text: string; x: number; align: string; left: number }[] = [];
+		// newest first, so the label closest to now is the one kept
+		for (let index = ticks.length - 1; index >= 0; index -= 1) {
+			const x = timeX(ticks[index].at, scaled.domain, box);
+			const width = widthOf(texts[index]);
+			// a label that would leave the plot turns inward at that edge
+			const align = x - width / 2 < 0 ? 'start' : x + width / 2 > box.width ? 'end' : 'middle';
+			const left = align === 'start' ? x : align === 'end' ? x - width : x - width / 2;
+			const next = placed[placed.length - 1];
+			if (next && left + width + LABEL_SPACE > next.left) continue;
+			placed.push({ text: texts[index], x, align, left });
+		}
+		return placed.reverse();
+	});
+
+	let selectedTime = $derived(
+		drawable && current !== null
+			? formatTime(drawable.buckets[current].start, $selectedLanguage, formats.bucket)
 			: ''
+	);
+	let valueText = $derived(
+		drawable && current !== null
+			? [
+					selectedTime,
+					...series.map(
+						(entry, index) =>
+							`${entry.label} ${formatReading(drawable.values[index][current], entry.unit)}`
+					)
+				].join(', ')
+			: idleText
 	);
 
 	let interactive = $derived(!$hearthEditMode && !!drawable);
@@ -168,44 +233,52 @@
 		return nearestBucket(drawable, style, start + fraction * (end - start));
 	}
 
+	function select(index: number) {
+		if (drawable && index >= 0) selectedStart = drawable.buckets[index].start;
+	}
+
 	// a tap selects; a drag stays with the page swipe, which eats the click after it
 	function pick(event: MouseEvent) {
 		if (!interactive) return;
-		const index = bucketAt(event);
-		if (index >= 0) selected = index;
+		select(bucketAt(event));
+		pinned = selectedStart !== null;
 	}
 
 	function hover(event: PointerEvent) {
-		if (!interactive || event.pointerType !== 'mouse') return;
-		const index = bucketAt(event);
-		if (index >= 0) selected = index;
+		if (!interactive || pinned || event.pointerType !== 'mouse') return;
+		select(bucketAt(event));
 	}
 
 	function leave(event: PointerEvent) {
-		if (event.pointerType === 'mouse') selected = null;
+		if (event.pointerType === 'mouse' && !pinned) selectedStart = null;
 	}
 
 	function step(event: KeyboardEvent) {
 		if (!interactive || !drawable) return;
 		const last = drawable.buckets.length - 1;
-		const from = current ?? last;
-		const next =
-			event.key === 'ArrowLeft' || event.key === 'ArrowDown'
-				? Math.max(0, current === null ? last : from - 1)
-				: event.key === 'ArrowRight' || event.key === 'ArrowUp'
-					? Math.min(last, current === null ? last : from + 1)
-					: event.key === 'Home'
-						? 0
-						: event.key === 'End'
-							? last
-							: undefined;
-		if (event.key === 'Escape' && current !== null) {
+		if (event.key === 'Escape') {
+			if (current === null) return;
 			event.preventDefault();
-			selected = null;
-		} else if (next !== undefined) {
-			event.preventDefault();
-			selected = next;
+			clearSelection();
+			return;
 		}
+		// the first arrow selects the newest bucket, so the change is announced
+		const next =
+			current === null && /^Arrow/.test(event.key)
+				? last
+				: event.key === 'ArrowLeft' || event.key === 'ArrowDown'
+					? Math.max(0, (current ?? last) - 1)
+					: event.key === 'ArrowRight' || event.key === 'ArrowUp'
+						? Math.min(last, (current ?? last) + 1)
+						: event.key === 'Home'
+							? 0
+							: event.key === 'End'
+								? last
+								: undefined;
+		if (next === undefined) return;
+		event.preventDefault();
+		select(next);
+		pinned = true;
 	}
 
 	let selectionX = $derived(
@@ -225,14 +298,13 @@
 			{#if scale}
 				{#each scale.ticks as tick (tick)}
 					<span style:transform="translateY(calc({chartY(tick, box, scale.domain.y)}px - 50%))">
-						{formatReading(tick, '', stepDecimals(scale.step))}
+						{tickLabel(tick, scale.step)}
 					</span>
 				{/each}
 			{/if}
 		</div>
 		<div
 			class="plot"
-			class:selecting={current !== null}
 			bind:clientWidth={width}
 			bind:clientHeight={height}
 			role="slider"
@@ -241,8 +313,8 @@
 			aria-label={label}
 			aria-valuemin={0}
 			aria-valuemax={drawable ? drawable.buckets.length - 1 : 0}
-			aria-valuenow={shown ?? 0}
-			aria-valuetext={readoutText || undefined}
+			aria-valuenow={current ?? (drawable ? drawable.buckets.length - 1 : 0)}
+			aria-valuetext={valueText}
 			onclick={pick}
 			onpointermove={hover}
 			onpointerleave={leave}
@@ -300,24 +372,15 @@
 			</svg>
 		</div>
 		<div class="x-axis" aria-hidden="true">
-			{#each axisTimes as time, index (index)}
-				<span>{formatTime(time, formats.axis)}</span>
+			<!-- one line's height while the labels sit absolutely -->
+			<span class="strut">&nbsp;</span>
+			{#each axisLabels as entry (entry.x)}
+				<span class="tick {entry.align}" style:left="{entry.x}px">{entry.text}</span>
 			{/each}
 		</div>
-		<div class="readout" class:idle={current === null} aria-hidden={current === null}>
-			{#if readout}
-				<span class="readout-time">{readout.time}</span>
-				{#each readout.values as entry, index (index)}
-					<span class="readout-entry">
-						<span class="dot" class:faded={entry.faded} style:background={entry.paint}></span>
-						<span class="readout-name">{entry.label}</span>
-						<span class="readout-value">{entry.text}</span>
-					</span>
-				{/each}
-			{:else}
-				<!-- keeps the row's height while the data loads -->
-				<span class="readout-time">&nbsp;</span>
-			{/if}
+		<!-- one line, always there, so selecting moves nothing; the slider announces the values -->
+		<div class="readout" class:idle={current === null} aria-hidden="true">
+			{#if selectedTime}{selectedTime}{:else}&nbsp;{/if}
 		</div>
 	</div>
 {/if}
@@ -327,7 +390,7 @@
 		display: grid;
 		flex: 1;
 		grid-template-columns: auto minmax(0, 1fr);
-		grid-template-rows: minmax(0, 1fr) auto auto;
+		grid-template-rows: minmax(var(--chart-plot-floor), 1fr) auto auto;
 		column-gap: 8px;
 		row-gap: 6px;
 		min-height: 0;
@@ -352,7 +415,7 @@
 	.plot {
 		position: relative;
 		min-width: 0;
-		min-height: 100px;
+		min-height: var(--chart-plot-floor);
 		outline-offset: 4px;
 	}
 
@@ -431,53 +494,43 @@
 
 	.x-axis {
 		grid-column: 2;
-		display: flex;
-		justify-content: space-between;
-		gap: 8px;
+		position: relative;
 		font-family: var(--h-font-mono);
 		font-size: var(--h-type-small);
 		color: var(--h-text-5);
 		white-space: nowrap;
 	}
 
+	.strut {
+		visibility: hidden;
+	}
+
+	.tick {
+		position: absolute;
+		top: 0;
+		transform: translateX(-50%);
+	}
+
+	.tick.start {
+		transform: none;
+	}
+
+	.tick.end {
+		transform: translateX(-100%);
+	}
+
 	.readout {
-		grid-column: 1 / -1;
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		column-gap: 14px;
-		row-gap: 4px;
+		grid-column: 2;
+		font-family: var(--h-font-mono);
 		font-size: var(--h-type-secondary);
 		color: var(--h-text-4);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 		transition: opacity var(--h-motion-fast) var(--h-ease);
 	}
 
 	.readout.idle {
 		opacity: 0;
-	}
-
-	.readout-time {
-		font-family: var(--h-font-mono);
-		color: var(--h-text-5);
-	}
-
-	.readout-entry {
-		display: inline-flex;
-		align-items: baseline;
-		gap: 6px;
-		min-width: 0;
-	}
-
-	.readout-value {
-		font-family: var(--h-font-mono);
-		color: var(--h-text-1);
-	}
-
-	.dot {
-		flex: none;
-		align-self: center;
-		width: 8px;
-		height: 8px;
-		border-radius: var(--h-radius-pill);
 	}
 </style>

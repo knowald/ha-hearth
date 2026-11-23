@@ -5,6 +5,7 @@
 	import FormRenderer from '../../edit/FormRenderer.svelte';
 	import { EditorForm } from '../../edit/form.svelte';
 	import EntitiesField, {
+		duplicateRow,
 		editableEntities,
 		storedEntities,
 		type EditableChartEntity
@@ -54,6 +55,8 @@
 				valid: false,
 				reason: fill($lang('hearth_field_required'), { field: $lang('entity') })
 			});
+		else if (entities.some((_, index) => duplicateRow(entities, index)))
+			onchange({ ...draft, valid: false, reason: $lang('hearth_chart_entity_duplicate') });
 		else onchange({ ...draft, valid: entitiesValid });
 	});
 </script>

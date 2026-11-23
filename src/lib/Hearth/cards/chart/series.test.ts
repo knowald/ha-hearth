@@ -9,7 +9,10 @@ import {
 	linePoints,
 	nearestBucket,
 	niceScale,
-	rowValue
+	rowValue,
+	tickDecimals,
+	tickLabel,
+	type NiceScale
 } from './series';
 
 const HOUR = 3600 * 1000;
@@ -123,6 +126,70 @@ describe('niceScale', () => {
 
 	it('falls back to 0 to 1 for a domain that is not finite', () => {
 		expect(niceScale(NaN, 4).domain).toEqual([0, 1]);
+	});
+
+	// a scale the plot can draw: a few distinct finite ticks in order, inside a
+	// finite domain that holds both ends of the data
+	function expectUsable(scale: NiceScale, low: number, high: number) {
+		expect(scale.ticks.length).toBeGreaterThanOrEqual(2);
+		expect(scale.ticks.length).toBeLessThanOrEqual(12);
+		for (const value of [...scale.ticks, ...scale.domain, scale.step]) {
+			expect(Number.isFinite(value)).toBe(true);
+		}
+		for (let index = 1; index < scale.ticks.length; index += 1) {
+			expect(scale.ticks[index]).toBeGreaterThan(scale.ticks[index - 1]);
+		}
+		expect(scale.domain[0]).toBeLessThanOrEqual(low);
+		expect(scale.domain[1]).toBeGreaterThanOrEqual(high);
+		expect(scale.domain[1]).toBeGreaterThan(scale.domain[0]);
+	}
+
+	it('returns for a span below what a double can divide', () => {
+		expectUsable(niceScale(1, 1.0000000000000002), 1, 1.0000000000000002);
+		expectUsable(niceScale(1e-323, 2e-323), 1e-323, 2e-323);
+	});
+
+	it('gives distinct ticks for two large neighbouring values', () => {
+		const scale = niceScale(1000000000000, 1000000000001);
+		expectUsable(scale, 1000000000000, 1000000000001);
+		expect(new Set(scale.ticks.map((tick) => tickLabel(tick, scale.step))).size).toBe(
+			scale.ticks.length
+		);
+	});
+
+	it('stays finite at the ends of the double range', () => {
+		expectUsable(niceScale(-1e308, 1e308), -1e308, 1e308);
+		expectUsable(niceScale(1.7e308, 1.7e308), 1.7e308, 1.7e308);
+		expectUsable(niceScale(-1.7e308, -1.7e308), -1.7e308, -1.7e308);
+	});
+
+	it('takes the ends in either order', () => {
+		expect(niceScale(23.7, 18.4).ticks).toEqual([18, 20, 22, 24]);
+	});
+});
+
+describe('tick labels', () => {
+	it('tells tiny steps apart in plain notation', () => {
+		const scale = niceScale(1e-8, 4e-8);
+		const labels = scale.ticks.map((tick) => tickLabel(tick, scale.step));
+		expect(new Set(labels).size).toBe(labels.length);
+		for (const label of labels) expect(label).toMatch(/^-?\d+(\.\d+)?$/);
+		expect(labels).toContain('0.00000002');
+	});
+
+	it('writes whole ticks bare and halves to one decimal', () => {
+		expect(tickDecimals(2)).toBe(0);
+		expect(tickDecimals(0.5)).toBe(1);
+		expect(tickDecimals(0.05)).toBe(2);
+		expect(tickLabel(20, 2)).toBe('20');
+		expect(tickLabel(1.5, 0.5)).toBe('1.5');
+		expect(tickLabel(-0, 1)).toBe('0');
+	});
+
+	it('writes ticks near the largest doubles without exponent noise or Infinity', () => {
+		const label = tickLabel(1e308, 1e308);
+		expect(label).not.toContain('Infinity');
+		expect(label.length).toBeGreaterThan(0);
 	});
 });
 

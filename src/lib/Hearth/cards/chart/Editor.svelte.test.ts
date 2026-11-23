@@ -120,4 +120,39 @@ describe('chart card editor', () => {
 		await fireEvent.change(screen.getByLabelText(en.hearth_period), { target: { value: 'month' } });
 		expect(last().fields).toMatchObject({ name: 'Rooms', style: 'bar', period: 'month' });
 	});
+
+	it('marks a second row for the same entity and blocks Done with the reason', async () => {
+		const { last } = open();
+		await fireEvent.input(entityInputs()[1], { target: { value: ' sensor.living ' } });
+		expect(screen.getByText(en.hearth_chart_entity_duplicate)).toBeTruthy();
+		expect(entityInputs()[1].getAttribute('aria-invalid')).toBe('true');
+		expect(entityInputs()[0].getAttribute('aria-invalid')).toBeNull();
+		expect(last()).toMatchObject({ valid: false, reason: en.hearth_chart_entity_duplicate });
+		await fireEvent.input(entityInputs()[1], { target: { value: 'sensor.bedroom' } });
+		expect(last().valid).toBe(true);
+	});
+
+	it('draws the Default chip in the color the row will get', async () => {
+		open({ id: 'chart', type: 'chart' });
+		const add = () => screen.getByRole('button', { name: en.hearth_add_entity });
+		for (let count = 1; count < 5; count += 1) await fireEvent.click(add());
+		const swatches = chips(en.hearth_default).map((chip) =>
+			chip.querySelector<HTMLElement>('.swatch')
+		);
+		expect(swatches.map((swatch) => swatch?.style.background)).toEqual([
+			'var(--h-accent-icon)',
+			'var(--h-cool-icon)',
+			'var(--h-good)',
+			'var(--h-bad-text)',
+			'var(--h-accent-icon)'
+		]);
+		expect(swatches.map((swatch) => swatch?.classList.contains('faded'))).toEqual([
+			false,
+			false,
+			false,
+			false,
+			true
+		]);
+		expect(swatches.some((swatch) => swatch?.classList.contains('open'))).toBe(false);
+	});
 });

@@ -60,6 +60,21 @@ describe('chart card definition', () => {
 		expect(chartCard.normalize({ entities: 'sensor.a' }).entities).toBeUndefined();
 	});
 
+	it('keeps the first listing of an entity and drops the later ones', () => {
+		expect(
+			chartCard.normalize({
+				entities: [
+					{ entity: 'sensor.a', name: 'First' },
+					{ entity: 'sensor.b' },
+					{ entity: ' sensor.a ', name: 'Again' }
+				]
+			}).entities
+		).toEqual([
+			{ entity: 'sensor.a', name: 'First', color: undefined },
+			{ entity: 'sensor.b', name: undefined, color: undefined }
+		]);
+	});
+
 	it('draws at most six entities and reports more', () => {
 		const entities = Array.from({ length: 8 }, (_, index) => ({ entity: `sensor.s${index}` }));
 		expect(chartCard.normalize({ entities }).entities).toHaveLength(6);

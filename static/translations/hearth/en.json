@@ -194,6 +194,7 @@
 	"hearth_cards_sharing_a_column_split_whatever": "Cards sharing a column split whatever height is left over, in proportion to their shares. Only visible on a page set to fill the screen, or when a column is taller than its cards.",
 	"hearth_chart_bar": "Bar",
 	"hearth_chart_entities_hint": "Up to {count} entities share one axis, so pick ones with the same unit.",
+	"hearth_chart_entity_duplicate": "Already in this chart",
 	"hearth_chart_entity_number": "Entity {number}",
 	"hearth_chart_history": "History timeline",
 	"hearth_chart_line": "Line",

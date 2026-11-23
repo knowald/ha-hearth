@@ -495,7 +495,7 @@ A value outside the range stops the arc and the needle at its end, and the readi
 
 ## Chart card
 
-The `chart` card plots the long-term statistics of up to six entities as lines or bars. A chip above the plot shows each entity's color, name and current reading, and a tap on it opens the entity's detail sheet. Tap the plot, or point at it with a mouse, to read the values of every entity at that time. With the plot focused, the arrow keys step through the times and Escape clears the selection.
+The `chart` card plots the long-term statistics of up to six entities as lines or bars. An entity needs long-term statistics to plot, which Home Assistant keeps for sensors with a `state_class`. A chip above the plot shows each entity's color, name and value, and a tap on it opens the entity's detail sheet. Tap the plot to select a time: its chips then show the values at that time, and the line under the plot names it. Pointing with a mouse selects too, until you click. With the plot focused, the arrow keys step through the times and Escape clears the selection.
 
 ```yaml
 - id: temperatures
@@ -518,9 +518,9 @@ The `chart` card plots the long-term statistics of up to six entities as lines o
 | `period`   | `day` (default), `week` or `month`: how far back the chart looks.        |
 | `height`   | Fixes the card's height in pixels. Without it the card fills its column. |
 
-A line follows the mean of each hour, or of each day for a month. A week of lines is drawn by the hour; a week of bars, like a month, by the day. A bar shows how much a total, such as an energy meter, changed in its hour or day, and falls back to the mean for a sensor without a total. Bars can be negative, and the bar of the hour or day still running is drawn dashed. A time the recorder has no statistics for leaves a gap in a line and no bar.
+A line follows the mean of each hour, or of each day for a month. A week of lines is drawn by the hour; a week of bars, like a month, by the day. A bar shows how much a total, such as an energy meter, changed in its hour or day, and falls back to the mean for a sensor without a total. Bars can be negative. Daily bars, for a week or a month, start at midnight, and the bar of today is drawn dashed until the day is over; hourly bars show finished hours only. Without a selected time a line chip shows the entity's current reading and a bar chip the value of its newest bar. A time the recorder has no statistics for leaves a gap in a line and no bar.
 
-All entities share one axis, so pick entities with the same unit. A `color` is a theme role (`accent`, `cool`, `good` or `bad`) or a CSS color; without one the entities take accent, cool, good and bad in order, and a fifth and sixth repeat accent and cool, faded. A missing or unavailable entity shows its state in its chip.
+All entities share one axis, so pick entities with the same unit. A `color` is a theme role (`accent`, `cool`, `good` or `bad`) or a CSS color; without one the entities take accent, cool, good and bad in order, and a fifth and sixth repeat accent and cool, faded. A missing or unavailable entity shows its state in its chip. An entity listed twice is drawn once. Times follow the zone and hour format of the first clock widget in the rail.
 
 ## To-do list card
 

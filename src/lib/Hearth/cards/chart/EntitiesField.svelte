@@ -19,6 +19,12 @@
 		return rows.length ? rows : [{ entity: '', name: '', color: undefined }];
 	}
 
+	/** Whether an earlier row already charts this row's entity. */
+	export function duplicateRow(rows: EditableChartEntity[], index: number): boolean {
+		const entity = rows[index].entity.trim();
+		return !!entity && rows.slice(0, index).some((row) => row.entity.trim() === entity);
+	}
+
 	/** The rows with an entity, as the card stores them; undefined when none. */
 	export function storedEntities(rows: EditableChartEntity[]): ChartEntity[] | undefined {
 		const entities = rows.flatMap((row): ChartEntity[] => {
@@ -46,6 +52,7 @@
 	import ColorChips from '../../edit/ColorChips.svelte';
 	import EntityField from '../../edit/EntityField.svelte';
 	import TextField from '../../edit/TextField.svelte';
+	import { seriesPaint } from './paint';
 
 	let {
 		value = $bindable([]),
@@ -53,7 +60,7 @@
 	}: { value?: EditableChartEntity[]; valid?: boolean } = $props();
 
 	$effect(() => {
-		valid = value.every((row) => !colorError(row.color));
+		valid = value.every((row, index) => !colorError(row.color) && !duplicateRow(value, index));
 	});
 
 	let root = $state<HTMLElement>();
@@ -91,6 +98,7 @@
 						label={$lang('entity')}
 						required={index === 0}
 						bind:value={row.entity}
+						error={duplicateRow(value, index) ? $lang('hearth_chart_entity_duplicate') : undefined}
 						hint={index > 0 && !row.entity.trim() ? $lang('hearth_empty_row_removed') : undefined}
 					/>
 					<TextField label={$lang('hearth_name_optional')} bind:value={row.name} />
@@ -108,7 +116,7 @@
 			</div>
 			<ColorChips
 				bind:value={row.color}
-				automatic
+				automatic={seriesPaint(undefined, index)}
 				customLabel={$lang('hearth_segment_custom_color')}
 			/>
 		</div>

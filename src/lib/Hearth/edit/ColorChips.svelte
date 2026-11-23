@@ -25,7 +25,7 @@
 	a Custom chip that opens a text field. Custom is any value that is not a
 	role, blank included, so the choice lives in the value and survives a row
 	being removed above it. With `automatic`, an undefined value is a choice of
-	its own: the Default chip, for a color the card picks.
+	its own: the Default chip, for a color the card picks, drawn in that color.
 -->
 <script lang="ts" generics="T extends string | undefined">
 	import { lang } from '$lib/core/i18n';
@@ -33,9 +33,14 @@
 
 	let {
 		value = $bindable(),
-		automatic = false,
+		automatic = undefined,
 		customLabel
-	}: { value: T; automatic?: boolean; customLabel: string } = $props();
+	}: {
+		value: T;
+		/** The color the card picks when none is set, which offers the Default chip. */
+		automatic?: { paint: string; faded: boolean };
+		customLabel: string;
+	} = $props();
 
 	let custom = $derived(value !== undefined && !isColorRole(value));
 	let role = $derived(value?.trim().toLowerCase());
@@ -54,7 +59,7 @@
 			aria-pressed={value === undefined}
 			onclick={() => (value = undefined as T)}
 		>
-			<span class="swatch open"></span>
+			<span class="swatch" class:faded={automatic.faded} style:background={automatic.paint}></span>
 			{$lang('hearth_default')}
 		</button>
 	{/if}
@@ -120,5 +125,9 @@
 
 	.swatch.open {
 		border: 1px dashed var(--h-text-5);
+	}
+
+	.swatch.faded {
+		opacity: 0.5;
 	}
 </style>
