@@ -39,11 +39,9 @@
 	import { openEntityDetail } from './details';
 	import { loadMarkdownRenderer } from './markdown';
 	import { layer } from '$lib/ui/layers';
-	import ControlPopup from './ControlPopup.svelte';
 	import EmptyState from './EmptyState.svelte';
 	import Rail from './Rail.svelte';
 	import RoomDetail from './RoomDetail.svelte';
-	import SearchOverlay from './SearchOverlay.svelte';
 	import ConfirmDialog from './shell/ConfirmDialog.svelte';
 	import EditLoadError from './shell/EditLoadError.svelte';
 	import EditToggle from './shell/EditToggle.svelte';
@@ -100,6 +98,14 @@
 	function closeSetupWizard() {
 		setupWizardOpen.set(false);
 		setupWizardSource.set('areas');
+	}
+
+	function loadSearchOverlay() {
+		return import('./SearchOverlay.svelte').catch((error) => {
+			console.warn('search unavailable', error);
+			showSearch = false;
+			throw error;
+		});
 	}
 
 	function loadSetupWizard() {
@@ -484,7 +490,11 @@
 		<div class="status-band" aria-hidden="true"></div>
 		<PhoneBar onsearch={openSearch} noRail={railPosition === 'none'} menu={!hideEditToggle} />
 	{/if}
-	<ControlPopup />
+	<!-- no popup is open in the first frame; the popups load after it, and one
+	     asked for before then opens as soon as they arrive -->
+	{#await import('./ControlPopup.svelte') then ControlPopup}
+		<ControlPopup.default />
+	{/await}
 	{#if $hearthEditMode || $screenSheetOpen}
 		<!-- the edit sheets and their editors load with edit mode or the This
 		     screen sheet, not the dashboard; one boundary for both keeps the
@@ -498,7 +508,11 @@
 		{/key}
 	{/if}
 	{#if showSearch}
-		<SearchOverlay onclose={() => (showSearch = false)} />
+		{#await loadSearchOverlay() then SearchOverlay}
+			<SearchOverlay.default onclose={() => (showSearch = false)} />
+		{:catch}
+			<!-- offline or a stale deploy: closed, so the next open tries again -->
+		{/await}
 	{/if}
 	{#if $screenSettings.sleepMinutes > 0 || $screenSettings.presenceEntity || $sleepNow}
 		<!-- loads once armed; the dashboard never waits on it -->
