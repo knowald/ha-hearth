@@ -6,6 +6,7 @@ import {
 	cachedData,
 	callServiceForResponse,
 	callServiceForResult,
+	fetchStatistics,
 	startDataRefresh
 } from './history';
 
@@ -80,6 +81,44 @@ describe('callServiceForResponse', () => {
 		health.set('lost');
 		await expect(callServiceForResponse('mass_queue', 'x', {})).rejects.toThrow(/Not connected/);
 		expect(callService).not.toHaveBeenCalled();
+	});
+});
+
+describe('fetchStatistics', () => {
+	const start = new Date('2026-01-01T00:00:00Z');
+	const end = new Date('2026-01-02T00:00:00Z');
+
+	function connect() {
+		const sendMessagePromise = vi.fn().mockResolvedValue({ 'sensor.energy': [] });
+		connection.set({ sendMessagePromise } as unknown as Connection);
+		return sendMessagePromise;
+	}
+
+	it('asks for the period without units or types by default', async () => {
+		const send = connect();
+		expect(await fetchStatistics(['sensor.energy'], start, end, 'hour')).toEqual({
+			'sensor.energy': []
+		});
+		expect(send).toHaveBeenCalledWith({
+			type: 'recorder/statistics_during_period',
+			start_time: '2026-01-01T00:00:00.000Z',
+			end_time: '2026-01-02T00:00:00.000Z',
+			statistic_ids: ['sensor.energy'],
+			period: 'hour'
+		});
+	});
+
+	it('passes units and types when given', async () => {
+		const send = connect();
+		await fetchStatistics(['sensor.energy'], start, end, 'day', {
+			units: { energy: 'kWh' },
+			types: ['change']
+		});
+		expect(send.mock.calls[0][0]).toMatchObject({
+			period: 'day',
+			units: { energy: 'kWh' },
+			types: ['change']
+		});
 	});
 });
 

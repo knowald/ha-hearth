@@ -6,6 +6,7 @@
 	import { cachedData, fetchStatisticSeries, startDataRefresh } from '$lib/core/ha/history';
 	import { sensorNumber } from '$lib/core/ha/entities';
 	import { formatReading } from './format';
+	import { seriesPath } from './chartPath';
 
 	let { entity }: { entity: string } = $props();
 
@@ -36,26 +37,18 @@
 
 	const CHART_WIDTH = 520;
 	const CHART_HEIGHT = 110;
-	const CHART_PAD = 10;
 
 	let chart = $derived.by(() => {
 		if (!history) return null;
 		const values = history;
 		const low = Math.min(...values);
 		const high = Math.max(...values);
-		const span = high - low || 1;
-		const points = values.map((entry, index) => ({
-			x: (index / (values.length - 1)) * CHART_WIDTH,
-			y: CHART_PAD + (1 - (entry - low) / span) * (CHART_HEIGHT - 2 * CHART_PAD)
-		}));
-		const line = points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' L');
-		return {
-			low,
-			high,
-			linePath: `M${line}`,
-			areaPath: `M${line} L${CHART_WIDTH},${CHART_HEIGHT} L0,${CHART_HEIGHT} Z`,
-			end: points[points.length - 1]
-		};
+		const path = seriesPath(
+			values.map((entry, index) => ({ x: index, y: entry })),
+			{ width: CHART_WIDTH, height: CHART_HEIGHT, pad: 10 },
+			{ x: [0, values.length - 1], y: [low, high] }
+		);
+		return { ...path, low, high, end: path.coords[path.coords.length - 1] };
 	});
 </script>
 
@@ -72,9 +65,9 @@
 				<stop offset="1" stop-color="var(--h-accent-dim-text)" stop-opacity="0" />
 			</linearGradient>
 		</defs>
-		<path d={chart.areaPath} fill="url(#sensor-popup-gradient)" />
+		<path d={chart.area} fill="url(#sensor-popup-gradient)" />
 		<path
-			d={chart.linePath}
+			d={chart.line}
 			fill="none"
 			stroke="var(--h-accent-dim-text)"
 			stroke-width="2"

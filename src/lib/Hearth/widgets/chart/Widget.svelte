@@ -7,10 +7,12 @@
 		cachedData,
 		fetchStateHistory,
 		fetchStatisticSeries,
+		PERIOD_MS,
 		startDataRefresh
 	} from '$lib/core/ha/history';
 	import type { ChartWidget } from './descriptor';
-	import { applyMath, PERIOD_MS } from './math';
+	import { applyMath } from './math';
+	import { seriesPath } from '../../chartPath';
 	import { openEntityDetail } from '$lib/Hearth/details';
 
 	let { widget }: { widget: ChartWidget } = $props();
@@ -54,15 +56,11 @@
 	let line = $derived.by(() => {
 		const values = points;
 		if (!values) return null;
-		const low = Math.min(...values);
-		const high = Math.max(...values);
-		const span = high - low || 1;
-		const coords = values.map((entry, index) => [
-			(index / (values.length - 1)) * WIDTH,
-			4 + (1 - (entry - low) / span) * (HEIGHT - 8)
-		]);
-		const path = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' L');
-		return { path: `M${path}`, area: `M${path} L${WIDTH},${HEIGHT} L0,${HEIGHT} Z` };
+		return seriesPath(
+			values.map((entry, index) => ({ x: index, y: entry })),
+			{ width: WIDTH, height: HEIGHT, pad: 4 },
+			{ x: [0, values.length - 1], y: [Math.min(...values), Math.max(...values)] }
+		);
 	});
 
 	/* history: state segments over the period */
@@ -111,7 +109,7 @@
 		{#if line}
 			<svg viewBox="0 0 {WIDTH} {HEIGHT}" preserveAspectRatio="none">
 				<path d={line.area} fill="rgb(var(--h-accent-rgb) / calc(0.15 * var(--h-accent-scale)))" />
-				<path d={line.path} fill="none" stroke="var(--h-accent-dim-text)" stroke-width={stroke} />
+				<path d={line.line} fill="none" stroke="var(--h-accent-dim-text)" stroke-width={stroke} />
 			</svg>
 		{:else}
 			<EmptyState inline text={$lang('hearth_no_recorded_history_for_the_last')} />
