@@ -9,7 +9,7 @@ export type ChartCard = Extract<OverviewCard, { type: 'chart' }>;
 export type ChartEntity = NonNullable<ChartCard['entities']>[number];
 
 export const CHART_STYLES = ['line', 'bar'] as const;
-export const CHART_PERIODS = ['day', 'week', 'month'] as const;
+export const CHART_PERIODS = ['hour', 'day', 'week', 'month'] as const;
 /** More series than this no longer read apart on a card-sized plot. */
 export const CHART_MAX_ENTITIES = 6;
 
@@ -58,7 +58,7 @@ export const chartCard: CardDefinition<ChartCard> = {
 	schema: v.looseObject({
 		name: OptionalText,
 		style: v.optional(v.picklist(CHART_STYLES, 'must be line or bar')),
-		period: v.optional(v.picklist(CHART_PERIODS, 'must be day, week or month')),
+		period: v.optional(v.picklist(CHART_PERIODS, 'must be hour, day, week or month')),
 		entities: v.optional(
 			v.pipe(
 				v.array(ChartEntitySchema, 'must be a list of { entity, name, color }'),

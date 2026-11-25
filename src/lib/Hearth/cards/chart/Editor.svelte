@@ -34,6 +34,7 @@
 			default: 'day',
 			beside: true,
 			options: [
+				{ value: 'hour', label: 'hearth_last_hour' },
 				{ value: 'day', label: 'hearth_last_day' },
 				{ value: 'week', label: 'hearth_last_week' },
 				{ value: 'month', label: 'hearth_last_month' }

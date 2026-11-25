@@ -15,6 +15,7 @@
 	const LEGEND_GAP = 6;
 
 	const PERIOD_LABELS = {
+		hour: 'hearth_last_hour',
 		day: 'hearth_last_day',
 		week: 'hearth_last_week',
 		month: 'hearth_last_month'

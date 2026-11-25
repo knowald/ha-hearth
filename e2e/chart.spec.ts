@@ -166,6 +166,34 @@ test('draws the week as daily bars with the running day dashed', async ({ page }
 	await expect(card.locator('.x-axis .tick').last()).toHaveText(today);
 });
 
+test('draws the last hour by five minutes, as a line and as bars', async ({ page }) => {
+	writeFileSync(
+		HEARTH_FILE,
+		WITH_CHARTS.replace(
+			'          name: Climate\n',
+			'          name: Climate\n          period: hour\n'
+		).replace('          period: week\n', '          period: hour\n')
+	);
+	await page.goto('/');
+	const line = climate(page);
+	await expect(line.locator('.period')).toHaveText('Last hour');
+	await expect(line.locator('path.line')).toHaveCount(2);
+	const ticks = await line.locator('.x-axis .tick').allTextContents();
+	expect(ticks.length).toBeGreaterThanOrEqual(2);
+	for (const label of ticks) expect(label).toMatch(/:(00|15|30|45)/);
+	const plot = line.getByRole('slider', { name: 'Climate' });
+	const box = (await plot.boundingBox())!;
+	await page.mouse.click(box.x + 2, box.y + box.height / 2);
+	await expect(line.locator('.readout')).toHaveText(/\d:\d\d/);
+
+	const bars = energy(page);
+	await expect(bars.locator('.period')).toHaveText('Last hour');
+	await expect(bars.locator('rect.bar').first()).toBeVisible();
+	// the first bar starts at a five-minute boundary, so twelve fill the hour
+	await expect(bars.locator('rect.bar')).toHaveCount(12);
+	await expect(bars.locator('.legend-chip .legend-chip-value')).toHaveText(/kWh$/);
+});
+
 test('an unavailable entity shows its state in its chip and keeps its history', async ({
 	page,
 	request

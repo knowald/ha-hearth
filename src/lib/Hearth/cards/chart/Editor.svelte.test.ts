@@ -121,6 +121,18 @@ describe('chart card editor', () => {
 		expect(last().fields).toMatchObject({ name: 'Rooms', style: 'bar', period: 'month' });
 	});
 
+	it('offers the last hour first among the periods', () => {
+		open();
+		const select = screen.getByLabelText(en.hearth_period) as HTMLSelectElement;
+		expect([...select.options].map((option) => option.value)).toEqual([
+			'hour',
+			'day',
+			'week',
+			'month'
+		]);
+		expect(select.options[0].textContent?.trim()).toBe(en.hearth_last_hour);
+	});
+
 	it('marks a second row for the same entity and blocks Done with the reason', async () => {
 		const { last } = open();
 		await fireEvent.input(entityInputs()[1], { target: { value: ' sensor.living ' } });

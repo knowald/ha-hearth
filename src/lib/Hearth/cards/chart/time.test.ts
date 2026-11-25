@@ -9,7 +9,8 @@ import {
 	timeFormats
 } from './time';
 
-const HOUR = 3600 * 1000;
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 function wall(time: number, timeZone: string) {
@@ -62,6 +63,15 @@ describe('chartStart', () => {
 	it('looks back the whole span for hours', () => {
 		expect(chartStart(now, DAY, 'hour', 'UTC')).toBe(now - DAY);
 	});
+
+	it('starts five-minute buckets at the first whole five minutes', () => {
+		const end = Date.UTC(2026, 10, 17, 15, 22, 41);
+		expect(chartStart(end, HOUR, '5minute', 'UTC')).toBe(Date.UTC(2026, 10, 17, 14, 25));
+		expect(chartStart(now, HOUR, '5minute', 'Asia/Kathmandu')).toBe(now - HOUR);
+		expect(wall(chartStart(end, HOUR, '5minute', 'Asia/Kathmandu'), 'Asia/Kathmandu')).toMatch(
+			/:10$/
+		);
+	});
 });
 
 describe('axisTicks', () => {
@@ -74,6 +84,49 @@ describe('axisTicks', () => {
 		const kolkata = axisTicks('day', 'line', [now - DAY, now], now, 'Asia/Kolkata');
 		for (const tick of kolkata)
 			expect(wall(tick.time, 'Asia/Kolkata')).toMatch(/(00|06|12|18):00$/);
+	});
+
+	it('labels an hour every quarter hour, nothing after now', () => {
+		const end = Date.UTC(2026, 10, 17, 15, 22, 41);
+		const start = chartStart(end, HOUR, '5minute', 'UTC');
+		const ticks = axisTicks('hour', 'line', [start, end], end, 'UTC');
+		expect(ticks.map((tick) => tick.time)).toEqual([
+			Date.UTC(2026, 10, 17, 14, 30),
+			Date.UTC(2026, 10, 17, 14, 45),
+			Date.UTC(2026, 10, 17, 15),
+			Date.UTC(2026, 10, 17, 15, 15)
+		]);
+		expect(ticks.every((tick) => tick.time === tick.at)).toBe(true);
+		// an axis that runs on past now, to the end of a running bar, names nothing there
+		const longer = axisTicks('hour', 'bar', [start, end + 10 * MINUTE], end, 'UTC');
+		expect(longer.map((tick) => tick.time)).toEqual(ticks.map((tick) => tick.time));
+	});
+
+	it('labels the quarter hours of zones a half or three quarters of an hour off UTC', () => {
+		const end = Date.UTC(2026, 10, 17, 15, 22, 41);
+		const start = chartStart(end, HOUR, '5minute', 'UTC');
+		for (const zone of ['Asia/Kolkata', 'Asia/Kathmandu']) {
+			const ticks = axisTicks('hour', 'line', [start, end], end, zone);
+			expect(ticks).toHaveLength(4);
+			for (const tick of ticks) {
+				expect(wall(tick.time, zone)).toMatch(/:(00|15|30|45)$/);
+				expect(tick.time).toBeLessThanOrEqual(end);
+			}
+		}
+	});
+
+	it('keeps to quarter hours across a half-hour clock change', () => {
+		// Lord Howe Island moves its clock from 02:00 to 02:30 at 15:30 UTC
+		const zone = 'Australia/Lord_Howe';
+		const end = Date.UTC(2026, 9, 3, 15, 58);
+		const start = chartStart(end, HOUR, '5minute', zone);
+		const ticks = axisTicks('hour', 'line', [start, end], end, zone);
+		expect(ticks.map((tick) => wall(tick.time, zone))).toEqual([
+			'Sun 04, 01:30',
+			'Sun 04, 01:45',
+			'Sun 04, 02:30',
+			'Sun 04, 02:45'
+		]);
 	});
 
 	it('keeps to full hours and midnights across a half-hour clock change', () => {
@@ -114,6 +167,19 @@ describe('timeFormats', () => {
 		const formats = timeFormats('hour', 'day', 'Asia/Tokyo', '12');
 		expect(formats.axis).toMatchObject({ hour12: true, timeZone: 'Asia/Tokyo' });
 		expect(formats.bucket).toMatchObject({ hour12: true, timeZone: 'Asia/Tokyo' });
+	});
+
+	it('names an hour by hour and minute, in the rail clock format', () => {
+		const formats = timeFormats('5minute', 'hour', 'Asia/Kathmandu', '24');
+		for (const options of [formats.axis, formats.bucket]) {
+			expect(options).toEqual({
+				hour: '2-digit',
+				minute: '2-digit',
+				hour12: false,
+				timeZone: 'Asia/Kathmandu'
+			});
+		}
+		expect(timeFormats('5minute', 'hour', 'UTC', '12').bucket).toMatchObject({ hour12: true });
 	});
 
 	it('names days by weekday for a week and by date for a month, in the zone', () => {

@@ -20,6 +20,7 @@
 	import { connected } from '$lib/core/ha/connection';
 	import {
 		cachedData,
+		DATA_REFRESH_MS,
 		fetchStatistics,
 		PERIOD_MS,
 		startDataRefresh,
@@ -71,6 +72,14 @@
 	// a mono digit is about 0.6em wide; labels are set in the small type size
 	const LABEL_CHAR = 0.6 * TYPE_SCALE.small;
 	const LABEL_SPACE = 12;
+	/*
+	 * The recorder writes a five-minute row only once its five minutes are
+	 * over, so the newest one is up to five minutes old already; polling at
+	 * the usual five minutes on top would leave the hour up to ten behind.
+	 */
+	const SHORT_TERM_REFRESH_MS = 60 * 1000;
+	// shorter than the poll, so each poll asks the recorder again
+	const SHORT_TERM_CACHE_MS = 30 * 1000;
 
 	let entityKey = $derived(series.map((entry) => entry.entity).join(','));
 	let bucket = $derived(chartBucket(style, period));
@@ -103,21 +112,27 @@
 		const statistics = bucket;
 		const types = chartTypes(style);
 		const zone = timeZone;
+		const shortTerm = statistics === '5minute';
 		return startDataRefresh(
 			() =>
-				cachedData(`chart-card:${style}:${period}:${zone ?? ''}:${entityKey}`, async () => {
-					const end = Date.now();
-					const start = chartStart(end, span, statistics, zone);
-					const rows = await fetchStatistics(
-						entityIds,
-						new Date(start),
-						new Date(end),
-						statistics,
-						{ types }
-					);
-					return { rows, range: [start, end] as [number, number] };
-				}),
-			(value) => (loaded = value)
+				cachedData(
+					`chart-card:${style}:${period}:${zone ?? ''}:${entityKey}`,
+					async () => {
+						const end = Date.now();
+						const start = chartStart(end, span, statistics, zone);
+						const rows = await fetchStatistics(
+							entityIds,
+							new Date(start),
+							new Date(end),
+							statistics,
+							{ types }
+						);
+						return { rows, range: [start, end] as [number, number] };
+					},
+					shortTerm ? SHORT_TERM_CACHE_MS : undefined
+				),
+			(value) => (loaded = value),
+			shortTerm ? SHORT_TERM_REFRESH_MS : DATA_REFRESH_MS
 		);
 	});
 
