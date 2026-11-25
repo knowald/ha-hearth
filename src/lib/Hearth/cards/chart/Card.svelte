@@ -78,7 +78,7 @@
 	 */
 	let legendRows = $derived.by(() => {
 		if (!frame || !frameHeight) return 2;
-		const chip = frame.querySelector<HTMLElement>('.chip');
+		const chip = frame.querySelector<HTMLElement>('.legend-chip');
 		const head = frame.querySelector<HTMLElement>('.head');
 		const area = frame.querySelector<HTMLElement>('.plot-area');
 		if (!chip || !area) return 2;
@@ -104,7 +104,7 @@
 		if (!legend) return;
 		const top = legend.scrollTop;
 		const bottom = top + legend.clientHeight;
-		hiddenChips = [...legend.querySelectorAll<HTMLElement>('.chip')].filter(
+		hiddenChips = [...legend.querySelectorAll<HTMLElement>('.legend-chip')].filter(
 			(chip) => chip.offsetTop < top - 1 || chip.offsetTop + chip.offsetHeight > bottom + 1
 		).length;
 	}
@@ -125,8 +125,8 @@
 
 {#snippet chip(entry: (typeof series)[number], index: number)}
 	<span class="dot" style:background={entry.paint} class:faded={entry.faded}></span>
-	<span class="chip-name">{entry.label}</span>
-	<span class="chip-value">{chipText(entry, index)}</span>
+	<span class="legend-chip-name">{entry.label}</span>
+	<span class="legend-chip-value">{chipText(entry, index)}</span>
 {/snippet}
 
 <div
@@ -157,14 +157,14 @@
 				{#if entry.openable}
 					<button
 						type="button"
-						class="chip"
+						class="legend-chip"
 						data-entity={entry.entity}
 						onclick={() => openEntityDetail(entry.entity, entry.name)}
 					>
 						{@render chip(entry, index)}
 					</button>
 				{:else}
-					<span class="chip" data-entity={entry.entity}>{@render chip(entry, index)}</span>
+					<span class="legend-chip" data-entity={entry.entity}>{@render chip(entry, index)}</span>
 				{/if}
 			{/each}
 		</div>
@@ -172,7 +172,9 @@
 			<button
 				type="button"
 				class="more"
-				aria-label={fill($lang('hearth_chart_more_entities'), { count: hiddenChips })}
+				aria-label={hiddenChips === 1
+					? $lang('hearth_chart_more_entities_one')
+					: fill($lang('hearth_chart_more_entities'), { count: hiddenChips })}
 				onclick={showMoreChips}
 			>
 				+{hiddenChips}
@@ -298,7 +300,7 @@
 		cursor: pointer;
 	}
 
-	.chip {
+	.legend-chip {
 		display: flex;
 		flex: none;
 		scroll-snap-align: start;
@@ -319,7 +321,7 @@
 		appearance: none;
 	}
 
-	button.chip {
+	button.legend-chip {
 		cursor: pointer;
 	}
 
@@ -338,7 +340,7 @@
 		opacity: 0.5;
 	}
 
-	.chip-name {
+	.legend-chip-name {
 		min-width: 0;
 		max-width: 10em;
 		white-space: nowrap;
@@ -346,13 +348,13 @@
 		text-overflow: ellipsis;
 	}
 
-	.chip-value {
+	.legend-chip-value {
 		flex: none;
 		font-family: var(--h-font-mono);
 		color: var(--h-text-1);
 	}
 
-	.legend.selected .chip-value {
+	.legend.selected .legend-chip-value {
 		color: var(--h-accent-text);
 	}
 

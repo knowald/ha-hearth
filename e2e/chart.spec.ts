@@ -120,7 +120,9 @@ test('a click on the plot shows that time in the chips and stays when the mouse 
 	const card = climate(page);
 	const plot = card.getByRole('slider', { name: 'Climate' });
 	await expect(card.locator('path.line')).toHaveCount(2);
-	const temperature = card.locator('.chip', { hasText: 'Temperature' }).locator('.chip-value');
+	const temperature = card
+		.locator('.legend-chip', { hasText: 'Temperature' })
+		.locator('.legend-chip-value');
 	await expect(temperature).toHaveText(/^21.5/);
 	const box = (await plot.boundingBox())!;
 	await page.mouse.click(box.x + 2, box.y + box.height / 2);
@@ -154,7 +156,7 @@ test('draws the week as daily bars with the running day dashed', async ({ page }
 	await expect(card.locator('rect.bar.current')).toHaveCount(1);
 	await expect(card.locator('.grid.zero')).toHaveCount(1);
 	// the chip counts what the newest bar counts, not the meter's total
-	const value = card.locator('.chip .chip-value');
+	const value = card.locator('.legend-chip .legend-chip-value');
 	await expect(value).toHaveText(/kWh$/);
 	await expect(value).not.toContainText('1284.6');
 	// the axis ends on today, though it runs to tomorrow's midnight for today's bar
@@ -171,10 +173,18 @@ test('an unavailable entity shows its state in its chip and keeps its history', 
 	await page.goto('/');
 	await expect(climate(page).locator('path.line')).toHaveCount(2);
 	await setState(request, 'sensor.humidity', 'unavailable');
-	await expect(climate(page).locator('.chip', { hasText: 'Humidity' })).toContainText(
+	await expect(climate(page).locator('.legend-chip', { hasText: 'Humidity' })).toContainText(
 		'Unavailable'
 	);
 	await expect(climate(page).locator('path.line')).toHaveCount(2);
+});
+
+test('a tap on a legend chip opens the card editor while editing', async ({ page }) => {
+	await page.goto('/');
+	await expect(climate(page).locator('path.line')).toHaveCount(2);
+	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
+	await climate(page).locator('.legend-chip').first().click();
+	await expect(page.getByRole('dialog', { name: 'Edit card' })).toBeVisible();
 });
 
 test('an entity added in the editor is drawn and saved', async ({ page }) => {
@@ -193,7 +203,7 @@ test('an entity added in the editor is drawn and saved', async ({ page }) => {
 	await row.getByLabel('Entity', { exact: true }).fill('sensor.power');
 	await row.getByRole('group', { name: 'Color' }).getByRole('button', { name: 'Bad' }).click();
 	await sheet.getByLabel('Style').selectOption('bar');
-	await expect(sheet.locator('.preview .chip', { hasText: 'Power' })).toBeVisible();
+	await expect(sheet.locator('.preview .legend-chip', { hasText: 'Power' })).toBeVisible();
 	await expect(sheet.locator('.preview rect.bar').first()).toBeVisible();
 
 	await sheet.getByRole('button', { name: 'Done' }).click();
@@ -203,7 +213,7 @@ test('an entity added in the editor is drawn and saved', async ({ page }) => {
 		.toMatch(/- entity: sensor.power\s+color: bad\s+style: bar/);
 
 	await page.reload();
-	await expect(climate(page).locator('.chip')).toHaveCount(3);
+	await expect(climate(page).locator('.legend-chip')).toHaveCount(3);
 	await expect(climate(page).locator('rect.bar').first()).toBeVisible();
 });
 
@@ -230,7 +240,7 @@ test.describe('on a phone', () => {
 		await page.goto('/');
 		const card = page.locator('.card.chart');
 		await expect(card.locator('path.line')).toHaveCount(6);
-		const chip = (await card.locator('.chip').first().boundingBox())!;
+		const chip = (await card.locator('.legend-chip').first().boundingBox())!;
 		expect(Math.round(chip.height)).toBe(44);
 		const frame = (await card.boundingBox())!;
 		expect((await card.getByRole('slider').boundingBox())!.height).toBeGreaterThanOrEqual(96);
@@ -272,7 +282,7 @@ for (const height of [280, undefined]) {
 				expect(box.y + box.height, part).toBeLessThanOrEqual(frame.y + frame.height + 0.5);
 			}
 			const legend = (await card.locator('.legend').boundingBox())!;
-			const chip = (await card.locator('.chip').first().boundingBox())!;
+			const chip = (await card.locator('.legend-chip').first().boundingBox())!;
 			const ticks = await card.locator('.x-axis .tick').all();
 			expect(ticks.length).toBeGreaterThanOrEqual(2);
 			let previousEnd = -Infinity;
@@ -289,7 +299,7 @@ for (const height of [280, undefined]) {
 			expect(Math.abs(rows - Math.round(rows))).toBeLessThan(0.05);
 			// the chips without a row are counted on a chip of their own, which steps to them
 			const visible = async () =>
-				card.locator('.chip').evaluateAll((chips) => {
+				card.locator('.legend-chip').evaluateAll((chips) => {
 					const box = chips[0].parentElement!.getBoundingClientRect();
 					return chips
 						.filter((chip) => {

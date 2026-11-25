@@ -97,7 +97,7 @@ async function pointer(target: Element, type: string, clientX = 0) {
 }
 
 const chipValue = (container: HTMLElement, entity: string) =>
-	container.querySelector(`.chip[data-entity="${entity}"] .chip-value`)?.textContent;
+	container.querySelector(`.legend-chip[data-entity="${entity}"] .legend-chip-value`)?.textContent;
 
 describe('chart card', () => {
 	beforeEach(() => {
@@ -391,7 +391,7 @@ describe('chart card', () => {
 			'sensor.bedroom': hassEntity('sensor.bedroom', 'unavailable', { friendly_name: 'Bedroom' })
 		});
 		const { container } = render(Card, { card: chart() });
-		const chips = [...container.querySelectorAll('.chip')];
+		const chips = [...container.querySelectorAll('.legend-chip')];
 		expect(chips[0].tagName).toBe('SPAN');
 		expect(chips[0].textContent).toContain('Missing entity');
 		expect(chips[1].tagName).toBe('BUTTON');

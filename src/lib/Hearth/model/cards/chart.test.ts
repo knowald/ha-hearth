@@ -83,6 +83,16 @@ describe('chart card definition', () => {
 		]);
 	});
 
+	it('reports an entity listed twice, which normalize would drop without a word', () => {
+		const entities = [{ entity: 'sensor.a', name: 'First' }, { entity: ' sensor.a ' }];
+		expect(chartCard.normalize({ entities }).entities).toEqual([
+			{ entity: 'sensor.a', name: 'First', color: undefined }
+		]);
+		expect(hearthConfigIssues(withCard({ entities }))).toEqual([
+			expect.stringContaining('must not list an entity twice')
+		]);
+	});
+
 	it('reports a style or period it does not know', () => {
 		expect(v.safeParse(chartCard.schema, { style: 'line', period: 'month' }).success).toBe(true);
 		expect(v.safeParse(chartCard.schema, { style: 'radial' }).success).toBe(false);
