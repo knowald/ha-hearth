@@ -14,6 +14,7 @@
 		hearthEditMode,
 		hearthLoadError,
 		hearthLoadErrorKind,
+		partLoadFailed,
 		saveFailure,
 		saveState,
 		acceptUndoOffer,
@@ -99,7 +100,7 @@
 		{$lang(shownIssue === 'lost' ? 'hearth_connection_lost' : 'hearth_connection_degraded')}
 	</div>
 {/if}
-{#if $hearthLoadError || $configurationLoadError}
+{#if $hearthLoadError || $configurationLoadError || $partLoadFailed}
 	<div class="load-errors">
 		{#if $configurationLoadError}
 			<div class="load-error" role="alert">
@@ -108,6 +109,17 @@
 					<strong>{$lang('hearth_settings_file_unreadable')}</strong>
 					<span>{$lang('hearth_settings_file_unreadable_hint')}</span>
 					<span class="detail">{$configurationLoadError}</span>
+				</div>
+				<button type="button" class="load-error-action" onclick={reloadPage}>
+					{$lang('hearth_reload')}
+				</button>
+			</div>
+		{/if}
+		{#if $partLoadFailed}
+			<div class="load-error" role="alert">
+				<Icon name="error" size={ICON.control} />
+				<div class="load-error-copy">
+					<strong>{$lang('hearth_could_not_load_component')}</strong>
 				</div>
 				<button type="button" class="load-error-action" onclick={reloadPage}>
 					{$lang('hearth_reload')}

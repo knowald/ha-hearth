@@ -25,6 +25,13 @@ export const hearthLoadError = writable<string | null>(null);
 export type HearthErrorKind = 'unreadable' | 'version' | 'invalid';
 export const hearthLoadErrorKind = writable<HearthErrorKind | null>(null);
 
+/*
+ * A part the user asked for, a popup or the search, did not load: offline, or
+ * a deploy replaced the files this page knows. Only a reload is sure to mend
+ * the second, so the toast offers one. Cleared by the next part that loads.
+ */
+export const partLoadFailed = writable(false);
+
 // True only when the server found no usable source document. The dashboard
 // can offer discovery automatically without confusing parse/I/O failures with
 // a first run.
