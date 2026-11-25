@@ -159,6 +159,14 @@
 	});
 
 	$effect(() => {
+		// a refresh dropped the selected bucket; a pin left behind would shut hover out
+		if (drawable && selectedStart !== null && current === null) {
+			selectedStart = null;
+			pinned = false;
+		}
+	});
+
+	$effect(() => {
 		if (!data) {
 			reading = undefined;
 			return;

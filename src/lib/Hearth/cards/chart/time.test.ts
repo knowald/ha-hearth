@@ -76,6 +76,16 @@ describe('axisTicks', () => {
 			expect(wall(tick.time, 'Asia/Kolkata')).toMatch(/(00|06|12|18):00$/);
 	});
 
+	it('keeps to full hours and midnights across a half-hour clock change', () => {
+		// Lord Howe Island moves its clock on by 30 minutes on this day
+		const zone = 'Australia/Lord_Howe';
+		const end = Date.UTC(2026, 9, 4, 1);
+		expect(wall(dayStart(end, zone), zone)).toMatch(/00:00$/);
+		const ticks = axisTicks('day', 'line', [end - DAY, end], end, zone);
+		expect(ticks.length).toBeGreaterThanOrEqual(3);
+		for (const tick of ticks) expect(wall(tick.time, zone)).toMatch(/(00|06|12|18):00$/);
+	});
+
 	it('labels each day of a week of bars at the middle of its bar, up to today', () => {
 		const start = chartStart(now, 7 * DAY, 'day', 'UTC');
 		const end = Date.UTC(2026, 10, 18);

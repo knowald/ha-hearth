@@ -8,6 +8,7 @@ import type { ChartPeriod, ChartStyle } from './series';
  * takes the zone, undefined meaning the browser's, as store.ts asks.
  */
 
+const MINUTE = 60 * 1000;
 const HOUR = 3600 * 1000;
 const clocks = new Map<string, Intl.DateTimeFormat>();
 
@@ -43,10 +44,12 @@ export function hourStart(time: number, timeZone: string | undefined): number {
 export function dayStart(time: number, timeZone: string | undefined): number {
 	const { hour, minute, second } = wallClock(time, timeZone);
 	const guess = time - ((hour * 60 + minute) * 60 + second) * 1000 - milliseconds(time);
-	// a daylight saving change earlier that day leaves the guess an hour off
-	const off = wallClock(guess, timeZone).hour;
+	// a daylight saving change earlier that day leaves the guess off by its shift,
+	// which is half an hour in some zones
+	const wall = wallClock(guess, timeZone);
+	const off = wall.hour * 60 + wall.minute;
 	if (off === 0) return guess;
-	return off >= 12 ? guess + (24 - off) * HOUR : guess - off * HOUR;
+	return off >= 12 * 60 ? guess + (24 * 60 - off) * MINUTE : guess - off * MINUTE;
 }
 
 /** The midnight after the one `time`'s day starts at. */
@@ -100,10 +103,14 @@ export function axisTicks(
 	if (!(limit >= start)) return [];
 	if (period === 'day') {
 		const ticks: AxisTick[] = [];
-		let hour = hourStart(start, timeZone);
-		if (hour < start) hour += HOUR;
-		for (let count = 0; hour <= limit && count < 50; count += 1, hour += HOUR) {
-			if (wallClock(hour, timeZone).hour % 6 === 0) ticks.push({ time: hour, at: hour });
+		// half-hour steps, since a zone whose clock shifts by half an hour has its
+		// full hours on the other half afterwards
+		let step = hourStart(start, timeZone);
+		for (let count = 0; step <= limit && count < 100; count += 1, step += HOUR / 2) {
+			const wall = wallClock(step, timeZone);
+			if (step >= start && wall.minute === 0 && wall.hour % 6 === 0) {
+				ticks.push({ time: step, at: step });
+			}
 		}
 		return ticks;
 	}

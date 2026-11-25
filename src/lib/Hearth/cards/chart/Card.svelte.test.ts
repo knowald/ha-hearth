@@ -347,6 +347,24 @@ describe('chart card', () => {
 		expect(chipValue(container, 'sensor.living')).toBe(`21${DEGREES}`);
 	});
 
+	it('lets go of a pinned time once a refresh no longer has it', async () => {
+		const { container } = render(Card, { card: chart() });
+		await drawn(container);
+		const plot = screen.getByRole('slider');
+		await fireEvent.click(plot, { clientX: 0 });
+		expect(container.querySelector('.readout.idle')).toBeNull();
+
+		mocks.fetchStatistics.mockResolvedValue({
+			'sensor.living': hourly([21, null, 23, 22, 24], 'mean', LAST + HOUR),
+			'sensor.bedroom': hourly([19, 19.5, 20, 19, 18], 'mean', LAST + HOUR)
+		});
+		await act(() => mocks.refresh());
+		await waitFor(() => expect(container.querySelector('.readout.idle')).toBeTruthy());
+		// hover selects again, which a pin left behind would refuse
+		await pointer(plot, 'pointermove');
+		expect(container.querySelector('.readout.idle')).toBeNull();
+	});
+
 	it('names the plot after the card', async () => {
 		const { container } = render(Card, { card: chart({ name: 'Temperature' }) });
 		await drawn(container);
