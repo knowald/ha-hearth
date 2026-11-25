@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 /*
  * Unsaved work survives the accidental ways out: a backdrop tap, a reload, a
@@ -25,6 +25,18 @@ test.beforeEach(async ({ request }) => {
 });
 
 test.afterEach(() => writeFileSync(HEARTH_FILE, HEARTH_FIXTURE));
+
+/*
+ * The fixture as another writer would leave it, `ahead` revisions past the
+ * server's. The server numbers an outside edit in the file itself, so neither
+ * the fixture's own revision nor the server's is a fixed number in a long run.
+ */
+async function saveElsewhere(request: APIRequestContext, ahead: number) {
+	const { revision } = await (await request.get('/_api/hearth_versions')).json();
+	const elsewhere = HEARTH_FIXTURE.replace(/^revision: \d+$/m, `revision: ${revision + ahead}`);
+	expect(elsewhere).not.toBe(HEARTH_FIXTURE);
+	writeFileSync(HEARTH_FILE, elsewhere);
+}
 
 test('a backdrop tap asks before dropping a filled-in form', async ({ page }) => {
 	await open(page);
@@ -140,9 +152,12 @@ test('the sleep screen stays away while editing', async ({ page }) => {
 	await expect(screensaver).toBeVisible();
 });
 
-test('offers a reload before editing a configuration saved elsewhere', async ({ page }) => {
+test('offers a reload before editing a configuration saved elsewhere', async ({
+	page,
+	request
+}) => {
 	await open(page);
-	writeFileSync(HEARTH_FILE, HEARTH_FIXTURE.replace('revision: 1', 'revision: 9'));
+	await saveElsewhere(request, 10);
 	await page.getByRole('button', { name: 'Edit Hearth configuration' }).click();
 	const confirm = page.getByRole('alertdialog');
 	await expect(confirm).toContainText('Newer configuration saved');
@@ -150,9 +165,12 @@ test('offers a reload before editing a configuration saved elsewhere', async ({ 
 	await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 });
 
-test('Reload in the newer-configuration prompt reloads the page every time', async ({ page }) => {
+test('Reload in the newer-configuration prompt reloads the page every time', async ({
+	page,
+	request
+}) => {
 	await open(page);
-	writeFileSync(HEARTH_FILE, HEARTH_FIXTURE.replace('revision: 1', 'revision: 9'));
+	await saveElsewhere(request, 10);
 	// the closing prompt takes its history entry back with history.back(),
 	// which used to abort the reload and leave this page in place
 	for (let attempt = 0; attempt < 3; attempt++) {
@@ -163,9 +181,6 @@ test('Reload in the newer-configuration prompt reloads the page every time', asy
 		await confirm.getByRole('button', { name: 'Reload' }).click();
 		await page.waitForFunction(() => !(window as unknown as { stale?: boolean }).stale);
 		await expect(page.getByRole('button', { name: /Desk lamp/ })).toBeVisible();
-		writeFileSync(
-			HEARTH_FILE,
-			HEARTH_FIXTURE.replace('revision: 1', `revision: ${20 + attempt * 10}`)
-		);
+		await saveElsewhere(request, 10);
 	}
 });
