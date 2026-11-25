@@ -38,7 +38,8 @@ describe('seriesPath', () => {
 		expect(seriesPath(indexed([null, null]), box, { x: [0, 1], y: [0, 1] })).toEqual({
 			line: '',
 			area: '',
-			coords: []
+			coords: [],
+			singles: []
 		});
 	});
 
@@ -46,6 +47,7 @@ describe('seriesPath', () => {
 		const path = seriesPath([{ x: 5, y: 3 }], box, { x: [5, 5], y: [3, 3] });
 		expect(path.line).toBe('M0.0,50.0');
 		expect(path.coords).toEqual([{ x: 0, y: 50 }]);
+		expect(path.singles).toEqual([{ x: 0, y: 50 }]);
 	});
 
 	it('keeps a flat series on the bottom edge', () => {
@@ -71,5 +73,74 @@ describe('seriesPath', () => {
 		expect(path.line).toBe('M0.0,45.0 L100.0,5.0');
 		expect(path.area).toBe('M0.0,45.0 L100.0,5.0 L100,50 L0,50 Z');
 		expect(chartY(5, padded, [0, 10])).toBe(25);
+	});
+
+	it('lists a point between two gaps as a single, and only that one', () => {
+		const path = seriesPath(indexed([1, 2, null, 3, null, 4, 5]), box, {
+			x: [0, 6],
+			y: [0, 10]
+		});
+		expect(path.singles).toEqual([{ x: 50, y: 35 }]);
+		expect(path.line).toBe('M0.0,45.0 L16.7,40.0 M50.0,35.0 M83.3,30.0 L100.0,25.0');
+	});
+
+	it('leaves out points without a finite x and breaks the line at a non-finite y', () => {
+		const path = seriesPath(
+			[
+				{ x: 0, y: 0 },
+				{ x: NaN, y: 5 },
+				{ x: 1, y: 10 },
+				{ x: 2, y: NaN },
+				{ x: 3, y: 10 },
+				{ x: 4, y: Infinity },
+				{ x: 4, y: 0 }
+			],
+			box,
+			{ x: [0, 4], y: [0, 10] }
+		);
+		expect(path.line).not.toContain('NaN');
+		expect(path.line).toBe('M0.0,50.0 L25.0,0.0 M75.0,0.0 M100.0,50.0');
+	});
+
+	it('leaves out points outside the x domain', () => {
+		const path = seriesPath(indexed([5, 0, 10, 5]), box, { x: [1, 2], y: [0, 10] });
+		expect(path.line).toBe('M0.0,50.0 L100.0,0.0');
+		expect(path.area).toBe('M0.0,50.0 L100.0,0.0 L100,50 L0,50 Z');
+	});
+
+	it('draws points in x order, keeping a gap where it was listed', () => {
+		const path = seriesPath(
+			[
+				{ x: 2, y: 10 },
+				{ x: 0, y: 0 },
+				{ x: 1, y: 5 },
+				{ x: 3, y: null },
+				{ x: 4, y: 0 }
+			],
+			box,
+			{ x: [0, 4], y: [0, 10] }
+		);
+		expect(path.line).toBe('M0.0,50.0 L25.0,25.0 L50.0,0.0 M100.0,50.0');
+		expect(path.singles).toEqual([{ x: 100, y: 50 }]);
+	});
+
+	it('closes the area at the x the line ends on, rounded the same way', () => {
+		// 0.35 is stored just under itself: toFixed gives 0.3 where Math.round gave 0.4
+		const path = seriesPath(
+			[
+				{ x: 0, y: 0 },
+				{ x: 0.35, y: 10 }
+			],
+			box,
+			{ x: [0, 100], y: [0, 10] }
+		);
+		expect(path.line).toBe('M0.0,50.0 L0.3,0.0');
+		expect(path.area).toBe('M0.0,50.0 L0.3,0.0 L0.3,50 L0,50 Z');
+	});
+
+	it('stays finite on a domain wider than the largest double', () => {
+		const path = seriesPath(indexed([-1e308, 1e308]), box, { x: [0, 1], y: [-1e308, 1e308] });
+		expect(path.line).toBe('M0.0,50.0 L100.0,0.0');
+		expect(chartY(0, box, [-1.7e308, 1.7e308])).toBe(25);
 	});
 });

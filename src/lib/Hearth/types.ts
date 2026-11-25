@@ -230,6 +230,18 @@ type OverviewCardVariant =
 			segments?: { from: number; color: string }[];
 			needle?: boolean;
 	  }
+	// long-term statistics of up to six entities on one shared y axis; height
+	// fixes the card in px, without it the card fills its column
+	| {
+			id: string;
+			type: 'chart';
+			name?: string;
+			style?: 'line' | 'bar';
+			period?: 'day' | 'week' | 'month';
+			// color is a role name (accent, cool, good, bad) or a CSS color
+			entities?: { entity: string; name?: string; color?: string }[];
+			height?: number;
+	  }
 	// shortcuts are one-tap Spotify URIs; default_device names the Connect
 	// device they start on when nothing is playing yet
 	| {

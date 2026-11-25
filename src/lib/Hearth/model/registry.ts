@@ -1,6 +1,7 @@
 import type { CardDefinition, CardGroup, WidgetDefinition } from './types';
 import type { OverviewCard, RailWidget } from '../types';
 import { cameraCard } from './cards/camera';
+import { chartCard } from './cards/chart';
 import { climateCard } from './cards/climate';
 import { conditionalMediaCard } from './cards/conditional_media';
 import { daysSinceCard } from './cards/days_since';
@@ -17,6 +18,7 @@ import { todoCard } from './cards/todo';
 import { vacuumCard } from './cards/vacuum';
 export const CARD_DEFINITIONS = [
 	cameraCard,
+	chartCard,
 	climateCard,
 	conditionalMediaCard,
 	daysSinceCard,

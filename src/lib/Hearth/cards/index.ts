@@ -4,6 +4,7 @@ import type { OverviewCard, OverviewItem } from '../types';
 import { isStack } from '../config';
 import type { CardDescriptor } from './types';
 import { cameraCard } from './camera/descriptor';
+import { chartCard } from './chart/descriptor';
 import { climateCard } from './climate/descriptor';
 import { conditionalMediaCard } from './conditional_media/descriptor';
 import { daysSinceCard } from './days_since/descriptor';
@@ -30,6 +31,7 @@ const REGISTERED = [
 	headerCard,
 	temperatureCard,
 	gaugeCard,
+	chartCard,
 	daysSinceCard,
 	templateCard,
 	mediaCard,

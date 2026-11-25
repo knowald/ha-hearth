@@ -197,6 +197,20 @@ rooms:
               color: accent
             - from: 800
               color: bad
+        - id: chart
+          type: chart
+          name: Climate
+          height: 280
+          entities:
+            - entity: sensor.temperature
+            - entity: sensor.humidity
+        - id: chart-bars
+          type: chart
+          style: bar
+          period: week
+          height: 280
+          entities:
+            - entity: sensor.energy
         - id: media
           type: media
           entity: media_player.living

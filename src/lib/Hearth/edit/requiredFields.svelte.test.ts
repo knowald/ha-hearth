@@ -3,6 +3,7 @@ import type { Component } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
 import { english as en } from '$lib/core/i18n/testing';
 import CameraEditor from '../cards/camera/Editor.svelte';
+import ChartCardEditor from '../cards/chart/Editor.svelte';
 import ClimateEditor from '../cards/climate/Editor.svelte';
 import DaysSinceEditor from '../cards/days_since/Editor.svelte';
 import GaugeEditor from '../cards/gauge/Editor.svelte';
@@ -34,6 +35,7 @@ const required = (label: string) => en.hearth_field_required.replace('{field}', 
 const EDITORS: [type: string, editor: unknown, label: string, filled: Record<string, unknown>][] = [
 	['climate', ClimateEditor, en.entity, { entity: 'climate.living' }],
 	['camera', CameraEditor, en.entity, { entity: 'camera.door' }],
+	['chart card', ChartCardEditor, en.entity, { entities: [{ entity: 'sensor.power' }] }],
 	['days_since', DaysSinceEditor, en.entity, { entity: 'input_datetime.filter' }],
 	['gauge', GaugeEditor, en.entity, { entity: 'sensor.humidity' }],
 	['image', ImageEditor, en.entity, { entity: 'image.floorplan' }],
