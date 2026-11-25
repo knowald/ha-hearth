@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { states } from '$lib/core/ha/entities';
 import { hassEntity } from '$lib/core/ha/testing';
 import { DEFAULT_HEARTH_CONFIG } from './config';
-import { closePopup, hearthConfig, hearthNeedsSetup, popup } from './store';
+import { closePopup, hearthConfig, hearthNeedsSetup, partLoadFailed, popup } from './store';
 import HearthDashboard from './HearthDashboard.svelte';
 
 const chunk = vi.hoisted(() => ({ offline: true, loads: 0 }));
@@ -47,6 +47,7 @@ describe('HearthDashboard popups', () => {
 
 	afterEach(() => {
 		closePopup();
+		partLoadFailed.set(false);
 		vi.unstubAllGlobals();
 		vi.restoreAllMocks();
 	});
@@ -54,16 +55,21 @@ describe('HearthDashboard popups', () => {
 	it('drops a popup it could not load and loads the popups again with the next one', async () => {
 		render(HearthDashboard);
 		await waitFor(() => expect(chunk.loads).toBe(1));
+		// nobody asked for a popup yet, so nobody is told
+		await act();
+		expect(get(partLoadFailed)).toBe(false);
 
 		await act(() => popup.set(PUMP));
 		// the first load had failed, so asking loads again; still offline, the popup is dropped
 		await waitFor(() => expect(chunk.loads).toBe(2));
 		await waitFor(() => expect(get(popup)).toBeNull());
 		expect(screen.queryByRole('dialog', { name: 'Pump' })).toBeNull();
+		expect(await screen.findByRole('button', { name: 'Reload' })).toBeTruthy();
 
 		chunk.offline = false;
 		await act(() => popup.set(PUMP));
 		expect(await screen.findByRole('dialog', { name: 'Pump' })).toBeTruthy();
 		expect(get(popup)).toEqual(PUMP);
+		expect(screen.queryByRole('button', { name: 'Reload' })).toBeNull();
 	});
 });

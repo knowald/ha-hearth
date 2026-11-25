@@ -14,6 +14,7 @@
 		hearthLoadError,
 		closePopup,
 		hearthNeedsSetup,
+		partLoadFailed,
 		popup,
 		screensaverActive,
 		sleepNow,
@@ -111,12 +112,20 @@
 	let popupLoadFailed = $state(false);
 
 	function loadControlPopup() {
-		return import('./ControlPopup.svelte').catch((error) => {
-			console.warn('popups unavailable', error);
-			popupLoadFailed = true;
-			closePopup();
-			throw error;
-		});
+		return import('./ControlPopup.svelte').then(
+			(loaded) => {
+				partLoadFailed.set(false);
+				return loaded;
+			},
+			(error) => {
+				console.warn('popups unavailable', error);
+				popupLoadFailed = true;
+				// the load after the first frame fails unseen; one a tap waited on is told
+				if ($popup) partLoadFailed.set(true);
+				closePopup();
+				throw error;
+			}
+		);
 	}
 
 	$effect(() => {
@@ -126,11 +135,18 @@
 	});
 
 	function loadSearchOverlay() {
-		return import('./SearchOverlay.svelte').catch((error) => {
-			console.warn('search unavailable', error);
-			showSearch = false;
-			throw error;
-		});
+		return import('./SearchOverlay.svelte').then(
+			(loaded) => {
+				partLoadFailed.set(false);
+				return loaded;
+			},
+			(error) => {
+				console.warn('search unavailable', error);
+				showSearch = false;
+				partLoadFailed.set(true);
+				throw error;
+			}
+		);
 	}
 
 	function loadSetupWizard() {
@@ -518,7 +534,12 @@
 	<!-- no popup is open in the first frame; the popups load after it, and one
 	     asked for before then opens as soon as they arrive -->
 	{#key popupAttempt}
-		{#await loadControlPopup() then ControlPopup}
+		{#await loadControlPopup()}
+			{#if $popup}
+				<!-- Escape and back cancel a popup that is still loading -->
+				<div hidden use:layer={closePopup}></div>
+			{/if}
+		{:then ControlPopup}
 			<ControlPopup.default />
 		{:catch}
 			<!-- loaded again with the next popup asked for -->
