@@ -12,7 +12,9 @@
 		hearthConfig,
 		hearthEditMode,
 		hearthLoadError,
+		closePopup,
 		hearthNeedsSetup,
+		popup,
 		screensaverActive,
 		sleepNow,
 		setupWizardOpen,
@@ -99,6 +101,29 @@
 		setupWizardOpen.set(false);
 		setupWizardSource.set('areas');
 	}
+
+	/*
+	 * The control popups load after the first frame. A load that fails, offline
+	 * or on a stale deploy, drops the popup that was asked for, since nothing
+	 * can draw it, and the next one asked for loads them again.
+	 */
+	let popupAttempt = $state(0);
+	let popupLoadFailed = $state(false);
+
+	function loadControlPopup() {
+		return import('./ControlPopup.svelte').catch((error) => {
+			console.warn('popups unavailable', error);
+			popupLoadFailed = true;
+			closePopup();
+			throw error;
+		});
+	}
+
+	$effect(() => {
+		if (!$popup || !popupLoadFailed) return;
+		popupLoadFailed = false;
+		popupAttempt += 1;
+	});
 
 	function loadSearchOverlay() {
 		return import('./SearchOverlay.svelte').catch((error) => {
@@ -492,9 +517,13 @@
 	{/if}
 	<!-- no popup is open in the first frame; the popups load after it, and one
 	     asked for before then opens as soon as they arrive -->
-	{#await import('./ControlPopup.svelte') then ControlPopup}
-		<ControlPopup.default />
-	{/await}
+	{#key popupAttempt}
+		{#await loadControlPopup() then ControlPopup}
+			<ControlPopup.default />
+		{:catch}
+			<!-- loaded again with the next popup asked for -->
+		{/await}
+	{/key}
 	{#if $hearthEditMode || $screenSheetOpen}
 		<!-- the edit sheets and their editors load with edit mode or the This
 		     screen sheet, not the dashboard; one boundary for both keeps the
@@ -508,7 +537,10 @@
 		{/key}
 	{/if}
 	{#if showSearch}
-		{#await loadSearchOverlay() then SearchOverlay}
+		{#await loadSearchOverlay()}
+			<!-- Escape and back cancel a search that is still loading -->
+			<div hidden use:layer={() => (showSearch = false)}></div>
+		{:then SearchOverlay}
 			<SearchOverlay.default onclose={() => (showSearch = false)} />
 		{:catch}
 			<!-- offline or a stale deploy: closed, so the next open tries again -->
