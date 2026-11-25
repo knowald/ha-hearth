@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { lang } from '$lib/core/i18n';
+	import { fill, lang } from '$lib/core/i18n';
 	import { entityAvailability, sensorNumber, states } from '$lib/core/ha/entities';
 	import { hearthEditMode } from '../../store';
 	import { formatReading } from '../../format';
@@ -94,6 +94,33 @@
 		// a pixel of slack for rounding, so a card sized by its content keeps two rows
 		return free + 1 >= 2 * chip.offsetHeight + LEGEND_GAP ? 2 : 1;
 	});
+
+	let legend = $state<HTMLElement>();
+	let legendWidth = $state(0);
+	// chips the legend's rows have no room for, and so scrolled out of view
+	let hiddenChips = $state(0);
+
+	function countHiddenChips() {
+		if (!legend) return;
+		const top = legend.scrollTop;
+		const bottom = top + legend.clientHeight;
+		hiddenChips = [...legend.querySelectorAll<HTMLElement>('.chip')].filter(
+			(chip) => chip.offsetTop < top - 1 || chip.offsetTop + chip.offsetHeight > bottom + 1
+		).length;
+	}
+
+	$effect(() => {
+		// each of these moves chips between rows
+		void [series.length, legendRows, legendWidth, reading?.selected];
+		countHiddenChips();
+	});
+
+	/** Scrolls one row on, and back to the first row from the last. */
+	function showMoreChips() {
+		if (!legend) return;
+		const atEnd = legend.scrollTop + legend.clientHeight >= legend.scrollHeight - 1;
+		legend.scrollTo({ top: atEnd ? 0 : legend.scrollTop + legend.clientHeight + LEGEND_GAP });
+	}
 </script>
 
 {#snippet chip(entry: (typeof series)[number], index: number)}
@@ -115,25 +142,42 @@
 		<div class="period">{periodText}</div>
 	</div>
 	<div
-		class="legend"
-		class:selected={reading?.selected}
+		class="legend-row"
 		style:--chart-legend-rows={legendRows}
 		style:--chart-legend-gap="{LEGEND_GAP}px"
 	>
-		{#each series as entry, index (index)}
-			{#if entry.openable}
-				<button
-					type="button"
-					class="chip"
-					data-entity={entry.entity}
-					onclick={() => openEntityDetail(entry.entity, entry.name)}
-				>
-					{@render chip(entry, index)}
-				</button>
-			{:else}
-				<span class="chip" data-entity={entry.entity}>{@render chip(entry, index)}</span>
-			{/if}
-		{/each}
+		<div
+			class="legend"
+			class:selected={reading?.selected}
+			bind:this={legend}
+			bind:clientWidth={legendWidth}
+			onscroll={countHiddenChips}
+		>
+			{#each series as entry, index (index)}
+				{#if entry.openable}
+					<button
+						type="button"
+						class="chip"
+						data-entity={entry.entity}
+						onclick={() => openEntityDetail(entry.entity, entry.name)}
+					>
+						{@render chip(entry, index)}
+					</button>
+				{:else}
+					<span class="chip" data-entity={entry.entity}>{@render chip(entry, index)}</span>
+				{/if}
+			{/each}
+		</div>
+		{#if hiddenChips}
+			<button
+				type="button"
+				class="more"
+				aria-label={fill($lang('hearth_chart_more_entities'), { count: hiddenChips })}
+				onclick={showMoreChips}
+			>
+				+{hiddenChips}
+			</button>
+		{/if}
 	</div>
 	<div class="plot-area">
 		{#await plot then Plot}
@@ -210,9 +254,18 @@
 	}
 
 	/* whole rows of chips, as many as legendRows allows; past that the chips scroll */
-	.legend {
+	.legend-row {
 		display: flex;
 		flex: none;
+		align-items: flex-end;
+		gap: var(--chart-legend-gap);
+	}
+
+	.legend {
+		position: relative;
+		display: flex;
+		flex: 1;
+		min-width: 0;
 		flex-wrap: wrap;
 		align-content: flex-start;
 		gap: var(--chart-legend-gap);
@@ -223,7 +276,26 @@
 		overflow-x: hidden;
 		overflow-y: auto;
 		scroll-snap-type: y mandatory;
-		scrollbar-width: thin;
+		/* the +N chip says there is more, and steps through it */
+		scrollbar-width: none;
+	}
+
+	.more {
+		flex: none;
+		box-sizing: border-box;
+		height: var(--chart-chip-height);
+		min-width: var(--chart-chip-height);
+		margin: 0;
+		padding: 0 10px;
+		border: 0;
+		border-radius: var(--h-radius-pill);
+		background: rgb(var(--h-surface-rgb) / calc(0.06 * var(--h-fill-scale)));
+		font: inherit;
+		font-family: var(--h-font-mono);
+		font-size: var(--h-type-secondary);
+		color: var(--h-text-3);
+		appearance: none;
+		cursor: pointer;
 	}
 
 	.chip {

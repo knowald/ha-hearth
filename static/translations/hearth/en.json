@@ -198,6 +198,7 @@
 	"hearth_chart_entity_number": "Entity {number}",
 	"hearth_chart_history": "History timeline",
 	"hearth_chart_line": "Line",
+	"hearth_chart_more_entities": "Show the other {count} entities",
 	"hearth_chart_radial": "Radial",
 	"hearth_chart_style": "Style",
 	"hearth_chime_bell": "Bell",

@@ -287,6 +287,26 @@ for (const height of [280, undefined]) {
 			const rows = (legend.height + 6) / (chip.height + 6);
 			expect([1, 2]).toContain(Math.round(rows));
 			expect(Math.abs(rows - Math.round(rows))).toBeLessThan(0.05);
+			// the chips without a row are counted on a chip of their own, which steps to them
+			const visible = async () =>
+				card.locator('.chip').evaluateAll((chips) => {
+					const box = chips[0].parentElement!.getBoundingClientRect();
+					return chips
+						.filter((chip) => {
+							const own = chip.getBoundingClientRect();
+							return own.top >= box.top - 1 && own.bottom <= box.bottom + 1;
+						})
+						.map((chip) => chip.getAttribute('data-entity'));
+				});
+			const first = await visible();
+			if (first.length < 6) {
+				const more = card.locator('.more');
+				await expect(more).toHaveText(`+${6 - first.length}`);
+				await more.click();
+				await expect.poll(visible).not.toEqual(first);
+			} else {
+				await expect(card.locator('.more')).toHaveCount(0);
+			}
 		});
 	}
 }
