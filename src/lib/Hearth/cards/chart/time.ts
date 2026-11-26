@@ -9,6 +9,7 @@ import type { ChartPeriod, ChartStyle } from './series';
  */
 
 const MINUTE = 60 * 1000;
+const FIVE_MINUTES = 5 * MINUTE;
 const HOUR = 3600 * 1000;
 const clocks = new Map<string, Intl.DateTimeFormat>();
 
@@ -64,8 +65,18 @@ export function dayStartAtOrAfter(time: number, timeZone: string | undefined): n
 }
 
 /**
- * Where the recorder is asked to start. Day bars start at a midnight, so
- * the first one is a whole day; everything else looks back the whole span.
+ * The first five-minute boundary at or after `time`. Every zone's offset is
+ * a whole number of quarter hours, so these are wall-clock boundaries too.
+ */
+export function fiveMinuteStartAtOrAfter(time: number): number {
+	return Math.ceil(time / FIVE_MINUTES) * FIVE_MINUTES;
+}
+
+/**
+ * Where the recorder is asked to start. Day buckets start at a midnight and
+ * five-minute ones at a five-minute boundary, so the first bar is whole and
+ * a line has no empty edge before its first point; hour buckets look back
+ * the whole span.
  */
 export function chartStart(
 	end: number,
@@ -73,7 +84,9 @@ export function chartStart(
 	bucket: StatisticPeriod,
 	timeZone: string | undefined
 ): number {
-	return bucket === 'day' ? dayStartAtOrAfter(end - span, timeZone) : end - span;
+	if (bucket === 'day') return dayStartAtOrAfter(end - span, timeZone);
+	if (bucket === '5minute') return fiveMinuteStartAtOrAfter(end - span);
+	return end - span;
 }
 
 export interface AxisTick {
@@ -84,11 +97,11 @@ export interface AxisTick {
 }
 
 /**
- * The time axis labels: every six hours for a day, midnights for a week
- * (every other one when `crowded`), and a midnight a week for a month,
- * counted back from the newest so today is always named. Nothing after
- * `now`, so the axis never names tomorrow. A label for a day bar sits at
- * the bar's middle; any other at its own time.
+ * The time axis labels: every quarter hour for an hour, every six hours
+ * for a day, midnights for a week (every other one when `crowded`), and a
+ * midnight a week for a month, counted back from the newest so today is
+ * always named. Nothing after `now`, so the axis never names tomorrow. A
+ * label for a day bar sits at the bar's middle; any other at its own time.
  */
 export function axisTicks(
 	period: ChartPeriod,
@@ -101,6 +114,17 @@ export function axisTicks(
 	const [start, end] = domain;
 	const limit = Math.min(end, now);
 	if (!(limit >= start)) return [];
+	if (period === 'hour') {
+		const ticks: AxisTick[] = [];
+		// five-minute steps, checked on the wall clock, so a zone whose offset is
+		// not a whole hour still has its quarter hours named
+		let step = fiveMinuteStartAtOrAfter(start);
+		for (let count = 0; step <= limit && count < 30; count += 1, step += FIVE_MINUTES) {
+			const wall = wallClock(step, timeZone);
+			if (wall.minute % 15 === 0 && wall.second === 0) ticks.push({ time: step, at: step });
+		}
+		return ticks;
+	}
 	if (period === 'day') {
 		const ticks: AxisTick[] = [];
 		// half-hour steps, since a zone whose clock shifts by half an hour has its
@@ -142,7 +166,7 @@ export function timeFormats(
 	const zone = { timeZone };
 	return {
 		axis:
-			period === 'day'
+			period === 'hour' || period === 'day'
 				? clock
 				: period === 'week'
 					? { weekday: 'short', ...zone }
@@ -150,7 +174,7 @@ export function timeFormats(
 		bucket:
 			bucket === 'day'
 				? { weekday: 'short', day: 'numeric', month: 'short', ...zone }
-				: period === 'day'
+				: period === 'hour' || period === 'day'
 					? clock
 					: { weekday: 'short', ...clock }
 	};

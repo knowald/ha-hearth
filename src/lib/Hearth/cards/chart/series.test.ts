@@ -36,6 +36,11 @@ describe('chartBucket', () => {
 		expect(chartBucket('bar', 'month')).toBe('day');
 	});
 
+	it('draws an hour by five minutes in both styles', () => {
+		expect(chartBucket('line', 'hour')).toBe('5minute');
+		expect(chartBucket('bar', 'hour')).toBe('5minute');
+	});
+
 	it('draws a week of lines by the hour and a week of bars by the day', () => {
 		expect(chartBucket('line', 'week')).toBe('hour');
 		expect(chartBucket('bar', 'week')).toBe('day');
@@ -274,6 +279,73 @@ describe('barRects', () => {
 			y: [0, 100] as [number, number]
 		};
 		expect(barRects(data, domain, box, START + HOUR)[0]).toMatchObject({ y: 99, height: 1 });
+	});
+});
+
+describe('five-minute buckets', () => {
+	const FIVE = 5 * 60 * 1000;
+	const box = { width: 120, height: 100, pad: 0 };
+	const fiveMinute = (values: (number | null)[]) =>
+		values.flatMap((value, index): StatisticRow[] =>
+			value === null
+				? []
+				: [{ start: START + index * FIVE, end: START + (index + 1) * FIVE, change: value }]
+		);
+
+	it('gives each bar a twelfth of the hour and leaves a missing one out', () => {
+		const data = chartData({ 'sensor.a': fiveMinute([1, 2, null, 4]) }, ['sensor.a'], 'bar');
+		const domain = {
+			x: [START, START + 12 * FIVE] as [number, number],
+			y: [0, 4] as [number, number]
+		};
+		const bars = barRects(data, domain, box, START + 12 * FIVE);
+		expect(bars.map((bar) => bar.bucket)).toEqual([0, 1, 2]);
+		expect(data.buckets.map((bucket) => bucket.start)).toEqual([
+			START,
+			START + FIVE,
+			START + 3 * FIVE
+		]);
+		// a slot of 10 wide, 7 of it filled and centered
+		expect(bars[0].x).toBeCloseTo(1.5);
+		expect(bars[0].width).toBeCloseTo(7);
+		expect(bars[2].x).toBeCloseTo(31.5);
+		expect(bars.some((bar) => bar.current)).toBe(false);
+	});
+
+	it('marks the five minutes still running', () => {
+		const data = chartData({ 'sensor.a': fiveMinute([1, 2]) }, ['sensor.a'], 'bar');
+		const domain = {
+			x: [START, START + 2 * FIVE] as [number, number],
+			y: [0, 2] as [number, number]
+		};
+		const bars = barRects(data, domain, box, START + FIVE + 1000);
+		expect(bars.map((bar) => bar.current)).toEqual([false, true]);
+	});
+
+	it('breaks a line across five minutes no row covers', () => {
+		const data = chartData(
+			{
+				'sensor.a': fiveMinute([1, 2, null, 4]).map(({ change, ...row }) => ({
+					...row,
+					mean: change
+				}))
+			},
+			['sensor.a'],
+			'line'
+		);
+		expect(linePoints(data, 0)).toEqual([
+			{ x: START, y: 1 },
+			{ x: START + FIVE, y: 2 },
+			{ x: START + 2 * FIVE, y: null },
+			{ x: START + 3 * FIVE, y: 4 }
+		]);
+	});
+
+	it('picks the nearest five minutes, a bar by its middle', () => {
+		const data = chartData({ 'sensor.a': fiveMinute([1, 2, 3]) }, ['sensor.a'], 'bar');
+		expect(nearestBucket(data, 'bar', START + 0.4 * FIVE)).toBe(0);
+		expect(nearestBucket(data, 'bar', START + 1.2 * FIVE)).toBe(1);
+		expect(nearestBucket(data, 'line', START + 1.6 * FIVE)).toBe(2);
 	});
 });
 

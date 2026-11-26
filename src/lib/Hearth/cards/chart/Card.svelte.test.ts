@@ -223,6 +223,43 @@ describe('chart card', () => {
 		expect(container.querySelector('.readout')?.textContent?.trim()).toBe(expected);
 	});
 
+	it('draws the last hour from five-minute statistics and names a time by its minutes', async () => {
+		useClock('Asia/Kathmandu', '24');
+		const five = 5 * 60 * 1000;
+		const last = Math.floor(Date.now() / five) * five - five;
+		const rows = [21, 21.5, 22].map((mean, index) => ({
+			start: last - (2 - index) * five,
+			end: last - (1 - index) * five,
+			mean
+		}));
+		mocks.fetchStatistics.mockResolvedValue({ 'sensor.living': rows });
+		const { container } = render(Card, {
+			card: chart({ period: 'hour', entities: [{ entity: 'sensor.living' }] })
+		});
+		await drawn(container);
+		expect(mocks.fetchStatistics).toHaveBeenCalledTimes(1);
+		const [ids, start, end, period, options] = mocks.fetchStatistics.mock.calls[0];
+		expect(ids).toEqual(['sensor.living']);
+		expect(period).toBe('5minute');
+		expect(options).toEqual({ types: ['mean', 'state'] });
+		expect(start.getTime() % five).toBe(0);
+		expect(end.getTime() - start.getTime()).toBeLessThanOrEqual(HOUR);
+		expect(end.getTime() - start.getTime()).toBeGreaterThan(HOUR - five);
+		expect(container.querySelector('.period')?.textContent).toBe('Last hour');
+		expect(container.querySelectorAll('path.line')).toHaveLength(1);
+		for (const tick of container.querySelectorAll('.x-axis .tick')) {
+			expect(tick.textContent?.trim()).toMatch(/^\d\d:(00|15|30|45)$/);
+		}
+		await fireEvent.click(screen.getByRole('slider'), { clientX: 0 });
+		const expected = new Intl.DateTimeFormat(undefined, {
+			hour: '2-digit',
+			minute: '2-digit',
+			hour12: false,
+			timeZone: 'Asia/Kathmandu'
+		}).format(rows[0].start);
+		expect(container.querySelector('.readout')?.textContent?.trim()).toBe(expected);
+	});
+
 	it('marks a point with no neighbour, which a line alone would not show', async () => {
 		mocks.fetchStatistics.mockResolvedValue({
 			'sensor.living': hourly([20, null, 22, null, 21])

@@ -14,10 +14,12 @@ export type ChartStyle = NonNullable<ChartCard['style']>;
 export type ChartPeriod = NonNullable<ChartCard['period']>;
 
 /**
- * The statistics period one point or bar covers. A week of lines reads by
- * the hour; a week of bars, like a month, by the day.
+ * The statistics period one point or bar covers. An hour reads by the
+ * recorder's five-minute short-term statistics; a week of lines by the
+ * hour; a week of bars, like a month, by the day.
  */
 export function chartBucket(style: ChartStyle, period: ChartPeriod): StatisticPeriod {
+	if (period === 'hour') return '5minute';
 	if (period === 'day') return 'hour';
 	return period === 'week' && style === 'line' ? 'hour' : 'day';
 }

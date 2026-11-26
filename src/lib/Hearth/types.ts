@@ -230,14 +230,14 @@ type OverviewCardVariant =
 			segments?: { from: number; color: string }[];
 			needle?: boolean;
 	  }
-	// long-term statistics of up to six entities on one shared y axis; height
+	// recorder statistics of up to six entities on one shared y axis; height
 	// fixes the card in px, without it the card fills its column
 	| {
 			id: string;
 			type: 'chart';
 			name?: string;
 			style?: 'line' | 'bar';
-			period?: 'day' | 'week' | 'month';
+			period?: 'hour' | 'day' | 'week' | 'month';
 			// color is a role name (accent, cool, good, bad) or a CSS color
 			entities?: { entity: string; name?: string; color?: string }[];
 			height?: number;

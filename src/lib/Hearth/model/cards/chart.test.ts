@@ -97,7 +97,15 @@ describe('chart card definition', () => {
 		expect(v.safeParse(chartCard.schema, { style: 'line', period: 'month' }).success).toBe(true);
 		expect(v.safeParse(chartCard.schema, { style: 'radial' }).success).toBe(false);
 		expect(v.safeParse(chartCard.schema, { period: 'year' }).success).toBe(false);
+		expect(hearthConfigIssues(withCard({ period: 'year' }))).toEqual([
+			expect.stringContaining('must be hour, day, week or month')
+		]);
 		expect(v.safeParse(chartCard.schema, { entities: [{ name: 'x' }] }).success).toBe(false);
+	});
+
+	it('accepts the last hour', () => {
+		expect(v.safeParse(chartCard.schema, { period: 'hour' }).success).toBe(true);
+		expect(chartCard.normalize({ period: 'hour' } as never).period).toBe('hour');
 	});
 
 	it('drafts a sensor, preferring a temperature', () => {
