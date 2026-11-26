@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.12.0] - 2026-11-26
+
+### Changed
+
+- Load the popups and the search after the dashboard is on screen, and offer a reload when one could not be loaded ([#59](https://github.com/knowald/ha-hearth/pull/59), [#64](https://github.com/knowald/ha-hearth/pull/64))
+
+### Added
+
+- Add a gauge card that shows one reading on a range as an arc or with a needle ([#57](https://github.com/knowald/ha-hearth/pull/57))
+- Color parts of a gauge's range with segments set in the card editor ([#57](https://github.com/knowald/ha-hearth/pull/57))
+- Add a chart card that draws the recorded history of up to six entities as lines or bars ([#63](https://github.com/knowald/ha-hearth/pull/63), [#65](https://github.com/knowald/ha-hearth/pull/65))
+- Show the last hour, day, week or month on a chart card ([#63](https://github.com/knowald/ha-hearth/pull/63), [#66](https://github.com/knowald/ha-hearth/pull/66))
+
+### Fixed
+
+- Show the energy widget's usage in kWh when the meter records Wh or MWh ([#62](https://github.com/knowald/ha-hearth/pull/62))
+
 ## [0.11.0] - 2026-11-12
 
 ### Changed
@@ -340,6 +357,7 @@
 
 - Make blur work everywhere in the application
 
+[0.12.0]: https://github.com/knowald/ha-hearth/releases/tag/0.12.0
 [0.11.0]: https://github.com/knowald/ha-hearth/releases/tag/0.11.0
 [0.10.1]: https://github.com/knowald/ha-hearth/releases/tag/0.10.1
 [0.10.0]: https://github.com/knowald/ha-hearth/releases/tag/0.10.0
