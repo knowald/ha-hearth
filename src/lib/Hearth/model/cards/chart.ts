@@ -62,7 +62,12 @@ export const chartCard: CardDefinition<ChartCard> = {
 		entities: v.optional(
 			v.pipe(
 				v.array(ChartEntitySchema, 'must be a list of { entity, name, color }'),
-				v.maxLength(CHART_MAX_ENTITIES, `must list at most ${CHART_MAX_ENTITIES} entities`)
+				v.maxLength(CHART_MAX_ENTITIES, `must list at most ${CHART_MAX_ENTITIES} entities`),
+				// normalize keeps the first of two rows for one entity, so say so before it does
+				v.check((entries) => {
+					const ids = entries.map((entry) => entry.entity.trim());
+					return new Set(ids).size === ids.length;
+				}, 'must not list an entity twice')
 			)
 		)
 	}),
